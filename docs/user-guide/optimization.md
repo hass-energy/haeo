@@ -13,7 +13,7 @@ HAEO creates three main network sensors:
 Total cost over the optimization horizon in dollars.
 
 - **Lower is better**: HAEO minimizes this value
-- **Includes**: Grid import/export costs, configured SOC pricing costs, connection transfer costs
+- **Includes**: Grid import/export costs, buffer shortfall costs, connection transfer costs
 - **Unit**: \$ (or your configured currency)
 
 !!! info "Lexicographic ordering"
@@ -25,21 +25,26 @@ Total cost over the optimization horizon in dollars.
 
 **Entity ID**: `sensor.{network_name}_optimization_status`
 
-Current optimization state:
+State of the latest optimization:
 
-- `success`: Optimization completed successfully
-- `failed`: Optimization failed (infeasible constraints, solver error, or timeout)
-- `pending`: Optimization is currently running or has not started yet
+- `success`: The latest optimization completed successfully
+- `failed`: The latest optimization failed, for example because inputs are unavailable or the problem is infeasible
+- `pending`: No optimization has finished since HAEO started
 
-When status is `failed`, check the Home Assistant logs for detailed error messages explaining the cause.
+This sensor exists from the moment the hub loads and stays available when an optimization fails.
+When the status is `failed`, its `error` attribute holds the error message, and the other output sensors are unavailable until an optimization succeeds.
+Its `last_run` attribute is the time the latest successful optimization finished.
+
+Some failures, such as an input with no reading or a plan that cannot meet every constraint, raise their own repair issue under **Settings** → **System** → **Repairs** that names the cause.
+If optimizations keep failing for any other reason for five minutes, HAEO raises an "Optimization failed" repair issue with the error message.
+That issue clears on the next successful optimization.
 
 ### Optimization Duration
 
 **Entity ID**: `sensor.{network_name}_optimization_duration`
 
 Time taken to solve the optimization in seconds.
-If this value climbs higher than you expect, adjust the interval tiers, simplify the network, or try another solver.
-Review the [custom tier guidance](configuration.md#custom-tiers) before changing that value.
+If this value climbs higher than you expect, choose a shorter [planning horizon](configuration.md#planning-horizon) or simplify the network.
 
 ## Element Sensors
 
@@ -61,12 +66,14 @@ They translate physical limits into dollar-per-kilowatt-hour signals that explai
 
 Available sensors include:
 
-- **Nodes**: `sensor.{node_name}_shadow_price_node_balance` reports the local spot price for energy at each node.
-- **Batteries**: `sensor.{battery_name}_shadow_price_energy_balance`, `sensor.{battery_name}_shadow_price_soc_min`, `sensor.{battery_name}_shadow_price_soc_max`, `sensor.{battery_name}_shadow_price_power_consumption_max`, and `sensor.{battery_name}_shadow_price_power_production_max` quantify the value of stored energy, SOC bounds, and charge/discharge headroom.
-- **Grid**: `sensor.{grid_name}_shadow_price_power_import_max` and `sensor.{grid_name}_shadow_price_power_export_max` indicate when import or export limits restrict the optimization.
-- **Other controllable elements**: `sensor.{entity_name}_shadow_price_power_consumption_max` and `sensor.{entity_name}_shadow_price_power_production_max` appear for any device that enforces variable power caps.
-- **Connections**: `sensor.{connection_name}_shadow_price_power_flow_min` and `sensor.{connection_name}_shadow_price_power_flow_max` tell you when minimum or maximum flow limits block energy transfers between elements.
-- **Solar**: `sensor.{pv_name}_shadow_price_forecast_limit` shows when extra solar output would reduce total cost.
+- **Junctions and nodes**: `sensor.{name}_power_balance` reports the local spot price for energy at each junction or node.
+- **Batteries**: `sensor.{battery_name}_power_balance`, `sensor.{battery_name}_soc_min`, `sensor.{battery_name}_soc_max`, `sensor.{battery_name}_energy_in_flow`, and `sensor.{battery_name}_energy_out_flow` quantify the value of stored energy, SOC bounds, and charge/discharge headroom.
+- **Grid**: `sensor.{grid_name}_power_max_import_price` and `sensor.{grid_name}_power_max_export_price` indicate when import or export limits restrict the optimization.
+- **Inverter**: `sensor.{inverter_name}_max_power_dc_to_ac_price` and `sensor.{inverter_name}_max_power_ac_to_dc_price` appear when the inverter's per-direction caps are binding.
+- **Load**: `sensor.{load_name}_forecast_limit_price` exposes the marginal value of serving this load.
+- **Solar**: `sensor.{pv_name}_forecast_limit` shows when extra solar output would reduce total cost.
+
+All shadow-price sensors are reported in `$/kWh` so they sit on the same axis as tariffs and other energy-priced quantities.
 
 Each shadow price sensor mirrors the standard forecast attribute layout so you can inspect future periods in dashboards and automations.
 Review [Shadow Prices](../modeling/shadow-prices.md) for detailed interpretation guidance.
@@ -130,10 +137,9 @@ Monitor the optimization duration sensor to keep solve times reasonable (typical
 
 If optimization takes too long:
 
-1. **Adjust interval tiers**: Reduce tier 4 count or increase tier durations for faster solving (see [custom tier guidance](configuration.md#custom-tiers))
-2. **Increase tier durations**: Fewer time steps reduce problem size
-3. **Simplify network**: Remove unnecessary elements or connections
-4. **Check configuration**: Verify all sensors are available and providing valid data
+1. **Shorten the horizon**: Choose a shorter [planning horizon](configuration.md#planning-horizon) preset, or a forecast sensor with fewer periods
+2. **Simplify network**: Remove unnecessary elements or connections
+3. **Check configuration**: Verify all sensors are available and providing valid data
 
 ### Update Frequency
 
@@ -147,7 +153,7 @@ HAEO re-optimizes periodically. Balance:
 The optimization cost represents the total forecasted cost over the full horizon, not just the immediate step.
 Track changes in this value when you adjust configuration parameters to confirm the optimiser is producing the expected behaviour.
 
-## Next Steps
+## Next steps
 
 Explore these guides to act on the optimization outputs.
 

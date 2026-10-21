@@ -1,6 +1,6 @@
 """Tests for flows/field_schema.py utilities."""
 
-from typing import Any
+from dataclasses import replace
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import HomeAssistant
@@ -19,8 +19,9 @@ from custom_components.haeo.core.schema import (
     as_entity_value,
     as_none_value,
 )
-from custom_components.haeo.elements.field_schema import FieldSchemaInfo
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
+from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
@@ -37,13 +38,11 @@ from custom_components.haeo.flows.field_schema import (
     convert_choose_data_to_config,
     convert_sectioned_choose_data_to_config,
     get_choose_default,
-    get_haeo_input_entity_ids,
     get_preferred_choice,
     is_valid_choose_value,
     number_selector_from_field,
     preprocess_choose_selector_input,
     preprocess_sectioned_choose_input,
-    resolve_haeo_input_entity_id,
     validate_choose_fields,
     validate_sectioned_choose_fields,
 )
@@ -69,7 +68,7 @@ def number_field() -> InputFieldInfo[NumberEntityDescription]:
     )
 
 
-def _field_map(*fields: InputFieldInfo[Any]) -> dict[str, InputFieldInfo[Any]]:
+def _field_map(*fields: AnyInputFieldInfo) -> dict[str, AnyInputFieldInfo]:
     """Build an input field mapping keyed by field name."""
     return {field.field_name: field for field in fields}
 
@@ -146,6 +145,30 @@ def test_build_choose_selector_creates_normalizing_choose_selector(
     """NormalizingChooseSelector is created with entity and constant choices."""
     selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert isinstance(selector, NormalizingChooseSelector)
+
+
+@pytest.mark.parametrize(
+    ("time_series", "output_type", "expected"),
+    [
+        pytest.param(True, OutputType.POWER, True, id="forecast_field"),
+        pytest.param(False, OutputType.POWER, False, id="scalar_field"),
+        pytest.param(True, OutputType.AVAILABILITY, False, id="forecast_field_without_unit"),
+    ],
+)
+def test_build_choose_selector_offers_calendars_for_forecast_fields(
+    number_field: InputFieldInfo[NumberEntityDescription],
+    *,
+    time_series: bool,
+    output_type: OutputType,
+    expected: bool,
+) -> None:
+    """A number forecast field with a unit can pick a calendar, read as a forecast; other fields cannot."""
+    field = replace(number_field, time_series=time_series, output_type=output_type)
+
+    selector = build_choose_selector(field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
+
+    domains = selector.config["choices"][CHOICE_ENTITY]["selector"]["entity"]["domain"]
+    assert ("calendar" in domains) is expected
 
 
 def test_build_choose_selector_entity_first_by_default(
@@ -305,68 +328,6 @@ def test_get_preferred_choice_uses_current_data_boolean_constant() -> None:
     current_data = {"enabled": as_constant_value(value=True)}
     result = get_preferred_choice(field, current_data, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert result == CHOICE_CONSTANT
-
-
-# --- Tests for get_haeo_input_entity_ids ---
-
-
-def test_get_haeo_input_entity_ids_returns_empty_for_no_haeo_entities(hass: HomeAssistant) -> None:
-    """get_haeo_input_entity_ids returns empty list when no HAEO input entities exist."""
-    registry = er.async_get(hass)
-    # Create non-HAEO entities only
-    registry.async_get_or_create(
-        domain="number",
-        platform="other_integration",
-        unique_id="external_number",
-        suggested_object_id="external",
-    )
-    result = get_haeo_input_entity_ids()
-    # Result should not include non-HAEO entities
-    assert "number.external" not in result
-
-
-def test_get_haeo_input_entity_ids_includes_haeo_number_and_switch(hass: HomeAssistant) -> None:
-    """get_haeo_input_entity_ids includes HAEO number and switch entities."""
-    registry = er.async_get(hass)
-    # Create HAEO number entity
-    number_entity = registry.async_get_or_create(
-        domain="number",
-        platform=DOMAIN,
-        unique_id="test_number",
-        suggested_object_id="haeo_number",
-    )
-    # Create HAEO switch entity
-    switch_entity = registry.async_get_or_create(
-        domain="switch",
-        platform=DOMAIN,
-        unique_id="test_switch",
-        suggested_object_id="haeo_switch",
-    )
-    # Create non-HAEO entity
-    registry.async_get_or_create(
-        domain="number",
-        platform="other_integration",
-        unique_id="external",
-        suggested_object_id="external_number",
-    )
-    result = get_haeo_input_entity_ids()
-    assert number_entity.entity_id in result
-    assert switch_entity.entity_id in result
-    assert "number.external_number" not in result
-
-
-def test_get_haeo_input_entity_ids_excludes_haeo_sensors(hass: HomeAssistant) -> None:
-    """get_haeo_input_entity_ids excludes HAEO sensor entities."""
-    registry = er.async_get(hass)
-    # Create HAEO sensor (not an input entity)
-    sensor_entity = registry.async_get_or_create(
-        domain="sensor",
-        platform=DOMAIN,
-        unique_id="test_sensor",
-        suggested_object_id="haeo_sensor",
-    )
-    result = get_haeo_input_entity_ids()
-    assert sensor_entity.entity_id not in result
 
 
 # --- Tests for get_choose_default ---
@@ -535,7 +496,7 @@ def test_convert_choose_data_constant_stored_directly(
 
     After schema validation, ChooseSelector returns the raw value.
     """
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": 42.0,  # Raw value after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -549,7 +510,7 @@ def test_convert_choose_data_entity_single_stored_as_string(
 
     After schema validation, ChooseSelector returns the entity list.
     """
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": ["sensor.power"],  # Raw list after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -560,7 +521,7 @@ def test_convert_choose_data_entity_string_stored_as_list(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """String entity IDs are stored as entity schema values."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": "sensor.power",
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -571,7 +532,7 @@ def test_convert_choose_data_empty_string_stored_as_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Empty string values are stored as none schema values."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": "",
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -585,7 +546,7 @@ def test_convert_choose_data_entity_multiple_stored_as_list(
 
     After schema validation, ChooseSelector returns the entity list.
     """
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": ["sensor.power1", "sensor.power2"],  # Raw list
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -596,7 +557,7 @@ def test_convert_choose_data_empty_value_stored_as_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Empty entity list is stored as none schema value."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": [],  # Empty list after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -607,7 +568,7 @@ def test_convert_choose_data_none_constant_stored_as_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """None value is stored as none schema value."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": None,
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -618,7 +579,7 @@ def test_convert_choose_data_respects_exclude_keys(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Excluded keys are not processed."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "name": "Test",
         "test_field": 42.0,  # Raw value
     }
@@ -631,7 +592,7 @@ def test_convert_choose_data_ignores_unknown_fields(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Unknown fields (not in input_fields) are ignored."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": 42.0,  # Raw value
         "unknown_field": 99.0,  # Not in input_fields
     }
@@ -645,7 +606,7 @@ def test_convert_choose_data_ignores_unsupported_value_types(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Unsupported value types are ignored."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": {"unexpected": 1},
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -665,7 +626,7 @@ def test_convert_choose_data_boolean_constant() -> None:
         ),
         output_type=OutputType.STATUS,
     )
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "enabled": True,  # Raw boolean
     }
     result = convert_choose_data_to_config(user_input, _field_map(field))
@@ -679,7 +640,7 @@ def test_convert_choose_data_none_stored_as_none(
 
     After preprocessing, the none choice is converted to None.
     """
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": None,  # None from preprocessing (originally "" from ConstantSelector)
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -933,15 +894,6 @@ def test_get_preferred_choice_returns_none_when_no_choices() -> None:
     assert result == CHOICE_NONE
 
 
-# --- Tests for resolve_haeo_input_entity_id ---
-
-
-def test_resolve_haeo_input_entity_id_returns_none_when_not_found(hass: HomeAssistant) -> None:
-    """resolve_haeo_input_entity_id returns None when entity doesn't exist."""
-    result = resolve_haeo_input_entity_id("entry123", "subentry456", "test_field")
-    assert result is None
-
-
 # --- Tests for build_entity_selector ---
 
 
@@ -955,11 +907,29 @@ def test_build_entity_selector_with_include_entities(hass: HomeAssistant) -> Non
 
 
 def test_build_entity_selector_without_include_entities(hass: HomeAssistant) -> None:
-    """build_entity_selector with no include_entities still includes HAEO entities."""
+    """build_entity_selector with no include_entities does not restrict to a subset."""
     selector = build_entity_selector(include_entities=None)
     config = selector.config
-    # Even with None, HAEO input entities are added (if any exist)
     assert config["domain"] == [DOMAIN, "sensor", "input_number", "number", "switch"]
+    assert "include_entities" not in config
+
+
+def test_build_entity_selector_does_not_add_incompatible_haeo_entities(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """build_entity_selector only includes unit-compatible entities from include_entities."""
+    entity_registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id="grid_export_limit",
+        suggested_object_id="grid_export_limit",
+    )
+    selector = build_entity_selector(include_entities=["sensor.import_price"])
+    include_entities = selector.config.get("include_entities")
+
+    assert include_entities == ["sensor.import_price"]
+    assert "number.grid_export_limit" not in include_entities
 
 
 # --- Tests for preprocess_choose_selector_input ---
@@ -1407,3 +1377,43 @@ def test_convert_sectioned_choose_data_to_config_handles_non_mapping_section(
     config = convert_sectioned_choose_data_to_config({"inputs": "invalid"}, input_fields, sections)
 
     assert config == {"inputs": {}}
+
+
+# --- Tests for calendar-driven fields ---
+
+
+def _calendar_field() -> InputFieldInfo[NumberEntityDescription]:
+    """Create a config field feeding a calendar input, for testing."""
+    output = InputFieldInfo(
+        field_name="window_due",
+        entity_description=NumberEntityDescription(key="window_due"),
+        output_type=OutputType.ENERGY,
+        time_series=True,
+        boundaries=True,
+        calendar=CalendarFieldHint(projection="event_due"),
+        source_field="window_calendar",
+    )
+    return InputFieldInfo(
+        field_name="window_calendar",
+        entity_description=NumberEntityDescription(key="window_calendar"),
+        output_type=OutputType.ENERGY,
+        outputs={"window_due": output},
+    )
+
+
+def test_calendar_field_offers_only_calendars() -> None:
+    """A field feeding calendar inputs is an ordinary entity choice offering only calendars."""
+    field = _calendar_field()
+
+    entries = build_choose_field_entries(
+        _field_map(field),
+        field_schema={"window_calendar": FieldSchemaInfo(value_type=EntityValue, is_optional=False)},
+        inclusion_map={"window_calendar": ["calendar.pool_pump"]},
+    )
+
+    _marker, selector = entries["window_calendar"]
+    assert isinstance(selector, NormalizingChooseSelector)
+    entity = selector.config["choices"][CHOICE_ENTITY]["selector"]["entity"]
+    assert entity["domain"] == ["calendar"]
+    assert entity["include_entities"] == ["calendar.pool_pump"]
+    assert list(selector.config["choices"]) == [CHOICE_ENTITY]

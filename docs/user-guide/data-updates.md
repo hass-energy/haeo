@@ -24,7 +24,7 @@ HAEO runs a new optimization when either of the following happens:
 - An input entity's state changes (new data arrives from a tracked sensor).
 - The optimization horizon advances past a period boundary.
 
-The system is event-driven with guaranteed updates at horizon boundaries (for example, every 1 minute for the finest tier).
+The system is event-driven with guaranteed updates when the horizon advances (for example, every minute with a preset horizon, or whenever a horizon sensor changes).
 When sensor data changes between boundaries, the corresponding input entity updates, which triggers a new optimization.
 
 To avoid running multiple optimizations in quick succession, HAEO uses internal debouncing.
@@ -53,8 +53,7 @@ If input entities show valid data but sensors still seem stale:
 Persistent problems usually point to missing inputs or external services that need attention.
 
 Monitor your system occasionally to ensure updates finish comfortably within the time windows that matter for your automations.
-Long optimization runs usually mean the problem has become quite large, so start by simplifying inputs before you tweak the look-ahead horizon.
-Review the [custom tier guidance](configuration.md#custom-tiers) before changing that value.
+Long optimization runs usually mean the problem has become quite large, so start by simplifying inputs before you shorten the [planning horizon](configuration.md#planning-horizon).
 
 ## Debugging updates
 
@@ -85,7 +84,7 @@ Use developer tools to inspect the system state:
 1. Navigate to Developer Tools → States
 2. Find input entities (Number and Switch entities for your configured elements) and check their states and `forecast` attributes
 3. Find output sensors and check their states and attributes
-4. Check the optimization status sensor for error messages
+4. Check the optimization status sensor's `error` attribute for the cause of a failed optimization
 
 ### Monitor with automations
 
@@ -149,7 +148,7 @@ HAEO is event-driven, so optimizations run immediately when input data changes.
 To improve responsiveness:
 
 - Ensure your source sensors update frequently (check their polling intervals)
-- Adjust interval tiers for faster solving (reduce tier counts or increase durations) after consulting the [custom tier guidance](configuration.md#custom-tiers)
+- Choose a shorter [planning horizon](configuration.md#planning-horizon) preset, or a forecast sensor with fewer periods, for faster solving
 - Simplify network topology when possible
 - Trigger manual updates via service calls when you need immediate feedback
 
@@ -176,7 +175,7 @@ No. Configuration changes through the UI take effect immediately:
 
 Only changes to integration code (development) require restart.
 
-## Next Steps
+## Next steps
 
 Focus on these areas to keep data updates reliable and useful.
 

@@ -1,0 +1,157 @@
+---
+name: model
+description: Linear programming model layer standards — LinearArray expressions and Rows, constraints, costs, decision variables, connection segments, reactive parameter tracking, soft versus hard limits, shadow prices, and the HiGHS solve strategy. Use when working under custom_components/haeo/core/model/, when optimization results look wrong, when the model is infeasible, or when solve time regresses.
+---
+
+# Model layer development
+
+`core/model/` is a standalone linear programming library.
+It has no Home Assistant imports and import-linter enforces that: it may import only `highspy`, `numpy`, and `typing_extensions`.
+Anything needing Home Assistant belongs in the adapter layer.
+
+Mathematical background lives in `docs/modeling/`.
+Read [tagged power](../../../docs/modeling/tagged-power.md) and [shadow prices](../../../docs/modeling/shadow-prices.md) before touching policies or dual values.
+When model behavior or formulation changes, update the corresponding page in `docs/modeling/`.
+
+## Units
+
+Use SI-derived units scaled for numerical stability throughout all model calculations:
+
+- **Power**: kilowatts (kW)
+- **Energy**: kilowatt-hours (kWh)
+- **Time**: hours (model layer uses hours; rest of codebase uses seconds)
+- **Price**: dollars per kilowatt-hour (\$/kWh)
+
+This scaling keeps values in the ideal range for LP solvers.
+The adapter layer handles conversion between model time (hours) and Home Assistant time (seconds).
+See [units.md](../../../docs/developer-guide/units.md) for rationale and conversion utilities.
+
+`periods` is an array of variable-width interval durations, because the planning horizon is tiered.
+Never assume a constant period length — multiply by `periods` element-wise.
+
+## Model elements
+
+The device layer's element types compile down to a small set of model elements, registered in `core/model/elements/__init__.py`.
+Network elements produce, consume, or store power and join connections; flow readers read other elements' planned flows to price or constrain them.
+Code that needs to tell them apart reads the registry, such as whether an element's class subclasses `NetworkElement`, rather than listing element types.
+A single device element expands into several model elements through its adapter's `model_elements()`, with sub-elements named `{main_element}:{subname}`.
+
+Adding a physical behavior rarely means a new model element type.
+Connections are composed of **segments**, so a new kind of loss, limit, or charge is a new `Segment` subclass added to the chain rather than a branch inside `Connection`.
+
+## Writing expressions
+
+Expressions are `LinearArray` values from `core/model/linear.py`: one row per period, held as column index and coefficient matrices.
+Build every constraint and cost from whole-horizon arrays, never one Python object or loop iteration per period.
+The cost of rebuilding the LP then stays flat as the horizon grows, which is what keeps each optimization cycle cheap.
+
+- Create variables with `solver.add_variables(count, name=..., lower=..., upper=...)`, which returns one row per column.
+    Name each group after the element and quantity it holds, such as `f"{self.name}.energy_in"`.
+- Combine arrays with `+`, `-`, and `*` by a scalar or one value per row.
+    A single row such as `energy[0]` or `stored[-1]` broadcasts against per-row values, as in numpy.
+- Compare with `<=`, `>=`, or `==` to get `Rows`, which a `@constraint` method returns.
+    Combine several blocks with `Rows.concat([...])`.
+- Return `expr.free()` for rows that do not currently apply, so the LP keeps its shape and the rows can bind later.
+- A `@cost` method returns a single row: `(power * price * self.periods).total()`.
+- Start a sum that may have no terms from `LinearArray.zeros(count)`; `LinearArray.sum_of([])` is an error.
+
+Per-period differences are expressed as values, not as different code per period:
+
+- Use a 0/1 mask or per-period bounds to switch rows on and off, as window masks do.
+- When each row reaches several periods of another array with varying coefficients, build the coefficient matrix with numpy and write `matrix @ array`.
+    Zero entries add no terms, so a matrix whose reach changes with parameters keeps a fixed LP shape.
+- Properties of individual columns, such as making a variable integer, are not rows: select the columns by slicing the variable array, as in `start[:1]`, and read their solver indices from `.cols[:, 0]`.
+
+`solver.describe(rows)` prints each row as maths over named columns, such as `Battery.energy_in[3] - Battery.energy_in[4] <= 0`, which is the quickest way to check a constraint.
+Printing a `LinearArray` or `Rows` directly shows the same rows over solver column indices.
+Evaluate an expression in the current solution with `expr.value(solver.column_values())`.
+
+## Constraints and costs
+
+- Express all constraints as linear inequalities or equalities.
+    No products of variables, no conditionals on variable values, no absolute values without the standard two-variable split.
+- Document the physical meaning of each constraint.
+- Costs must be linear in the decision variables, with positive meaning cost and negative meaning revenue.
+- Document the economic interpretation of each cost.
+- Use descriptive variable names that reflect physical quantities.
+
+### Keep every starting state feasible
+
+The optimization must run from whatever state the inputs report.
+A limit that live data can already be past, such as a device that has run beyond its energy goal or telemetry above a requirement, is priced rather than forbidden.
+Create the slack variables unconditionally and require a price for them, defaulting to zero where the user sets none, so there is no structural "forbidden" branch.
+An overshoot that has already happened then becomes a fixed priced amount that changes no decision.
+
+Hard constraints remain right for genuine physical limits that the inputs cannot exceed, such as a connection's power limit or a battery's 0 to 100% charge range.
+Where an input can still report a value outside a physical range, as a glitching state of charge sensor can, clamp it at the input rather than relaxing the physics.
+
+## Reactive parameter tracking
+
+`core/model/reactive/` is what makes re-optimization cheap.
+Understand it before editing any element:
+
+- **`TrackedParam`** — a descriptor.
+    Assigning a new value invalidates exactly the constraints and costs that read it.
+    Declare parameters as `TrackedParam` class attributes; values stashed in plain instance attributes are invisible to invalidation.
+- **`@constraint`** — declares a constraint method that the network discovers and aggregates.
+    `@constraint(output=True, unit=...)` also surfaces the constraint's dual as a shadow-price output.
+    A constraint returns the same rows on every call so the LP keeps its shape: rows that do not currently apply are returned without a comparison and become free rows, and returning `None` is an error.
+- **`@cost`** — declares a linear cost contribution.
+- **`@computed`** — caches a value computed from parameters, such as a segment's transformed flow.
+    Dependencies are recorded per object and invalidation follows them across objects,
+    so a node balance reading a connection's flow is rebuilt when that connection's efficiency changes.
+    Derive expressions that depend on parameters when they are read; an expression captured at construction never updates.
+- **`@output`** — declares a named output the adapter layer can map to sensors.
+
+When a forecast updates, only affected constraints are rebuilt and the solver warm-starts.
+A change that makes every constraint depend on every parameter fails no test — it just makes optimization slow.
+The period update and warm start tests are the ones that notice.
+
+## Optimization
+
+`Network.optimize()` minimizes cost, then breaks ties between equally cheap plans with a time-preference secondary objective.
+It does this with a blended objective, cost plus a calibrated weight times the secondary, checked after each solve.
+This exists so repeated solves warm-start cleanly and shadow prices come from the same basis as the plan.
+Degenerate LPs have many optimal solutions; the secondary objective is what stops sensor values jittering between equally optimal plans.
+
+- The plan must match the lexicographic optimum; shadow prices may differ between formulations, since which binding constraint carries a dual is not controllable.
+    `_lexicographic_reference` in the network tests computes that optimum exactly, minimizing the cost and then the secondary with the cost bounded, for tests to compare against.
+
+- Every blended plan is checked at its basis: the cost is priced with a zero-iteration solve, and the weight is lowered when the plan is not cost-optimal.
+    The secondary's reduced costs are the blended ones minus the cost's, divided by the weight, and the weight is raised when a cost-free move improves the secondary, but never to a weight that failed the cost in the same optimization.
+    Do not remove either check to save time: a stale weight silently trades cost for tie-breaking when too large, and leaves ties to the solver path when too small.
+
+- The time-preference weights must not be a sum of a connection term and a time term alone, or swaps between connections across periods tie exactly.
+    The fixed offset from `tie_break_offset` prevents that.
+
+- Catch optimization failures gracefully and return appropriate status indicators.
+
+- Tell an overshoot the plan should adapt to apart from a plan that is impossible.
+    A limit live data can realistically go past, such as an EV driving beyond its estimated target, is a failure to plan; price it with a slack variable, as [Keep every starting state feasible](#keep-every-starting-state-feasible) describes.
+    A plan that asks for what the system physically cannot do, such as more power than every source can supply, is impossible; it goes through the failure path rather than slack variables that every feasible solve would pay for.
+
+- An infeasible solve raises `InfeasibleError` at once, since no blend weight can make it feasible.
+    `core/model/infeasibility.py` names the conflicting rows from HiGHS's irreducible infeasible subsystem, and relaxes the model when the network is built with `relax_infeasible`.
+
+- Log solver diagnostics at debug level.
+
+## Policy compilation
+
+`core/adapters/policy_compilation.py` implements source-to-destination pricing by tagging power with VLAN-like tags.
+`compile_policies()` mutates element configs in place, adding tag fields, and generates policy pricing elements.
+
+It is a required step, not an optional one: connections take their tags as a required argument, so anything building a network must run `compile_policies()` before adding elements.
+Both the coordinator and the diagnostics CLI do this; any new network builder must too.
+
+## Testing
+
+Model tests are data-driven.
+Add cases to `core/model/tests/test_data/` rather than writing per-element test functions:
+
+- `VALID_CASES` — inputs plus `expected_outputs`, with LP variables fixed to known values by the factory
+- `INVALID_CASES` — inputs plus an `expected_error` regex
+
+Test each element type independently, verify constraints are satisfied in solutions, and cover edge cases such as zero power and full or empty batteries.
+If a line cannot be covered by any input case, that is evidence it is unreachable — delete it rather than testing it.
+
+For end-to-end verification of an optimizer change, run the scenario suite and read the snapshot diff.

@@ -34,8 +34,16 @@ site/
 docs/**/manifest.json
 docs/**/light/
 docs/**/dark/
+docs/**/error_state.png
 
 # Node modules
 node_modules/
 
 custom_components/hacs/
+
+# Agent permission grants are a per-developer, per-environment trust decision.
+# Anything that runs project code (pytest, uv run, the gate runner) is arbitrary
+# code execution for an agent that can also edit that code, so an allowlist must
+# not be imposed repo-wide.
+.claude/settings.json
+.claude/settings.local.json

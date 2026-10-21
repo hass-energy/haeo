@@ -1,7 +1,7 @@
 """Node element adapter for model layer integration."""
 
 from collections.abc import Mapping
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -10,6 +10,7 @@ from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import BufferRole
 from custom_components.haeo.core.schema.elements.node import (
     CONF_IS_SINK,
     CONF_IS_SOURCE,
@@ -43,6 +44,7 @@ class NodeAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
     can_source: bool = True
     can_sink: bool = True
+    buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Node configuration."""
@@ -59,7 +61,7 @@ class NodeAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[NodeDeviceName, Mapping[NodeOutputName, OutputData]]:
         """Convert model element outputs to node adapter outputs."""
         node_model = model_outputs[name]

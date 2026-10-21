@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { legendSeriesOrder, seriesIconPath, seriesTooltip } from "./legend-helpers";
+import { mdiCalendarClock, mdiCarElectric, mdiCarElectricOutline } from "@mdi/js";
+import { mdiIcons } from "./mdi-icons";
 import type { ForecastSeries } from "./types";
 
 function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
@@ -28,6 +30,29 @@ function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
 }
 
 describe("seriesIconPath", () => {
+  it.each([
+    { direction: "+", icon: "mdiShieldHalfFull" },
+    { direction: "-", icon: "mdiFormatVerticalAlignTop" },
+  ] as const)("returns the $icon icon for a $direction buffer state of charge", ({ direction, icon }) => {
+    const series = makeSeries({
+      lane: "soc",
+      elementType: "buffer",
+      direction,
+      outputName: "buffer_state_of_charge",
+    });
+    expect(seriesIconPath(series)).toBe(mdiIcons[icon]);
+  });
+
+  it("returns a battery icon for a state of charge without a direction", () => {
+    const series = makeSeries({
+      lane: "soc",
+      elementType: "battery",
+      direction: null,
+      outputName: "battery_state_of_charge",
+    });
+    expect(seriesIconPath(series)).toBe(mdiIcons["mdiBatteryMedium"]);
+  });
+
   it("returns an import price icon for import price series", () => {
     const series = makeSeries({ lane: "price", outputName: "import_price" });
     expect(seriesIconPath(series)).toBeTruthy();
@@ -61,6 +86,21 @@ describe("seriesIconPath", () => {
       sourceRole: "forecast",
     });
     expect(seriesIconPath(series)).toBeTruthy();
+  });
+
+  it.each(["+", "-"] as const)("returns the EV icon for EV power flowing %s", (direction) => {
+    const series = makeSeries({ elementName: "Commuter EV", elementType: "ev", direction });
+    expect(seriesIconPath(series)).toBe(mdiCarElectric);
+  });
+
+  it("returns the outline EV icon for EV limits", () => {
+    const series = makeSeries({ elementName: "Commuter EV", elementType: "ev", direction: "-", sourceRole: "limit" });
+    expect(seriesIconPath(series)).toBe(mdiCarElectricOutline);
+  });
+
+  it("does not give car-named elements of other types the EV icon", () => {
+    const series = makeSeries({ elementName: "Carport lights", elementType: "load", direction: "-" });
+    expect(seriesIconPath(series)).not.toBe(mdiCarElectric);
   });
 
   it("returns a battery icon for battery elements", () => {
@@ -159,5 +199,18 @@ describe("legendSeriesOrder", () => {
     const soc = makeSeries({ lane: "soc" });
     const unknown = makeSeries({ lane: "other" as never });
     expect(legendSeriesOrder(soc)).toBeLessThan(legendSeriesOrder(unknown));
+  });
+});
+
+describe("window series", () => {
+  const window = makeSeries({ lane: "window", outputType: "window", direction: null });
+
+  it("shows a calendar icon", () => {
+    expect(seriesIconPath(window)).toBe(mdiCalendarClock);
+  });
+
+  it("orders after state of charge and before anything else", () => {
+    expect(legendSeriesOrder(window)).toBe(7);
+    expect(legendSeriesOrder(makeSeries({ lane: "shadow" }))).toBe(8);
   });
 });

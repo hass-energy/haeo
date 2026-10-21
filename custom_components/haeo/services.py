@@ -4,7 +4,6 @@ from datetime import datetime
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -40,7 +39,7 @@ def _format_manifest(manifest: Manifest) -> Manifest:
     return manifest_copy
 
 
-async def _build_diagnostics_payload(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+async def _build_diagnostics_payload(hass: HomeAssistant, data: dict[str, object]) -> dict[str, object]:
     """Build full diagnostics payload matching Home Assistant's format.
 
     Includes system info, custom components, integration manifest, and setup times.
@@ -78,6 +77,26 @@ async def _build_diagnostics_payload(hass: HomeAssistant, data: dict[str, Any]) 
     }
 
 
+async def async_save_diagnostics(hass: HomeAssistant, data: dict[str, object], kind: str, time: datetime) -> Path:
+    """Write a diagnostics file named for its kind and time, and return its path.
+
+    Files go to ``haeo/diagnostics`` in the configuration directory, in the format
+    Home Assistant's own diagnostics download uses.
+    """
+    # Microseconds keep files written in the same second apart
+    filepath = Path(hass.config.path("haeo", "diagnostics", f"{kind}_{time:%Y-%m-%d_%H%M%S.%f}.json"))
+    output = await _build_diagnostics_payload(hass, data)
+
+    def write_diagnostics() -> None:
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        with filepath.open("w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, cls=ExtendedJSONEncoder)
+
+    await hass.async_add_executor_job(write_diagnostics)
+    _LOGGER.info("HAEO diagnostics saved to %s", filepath)
+    return filepath
+
+
 async def async_setup_services(hass: HomeAssistant) -> None:
     """Set up HAEO services."""
 
@@ -88,6 +107,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         entry_id = call.data[ATTR_CONFIG_ENTRY]
         target_timestamp: datetime | None = call.data.get(ATTR_TIMESTAMP)
+        # The datetime selector sends a time without a zone, which means Home
+        # Assistant's; left naive, the recorder would read it in the OS zone
+        if target_timestamp is not None and target_timestamp.tzinfo is None:
+            target_timestamp = target_timestamp.replace(tzinfo=dt_util.get_default_time_zone())
 
         # Validate config entry exists
         entry = hass.config_entries.async_get_entry(entry_id)
@@ -128,26 +151,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 },
             )
 
-        # Generate filename with timestamp (microseconds for uniqueness)
-        file_timestamp = (target_timestamp or dt_util.now()).strftime("%Y-%m-%d_%H%M%S.%f")
-        filename = f"diagnostics_{file_timestamp}.json"
-        filepath = Path(hass.config.path("haeo", "diagnostics", filename))
-
-        # Build full diagnostics payload matching Home Assistant's format
-        output = await _build_diagnostics_payload(hass, result.to_dict())
-
-        # Write to file (in executor to avoid blocking)
-        def write_diagnostics() -> None:
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            with filepath.open("w", encoding="utf-8") as f:
-                json.dump(output, f, indent=2, cls=ExtendedJSONEncoder)
-
-        await hass.async_add_executor_job(write_diagnostics)
-
-        _LOGGER.info("HAEO diagnostics saved to %s", filepath)
+        await async_save_diagnostics(hass, result.to_dict(), "diagnostics", target_timestamp or dt_util.now())
 
     # Build schema - only include timestamp if recorder is available
-    schema_fields: dict[vol.Marker, Any] = {vol.Required(ATTR_CONFIG_ENTRY): cv.string}
+    schema_fields: dict[vol.Marker, object] = {vol.Required(ATTR_CONFIG_ENTRY): cv.string}
     if "recorder" in hass.config.components:
         schema_fields[vol.Optional(ATTR_TIMESTAMP)] = cv.datetime
 

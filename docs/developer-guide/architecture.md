@@ -68,19 +68,20 @@ See the Home Assistant documentation for the underlying patterns:
 - [Config Flow Handler](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/)
 - [Data Entry Flow](https://developers.home-assistant.io/docs/data_entry_flow_index/)
 
-### HorizonManager (`inputs/horizon_manager.py`)
+### HorizonManager (`horizon.py`)
 
 Manages synchronized forecast time windows for all input entities.
 Created early in setup before any entity platforms load.
-Computes period boundaries from tier configuration and notifies subscribers when the horizon advances.
+Computes period boundaries from a horizon preset or reads them from a forecast sensor, and notifies subscribers when the horizon advances.
 
 See the [Horizon Manager guide](horizon-manager.md) for details.
 
-### Input Entities (`inputs/`)
+### Input entities (`input_stores.py`, `number.py`, `switch.py`)
 
 Intermediate layer between external sensors and the optimization model.
-Number and Switch entities load, transform, and expose configuration values with forecast attributes.
-Operate in two modes: EDITABLE (user-configurable constants) or DRIVEN (values from external sensors).
+`input_stores.py` turns element subentries into `InputStore` instances backed by subentry storage.
+The Number and Switch platforms wrap those stores as entities that load, transform, and expose configuration values with forecast attributes.
+Stores operate in two modes: EDITABLE (user-configurable constants) or DRIVEN (values from external sensors).
 
 See the [Input Entities guide](inputs.md) for details.
 
@@ -103,8 +104,8 @@ See the [Coordinator guide](coordinator.md) for event-driven update patterns.
 ### Data loaders (`data/`)
 
 Data loaders translate Home Assistant sensor data into time series aligned with the optimization horizon.
-Input entities call loaders to extract, combine, and fuse forecast data from external sensors.
-Loaders also validate sensor availability during the config flow.
+Each input store resolves its field with `resolve_field`, which extracts, combines, and fuses forecast data from the field's sensors.
+A field is unavailable until every one of its sensors supplies data.
 Keep new loaders focused on a single responsibility and reuse the shared parser utilities where possible.
 
 See the [Data Loading guide](data-loading.md) for the extraction pipeline.
@@ -133,12 +134,12 @@ See [Modeling Documentation](../modeling/index.md) for mathematical formulations
 ### Optimization
 
 Uses the HiGHS linear programming solver directly via the `highspy` Python bindings to solve the energy optimization problem.
-The default calibrated mode performs a two-phase lexicographic solve on the first call (minimize cost, then minimize a time-preference secondary objective to break ties deterministically), calibrates a blend weight, and uses a single blended solve on subsequent calls for efficient warm-starts with proper shadow prices.
+It minimizes cost, then a time-preference secondary objective to break ties deterministically, with a single blended solve per call. The first call calibrates the blend weight, and every plan is checked and re-solved with another weight if needed, which keeps warm starts efficient and shadow prices from the plan's own basis.
 
 Elements use decorators to declare constraints and costs, which the network automatically aggregates.
 When parameters update (like forecast changes), only affected constraints are rebuilt (warm start optimization).
 
-### Sensors (`sensors/`)
+### Sensors (`sensor.py`, `entities/`)
 
 Sensor entities expose optimization outputs through standard Home Assistant constructs.
 Separate modules handle network-level metrics and per-element values, and every sensor carries a forecast attribute so downstream automations can look ahead.
@@ -178,13 +179,13 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 - **Entry points**: `__init__.py`, `config_flow.py`, and `coordinator/` bootstrap the integration, collect user input, and run optimizations.
 - **Flows (`flows/`)**: Houses hub, element, and options flows; each submodule owns the UI schema for a related group of entries.
-- **Input layer (`inputs/`)**: HorizonManager, Number platform, Switch platform, and InputFieldInfo for intermediate input entities.
+- **Input layer (`horizon.py`, `input_stores.py`, `number.py`, `switch.py`)**: HorizonManager, input stores, and the Number and Switch platforms that surface them.
 - **Data layer (`core/data/`)**: Loader modules turn Home Assistant sensors and forecasts into normalized time series. Called by input entities.
 - **Model (`core/model/`)**: Pure Python optimization layer with declarative constraints and costs.
     - `core/model/elements/`: Model element implementations (Battery, Node, Connection types)
     - `core/model/reactive/`: Parameter tracking and constraint caching infrastructure
 - **Metadata (`elements/` and `core/schema/`)**: Element registry, configuration defaults, validation, input field mapping, and runtime metadata for every element type.
-- **Presentation (`sensors/`)**: Builds sensor platforms that publish optimization results back to Home Assistant.
+- **Presentation (`sensor.py`, `entities/`)**: Builds the sensor platform and entity classes that publish optimization results back to Home Assistant.
 - **Translations (`translations/`)**: Provides user-facing strings for config flows and entity names.
 
 ## Extension Points
@@ -194,19 +195,19 @@ Rather than documenting every file, focus on how the major areas collaborate:
 1. **Define schema** in `core/schema/elements/{element_type}.py`:
 
     - `ConfigSchema` and `ConfigData` TypedDicts
-    - `DEFAULTS` dict for optional fields
+    - `FieldHint` metadata carrying units, direction, and defaults
 
 2. **Implement adapter** in `core/adapters/elements/{element_type}.py`:
 
-    - `available()`, `inputs()`, `model_elements()`, `outputs()`
+    - `model_elements()` and `outputs()`, plus the adapter capability attributes
 
 3. **Implement config flow** in `flows/elements/{element_type}.py`:
 
-    - Config flow with voluptuous schemas using DEFAULTS for suggested values
+    - `ConfigSubentryFlow` subclass using `ElementFlowMixin` and a sections tuple
 
-4. **Register element type** in `elements/__init__.py`:
+4. **Register element type** in `core/adapters/registry.py`:
 
-    - Add `ElementAdapter` to `ELEMENT_TYPES` mapping
+    - Add the adapter instance to the `ELEMENT_TYPES` mapping
 
 5. **Update translations** in `translations/en.json`:
 
@@ -225,11 +226,11 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 ### Custom Field Types
 
-Extend `core/schema/fields.py`:
+Fields are described by `FieldHint` in `core/schema/field_hints.py`, attached to the schema with `Annotated`:
 
-- Create new Validator subclass with `create_schema()` method
-- Add LoaderMeta subclass if needed for custom loading behavior
-- Define field type aliases composing Validator, LoaderMeta, and optional Default
+- Add an `OutputType` when the field holds a new kind of quantity, with its unit and limits in `elements/field_hints.py`
+- Add a `FieldHint` attribute when the field needs to load or present differently
+- See [Field hints](config-flow.md#field-hints) for the available hints
 
 ## Related Documentation
 

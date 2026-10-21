@@ -1,5 +1,3 @@
 *
 !.gitignore
-!packages
-!packages/*
-!transform_sensor.py
+!configuration.yaml

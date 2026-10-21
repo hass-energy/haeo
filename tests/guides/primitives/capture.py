@@ -7,13 +7,70 @@ Screenshots are named based on the function call hierarchy, e.g.:
 
 from __future__ import annotations
 
-from collections import OrderedDict
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import wraps
 from pathlib import Path
-from typing import Any
+
+import freezegun.api
+from playwright.sync_api import Page
+
+from tools.live_hass import wait_for_requests
+
+_WAIT_SETTLED_JS = (Path(__file__).parent / "js" / "wait_settled.js").read_text()
+
+# How long a page may take to finish rendering before a capture fails
+SETTLE_DEADLINE_MS = 10000
+
+# Every capture is saved once per theme, in a directory named after it
+THEMES = ("light", "dark")
+
+# Home Assistant switches theme on this event, as its profile page does.
+# It hands the new hass object on to the page, but a dialog keeps the one it
+# opened with, since the theme cannot change while a dialog is open in normal
+# use. Anything still holding the other theme's hass gets the new one and
+# renders again, so what depends on the theme in JavaScript, such as brand
+# logos with dark variants, follows it too.
+_SET_THEME_JS = """
+(dark) => {
+    const root = document.querySelector('home-assistant');
+    root.dispatchEvent(new CustomEvent('settheme', { detail: { dark } }));
+    const visit = (node) => {
+        for (const el of node.querySelectorAll('*')) {
+            if (el.hass && el.hass.themes?.darkMode !== root.hass.themes.darkMode) {
+                el.hass = root.hass;
+                el.requestUpdate?.();
+            }
+            if (el.shadowRoot) visit(el.shadowRoot);
+        }
+    };
+    visit(document);
+}
+"""
+_IS_DARK_JS = "() => document.querySelector('home-assistant').hass.selectedTheme?.dark === true"
+
+
+def wait_until_settled(page: Page) -> None:
+    """Block until the page has finished rendering, with nothing under the pointer.
+
+    The pointer moves off the page first. A browser updates hover state on its
+    own schedule after the layout under a still pointer changes, so leaving it
+    over the page would show hover highlights in some captures and not others.
+    Settling repeats until no HTTP request is left in flight, since a request,
+    such as for the script of a panel, changes nothing until it is answered.
+    The whole settle shares one deadline, kept on the real clock since the
+    wall clock is frozen.
+    """
+    deadline = freezegun.api.real_monotonic() + SETTLE_DEADLINE_MS / 1000
+
+    def settle_dom() -> None:
+        page.evaluate(_WAIT_SETTLED_JS, max((deadline - freezegun.api.real_monotonic()) * 1000, 0))
+
+    page.mouse.move(-1, -1)
+    settle_dom()
+    while wait_for_requests(page, deadline):
+        settle_dom()
 
 
 @dataclass
@@ -40,11 +97,13 @@ class ScreenshotContext:
     3. The element/field name (e.g., "Import_Price")
     4. Optional step suffix (e.g., "search", "result")
 
-    Filenames add a numeric prefix and .png extension for ordering.
+    Filenames add a numeric prefix for ordering, and end in .png for
+    screenshots or .svg for figures. Each is saved once per theme, in the
+    theme's directory under ``output_dir``.
     """
 
     output_dir: Path
-    screenshots: OrderedDict[str, Path] = field(default_factory=OrderedDict)
+    screenshots: list[str] = field(default_factory=list)
     _stack: list[str] = field(default_factory=list)
     _step_number: int = 0
 
@@ -71,17 +130,8 @@ class ScreenshotContext:
         if self._stack:
             self._stack.pop()
 
-    def capture(self, page: Any, step: str) -> Path:
-        """Capture a screenshot with hierarchical naming.
-
-        Args:
-            page: Playwright page object
-            step: Step name within current context (e.g., "click", "result")
-
-        Returns:
-            Path to the saved screenshot
-
-        """
+    def _next_name(self, step: str, suffix: str) -> str:
+        """Return the next numbered filename for a capture in the current scope."""
         self._step_number += 1
 
         # Build hierarchical name from stack + step
@@ -91,13 +141,41 @@ class ScreenshotContext:
         name = ".".join(parts)
 
         # Include step number for ordering and uniqueness
-        filename = f"{self._step_number:03d}_{name}.png"
-        path = self.output_dir / filename
+        filename = f"{self._step_number:03d}_{name}{suffix}"
+        self.screenshots.append(filename)
+        return filename
 
-        page.screenshot(path=str(path), animations="disabled")
-        self.screenshots[filename] = path
+    def capture(self, page: Page, step: str) -> None:
+        """Capture a screenshot in each theme with hierarchical naming.
 
-        return path
+        The page is captured in the theme it shows first, then switched to
+        the other, so consecutive captures switch theme once each.
+
+        Args:
+            page: Playwright page object
+            step: Step name within current context (e.g., "click", "result")
+
+        """
+        filename = self._next_name(step, ".png")
+
+        wait_until_settled(page)
+        current = "dark" if page.evaluate(_IS_DARK_JS) else "light"
+        for theme in sorted(THEMES, key=lambda theme: theme != current):
+            if theme != current:
+                page.evaluate(_SET_THEME_JS, theme == "dark")
+                wait_until_settled(page)
+            page.screenshot(path=str(self.output_dir / theme / filename), animations="disabled")
+
+    def save_figure(self, step: str, render: Callable[[str], str]) -> None:
+        """Save a figure, such as a rendered card, as an SVG in each theme with hierarchical naming.
+
+        ``render`` returns the figure's SVG for the theme it is given. Figures
+        are shown on their own in the documentation rather than as steps of a
+        screenshot slideshow.
+        """
+        filename = self._next_name(step, ".svg")
+        for theme in THEMES:
+            (self.output_dir / theme / filename).write_text(render(theme), encoding="utf-8")
 
     @staticmethod
     def _sanitize(name: str) -> str:
@@ -141,10 +219,11 @@ def screenshot_context(output_dir: Path) -> Iterator[ScreenshotContext]:
         with screenshot_context(output_dir) as ctx:
             add_integration(page, "My System")
             add_battery(page, ...)
-            # ctx.screenshots is keyed by filenames with step prefixes
+            # ctx.screenshots lists filenames with step prefixes
 
     """
-    output_dir.mkdir(parents=True, exist_ok=True)
+    for theme in THEMES:
+        (output_dir / theme).mkdir(parents=True, exist_ok=True)
     ctx = ScreenshotContext(output_dir=output_dir)
 
     previous = _holder.current
@@ -155,7 +234,7 @@ def screenshot_context(output_dir: Path) -> Iterator[ScreenshotContext]:
         _holder.current = previous
 
 
-def guide_step[F: Callable[..., Any]](func: F) -> F:
+def guide_step[F: Callable[..., None]](func: F) -> F:
     """Wrap a guide function to push its name onto the screenshot context stack.
 
     All screenshots taken within the function get hierarchical names.
@@ -170,7 +249,7 @@ def guide_step[F: Callable[..., Any]](func: F) -> F:
     """
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    def wrapper(*args: object, **kwargs: object) -> None:
         ctx = ScreenshotContext.current()
         if ctx is None:
             # No context active, just call the function

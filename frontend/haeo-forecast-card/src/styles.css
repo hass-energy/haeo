@@ -269,6 +269,15 @@ ha-card {
   stroke-width: 2.6;
 }
 
+.socLine.thresholdLine {
+  stroke-width: 2.4;
+  stroke-dasharray: 2 3;
+}
+
+.socLine.thresholdLine.active {
+  stroke-width: 3.2;
+}
+
 .areaSeries {
   stroke-width: 1;
   pointer-events: none;
@@ -484,4 +493,19 @@ ha-card {
     overflow: visible;
     margin: 0 8px 8px;
   }
+}
+
+.windowTint {
+  fill: currentColor;
+  opacity: 0.07;
+  transition: opacity 120ms ease;
+}
+
+.windowBand.active .windowTint {
+  opacity: 0.18;
+}
+
+.windowStrip {
+  fill: currentColor;
+  opacity: 0.85;
 }

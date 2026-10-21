@@ -1,6 +1,6 @@
 """Tests for elements schema helper utilities."""
 
-from typing import Any, Literal, NotRequired, Required, TypeAliasType, TypedDict
+from typing import Literal, TypeAliasType, TypedDict
 
 import pytest
 
@@ -25,13 +25,13 @@ class _DummySchema(TypedDict):
 
 
 def test_get_input_field_schema_info_marks_optional_fields() -> None:
-    """get_input_field_schema_info marks optional fields and sections."""
+    """get_input_field_schema_info marks NotRequired fields as optional."""
     input_fields = get_input_fields(ELEMENT_TYPE)
     schema_info = get_input_field_schema_info(battery.ELEMENT_TYPE, input_fields)
 
     assert schema_info[battery.SECTION_STORAGE][battery.CONF_CAPACITY].is_optional is False
     assert schema_info[battery.SECTION_LIMITS][battery.CONF_MIN_CHARGE_PERCENTAGE].is_optional is True
-    assert schema_info[battery.SECTION_UNDERCHARGE][battery.CONF_PARTITION_COST].is_optional is True
+    assert schema_info[battery.SECTION_PRICING][battery.CONF_SALVAGE_VALUE].is_optional is True
 
 
 def test_get_input_field_schema_info_missing_section() -> None:
@@ -71,7 +71,7 @@ def test_get_input_field_schema_info_type_alias(monkeypatch: pytest.MonkeyPatch)
     """get_input_field_schema_info unwraps TypeAliasType sections."""
     original_get_type_hints = elements_module.get_type_hints
 
-    def _fake_get_type_hints(schema_cls: type) -> dict[str, Any]:
+    def _fake_get_type_hints(schema_cls: type) -> dict[str, object]:
         if schema_cls is _DummySchema:
             return {"dummy": DummySectionAlias}
         if schema_cls is _DummySection:
@@ -100,17 +100,6 @@ def test_get_input_fields_returns_empty_for_none() -> None:
 def test_get_input_fields_returns_empty_for_mapping_without_element_type() -> None:
     """get_input_fields returns empty dict for mapping without element_type key."""
     assert get_input_fields({"some_other_key": "value"}) == {}
-
-
-def test_unwrap_required_type_handles_required_wrappers() -> None:
-    """Test _unwrap_required_type returns underlying Required types."""
-    assert elements_module._unwrap_required_type(NotRequired[bool]) is bool
-    assert elements_module._unwrap_required_type(Required[int]) is int
-
-
-def test_unwrap_required_type_returns_original_type() -> None:
-    """Test _unwrap_required_type returns original type when unwrapped."""
-    assert elements_module._unwrap_required_type(str) is str
 
 
 def test_conforms_to_typed_dict_skips_optional_without_hint() -> None:

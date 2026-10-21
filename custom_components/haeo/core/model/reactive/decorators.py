@@ -4,24 +4,34 @@ from collections.abc import Callable
 from functools import partial
 from typing import TypeVar, overload
 
-from highspy import Highs
-from highspy.highs import highs_cons, highs_linear_expression
-import numpy as np
-
+from custom_components.haeo.core.model.linear import Rows
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
+from custom_components.haeo.core.model.util.solver_rows import RowIndices, add_rows, update_rows
 
 from .protocols import ReactiveHost
-from .tracked_param import ensure_decorator_state, tracking_context
+from .tracked_param import (
+    DecoratorState,
+    Dependency,
+    ensure_decorator_state,
+    record_access,
+    register_dependencies,
+    tracking_context,
+)
 
 # Type variable for generic return types
 R = TypeVar("R")
 
 
 class ReactiveMethod[R]:
-    """Base descriptor/decorator that caches method results with automatic dependency tracking.
+    """Descriptor/decorator that caches method results with automatic dependency tracking.
 
     On first call, tracks which TrackedParam values are accessed and caches the result.
     Subsequent calls return cached result unless the method was invalidated.
+    A reactive method that calls this one depends on it, so invalidating this
+    method invalidates its callers too.
+
+    Used directly through ``@computed`` for values computed from parameters, such
+    as a segment's transformed flow, that constraints and costs build on.
     """
 
     def __init__(self, fn: Callable[..., R]) -> None:
@@ -47,36 +57,32 @@ class ReactiveMethod[R]:
 
     def _call(self, obj: "ReactiveHost") -> R:
         """Execute with caching and dependency tracking."""
+        # A method calling this one depends on it
+        record_access(obj, f"method:{self._name}")
+
         state = ensure_decorator_state(obj, self._name)
 
         # Return cached if not invalidated
-        if not state["invalidated"] and state["result"] is not None:
+        if not state["invalidated"]:
             return state["result"]  # type: ignore[return-value]
 
-        # Track parameter and method access during computation
-        tracking: set[str] = set()
+        result = self._compute(obj, state)
+        state["result"] = result
+        return result
+
+    def _compute(self, obj: "ReactiveHost", state: DecoratorState) -> R:
+        """Run the method, recording and registering everything it reads."""
+        tracking: set[Dependency] = set()
         token = tracking_context.set(tracking)
         try:
             result = self._fn(obj)
         finally:
             tracking_context.reset(token)
 
-        # Store result and dependencies
-        state["result"] = result
+        register_dependencies(obj, self._name, tracking, state["deps"])
         state["deps"] = tracking
         state["invalidated"] = False
-
         return result
-
-    def _record_access(self, obj: "ReactiveHost") -> None:  # noqa: ARG002 (obj not used but part of method signature)
-        """Record this method's access in the current tracking context.
-
-        When another cached method calls this one, this establishes a dependency.
-        """
-        tracking = tracking_context.get()
-        if tracking is not None:
-            # Record as "method:name" to distinguish from param names
-            tracking.add(f"method:{self._name}")
 
 
 class ReactiveConstraint[R](ReactiveMethod[R]):
@@ -90,11 +96,11 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
 
     Usage:
         class Battery(Element):
-            capacity = TrackedParam[NDArray[np.floating[Any]]]()
+            capacity = TrackedParam[NDArray[np.float64]]()
 
             @constraint(output=True, unit="$/kWh")
-            def battery_soc_max(self) -> list[highs_linear_expression]:
-                return [self.stored_energy[i] <= self.capacity[i] for i in ...]
+            def battery_soc_max(self) -> Rows:
+                return self.stored_energy[1:] <= self.capacity[1:]
 
     """
 
@@ -127,16 +133,14 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         # Import here to avoid circular dependency
         from custom_components.haeo.core.model.const import OutputType  # noqa: PLC0415
 
-        # Get the state for this constraint
-        state_attr = f"_reactive_state_{self._name}"
-        state = getattr(obj, state_attr, None)
-        if state is None or "constraint" not in state:
+        cons = applied_constraint(obj, self._name)
+        if cons is None:
             return None
 
         # Extract shadow prices from the constraint using the solver
-        cons = state["constraint"]
-        arr = np.asarray(cons, dtype=object)
-        values = tuple(obj._solver.constrDuals(arr).flat)  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
+        duals = obj._solver.row_duals()  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
+        values = tuple(duals[cons].tolist())
+
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit=self.unit,
@@ -145,114 +149,57 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
 
     def _call(self, obj: "ReactiveHost") -> R:
         """Execute with caching, dependency tracking, and solver lifecycle management."""
-        # Record access if being tracked by another method
-        self._record_access(obj)
+        # A method calling this one depends on it
+        record_access(obj, f"method:{self._name}")
 
         state = ensure_decorator_state(obj, self._name)
 
         # Check if we need to recompute
-        needs_recompute = state["invalidated"] or "result" not in state
-        is_first_call = "constraint" not in state
-
-        if not needs_recompute:
+        if not state["invalidated"]:
             return state["result"]  # type: ignore[return-value]
 
-        # Track parameter and method access during computation
-        tracking: set[str] = set()
-        token = tracking_context.set(tracking)
+        result = self._compute(obj, state)
+        if not isinstance(result, Rows):
+            state["invalidated"] = True
+            msg = (
+                f"Constraint {self._name} returned {type(result).__name__}; return its rows, using free rows for "
+                "parts that do not apply"
+            )
+            raise TypeError(msg)
+        solver = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
+
+        # Rows are only recorded as applied once the solver has them, so a failed
+        # write is retried on the next call instead of being cached as applied.
         try:
-            expr = self._fn(obj)
-        finally:
-            tracking_context.reset(token)
+            if "constraint" in state and "applied" in state:
+                existing = state["constraint"]
+                if len(result) != len(existing):
+                    msg = (
+                        f"Constraint {self._name} returned {len(result)} rows after {len(existing)}; "
+                        "return free rows for parts that do not apply so the row count stays the same"
+                    )
+                    raise ValueError(msg)
+                state["applied"] = update_rows(solver, existing, state["applied"], result)
+            else:
+                state["constraint"], state["applied"] = add_rows(solver, result)
+        except Exception:
+            state["invalidated"] = True
+            raise
 
-        # Store result and dependencies
-        state["result"] = expr
-        state["deps"] = tracking
-        state["invalidated"] = False
+        state["result"] = result
+        return result
 
-        # Handle None result (constraint not applicable)
-        if expr is None:
-            return expr  # type: ignore[return-value]
 
-        # Get solver from element
-        solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
+def applied_constraint(obj: "ReactiveHost", name: str) -> RowIndices | None:
+    """Return a constraint's row indices if any of them currently binds, otherwise None.
 
-        # First call: create constraint(s) in solver
-        if is_first_call:
-            cons = solver.addConstrs(expr) if isinstance(expr, list) else solver.addConstr(expr)  # type: ignore[arg-type]
-            state["constraint"] = cons
-        else:
-            # Subsequent call with invalidation: update constraint(s)
-            existing = state["constraint"]
-            self._update_constraint(solver, existing, expr)  # type: ignore[arg-type]
-
-        return expr  # type: ignore[return-value]
-
-    def _update_constraint(
-        self,
-        solver: "Highs",
-        existing: "highs_cons | list[highs_cons]",
-        expr: "highs_linear_expression | list[highs_linear_expression]",
-    ) -> None:
-        """Update existing constraint(s) with new expression(s).
-
-        Args:
-            solver: The HiGHS solver instance
-            existing: The existing constraint(s) to update
-            expr: The new expression(s)
-
-        """
-        if isinstance(existing, list):
-            # Both existing and expr are lists - update element-wise
-            assert isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101 (runtime invariant check for constraint type consistency)
-            for cons, exp in zip(existing, expr, strict=True):
-                self._update_single_constraint(solver, cons, exp)
-        else:
-            # Both existing and expr are single values
-            assert not isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101 (runtime invariant check for constraint type consistency)
-            self._update_single_constraint(solver, existing, expr)
-
-    def _update_single_constraint(
-        self,
-        solver: "Highs",
-        cons: "highs_cons",
-        expr: "highs_linear_expression",
-    ) -> None:
-        """Update a single constraint with new expression.
-
-        Args:
-            solver: The HiGHS solver instance
-            cons: The existing constraint to update
-            expr: The new expression
-
-        """
-        # Update bounds (handle both addition and removal of bounds)
-        # Get old bounds from the constraint
-        old_expr = solver.getExpr(cons)
-        old_bounds = old_expr.bounds
-        new_bounds = expr.bounds
-
-        # Update bounds if they changed
-        if old_bounds != new_bounds:
-            if new_bounds is not None:
-                solver.changeRowBounds(cons.index, new_bounds[0], new_bounds[1])
-            elif old_bounds is not None:
-                # Bounds were removed - set to unconstrained (-inf, inf)
-                solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
-
-        # Update coefficients
-        # Get existing expression to compare
-        old_coeffs = dict(zip(old_expr.idxs, old_expr.vals, strict=True))
-        new_coeffs = dict(zip(expr.idxs, expr.vals, strict=True))
-
-        # Apply coefficient changes for all variables (old, new, and removed)
-        # Variables not in new_coeffs get coefficient 0.0 (effectively removed)
-        all_vars = set(old_coeffs) | set(new_coeffs)
-        for var_idx in all_vars:
-            old_val = old_coeffs.get(var_idx, 0.0)
-            new_val = new_coeffs.get(var_idx, 0.0)
-            if old_val != new_val:
-                solver.changeCoeff(cons.index, var_idx, new_val)
+    A constraint whose rows are all free is in the LP but does not apply, so it has
+    no shadow price and is not listed as a constraint.
+    """
+    state = getattr(obj, f"_reactive_state_{name}", None)
+    if state is None or "constraint" not in state or state["applied"].is_free:
+        return None
+    return state["constraint"]
 
 
 class ReactiveCost[R](ReactiveMethod[R]):
@@ -261,14 +208,6 @@ class ReactiveCost[R](ReactiveMethod[R]):
     Tracks dependencies on both TrackedParam values and other cached methods.
     When called by another cached method, records access to establish dependency.
     """
-
-    def _call(self, obj: "ReactiveHost") -> R:
-        """Execute with caching and dependency tracking."""
-        # Record access if being tracked by another method
-        self._record_access(obj)
-
-        # Use base class caching with dependency tracking
-        return super()._call(obj)
 
 
 class OutputMethod[R]:
@@ -363,6 +302,7 @@ def constraint[R](
 
 
 cost = ReactiveCost
+computed = ReactiveMethod
 
 
 @overload

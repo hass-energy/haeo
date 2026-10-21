@@ -5,82 +5,82 @@
       "user": {
         "title": "HAEO Setup",
         "description": "Configure your system and choose a planning horizon that matches your forecast data availability.",
-        "data": { "advanced_mode": "Advanced Mode", "horizon_preset": "Planning Horizon", "name": "System Name" },
-        "data_description": { "advanced_mode": "Reveals additional element types for complex energy systems." },
+        "data": { "advanced_mode": "Expose raw model elements", "horizon": "Planning Horizon", "name": "System Name" },
+        "data_description": {
+          "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself."
+        },
         "sections": {
-          "advanced": { "data": { "advanced_mode": "Advanced Mode" }, "name": "Advanced settings" },
+          "advanced": {
+            "data": { "advanced_mode": "Expose raw model elements" },
+            "data_description": {
+              "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself."
+            },
+            "name": "Advanced settings"
+          },
           "common": {
-            "data": { "horizon_preset": "Planning Horizon", "name": "System Name" },
+            "data": { "horizon": "Planning Horizon", "name": "System Name" },
+            "data_description": {
+              "horizon": "A preset covering 2 to 7 days, or a sensor whose forecast times set the start and end of every period."
+            },
             "name": "Common settings"
           }
         }
-      },
-      "custom_tiers": {
-        "title": "Custom Tier Configuration",
-        "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
-        "data": {
-          "tier_1_count": "Tier 1 Count (fine-grained)",
-          "tier_1_duration": "Tier 1 Duration (minutes)",
-          "tier_2_count": "Tier 2 Count (short-term)",
-          "tier_2_duration": "Tier 2 Duration (minutes)",
-          "tier_3_count": "Tier 3 Count (medium-term)",
-          "tier_3_duration": "Tier 3 Duration (minutes)",
-          "tier_4_count": "Tier 4 Count (long-term)",
-          "tier_4_duration": "Tier 4 Duration (minutes)"
-        }
       }
     },
-    "error": { "name_exists": "A system with this name already exists" },
+    "error": {
+      "horizon_entity_from_this_hub": "This hub's own sensors depend on its horizon, so they cannot set it.",
+      "horizon_entity_invalid": "This sensor does not report a forecast with at least two increasing times.",
+      "name_exists": "A system with this name already exists"
+    },
     "abort": { "already_configured": "HAEO already configured" }
   },
   "options": {
     "step": {
-      "custom_tiers": {
-        "title": "Custom Tier Configuration",
-        "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
-        "data": {
-          "tier_1_count": "Tier 1 Count (fine-grained)",
-          "tier_1_duration": "Tier 1 Duration (minutes)",
-          "tier_2_count": "Tier 2 Count (short-term)",
-          "tier_2_duration": "Tier 2 Duration (minutes)",
-          "tier_3_count": "Tier 3 Count (medium-term)",
-          "tier_3_duration": "Tier 3 Duration (minutes)",
-          "tier_4_count": "Tier 4 Count (long-term)",
-          "tier_4_duration": "Tier 4 Duration (minutes)"
-        }
-      },
       "init": {
         "title": "HAEO Settings",
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
         "data": {
-          "advanced_mode": "Advanced Mode",
+          "advanced_mode": "Expose raw model elements",
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_preset": "Planning Horizon",
-          "record_forecasts": "Record forecast data"
+          "horizon": "Planning Horizon",
+          "record_forecasts": "Record forecast data",
+          "relax_infeasible": "Relax impossible plans"
         },
         "data_description": {
-          "advanced_mode": "Reveals additional element types for complex energy systems.",
-          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
+          "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
+          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
+          "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
         },
         "sections": {
           "advanced": {
             "data": {
-              "advanced_mode": "Advanced Mode",
+              "advanced_mode": "Expose raw model elements",
               "debounce_seconds": "Debounce Window (seconds)",
-              "record_forecasts": "Record forecast data"
+              "record_forecasts": "Record forecast data",
+              "relax_infeasible": "Relax impossible plans"
+            },
+            "data_description": {
+              "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
+              "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
+              "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
             },
             "name": "Advanced settings"
           },
-          "common": { "data": { "horizon_preset": "Planning Horizon" }, "name": "Common settings" }
+          "common": {
+            "data": { "horizon": "Planning Horizon" },
+            "data_description": {
+              "horizon": "A preset covering 2 to 7 days, or a sensor whose forecast times set the start and end of every period."
+            },
+            "name": "Common settings"
+          }
         }
       }
     },
     "error": {
       "cannot_connect_to_self": "Cannot connect a device to itself",
+      "horizon_entity_from_this_hub": "This hub's own sensors depend on its horizon, so they cannot set it.",
+      "horizon_entity_invalid": "This sensor does not report a forecast with at least two increasing times.",
       "invalid_name": "Invalid device name",
-      "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
-      "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
-      "min_power_too_high": "Minimum power must be less than or equal to maximum power",
       "name_exists": "A device with this name already exists"
     },
     "abort": {
@@ -99,8 +99,9 @@
           "description": "Configure battery parameters for energy optimization",
           "data": {
             "capacity": "Capacity",
-            "configure_partitions": "Configure battery partitions",
+            "charge_cost": "Charge cost",
             "connection": "Connection",
+            "discharge_cost": "Discharge cost",
             "efficiency_source_target": "Discharge efficiency",
             "efficiency_target_source": "Charge efficiency",
             "initial_charge_percentage": "State of Charge",
@@ -109,11 +110,16 @@
             "max_power_target_source": "Max charge power",
             "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
-            "price_source_target": "Discharge price",
-            "price_target_source": "Charge price",
             "salvage_value": "Salvage value"
           },
           "sections": {
+            "advanced": {
+              "data": { "charge_limit_cost": "Limit cost" },
+              "data_description": {
+                "charge_limit_cost": "Holding cost per kWh outside the min and max charge, for every hour it lasts. Keep it far above any price the battery could earn from, so the limits act as hard limits."
+              },
+              "name": "Advanced"
+            },
             "common": { "data": { "connection": "Connection", "name": "Battery Name" }, "name": "Common settings" },
             "efficiency": {
               "data": {
@@ -126,10 +132,6 @@
               "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
               "name": "Limits"
             },
-            "partitioning": {
-              "data": { "configure_partitions": "Configure battery partitions" },
-              "name": "Battery partitions"
-            },
             "power_limits": {
               "data": {
                 "max_power_source_target": "Max discharge power",
@@ -139,8 +141,8 @@
             },
             "pricing": {
               "data": {
-                "price_source_target": "Discharge price",
-                "price_target_source": "Charge price",
+                "charge_cost": "Charge cost",
+                "discharge_cost": "Discharge cost",
                 "salvage_value": "Salvage value"
               },
               "name": "Pricing"
@@ -150,29 +152,14 @@
               "name": "Storage"
             }
           }
-        },
-        "partition_values": {
-          "title": "Battery Partition Values",
-          "description": "Enter values for the partition input sources",
-          "data": { "cost": "Cost", "percentage": "Percentage" }
-        },
-        "partitions": {
-          "title": "Battery Partitions",
-          "description": "Select entities for undercharge and overcharge regions",
-          "data": { "cost": "Cost", "percentage": "Percentage" },
-          "sections": {
-            "overcharge": {
-              "data": { "cost": "Overcharge cost", "percentage": "Overcharge percentage" },
-              "name": "Overcharge settings"
-            },
-            "undercharge": {
-              "data": { "cost": "Undercharge cost", "percentage": "Undercharge percentage" },
-              "name": "Undercharge settings"
-            }
-          }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "battery_section": {
@@ -182,7 +169,7 @@
       "step": {
         "user": {
           "title": "Battery Section Configuration",
-          "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
+          "description": "Configure a single battery section with explicit capacity and initial charge. Battery sections have no implicit connections. Connections carry power in one direction only, so add one connection into the section to charge it and another connection out of it to discharge it.",
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
           "sections": {
             "common": { "data": { "name": "Battery Section Name" }, "name": "Common settings" },
@@ -190,7 +177,59 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
+    "buffer": {
+      "flow_title": "Buffer",
+      "entry_type": "Buffer",
+      "initiate_flow": { "user": "Buffer", "reconfigure": "Buffer" },
+      "step": {
+        "user": {
+          "title": "Buffer configuration",
+          "description": "Keep energy in your batteries for an outage (a reserve), or empty space for incoming generation (headroom).",
+          "data": { "kind": "Kind", "name": "Buffer name" },
+          "data_description": {
+            "kind": "A reserve keeps the batteries charged enough. Headroom keeps them empty enough."
+          },
+          "sections": {
+            "participants": {
+              "data": { "generation": "Generation", "loads": "Loads", "storage": "Batteries" },
+              "data_description": {
+                "generation": "Generation that keeps producing through an outage for a reserve, or that headroom keeps space for.",
+                "loads": "Loads to keep running through an outage for a reserve, or that use some of the generation for headroom.",
+                "storage": "Batteries that hold the buffer together."
+              },
+              "name": "Participants"
+            },
+            "pricing": {
+              "data": { "shortfall_cost": "Shortfall cost" },
+              "data_description": {
+                "shortfall_cost": "Holding cost per kWh stored in the batteries past the buffer, for every hour it lasts. Set it high to treat the buffer as nearly untouchable."
+              },
+              "name": "Pricing"
+            },
+            "requirement": {
+              "data": { "level": "Level", "window": "Window" },
+              "data_description": {
+                "level": "Charge level the buffer is measured from: a reserve keeps the batteries above it, headroom below it. Unset, it is the batteries' min or max charge.",
+                "window": "How far ahead to look: the outage to cover for a reserve, or the generation to make room for with headroom."
+              },
+              "name": "Requirement"
+            }
+          }
+        }
+      },
+      "error": {
+        "buffer_storage_required": "Choose at least one battery to hold the buffer",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "connection": {
@@ -200,54 +239,145 @@
       "step": {
         "user": {
           "title": "Connection Configuration",
-          "description": "Configure connection parameters between devices",
+          "description": "Configure a unidirectional power path from source to target. For reverse flow, add a second connection with swapped endpoints.",
           "data": {
-            "efficiency_source_target": "Efficiency Source to Target",
-            "efficiency_target_source": "Efficiency Target to Source",
-            "max_power_source_target": "Max Power Source to Target",
-            "max_power_target_source": "Max Power Target to Source",
-            "mirror_segment_order": "Mirror segment order",
+            "efficiency_source_target": "Efficiency",
+            "max_power_source_target": "Max power",
             "name": "Connection Name",
-            "price_source_target": "Price Source to Target",
-            "price_target_source": "Price Target to Source",
+            "price_source_target": "Price",
             "source": "Source Device",
             "target": "Target Device"
           },
           "sections": {
             "common": { "data": { "name": "Connection Name" }, "name": "Common settings" },
-            "efficiency": {
-              "data": {
-                "efficiency_source_target": "Efficiency Source to Target",
-                "efficiency_target_source": "Efficiency Target to Source"
-              },
-              "name": "Connection efficiency"
-            },
+            "efficiency": { "data": { "efficiency_source_target": "Efficiency" }, "name": "Connection efficiency" },
             "endpoints": { "data": { "source": "Source Device", "target": "Target Device" }, "name": "Endpoints" },
-            "power_limits": {
-              "data": {
-                "max_power_source_target": "Max Power Source to Target",
-                "max_power_target_source": "Max Power Target to Source"
-              },
-              "name": "Power limits"
-            },
-            "pricing": {
-              "data": {
-                "price_source_target": "Price Source to Target",
-                "price_target_source": "Price Target to Source"
-              },
-              "name": "Pricing"
-            },
-            "segment_order": { "data": { "mirror_segment_order": "Mirror segment order" }, "name": "Segment order" }
+            "power_limits": { "data": { "max_power_source_target": "Max power" }, "name": "Power limits" },
+            "pricing": { "data": { "price_source_target": "Price" }, "name": "Pricing" }
           }
         }
       },
       "error": {
         "cannot_connect_to_self": "Cannot connect a device to itself",
-        "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
-        "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
-        "min_power_too_high": "Minimum power must be less than or equal to maximum power",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
+    "deferrable_load": {
+      "flow_title": "Deferrable Load",
+      "entry_type": "Deferrable Load",
+      "initiate_flow": { "user": "Deferrable Load", "reconfigure": "Deferrable Load" },
+      "step": {
+        "user": {
+          "title": "Deferrable Load Configuration",
+          "description": "Configure a load that must receive scheduled amounts of energy within calendar windows",
+          "data": {
+            "connection": "Connection",
+            "deficit_price": "Shortfall price",
+            "energy_meter": "Energy meter",
+            "max_power": "Max power",
+            "name": "Deferrable Load Name",
+            "overage_price": "Overage price",
+            "window_calendar": "Run window calendar"
+          },
+          "sections": {
+            "common": {
+              "data": { "connection": "Connection", "name": "Deferrable Load Name" },
+              "name": "Common settings"
+            },
+            "power": { "data": { "max_power": "Max power" }, "name": "Power" },
+            "pricing": {
+              "data": { "deficit_price": "Shortfall price", "overage_price": "Overage price" },
+              "name": "Pricing"
+            },
+            "schedule": {
+              "data": { "energy_meter": "Energy meter", "window_calendar": "Run window calendar" },
+              "name": "Schedule"
+            }
+          }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
+    "ev": {
+      "flow_title": "EV",
+      "entry_type": "EV",
+      "initiate_flow": { "user": "EV", "reconfigure": "EV" },
+      "step": {
+        "user": {
+          "title": "EV Configuration",
+          "description": "Configure your electric vehicle with battery details, charging rates, and trip planning",
+          "data": {
+            "capacity": "Battery capacity",
+            "charge_limit_cost": "Limit cost",
+            "connected": "Plugged in",
+            "connection": "Connection",
+            "current_soc": "Current state of charge",
+            "efficiency_source_target": "Discharge efficiency",
+            "efficiency_target_source": "Charge efficiency",
+            "energy_per_distance": "Energy per distance",
+            "max_charge_rate": "Max charge rate",
+            "max_discharge_rate": "Max discharge rate",
+            "min_charge_percentage": "Min charge level",
+            "name": "EV Name",
+            "odometer": "Odometer",
+            "public_charging_price": "Public charging price",
+            "trip_calendar": "Trip calendar"
+          },
+          "sections": {
+            "advanced": {
+              "data": { "charge_limit_cost": "Limit cost" },
+              "data_description": {
+                "charge_limit_cost": "Holding cost per kWh below the min charge, for every hour it lasts. Keep it far above anything you could pay to charge away from home or earn from the battery, so the min charge acts as a hard limit."
+              },
+              "name": "Advanced"
+            },
+            "charging": {
+              "data": {
+                "connected": "Plugged in",
+                "max_charge_rate": "Max charge rate",
+                "max_discharge_rate": "Max discharge rate"
+              },
+              "name": "Charging"
+            },
+            "common": { "data": { "connection": "Connection", "name": "EV Name" }, "name": "Common settings" },
+            "efficiency": {
+              "data": {
+                "efficiency_source_target": "Discharge efficiency",
+                "efficiency_target_source": "Charge efficiency"
+              },
+              "name": "Efficiency"
+            },
+            "public_charging": {
+              "data": { "public_charging_price": "Public charging price" },
+              "name": "Public charging"
+            },
+            "trip": { "data": { "odometer": "Odometer", "trip_calendar": "Trip calendar" }, "name": "Trips" },
+            "vehicle": {
+              "data": {
+                "capacity": "Battery capacity",
+                "current_soc": "Current state of charge",
+                "energy_per_distance": "Energy per distance",
+                "min_charge_percentage": "Min charge level"
+              },
+              "name": "Vehicle"
+            }
+          }
+        },
+        "states": {
+          "title": "On and off states",
+          "description": "{entities} report words rather than on or off. Choose which states mean on, such as plugged in, and which mean off. Leave one list empty to count every other state as the opposite.",
+          "data": { "off_states": "States meaning off", "on_states": "States meaning on" }
+        }
+      },
+      "error": {
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "states_required": "Choose at least one state"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -280,7 +410,12 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "inverter": {
@@ -318,6 +453,26 @@
           }
         }
       },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
+    "junction": {
+      "flow_title": "Junction",
+      "entry_type": "Junction",
+      "initiate_flow": { "user": "Junction", "reconfigure": "Junction" },
+      "step": {
+        "user": {
+          "title": "Junction Configuration",
+          "description": "Add a junction where connections meet. Power flowing in always equals power flowing out.",
+          "data": { "name": "Junction Name" },
+          "sections": { "common": { "data": { "name": "Junction Name" }, "name": "Common settings" } }
+        }
+      },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -331,20 +486,27 @@
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
           "data": {
             "connection": "Connection",
+            "consumption_cost": "Consumption cost",
             "curtailment": "Allow shedding",
             "forecast": "Forecast",
-            "name": "Load Name",
-            "price_target_source": "Consumption value"
+            "name": "Load Name"
           },
           "sections": {
             "common": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Common settings" },
-            "curtailment": { "data": { "curtailment": "Allow shedding" }, "name": "Shedding" },
-            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
-            "pricing": { "data": { "price_target_source": "Consumption value" }, "name": "Value" }
+            "curtailment": {
+              "data": { "consumption_cost": "Consumption cost", "curtailment": "Allow shedding" },
+              "name": "Shedding"
+            },
+            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
@@ -361,7 +523,7 @@
       "step": {
         "user": {
           "title": "Node Configuration",
-          "description": "Add a node for power balance calculations or to source/sink unlimited power.",
+          "description": "Add a node that can produce or consume unlimited power. Use a junction for a point that only passes power through.",
           "data": {
             "is_sink": "Can consume unlimited power (Sink)",
             "is_source": "Can produce unlimited power (Source)",
@@ -416,8 +578,10 @@
         }
       },
       "error": {
+        "duplicate_rule": "A rule with this source and target already exists",
         "missing_name": "Policy name is required",
         "name_exists": "A policy with this name already exists",
+        "required": "Choose an entity or enter a value for the price",
         "source_target_same": "Source and target cannot be the same element"
       },
       "abort": { "no_rules": "No policy rules configured", "reconfigure_successful": "Policies updated successfully" }
@@ -445,7 +609,12 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
@@ -453,9 +622,13 @@
   "device": {
     "battery": { "name": "{name}" },
     "battery_section": { "name": "{name}" },
+    "buffer": { "name": "{name}" },
     "connection": { "name": "{name}" },
+    "deferrable_load": { "name": "{name}" },
+    "ev": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
+    "junction": { "name": "{name}" },
     "load": { "name": "{name}" },
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
@@ -465,7 +638,9 @@
   "entity": {
     "number": {
       "battery_capacity": { "name": "Capacity" },
-      "battery_cost": { "name": "Cost" },
+      "battery_charge_cost": { "name": "Charge cost" },
+      "battery_charge_limit_cost": { "name": "Limit cost" },
+      "battery_discharge_cost": { "name": "Discharge cost" },
       "battery_efficiency_source_target": { "name": "Discharge efficiency" },
       "battery_efficiency_target_source": { "name": "Charge efficiency" },
       "battery_initial_charge_percentage": { "name": "Initial charge" },
@@ -473,16 +648,39 @@
       "battery_max_power_source_target": { "name": "Max discharge power" },
       "battery_max_power_target_source": { "name": "Max charge power" },
       "battery_min_charge_percentage": { "name": "Min charge" },
-      "battery_percentage": { "name": "Percentage" },
       "battery_price_source_target": { "name": "Discharge price" },
       "battery_price_target_source": { "name": "Charge price" },
       "battery_salvage_value": { "name": "Salvage value" },
-      "connection_efficiency_source_target": { "name": "Source to target efficiency" },
-      "connection_efficiency_target_source": { "name": "Target to source efficiency" },
-      "connection_max_power_source_target": { "name": "Max source to target power" },
-      "connection_max_power_target_source": { "name": "Max target to source power" },
-      "connection_price_source_target": { "name": "Source to target price" },
-      "connection_price_target_source": { "name": "Target to source price" },
+      "buffer_level": { "name": "Level" },
+      "buffer_shortfall_cost": { "name": "Shortfall cost" },
+      "buffer_window": { "name": "Window" },
+      "connection_efficiency_source_target": { "name": "Efficiency" },
+      "connection_max_power_source_target": { "name": "Max power" },
+      "connection_price_source_target": { "name": "Price" },
+      "deferrable_load_deficit_price": { "name": "Shortfall price" },
+      "deferrable_load_due": { "name": "Energy due" },
+      "deferrable_load_energy_meter": { "name": "Energy since window started" },
+      "deferrable_load_in_window": { "name": "Run window" },
+      "deferrable_load_max_power": { "name": "Max power" },
+      "deferrable_load_opened": { "name": "Energy opening" },
+      "deferrable_load_overage_price": { "name": "Overage price" },
+      "deferrable_load_window_start": { "name": "Window start" },
+      "ev_away": { "name": "Away" },
+      "ev_capacity": { "name": "Battery capacity" },
+      "ev_charge_limit_cost": { "name": "Limit cost" },
+      "ev_connected": { "name": "Plugged in" },
+      "ev_current_soc": { "name": "Current state of charge" },
+      "ev_efficiency_source_target": { "name": "Discharge efficiency" },
+      "ev_efficiency_target_source": { "name": "Charge efficiency" },
+      "ev_energy_per_distance": { "name": "Energy per distance" },
+      "ev_max_charge_rate": { "name": "Max charge rate" },
+      "ev_max_discharge_rate": { "name": "Max discharge rate" },
+      "ev_min_charge_percentage": { "name": "Min charge level" },
+      "ev_odometer": { "name": "Distance since trip started" },
+      "ev_public_charging_price": { "name": "Public charging price" },
+      "ev_trip_due": { "name": "Trip distance due" },
+      "ev_trip_opened": { "name": "Trip distance opening" },
+      "ev_trip_start": { "name": "Trip start" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
@@ -491,6 +689,7 @@
       "inverter_efficiency_target_source": { "name": "AC to DC efficiency" },
       "inverter_max_power_source_target": { "name": "Max DC to AC power" },
       "inverter_max_power_target_source": { "name": "Max AC to DC power" },
+      "load_consumption_cost": { "name": "Consumption cost" },
       "load_forecast": { "name": "Forecast" },
       "load_price_target_source": { "name": "Consumption value" },
       "policy_price": { "name": "{rule_name} price" },
@@ -517,7 +716,24 @@
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
+      "buffer_energy_available": { "name": "Available energy" },
+      "buffer_energy_required": { "name": "Required energy" },
+      "buffer_energy_shortfall": { "name": "Energy shortfall" },
+      "buffer_state_of_charge": { "name": "Buffer state of charge" },
       "connection_power": { "name": "{source} to {target} power" },
+      "deferrable_load_energy_delivered": { "name": "Energy delivered" },
+      "deferrable_load_energy_overage": { "name": "Energy overage" },
+      "deferrable_load_energy_shortfall": { "name": "Energy shortfall" },
+      "deferrable_load_power": { "name": "Power" },
+      "ev_energy_stored": { "name": "Energy stored" },
+      "ev_power_active": { "name": "Active power" },
+      "ev_power_charge": { "name": "Charge power" },
+      "ev_power_discharge": { "name": "Discharge power" },
+      "ev_power_max_charge_price": { "name": "Max charge power shadow price" },
+      "ev_power_max_discharge_price": { "name": "Max discharge power shadow price" },
+      "ev_state_of_charge": { "name": "State of charge" },
+      "ev_trip_energy_delivered": { "name": "Trip energy delivered" },
+      "ev_trip_energy_shortfall": { "name": "Trip energy shortfall" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
       "grid_power_active": { "name": "Active power" },
@@ -533,7 +749,16 @@
       "inverter_power_ac_to_dc": { "name": "AC to DC power" },
       "inverter_power_active": { "name": "Active power" },
       "inverter_power_dc_to_ac": { "name": "DC to AC power" },
+      "junction_power_balance": { "name": "Power balance shadow price" },
       "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
+      "load_horizon_average_marginal_price": { "name": "Horizon average marginal price" },
+      "load_horizon_energy": { "name": "Horizon energy" },
+      "load_horizon_marginal_cost": { "name": "Horizon marginal cost" },
+      "load_horizon_runtime": { "name": "Horizon runtime" },
+      "load_next_24h_average_marginal_price": { "name": "Next 24h average marginal price" },
+      "load_next_24h_energy": { "name": "Next 24h energy" },
+      "load_next_24h_marginal_cost": { "name": "Next 24h marginal cost" },
+      "load_next_24h_runtime": { "name": "Next 24h runtime" },
       "load_power": { "name": "Power" },
       "network_optimization_cost": { "name": "Cost" },
       "network_optimization_duration": { "name": "Duration" },
@@ -555,51 +780,100 @@
     "config_entry_not_found": { "message": "Config entry {entry_id} not found" },
     "config_entry_not_loaded": { "message": "Config entry {entry_id} is not loaded (state: {state})" },
     "config_entry_wrong_domain": { "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})" },
-    "input_entities_not_ready": {
-      "message": "Input entities not ready after {timeout} seconds: {not_ready}. Some sensors may not be available yet."
+    "horizon_entity_not_ready": {
+      "message": "The planning horizon sensor {entity_id} does not report a usable HAEO-format forecast yet."
     },
-    "missing_sensors": {
-      "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
+    "input_unavailable": {
+      "message": "Input {field} of {element} has no reading from {entities}, so HAEO cannot optimize until it does."
+    },
+    "input_unit_incompatible": {
+      "message": "Input {field} of {element} needs a value in {expected}, but {entities} supplied one in {unit}, which does not convert."
+    },
+    "negative_input_value": {
+      "message": "Input {field} of {element} cannot be negative, but {entities} supplied {value}. Check that the sensor or forecast reports this value with the expected sign."
     },
     "no_history_at_time": {
       "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
-    "self_referential_field_missing": {
-      "message": "Configuration error for field {field}: The entity created by this field was selected, but the field is missing from the stored configuration. This may indicate corrupted configuration data. Please recreate the element."
+    "optimization_infeasible": {
+      "message": "No plan meets every constraint: {elements} cannot all be met {minutes} minutes into the plan."
     },
-    "self_referential_invalid_value": {
-      "message": "Configuration error for field {field}: The entity created by this field was selected, but the stored value is not a valid scalar (found {value_type}). This may indicate corrupted configuration data. Please recreate the element."
+    "optimization_infeasible_unexplained": {
+      "message": "No plan meets every constraint, and the solver could not narrow down which elements conflict."
     },
-    "self_referential_no_current_data": {
-      "message": "Configuration error for field {field}: The entity created by this field was selected, but no previous configuration exists. This may indicate corrupted configuration data. Please recreate the element."
-    },
+    "optimization_solver_failed": { "message": "The solver stopped without a plan (status: {status})." },
     "setup_failed_permanent": {
       "message": "Setup failed due to configuration error: {error}. Please check your configuration."
     },
     "setup_failed_transient": { "message": "Setup failed: {error}. Home Assistant will retry automatically." }
   },
   "issues": {
+    "calendar_event_values_ignored": {
+      "title": "Calendar events with values {element} cannot use",
+      "description": "Input {field} of {element} reads {calendars}, but these events hold values it cannot use, so it ignores them. Each is listed with the text its value is read from:\n{events}\n\nTo fix this issue:\n1. Open each event listed above in its calendar\n2. Make that text hold exactly one number followed by a unit that converts to {unit}, such as 5 kW, 500 W, or 0.30 $/kWh\n3. Save the event; this issue clears automatically once every event's value can be used"
+    },
     "disconnected_network": {
       "title": "System has disconnected components",
       "description": "The system has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the system is fully connected"
     },
-    "invalid_config": {
-      "title": "Invalid configuration for {element_name}",
-      "description": "Element {element_name} has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the {element_name} element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
+    "invalid_connection_endpoints": {
+      "title": "Connections bypass an element's own limits and prices",
+      "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the junction or inverter that its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
     },
-    "missing_sensor": {
-      "title": "Missing sensor data for {element_name}",
-      "description": "The HAEO integration cannot find sensor data for element {element_name}. The sensor entity {sensor_entity_id} may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
+    "mixed_price_currencies": {
+      "title": "Price inputs report different currencies",
+      "description": "HAEO cannot convert between currencies, so it optimizes these prices as if they were all in one currency, and the plan may favor the wrong times to import or export.\n\nCurrencies and the sensors that report them:\n{currencies}\n\nTo fix this issue:\n1. Check the unit of each sensor listed above in Developer tools > States\n2. If a sensor reports a different currency from the rest, replace it with a sensor that reports your currency, or convert it with a template sensor\n3. If the sensors are in the same currency written two ways, such as $ and A$, you can ignore this issue\n4. This issue clears automatically once every price sensor reports one currency"
+    },
+    "node_replaced_by_junction": {
+      "title": "{element_name} is now a junction",
+      "description": "{element_name} was a node with its source or sink switch turned on or driven by an entity. A node like this produces or consumes unlimited power at no cost, which let the optimizer plan with power that does not exist.\n\n{element_name} is now a junction, which only passes power between the elements connected to it. Its source and sink switches have been removed.\n\nIf power should be produced or consumed at {element_name}, connect an element that sets its own limits and prices to it. You can ignore this issue once you have read it."
     },
     "optimization_failure": {
       "title": "Optimization failed",
-      "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. Issues with the selected solver\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your system configuration for conflicting constraints\n4. Try a different optimization solver in the integration settings\n5. This issue will automatically dismiss when optimization succeeds"
+      "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. An infeasible or numerically difficult optimization problem\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your system configuration for conflicting constraints\n4. Choose a shorter planning horizon or simplify the network if solves are slow or failing\n5. This issue will automatically dismiss when optimization succeeds"
+    },
+    "optimization_infeasible": {
+      "title": "No plan meets every constraint",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "No plan meets every constraint",
+            "description": "HAEO could not find the plan made at {planned_at}, because {elements} cannot all be met {minutes} minutes in.\n\nThis issue stays until you mark it resolved, even once a later plan is found, so a forecast that only sometimes asks for too much is not missed. It describes the first plan that could not be found since you last resolved it.\n\nHAEO saved the inputs of this plan to `{diagnostics}`. If you report this issue, attach that file so the plan can be run again. Submitting deletes it, so attach it first.\n\nTo fix this issue:\n1. Check the forecasts of these elements around that time for values your system cannot meet, such as a load spike above your grid import and battery discharge limits\n2. Check the power limits of these elements and of the connections between them\n3. To keep planning while a forecast asks for more than your system can do, turn on Relax impossible plans in the HAEO hub's advanced settings\n4. Once you have addressed the cause, select Submit to mark this issue resolved; it is raised again if a later plan cannot be found"
+          }
+        }
+      }
+    },
+    "optimization_infeasible_unexplained": {
+      "title": "No plan meets every constraint",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "No plan meets every constraint",
+            "description": "HAEO could not find the plan made at {planned_at}, and the solver could not narrow down which elements conflict.\n\nThis issue stays until you mark it resolved, even once a later plan is found, so a forecast that only sometimes asks for too much is not missed. It describes the first plan that could not be found since you last resolved it.\n\nHAEO saved the inputs of this plan to `{diagnostics}`. If you report this issue, attach that file so the plan can be run again. Submitting deletes it, so attach it first.\n\nTo fix this issue:\n1. Check your forecasts for values your system cannot meet, such as a load spike above your grid import and battery discharge limits\n2. Check the power limits of your elements and connections\n3. To keep planning while a forecast asks for more than your system can do, turn on Relax impossible plans in the HAEO hub's advanced settings\n4. Once you have addressed the cause, select Submit to mark this issue resolved; it is raised again if a later plan cannot be found"
+          }
+        }
+      }
+    },
+    "optimization_relaxed": {
+      "title": "A plan had to relax constraints it cannot meet",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "A plan had to relax constraints it cannot meet",
+            "description": "In the plan made at {planned_at}, {elements} cannot all be met {minutes} minutes in. To keep planning, HAEO relaxed constraints at {relaxed_elements} in {relaxed_periods} periods and optimized the rest of the plan as usual. Those periods cannot happen as planned.\n\nThis issue stays until you mark it resolved, so a forecast that only sometimes asks for too much is not missed. It describes the first plan that had to relax constraints since you last resolved it.\n\nHAEO saved the inputs of this plan to `{diagnostics}`. If you report this issue, attach that file so the plan can be run again. Submitting deletes it, so attach it first.\n\nTo fix this issue:\n1. Check the forecasts of these elements around that time for values your system cannot meet, such as a load spike above your grid import and battery discharge limits\n2. Check the power limits of these elements and of the connections between them\n3. Once you have addressed the cause, select Submit to mark this issue resolved; it is raised again if a later plan has to relax constraints"
+          }
+        }
+      }
+    },
+    "unavailable_input": {
+      "title": "{element} has no reading for {field}",
+      "description": "HAEO skips every optimization while input {field} of {element} has no reading, so the whole plan stays out of date.\n\nSensors with no reading: {entities}\n\nTo fix this issue:\n1. Check that these sensors are available and reporting values in Developer tools > States\n2. If a sensor was removed or renamed, reconfigure {element} to read one that exists\n3. This issue clears automatically once the input has a reading again"
     }
   },
   "selector": {
-    "horizon_preset": {
-      "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
-    },
+    "buffer_kind": { "options": { "headroom": "Headroom: keep empty space", "reserve": "Reserve: keep energy" } },
+    "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
+    "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
   },

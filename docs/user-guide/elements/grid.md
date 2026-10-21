@@ -3,10 +3,6 @@
 The grid represents your connection to the electricity network.
 It allows bidirectional power flow: importing (buying) and exporting (selling) electricity.
 
-!!! note "Connection endpoints"
-
-    Grid elements appear in connection selectors only when Advanced Mode is enabled on your hub.
-
 ## Configuration
 
 Grid configuration uses a single-step flow where you enter the name and configure each input field.
@@ -19,6 +15,8 @@ For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed
 | **[Export Price](#export-price)** | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
 | **[Import Limit](#import-limit)** | Power  | No       | -       | Maximum import power from grid                             |
 | **[Export Limit](#export-limit)** | Power  | No       | -       | Maximum export power to grid                               |
+
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ## Name
 
@@ -161,17 +159,17 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Grid element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                                   | Unit  | Description                                 |
-| ------------------------------------------------------------------------ | ----- | ------------------------------------------- |
-| [`sensor.{name}_power_import`](#import-power)                            | kW    | Power imported from grid                    |
-| [`sensor.{name}_power_export`](#export-power)                            | kW    | Power exported to grid                      |
-| [`sensor.{name}_cost_import`](#import-cost)                              | \$    | Cost of importing electricity               |
-| [`sensor.{name}_cost_export`](#export-cost)                              | \$    | Revenue from exporting electricity          |
-| [`sensor.{name}_cost_net`](#net-cost)                                    | \$    | Net cost (import cost minus export revenue) |
-| [`sensor.{name}_power_max_import`](#max-import-power)                    | kW    | Maximum import power (when limited)         |
-| [`sensor.{name}_power_max_export`](#max-export-power)                    | kW    | Maximum export power (when limited)         |
-| [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kW | Value of additional import capacity         |
-| [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kW | Value of additional export capacity         |
+| Sensor                                                                   | Unit   | Description                                 |
+| ------------------------------------------------------------------------ | ------ | ------------------------------------------- |
+| [`sensor.{name}_power_import`](#import-power)                            | kW     | Power imported from grid                    |
+| [`sensor.{name}_power_export`](#export-power)                            | kW     | Power exported to grid                      |
+| [`sensor.{name}_cost_import`](#import-cost)                              | \$     | Cost of importing electricity               |
+| [`sensor.{name}_cost_export`](#export-cost)                              | \$     | Revenue from exporting electricity          |
+| [`sensor.{name}_cost_net`](#net-cost)                                    | \$     | Net cost (import cost minus export revenue) |
+| [`sensor.{name}_power_max_import`](#max-import-power)                    | kW     | Maximum import power (when limited)         |
+| [`sensor.{name}_power_max_export`](#max-export-power)                    | kW     | Maximum export power (when limited)         |
+| [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kWh | Value of additional import capacity         |
+| [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kWh | Value of additional export capacity         |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
 The `cost_*` sensors are only created when the corresponding price is configured.
@@ -282,7 +280,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 ### Sensor Not Found
 
-**Problem**: Error "Sensors not found or unavailable"
+**Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
 
 **Solutions**:
 
@@ -320,7 +318,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 - Review connections in network configuration
 - Check grid import limit vs total load
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

@@ -1,18 +1,21 @@
 """Tests for grid element config flow."""
 
+from collections.abc import Mapping
+import json
+from pathlib import Path
 from types import MappingProxyType
-from typing import Any, cast
 from unittest.mock import Mock
 
-from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
+from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER, ConfigSubentry, SubentryFlowResult
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
+import custom_components.haeo
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -26,6 +29,12 @@ from custom_components.haeo.core.schema.elements.grid import (
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
+from custom_components.haeo.flows.field_schema import (
+    CHOICE_CONSTANT,
+    CHOICE_ENTITY,
+    CHOICE_NONE,
+    NormalizingChooseSelector,
+)
 
 CONF_IMPORT_PRICE = CONF_PRICE_SOURCE_TARGET
 CONF_EXPORT_PRICE = CONF_PRICE_TARGET_SOURCE
@@ -34,7 +43,7 @@ CONF_EXPORT_LIMIT = CONF_MAX_POWER_TARGET_SOURCE
 SECTION_LIMITS = SECTION_POWER_LIMITS
 
 
-def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_input(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat grid input values into sectioned config."""
     if SECTION_PRICING in flat:
         return dict(flat)
@@ -53,13 +62,14 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_config(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat grid config values into sectioned config with element type."""
     if SECTION_PRICING in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     config = _wrap_input(flat)
-    if CONF_CONNECTION in config and isinstance(config[CONF_CONNECTION], str):
-        config[CONF_CONNECTION] = as_connection_target(config[CONF_CONNECTION])
+    connection = config.get(CONF_CONNECTION)
+    if isinstance(connection, str):
+        config[CONF_CONNECTION] = as_connection_target(connection)
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
@@ -107,7 +117,7 @@ async def test_user_step_with_constant_creates_entry(
     invalid_result = await flow.async_step_user(user_input=invalid_input)
     assert invalid_result.get("type") == FlowResultType.FORM
     assert invalid_result.get("step_id") == "user"
-    assert CONF_IMPORT_PRICE in invalid_result.get("errors", {})
+    assert invalid_result.get("errors") == {SECTION_PRICING: "required"}
 
     result = await flow.async_step_user(user_input=user_input)
 
@@ -156,6 +166,106 @@ async def test_user_step_with_entity_creates_entry(
     assert create_kwargs["data"][SECTION_PRICING][CONF_EXPORT_PRICE] == as_entity_value(["sensor.export_price"])
 
 
+def _section_selectors(form: SubentryFlowResult, section_key: str) -> dict[str, NormalizingChooseSelector]:
+    """Return the choose selectors inside a section of a shown form, keyed by field name."""
+    data_schema = form.get("data_schema")
+    assert data_schema is not None
+    section_schema = data_schema.schema[section_key].schema
+    return {str(marker): selector for marker, selector in section_schema.schema.items()}
+
+
+def _preselected_choice_input(selector: NormalizingChooseSelector) -> dict[str, object]:
+    """Build what the frontend submits for a choose selector left on its preselected choice."""
+    choice = next(iter(selector.config["choices"]))
+    empty_values: dict[str, object] = {CHOICE_ENTITY: [], CHOICE_NONE: ""}
+    return {"active_choice": choice, choice: empty_values.get(choice)}
+
+
+async def test_untouched_new_grid_form_explains_why_it_is_reshown(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Submitting the new grid form with prices left untouched re-shows it with a visible, translated error."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    form = await hass.config_entries.subentries.async_init(
+        (hub_entry.entry_id, ELEMENT_TYPE),
+        context={"source": SOURCE_USER},
+    )
+    pricing = {
+        field: _preselected_choice_input(selector)
+        for field, selector in _section_selectors(form, SECTION_PRICING).items()
+    }
+
+    result = await hass.config_entries.subentries.async_configure(
+        form["flow_id"],
+        {CONF_NAME: "Test Grid", CONF_CONNECTION: "TestNode", SECTION_PRICING: pricing, SECTION_POWER_LIMITS: {}},
+    )
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("errors") == {SECTION_PRICING: "required"}
+    translations = json.loads((Path(custom_components.haeo.__file__).parent / "translations" / "en.json").read_text())
+    assert "required" in translations["config_subentries"][ELEMENT_TYPE]["error"]
+
+
+async def test_required_prices_do_not_offer_none(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Grid prices are required, so their selectors offer no "none" choice while power limits do."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    form = await hass.config_entries.subentries.async_init(
+        (hub_entry.entry_id, ELEMENT_TYPE),
+        context={"source": SOURCE_USER},
+    )
+    pricing = _section_selectors(form, SECTION_PRICING).values()
+    limits = _section_selectors(form, SECTION_POWER_LIMITS).values()
+
+    assert all(CHOICE_NONE not in selector.config["choices"] for selector in pricing)
+    assert all(CHOICE_NONE in selector.config["choices"] for selector in limits)
+
+
+async def test_frontend_constant_submission_creates_entry(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Constant prices submitted in the frontend's choose selector shape create the grid."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    form = await hass.config_entries.subentries.async_init(
+        (hub_entry.entry_id, ELEMENT_TYPE),
+        context={"source": SOURCE_USER},
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        form["flow_id"],
+        {
+            CONF_NAME: "Test Grid",
+            CONF_CONNECTION: "TestNode",
+            SECTION_PRICING: {
+                CONF_IMPORT_PRICE: {"active_choice": CHOICE_CONSTANT, CHOICE_CONSTANT: 0.3},
+                CONF_EXPORT_PRICE: {"active_choice": CHOICE_CONSTANT, CHOICE_CONSTANT: 0.1},
+            },
+            SECTION_POWER_LIMITS: {
+                CONF_IMPORT_LIMIT: {"active_choice": CHOICE_NONE, CHOICE_CONSTANT: 100},
+                CONF_EXPORT_LIMIT: {"active_choice": CHOICE_CONSTANT, CHOICE_CONSTANT: 5},
+            },
+        },
+    )
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    data = result.get("data")
+    assert data is not None
+    assert data[SECTION_PRICING] == {
+        CONF_IMPORT_PRICE: as_constant_value(0.3),
+        CONF_EXPORT_PRICE: as_constant_value(0.1),
+    }
+    assert data[SECTION_POWER_LIMITS] == {
+        CONF_IMPORT_LIMIT: as_none_value(),
+        CONF_EXPORT_LIMIT: as_constant_value(5.0),
+    }
+
+
 # --- Tests for reconfigure flow ---
 
 
@@ -200,7 +310,7 @@ async def test_reconfigure_with_constant_updates_entry(
     invalid_result = await flow.async_step_reconfigure(user_input=invalid_input)
     assert invalid_result.get("type") == FlowResultType.FORM
     assert invalid_result.get("step_id") == "user"
-    assert CONF_IMPORT_PRICE in invalid_result.get("errors", {})
+    assert invalid_result.get("errors") == {SECTION_PRICING: "required"}
 
     # Change to constant values
     user_input = _wrap_input(
@@ -269,7 +379,7 @@ async def test_reconfigure_with_constant_updates_entry(
 async def test_reconfigure_defaults_handle_schema_values(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    config_values: dict[str, Any],
+    config_values: dict[str, object],
     expected_defaults: dict[str, object],
 ) -> None:
     """Reconfigure defaults reflect schema values."""
@@ -292,7 +402,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
+    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     defaults = flow._build_defaults("Test Grid", input_fields, dict(existing_subentry.data))
     assert defaults[SECTION_PRICING][CONF_IMPORT_PRICE] == expected_defaults[CONF_IMPORT_PRICE]
     assert defaults[SECTION_PRICING][CONF_EXPORT_PRICE] == expected_defaults[CONF_EXPORT_PRICE]

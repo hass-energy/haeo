@@ -5,7 +5,8 @@ attribute containing a mapping of datetime keys to float values.
 """
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
+from enum import StrEnum
 from itertools import pairwise
 import logging
 from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
@@ -13,12 +14,28 @@ from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import hold_until_next, is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
 
 _LOGGER = logging.getLogger(__name__)
 
 Format = Literal["haeo"]
 DOMAIN: Format = "haeo"
+
+
+class InterpolationMode(StrEnum):
+    """How a HAEO-format forecast's value varies between its points.
+
+    Published as the ``interpolation_mode`` attribute beside ``forecast``.
+    """
+
+    LINEAR = "linear"
+    """Values ramp linearly from one point to the next."""
+    PREVIOUS = "previous"
+    """Each value holds until the next point, and the last for as long as the step before it."""
+    NEXT = "next"
+    """Each value holds back to the previous point."""
+    NEAREST = "nearest"
+    """Each value holds to halfway between it and its neighbors."""
 
 
 class HaeoForecastPoint(TypedDict):
@@ -91,6 +108,7 @@ class Parser:
     @staticmethod
     def extract(
         state: HaeoForecastState,
+        time_zone: tzinfo,
     ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement | str, DeviceClass | None]:
         """Extract forecast data from HAEO forecast format.
 
@@ -104,11 +122,10 @@ class Parser:
         forecast = state.attributes["forecast"]
 
         # Parse list of {"time": ..., "value": ...} dicts
-        parsed = [(parse_datetime_to_timestamp(item["time"]), float(item["value"])) for item in forecast]
+        parsed = [(parse_datetime_to_timestamp(item["time"], time_zone), float(item["value"])) for item in forecast]
         parsed.sort(key=lambda x: x[0])
 
-        # Apply interpolation mode if specified
-        parsed = _apply_interpolation_mode(parsed, state.attributes.get("interpolation_mode"))
+        parsed = _apply_interpolation_mode(parsed, _interpolation_mode(state.attributes.get("interpolation_mode")))
 
         unit_attr = state.attributes["unit_of_measurement"]
         unit: UnitOfMeasurement | str = UnitOfMeasurement.of(unit_attr) or unit_attr
@@ -119,40 +136,41 @@ class Parser:
         return parsed, unit, device_class
 
 
-def _apply_interpolation_mode(
-    data: list[tuple[int, float]],
-    mode: str | None,
-) -> list[tuple[int, float]]:
-    """Apply interpolation mode by generating synthetic intermediate points.
+def _interpolation_mode(value: object) -> InterpolationMode:
+    """Read an interpolation_mode attribute, taking a missing or unknown mode as linear."""
+    try:
+        return InterpolationMode(value)
+    except ValueError:
+        return InterpolationMode.LINEAR
 
-    Converts non-linear interpolation into a series that behaves correctly
-    with linear interpolation by adding synthetic points at transitions.
+
+def _apply_interpolation_mode(data: list[tuple[int, float]], mode: InterpolationMode) -> list[tuple[int, float]]:
+    """Add the points that make linear interpolation follow the interpolation mode.
 
     Args:
         data: Sorted sequence of (timestamp, value) tuples
         mode: Interpolation mode to apply
 
     Returns:
-        New series with synthetic points added for non-linear modes.
-        For LINEAR mode, returns a copy of the original data.
+        The series with points added at each transition, unchanged for linear mode.
 
     """
-    if len(data) <= 1 or not mode or mode == "linear":
+    if len(data) <= 1:
         return data
 
-    result = [data[0]]
-    for (t1, v1), (t2, v2) in pairwise(data):
-        match mode:
-            case "previous":
-                result.append((t2, v1))
-            case "next":
-                result.append((t1, v2))
-            case "nearest":
-                mid = (t1 + t2) // 2
-                result.extend([(mid, v1), (mid, v2)])
-            case _:
-                pass
-
-        result.append((t2, v2))
-
-    return result
+    match mode:
+        case InterpolationMode.LINEAR:
+            return data
+        case InterpolationMode.PREVIOUS:
+            return step_points(hold_until_next(data))
+        case InterpolationMode.NEXT:
+            return [data[0], *(point for (t1, _), (t2, v2) in pairwise(data) for point in ((t1, v2), (t2, v2)))]
+        case InterpolationMode.NEAREST:
+            return [
+                data[0],
+                *(
+                    point
+                    for (t1, v1), (t2, v2) in pairwise(data)
+                    for point in (((t1 + t2) // 2, v1), ((t1 + t2) // 2, v2), (t2, v2))
+                ),
+            ]

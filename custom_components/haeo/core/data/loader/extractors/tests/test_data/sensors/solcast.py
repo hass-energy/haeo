@@ -1,16 +1,15 @@
 """Test data for Solcast Solar forecast sensors."""
 
 from datetime import UTC, datetime
-from typing import Any
 
-VALID: list[dict[str, Any]] = [
+VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.solcast_forecast",
         "state": "0",
         "attributes": {"detailedForecast": [{"period_start": "2025-10-06T00:00:00+11:00", "pv_estimate": 0}]},
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 0.0)],
+        "expected_data": [(1759669200.0, 0.0), (1759670100.0, 0.0), (1759671000.0, 0.0)],
         "description": "Single Solcast forecast entry",
     },
     {
@@ -24,7 +23,7 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 0.0), (1759670100.0, 10.0)],
+        "expected_data": [(1759669200.0, 0.0), (1759670100.0, 0.0), (1759671000.0, 10.0), (1759671900.0, 10.0)],
         "description": "Multiple Solcast forecast entries",
     },
     {
@@ -38,7 +37,7 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759708800.0, 5.0), (1759710600.0, 15.0)],
+        "expected_data": [(1759708800.0, 5.0), (1759709700.0, 5.0), (1759711500.0, 15.0), (1759712400.0, 15.0)],
         "description": "Solcast forecast with datetime objects instead of strings",
     },
     {
@@ -52,12 +51,12 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 3.0), (1759712400.0, 8.0)],
+        "expected_data": [(1759669200.0, 3.0), (1759670100.0, 3.0), (1759713300.0, 8.0), (1759714200.0, 8.0)],
         "description": "Solcast forecast with mixed string and datetime object timestamps",
     },
 ]
 
-INVALID: list[dict[str, Any]] = [
+INVALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.solcast_no_forecast",
         "state": "0",

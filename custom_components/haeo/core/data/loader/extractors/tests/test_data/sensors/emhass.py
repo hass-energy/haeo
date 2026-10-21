@@ -6,14 +6,15 @@ EMHASS uses a unique format where:
 - Values are stored as strings that parse to floats
 """
 
-from typing import Any
+import numpy as np
+
 
 # Timestamps for testing (2025-10-06 in AEST +11:00)
 # 2025-10-06T00:00:00+11:00 = 1759669200
 # 2025-10-06T00:30:00+11:00 = 1759671000
 # 2025-10-06T01:00:00+11:00 = 1759672800
 
-VALID: list[dict[str, Any]] = [
+VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.p_load_forecast",
         "state": "1500.0",
@@ -28,7 +29,7 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "kW",  # Converted from W to base unit kW
-        "expected_data": [(1759669200.0, 1.5), (1759671000.0, 1.6)],
+        "expected_data": [(1759669200.0, 1.5), (np.nextafter(1759671000.0, -np.inf), 1.5), (1759671000.0, 1.6), (1759672800.0, 1.6)],
         "description": "EMHASS load forecast with forecasts attribute",
     },
     {
@@ -46,7 +47,7 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 0.0), (1759671000.0, 0.5), (1759672800.0, 0.5)],
+        "expected_data": [(1759669200.0, 0.0), (np.nextafter(1759671000.0, -np.inf), 0.0), (1759671000.0, 0.5), (np.nextafter(1759672800.0, -np.inf), 0.5), (1759672800.0, 0.5), (1759674600.0, 0.5)],
         "description": "EMHASS deferrable load with deferrables_schedule attribute",
     },
     {
@@ -63,7 +64,7 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 0.0), (1759671000.0, 2.5)],
+        "expected_data": [(1759669200.0, 0.0), (np.nextafter(1759671000.0, -np.inf), 0.0), (1759671000.0, 2.5), (1759672800.0, 2.5)],
         "description": "EMHASS forecast with numeric values (not strings)",
     },
     {
@@ -80,7 +81,7 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, -1.0), (1759671000.0, 0.5)],
+        "expected_data": [(1759669200.0, -1.0), (np.nextafter(1759671000.0, -np.inf), -1.0), (1759671000.0, 0.5), (1759672800.0, 0.5)],
         "description": "EMHASS battery power with battery_scheduled_power attribute",
     },
     {
@@ -97,7 +98,7 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "%",  # Battery percentage stays as-is
-        "expected_data": [(1759669200.0, 50.0), (1759671000.0, 60.0)],
+        "expected_data": [(1759669200.0, 50.0), (1759671000.0, 50.0), (1759672800.0, 60.0)],
         "description": "EMHASS battery SOC with battery_scheduled_soc attribute",
     },
     {
@@ -114,8 +115,26 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "AUD/kWh",
-        "expected_data": [(1759669200.0, 0.25), (1759671000.0, 0.30)],
+        "expected_data": [
+            (1759669200.0, 0.25),
+            (np.nextafter(1759671000.0, -np.inf), 0.25),
+            (1759671000.0, 0.30),
+            (1759672800.0, 0.30),
+        ],
         "description": "EMHASS unit cost forecast with unit_load_cost_forecasts attribute",
+    },
+    {
+        "entity_id": "sensor.unit_prod_price",
+        "state": "0.05",
+        "attributes": {
+            "device_class": "monetary",
+            "unit_of_measurement": "AUD/kWh",
+            "unit_prod_price_forecasts": [{"date": "2025-10-06T00:00:00+11:00", "unit_prod_price": "0.0500"}],
+        },
+        "expected_format": "emhass",
+        "expected_unit": "AUD/kWh",
+        "expected_data": [(1759669200.0, 0.05)],
+        "description": "EMHASS single step price forecast",
     },
     {
         "entity_id": "sensor.mlforecaster_load",
@@ -131,7 +150,7 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 1.2), (1759671000.0, 1.1)],
+        "expected_data": [(1759669200.0, 1.2), (1759670100.0, 1.2), (1759671900.0, 1.1), (1759672800.0, 1.1)],
         "description": "EMHASS ML forecaster with scheduled_forecast attribute",
     },
     {
@@ -153,7 +172,7 @@ VALID: list[dict[str, Any]] = [
     },
 ]
 
-INVALID: list[dict[str, Any]] = [
+INVALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.p_load_forecast",
         "state": "1500.0",

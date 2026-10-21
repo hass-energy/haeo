@@ -1,19 +1,49 @@
 """Generic electrical entity for energy system modeling."""
 
-from collections.abc import Mapping, Sequence
-from functools import reduce
-import operator
-from typing import Any, Final, Literal
+from collections.abc import Mapping
+from typing import Final, Literal, Protocol
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
+from .const import OutputType
+from .linear import LinearArray, Rows, total
 from .output_data import OutputData
-from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
+from .reactive import (
+    OutputMethod,
+    ReactiveConstraint,
+    ReactiveCost,
+    TrackedParam,
+    applied_constraint,
+    constraint,
+    cost,
+    output,
+)
+from .solver import Solver
+from .util.solver_rows import RowIndices
 
 ELEMENT_POWER_BALANCE: Final = "element_power_balance"
+
+
+class _ConnectionLike(Protocol):
+    """Structural type for connection objects registered with a NetworkElement.
+
+    Describes only the members NetworkElement needs from a connection. Kept as a
+    Protocol (rather than importing Connection) to avoid a circular import between
+    element.py and elements/connection.py, which imports Element.
+    """
+
+    @property
+    def power_into_source(self) -> LinearArray: ...
+
+    @property
+    def power_into_target(self) -> LinearArray: ...
+
+    def connection_tags(self) -> set[int]: ...
+
+    def power_into_source_for_tag(self, tag: int) -> LinearArray: ...
+
+    def power_into_target_for_tag(self, tag: int) -> LinearArray: ...
 
 
 class Element[OutputNameT: str]:
@@ -30,14 +60,14 @@ class Element[OutputNameT: str]:
     """
 
     # TrackedParam for periods - enables reactive invalidation when periods change
-    periods: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
+    periods: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
-        solver: Highs,
+        solver: Solver,
         output_names: frozenset[OutputNameT],
     ) -> None:
         """Initialize an element.
@@ -54,7 +84,7 @@ class Element[OutputNameT: str]:
         self._solver = solver
         self._output_names = output_names
 
-    def __getitem__(self, key: str | int) -> Any:
+    def __getitem__(self, key: str | int) -> object:
         """Get a value by name or index.
 
         Args:
@@ -90,7 +120,7 @@ class Element[OutputNameT: str]:
         msg = f"{type(self).__name__!r} has no attribute {key!r}"
         raise KeyError(msg)
 
-    def __setitem__(self, key: str, value: Any) -> None:
+    def __setitem__(self, key: str, value: object) -> None:
         """Set a value by name.
 
         Setting a value triggers invalidation of dependent constraints/costs.
@@ -119,16 +149,11 @@ class Element[OutputNameT: str]:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def extract_values(self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | None) -> tuple[float, ...]:
-        """Convert a sequence of HiGHS types to resolved values."""
-        if sequence is None:
+    def extract_values(self, expr: LinearArray | None) -> tuple[float, ...]:
+        """Evaluate each row of the expression in the current solution."""
+        if expr is None:
             return ()
-
-        # Convert to numpy array for batch processing
-        arr = np.asarray(sequence, dtype=object)
-
-        # Use batch value extraction (handles highs_var and highs_linear_expression)
-        return tuple(self._solver.vals(arr).flat)
+        return tuple(expr.value(self._solver.column_values()).tolist())
 
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.
@@ -152,34 +177,29 @@ class Element[OutputNameT: str]:
                 result[output_name] = output_data  # type: ignore[assignment]  # name validated by `in` check at runtime
         return result
 
-    def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
+    def constraints(self) -> dict[str, RowIndices]:
         """Return all constraints from this element.
 
         Discovers and calls all @constraint decorated methods. Calling the methods
         triggers automatic constraint creation/updating in the solver via decorators.
 
         Returns:
-            Dictionary mapping constraint method names to constraint objects
+            Dictionary mapping constraint method names to the solver rows they hold
 
         """
-        result: dict[str, highs_cons | list[highs_cons]] = {}
+        result: dict[str, RowIndices] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, ReactiveConstraint):
                 # Call the constraint method to trigger decorator lifecycle
                 method = getattr(self, name)
                 method()
-
-                # Get the state after calling to collect constraints
-                state_attr = f"_reactive_state_{name}"
-                state = getattr(self, state_attr, None)
-                if state is not None and "constraint" in state:
-                    cons = state["constraint"]
+                if (cons := applied_constraint(self, name)) is not None:
                     result[name] = cons
         return result
 
     @cost
-    def cost(self) -> highs_linear_expression | None:
+    def cost(self) -> LinearArray | None:
         """Return aggregated primary cost expression from this element.
 
         Discovers and calls all @cost decorated methods, summing their results
@@ -190,7 +210,7 @@ class Element[OutputNameT: str]:
         # _name is set by ReactiveCost.__set_name__ and is not part of the public API.
         this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (_name is set by ReactiveCost.__set_name__, not part of public API)
 
-        costs: list[highs_linear_expression] = []
+        costs: list[LinearArray] = []
         for name in dir(type(self)):
             if name == this_method_name:
                 continue
@@ -202,11 +222,7 @@ class Element[OutputNameT: str]:
             if (cost_value := method()) is not None:
                 costs.append(cost_value)
 
-        if not costs:
-            return None
-        if len(costs) == 1:
-            return costs[0]
-        return sum(costs[1:], costs[0])
+        return total(costs)
 
 
 class NetworkElement[OutputNameT: str](Element[OutputNameT]):
@@ -220,10 +236,12 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
-        solver: Highs,
+        solver: Solver,
         output_names: frozenset[OutputNameT],
+        is_source: bool = True,
+        is_sink: bool = True,
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
@@ -234,6 +252,8 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             periods: Array of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
             output_names: Frozenset of valid output names for this element type (used for type narrowing)
+            is_source: Whether the element can produce power, so policies may draw from it
+            is_sink: Whether the element can consume power, so policies may deliver to it
             outbound_tags: Tags that produced power can be placed on (None = all tags)
             inbound_tags: Tags that consumed power can draw from (None = all tags)
 
@@ -244,19 +264,21 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             solver=solver,
             output_names=output_names,
         )
+        self.is_source = is_source
+        self.is_sink = is_sink
         self.outbound_tags: set[int] | None = outbound_tags
         self.inbound_tags: set[int] | None = inbound_tags
 
         # Track connections for power balance
-        self._connections: list[tuple[Any, Literal["source", "target"]]] = []
+        self._connections: list[tuple[_ConnectionLike, Literal["source", "target"]]] = []
 
         # Lazily-created per-tag consumption decomposition variables
-        self._consumed_by_tag: dict[int, HighspyArray] | None = None
+        self._consumed_by_tag: dict[int, LinearArray] | None = None
 
         # Lazily-created per-tag production decomposition variables
-        self._produced_by_tag: dict[int, HighspyArray] | None = None
+        self._produced_by_tag: dict[int, LinearArray] | None = None
 
-    def register_connection(self, connection: Any, end: Literal["source", "target"]) -> None:
+    def register_connection(self, connection: _ConnectionLike, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
         Args:
@@ -266,9 +288,19 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         """
         self._connections.append((connection, end))
 
+    @property
+    def outbound_connections(self) -> list[_ConnectionLike]:
+        """Return the connections that carry power away from this element."""
+        return [connection for connection, end in self._connections if end == "source"]
+
+    @property
+    def inbound_connections(self) -> list[_ConnectionLike]:
+        """Return the connections that carry power into this element."""
+        return [connection for connection, end in self._connections if end == "target"]
+
     # --- Element power protocol ---
 
-    def element_power_produced(self) -> HighspyArray | NDArray[Any] | None:
+    def element_power_produced(self) -> LinearArray | None:
         """Return this element's power production expression.
 
         Positive values represent power injected into the network.
@@ -277,7 +309,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         """
         return None
 
-    def element_power_consumed(self) -> HighspyArray | NDArray[Any] | None:
+    def element_power_consumed(self) -> LinearArray | None:
         """Return this element's power consumption expression.
 
         Positive values represent power absorbed from the network.
@@ -288,41 +320,34 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
     # --- Connection power queries ---
 
-    def connection_power(self) -> HighspyArray | NDArray[Any]:
+    def connection_power(self) -> LinearArray:
         """Return the net power from connections for all time periods.
 
         Positive means power flowing into this element from connections.
         Negative means power flowing out of this element to connections.
-
-        Returns:
-            Array of connection powers for each time period (HiGHS array or numpy array of expressions)
-
         """
-        if not self._connections:
-            return np.zeros(self.n_periods)
+        return LinearArray.sum_of(
+            [
+                LinearArray.zeros(self.n_periods),
+                *(
+                    conn.power_into_source if end == "source" else conn.power_into_target
+                    for conn, end in self._connections
+                ),
+            ]
+        )
 
-        # Accumulate power flows from all connections
-        total_power: HighspyArray | NDArray[Any] = np.zeros(self.n_periods, dtype=object)
-
-        for conn, end in self._connections:
-            if end == "source":
-                total_power = total_power + conn.power_into_source
-            else:
-                total_power = total_power + conn.power_into_target
-
-        return total_power
-
-    def connection_power_for_tag(self, tag: int) -> HighspyArray | NDArray[Any]:
+    def connection_power_for_tag(self, tag: int) -> LinearArray:
         """Return the net power from connections for a specific tag."""
-        total_power: HighspyArray | NDArray[Any] = np.zeros(self.n_periods, dtype=object)
-        for conn, end in self._connections:
-            if tag not in conn.connection_tags():
-                continue
-            if end == "source":
-                total_power = total_power + conn.power_into_source_for_tag(tag)
-            else:
-                total_power = total_power + conn.power_into_target_for_tag(tag)
-        return total_power
+        return LinearArray.sum_of(
+            [
+                LinearArray.zeros(self.n_periods),
+                *(
+                    conn.power_into_source_for_tag(tag) if end == "source" else conn.power_into_target_for_tag(tag)
+                    for conn, end in self._connections
+                    if tag in conn.connection_tags()
+                ),
+            ]
+        )
 
     def connection_tags(self) -> set[int]:
         """Return the union of all tags from all connected connections."""
@@ -333,101 +358,122 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
     # --- Power balance ---
 
-    def _get_consumed_by_tag(self, inbound: set[int]) -> dict[int, HighspyArray]:
+    def _get_consumed_by_tag(self, inbound: set[int]) -> dict[int, LinearArray]:
         """Return per-tag consumption variables, creating them once on first call."""
         if self._consumed_by_tag is None:
-            self._consumed_by_tag = {}
-            for tag in sorted(inbound):
-                self._consumed_by_tag[tag] = self._solver.addVariables(
-                    self.n_periods,
-                    lb=0,
-                    name_prefix=f"{self.name}_ct{tag}_",
-                    out_array=True,
-                )
+            self._consumed_by_tag = {
+                tag: self._solver.add_variables(self.n_periods, name=f"{self.name}.consumed_tag{tag}")
+                for tag in sorted(inbound)
+            }
         return self._consumed_by_tag
 
-    def _get_produced_by_tag(self, outbound: set[int]) -> dict[int, HighspyArray]:
+    def _get_produced_by_tag(self, outbound: set[int]) -> dict[int, LinearArray]:
         """Return per-tag production variables, creating them once on first call."""
         if self._produced_by_tag is None:
-            self._produced_by_tag = {}
-            for tag in sorted(outbound):
-                self._produced_by_tag[tag] = self._solver.addVariables(
-                    self.n_periods,
-                    lb=0,
-                    name_prefix=f"{self.name}_pt{tag}_",
-                    out_array=True,
-                )
+            self._produced_by_tag = {
+                tag: self._solver.add_variables(self.n_periods, name=f"{self.name}.produced_tag{tag}")
+                for tag in sorted(outbound)
+            }
         return self._produced_by_tag
 
-    @constraint(output=True, unit="$/kW")
-    def element_power_balance(self) -> list[highs_linear_expression] | None:
-        """Per-tag power balance: for each tag, connection + produced - consumed == 0.
+    def _tag_sets(self) -> tuple[set[int], set[int], set[int]]:
+        """Return the connection tags and the tags production and consumption may use."""
+        tags = self.connection_tags()
+        outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
+        inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
+        return tags, outbound, inbound
+
+    def _balance_count(self) -> int:
+        """Return how many per-period balance blocks lead the power balance rows."""
+        tags, outbound, inbound = self._tag_sets()
+        return len(outbound | inbound) if tags else 1
+
+    @constraint
+    def element_power_balance(self) -> Rows:
+        """Per-tag energy balance: for each tag, (connection + produced - consumed) * dt == 0.
+
+        Formulated in energy units (kWh) so that shadow prices are $/kWh,
+        independent of period width. Power (kW) is multiplied by the period
+        duration (h) to give energy (kWh) for each balance constraint.
 
         Production is decomposed across ``outbound_tags`` via per-tag variables.
         Consumption is decomposed across ``inbound_tags`` via per-tag variables.
         Tags outside both sets are blocked (each connection's per-tag flow == 0).
 
-        Output: shadow price indicating the marginal value of power at this element.
-        Skipped when there are no connections and no external power.
+        The rows start with one balance block per balanced tag, in tag order,
+        followed by the decomposition blocks and the blocked connection rows,
+        so ``power_balance_price`` can read the balance duals by position.
+        Has no rows when there are no connections and no external power.
         """
-        tags = self.connection_tags()
-        if not tags:
-            produced = self.element_power_produced()
-            consumed = self.element_power_consumed()
-            if not self._connections and produced is None and consumed is None:
-                return None
-            balance = self.connection_power()
-            if produced is not None:
-                balance = balance + produced
-            if consumed is not None:
-                balance = balance - consumed
-            return list(balance == 0)
-
+        dt = self.periods  # hours per period
+        tags, outbound, inbound = self._tag_sets()
         produced = self.element_power_produced()
         consumed = self.element_power_consumed()
+        if not tags:
+            if not self._connections and produced is None and consumed is None:
+                return Rows.concat([])
+            terms = [self.connection_power()]
+            if produced is not None:
+                terms.append(produced)
+            if consumed is not None:
+                terms.append(-consumed)
+            return LinearArray.sum_of(terms) * dt == 0
 
-        # Determine which tags can carry produced/consumed power
-        outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
-        inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
-
-        constraints: list[highs_linear_expression] = []
-
-        # Decompose production across outbound tags
-        produced_by_tag: dict[int, HighspyArray] = {}
-        if produced is not None:
-            if outbound:
-                produced_by_tag = self._get_produced_by_tag(outbound)
-                constraints.extend(list(reduce(operator.add, produced_by_tag.values()) == produced))
-            else:
-                # Element produces but no outbound tags available — force production to 0
-                constraints.extend(list(produced == 0))
-
-        # Decompose consumption across inbound tags
-        consumed_by_tag: dict[int, HighspyArray] = {}
-        if consumed is not None:
-            if inbound:
-                consumed_by_tag = self._get_consumed_by_tag(inbound)
-                constraints.extend(list(reduce(operator.add, consumed_by_tag.values()) == consumed))
-            else:
-                # Element consumes but no inbound tags available — force consumption to 0
-                constraints.extend(list(consumed == 0))
+        produced_by_tag = self._get_produced_by_tag(outbound) if produced is not None and outbound else {}
+        consumed_by_tag = self._get_consumed_by_tag(inbound) if consumed is not None and inbound else {}
 
         # Per-tag power balance
-        for tag in sorted(tags):
-            tag_prod = produced_by_tag.get(tag, 0)
-            tag_cons = consumed_by_tag.get(tag, 0)
-            if tag in outbound or tag in inbound:
-                # Allowed tag: balance connection flow with production/consumption
-                conn_tag = self.connection_power_for_tag(tag)
-                constraints.extend(list(conn_tag + tag_prod - tag_cons == 0))
-            else:
-                # Blocked tag: force each connection's per-tag flow to 0 individually
-                for conn, end in self._connections:
-                    if tag not in conn.connection_tags():
-                        continue
-                    if end == "source":
-                        constraints.extend(list(conn.power_into_source_for_tag(tag) == 0))
-                    else:
-                        constraints.extend(list(conn.power_into_target_for_tag(tag) == 0))
+        blocks: list[Rows] = []
+        for tag in sorted(outbound | inbound):
+            terms = [self.connection_power_for_tag(tag)]
+            if tag in produced_by_tag:
+                terms.append(produced_by_tag[tag])
+            if tag in consumed_by_tag:
+                terms.append(-consumed_by_tag[tag])
+            blocks.append(LinearArray.sum_of(terms) * dt == 0)
 
-        return constraints if constraints else None
+        # Decompose production across outbound tags
+        if produced is not None:
+            blocks.append(LinearArray.sum_of([*produced_by_tag.values(), -produced]) * dt == 0)
+
+        # Decompose consumption across inbound tags
+        if consumed is not None:
+            blocks.append(LinearArray.sum_of([*consumed_by_tag.values(), -consumed]) * dt == 0)
+
+        # Tags outside both sets cannot pass through this element
+        blocks.extend(
+            (conn.power_into_source_for_tag(tag) if end == "source" else conn.power_into_target_for_tag(tag)) * dt == 0
+            for tag in sorted(tags - outbound - inbound)
+            for conn, end in self._connections
+            if tag in conn.connection_tags()
+        )
+
+        return Rows.concat(blocks)
+
+    def balance_rows(self) -> RowIndices | None:
+        """Return the rows that balance each tag's power, or None when the balance does not apply.
+
+        These lead the power balance rows, ahead of the rows that split production
+        and consumption across tags and the rows that block tags from passing.
+        """
+        rows = applied_constraint(self, "element_power_balance")
+        if rows is None:
+            return None
+        return rows[: self._balance_count() * self.n_periods]
+
+    @output(name=ELEMENT_POWER_BALANCE)
+    def power_balance_price(self) -> OutputData | None:
+        """Return the marginal cost of drawing one more kWh from this element in each period.
+
+        Each balanced tag's dual is the cost of withdrawing a kWh of that tag here.
+        An extra load draws whichever tag is cheapest, so the price is the lowest of them.
+        """
+        rows = self.balance_rows()
+        if rows is None:
+            return None
+        duals = self._solver.row_duals()[rows]
+        return OutputData(
+            type=OutputType.SHADOW_PRICE,
+            unit="$/kWh",
+            values=tuple(duals.reshape(-1, self.n_periods).min(axis=0).tolist()),
+        )

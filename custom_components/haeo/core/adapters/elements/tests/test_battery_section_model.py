@@ -1,7 +1,7 @@
 """Tests for battery_section element model mapping."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import numpy as np
 import pytest
@@ -34,7 +34,7 @@ class CreateCase(TypedDict):
 
     description: str
     data: BatterySectionConfigData
-    model: list[dict[str, Any]]
+    model: list[dict[str, object]]
 
 
 class OutputsCase(TypedDict):
@@ -54,7 +54,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             name="test_section",
             storage={
                 "capacity": np.array([10.0]),
-                "initial_charge": np.array([5.0]),
+                "initial_charge": 5.0,
             },
         ),
         "model": [
@@ -83,7 +83,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 5.5)),
                 battery_model.BATTERY_POWER_BALANCE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)
                 ),
                 battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.003,)
@@ -107,7 +107,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                     type=OutputType.POWER, unit="kW", values=(-0.5,), direction=None
                 ),
                 BATTERY_SECTION_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 5.5)),
-                BATTERY_SECTION_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                BATTERY_SECTION_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
                 BATTERY_SECTION_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.003,)),
                 BATTERY_SECTION_ENERGY_OUT_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.004,)

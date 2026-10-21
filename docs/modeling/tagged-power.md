@@ -150,12 +150,7 @@ Three structural bounds shape variable growth:
 
 Practical variable growth therefore tracks the number of *distinguishable* policy groupings rather than the number of policies or the number of sources.
 
-## Future work: SOC-based tags
-
-State-of-charge partitioning could be expressed as separate tags assigned to different SOC regions of a storage element, enabling SOC-dependent valuation through the same tag machinery.
-This remains an open modelling direction.
-
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

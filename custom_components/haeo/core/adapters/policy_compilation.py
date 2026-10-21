@@ -1,4 +1,9 @@
-"""Policy compilation: converts policy configs into tagged power flow constraints.
+"""Policy compilation: converts network elements into tagged power flow constraints.
+
+The compiler always runs, even when no policies are configured. This
+ensures the network structure (tags, outbound/inbound constraints) is
+consistent regardless of whether policies exist. Adding a policy to an
+unrelated element does not change how existing elements behave.
 
 Implements the full compilation pipeline:
 1. Flow enumeration — expand policies into (source, dest, price) tuples
@@ -7,16 +12,17 @@ Implements the full compilation pipeline:
 4. Reachability analysis — which connections need which VLANs
 5. Connection tagging — per-connection VLAN sets
 6. Node outbound tags — enforce source provenance
-7. Node inbound tags — default-allow with all active VLANs
+7. Node inbound tags — all active VLANs
 8. Pricing injection — per-VLAN sink-side minimum s-t cut placement as
    PolicyPricing model elements with reactive TrackedParam prices
 
-Default-allow model: unpolicied sources produce on tag 0 (the default tag),
-which all connections carry. Policied sources are forced onto their VLAN by
-outbound_tags. Sink nodes accept all active VLANs plus tag 0, so both
-policied and unpolicied power can reach any sink. Costs are applied by
-PolicyPricing elements placed on the min-cut edges separating sources from
-policy-specific destinations.
+Every source-capable node receives a VLAN through signature merging.
+Policied sources get VLANs from their rule signatures; unpolicied sources
+share a single VLAN (the empty-signature group) with no pricing elements.
+The pricing loop only creates PolicyPricing elements for VLANs that appear
+in actual policy rules, so unpolicied VLANs carry zero policy cost without
+any special-casing. Sink nodes accept all active VLANs so every source can
+reach every sink.
 
 See docs/modeling/tagged-power.md for design rationale.
 See docs/developer-guide/vlan-optimization.md for optimization proofs.
@@ -25,23 +31,21 @@ See docs/developer-guide/vlan-optimization.md for optimization proofs.
 from collections import defaultdict, deque
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from typing import Any, NotRequired, TypedDict
+from typing import NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
-from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    ModelElementConfig,
+    NetworkElementConfig,
+    is_network_element_config,
+    is_source_element_config,
+)
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
-from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
-
-# Tag 0 is used for untagged/default power flows
-DEFAULT_TAG = 0
-
-# Non-connection element configs (nodes and batteries) that can carry tags
-_TaggableConfig = NodeElementConfig | BatteryElementConfig
 
 # A rule grouping identifies a rule by its source/destination sets,
 # independent of price. Rules with the same grouping share VLAN structure.
@@ -54,7 +58,7 @@ class CompiledPolicyRule(TypedDict):
     sources: list[str]
     destinations: list[str]
     enabled: NotRequired[bool]
-    price: float | NDArray[np.floating[Any]]
+    price: float | NDArray[np.float64]
 
 
 class CompilationResult(TypedDict):
@@ -93,30 +97,31 @@ def compile_policies(
         policy rule index to pricing element names.
 
     """
-    if not policy_configs:
-        return CompilationResult(elements=elements, pricing_rule_map={})
-
-    # Partition by element type — connections have source/target fields
+    # Partition by element type — connections have source/target fields, network
+    # elements carry tags, and the rest read other elements' flows so they are
+    # added after the connections
     connections: list[ConnectionElementConfig] = []
     non_connections: list[ModelElementConfig] = []
-    by_name: dict[str, _TaggableConfig] = {}
+    dependents: list[ModelElementConfig] = []
+    by_name: dict[str, NetworkElementConfig] = {}
     for elem in elements:
         if elem["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
             connections.append(elem)
-        elif elem["element_type"] == MODEL_ELEMENT_TYPE_POLICY_PRICING:
-            non_connections.append(elem)
-        else:
+        elif is_network_element_config(elem):
             by_name[elem["name"]] = elem
             non_connections.append(elem)
+        else:
+            dependents.append(elem)
 
     if not connections:
         return CompilationResult(elements=elements, pricing_rule_map={})
 
     names: set[str] = set(by_name.keys())
 
-    # Capability sets for wildcard expansion: nodes that can only produce
-    # should not appear as destinations, and nodes that can only consume
-    # should not appear as sources. Batteries default to both.
+    # Capability sets for wildcard expansion: elements that can only produce
+    # should not appear as destinations, and elements that can only consume
+    # should not appear as sources. An element that leaves a flag out can do
+    # both, as a battery does.
     source_names = {name for name, elem in by_name.items() if elem.get("is_source", True)}
     sink_names = {name for name, elem in by_name.items() if elem.get("is_sink", True)}
 
@@ -131,7 +136,6 @@ def compile_policies(
     # only in price, which TrackedParams handle reactively).
     rule_groupings: list[_RuleGrouping] = []
     source_memberships: dict[str, set[_RuleGrouping]] = defaultdict(set)
-    has_flows = False
     for policy in policy_configs:
         sources = _resolve_wildcard(_as_name_list(policy["sources"]), names, wildcard_set=source_names)
         destinations = _resolve_wildcard(_as_name_list(policy["destinations"]), names, wildcard_set=sink_names)
@@ -139,11 +143,7 @@ def compile_policies(
         rule_groupings.append(grouping)
         for src in sources:
             if any(dst != src for dst in destinations):
-                has_flows = True
                 source_memberships[src].add(grouping)
-
-    if not has_flows:
-        return CompilationResult(elements=elements, pricing_rule_map={})
 
     # --- Step 2: Signature computation ---
     # Signatures capture which rule groupings apply to each source. Sources
@@ -153,29 +153,30 @@ def compile_policies(
     # network structure stable across price changes — only PolicyPricing
     # TrackedParams update.
     signatures: dict[str, frozenset[_RuleGrouping]] = {}
-    for name in names:
+    for name in sorted(source_names | set(source_memberships.keys())):
         signatures[name] = frozenset(source_memberships.get(name, set()))
 
     # --- Step 3: VLAN assignment (signature merging) ---
+    # All signatures — including the empty signature shared by unpolicied
+    # sources — get a regular VLAN number. Unpolicied sources collapse to
+    # one VLAN through signature merging with no pricing elements, since
+    # they don't appear in any rule's source list.
     sig_to_vlan: dict[frozenset[_RuleGrouping], int] = {}
     vlan_counter = 1
     tag_map: dict[str, int] = {}
 
     for name, sig in signatures.items():
-        if not sig:
-            tag_map[name] = DEFAULT_TAG
-            continue
         if sig not in sig_to_vlan:
             sig_to_vlan[sig] = vlan_counter
             vlan_counter += 1
         tag_map[name] = sig_to_vlan[sig]
 
-    active_vlans = sorted({v for v in tag_map.values() if v != DEFAULT_TAG})
+    active_vlans = sorted(set(tag_map.values()))
 
     # --- Step 4: Reachability analysis ---
-    # VLAN membership follows source provenance: a VLAN covers every
-    # connection on a directed path from the VLAN's sources to *any* sink,
-    # stopping at each sink (sinks absorb the VLAN).
+    # Tag membership follows source provenance: a tag covers every
+    # connection on a directed path from the tag's sources to *any* sink,
+    # stopping at each sink (sinks absorb the tag).
     #
     # Reaching every sink (not just policy destinations) is necessary so
     # excess flow has somewhere to go without detouring or being curtailed
@@ -186,38 +187,52 @@ def compile_policies(
     # zero-wear arbitrage loops against tag-scoped prices. Pricing is
     # still only placed on the cut separating source from policy-specific
     # destinations (step 8); non-destination sinks remain policy-free.
-    vlan_connections: dict[int, set[str]] = {}
+    tag_connections: dict[int, set[str]] = {}
+
     for vlan_id in active_vlans:
         source_nodes = {n for n, v in tag_map.items() if v == vlan_id}
-        vlan_connections[vlan_id] = _find_reachable_connections(
-            source_nodes, sink_names, directed_graph, absorb_at=sink_names
-        )
+        # Per-source reachability with union: each source's self-loop
+        # exclusion only blocks edges targeting that specific source.
+        # A single call with all source_nodes would exclude edges into
+        # ANY source, which breaks when multiple sources share a VLAN
+        # (e.g. Grid:export and Battery:charge become unreachable even
+        # though they're valid paths for other sources in the VLAN).
+        reachable: set[str] = set()
+        for src in source_nodes:
+            reachable |= _find_reachable_connections({src}, sink_names, directed_graph, absorb_at=sink_names)
+        tag_connections[vlan_id] = reachable
 
     # --- Step 5: Connection tagging ---
+    # Each connection carries only tags whose sources can reach it via
+    # directed paths. Connections unreachable from any source are excluded
+    # from the result — this happens naturally during incremental config
+    # flow when not all elements exist yet. Once all sources and sinks are
+    # configured, every connection on a source-to-sink path receives at
+    # least one tag.
+    tagged_connections: list[ConnectionElementConfig] = []
     for conn in connections:
-        tags: set[int] = {DEFAULT_TAG}
-        for vlan_id in active_vlans:
-            if conn["name"] in vlan_connections.get(vlan_id, set()):
-                tags.add(vlan_id)
+        tags = {tag_id for tag_id, reachable in tag_connections.items() if conn["name"] in reachable}
+        if not tags:
+            continue
         conn["tags"] = tags
+        tagged_connections.append(conn)
 
     # --- Step 6: Node outbound tags ---
-    # Policied sources produce on their VLAN. Unpolicied source-capable nodes
-    # produce on tag 0 only, preventing unnecessary production decomposition.
+    # Every source in the tag map gets outbound_tags forcing its production
+    # onto its assigned VLAN. Unpolicied and policied sources are treated
+    # uniformly — the difference is only whether pricing elements exist.
+    # An element declared unable to produce takes no outbound tags, even
+    # when a policy names it as a source.
     for name, vlan_id in tag_map.items():
-        node = by_name[name]
-        if vlan_id != DEFAULT_TAG:
-            node["outbound_tags"] = {vlan_id}
-        elif name in source_names:
-            node["outbound_tags"] = {DEFAULT_TAG}
+        if is_source_element_config(element := by_name[name]):
+            element["outbound_tags"] = {vlan_id}
 
     # --- Step 7: Node inbound tags ---
-    # Default-allow: all sinks accept tag 0 (unpolicied power) plus all
-    # active policy VLANs. Policied sources reach sinks on their assigned
-    # VLAN via outbound_tags, not via DEFAULT_TAG.
+    # All sinks accept every active VLAN so both policied and unpolicied
+    # power can reach any sink.
     for name in sink_names:
         if name in by_name:
-            by_name[name]["inbound_tags"] = {DEFAULT_TAG} | set(active_vlans)
+            by_name[name]["inbound_tags"] = set(active_vlans)
 
     # --- Step 8: Pricing injection ---
     # For each VLAN participating in a rule, place the price on a minimum
@@ -246,6 +261,12 @@ def compile_policies(
     for rule_idx, policy in enumerate(policy_configs):
         sources = _resolve_wildcard(_as_name_list(policy["sources"]), names, wildcard_set=source_names)
         destinations = _resolve_wildcard(_as_name_list(policy["destinations"]), names, wildcard_set=sink_names)
+        # Build a human-readable label from the original source/destination
+        raw_src = _as_name_list(policy["sources"])
+        raw_dst = _as_name_list(policy["destinations"])
+        src_label = ", ".join(raw_src) if raw_src != ["*"] else "*"
+        dst_label = ", ".join(raw_dst) if raw_dst != ["*"] else "*"
+        rule_label = f"{src_label} → {dst_label}"
         # Disabled rules compile into the network structure (VLANs, tags)
         # but start with zero price so they have no cost influence.
         # Toggling enabled/disabled updates the TrackedParam reactively.
@@ -255,17 +276,16 @@ def compile_policies(
 
         sources_by_vlan: dict[int, set[str]] = defaultdict(set)
         for src in sources:
-            vlan = tag_map.get(src, DEFAULT_TAG)
-            if vlan == DEFAULT_TAG:
+            if src not in tag_map:
                 continue
-            sources_by_vlan[vlan].add(src)
+            sources_by_vlan[tag_map[src]].add(src)
 
         rule_pricing_names: list[str] = []
         for source_vlan, vlan_sources in sorted(sources_by_vlan.items()):
             vlan_edges = [
                 (conn["source"], conn["target"], conn["name"])
-                for conn in connections
-                if source_vlan in conn.get("tags", {DEFAULT_TAG})
+                for conn in tagged_connections
+                if source_vlan in conn.get("tags", set())
             ]
             cut = _min_cut_edges(vlan_sources, set(destinations), vlan_edges)
             if not cut:
@@ -279,6 +299,7 @@ def compile_policies(
                 PolicyPricingElementConfig(
                     element_type=MODEL_ELEMENT_TYPE_POLICY_PRICING,
                     name=element_name,
+                    label=rule_label,
                     price=price,
                     terms=terms,
                 )
@@ -289,7 +310,7 @@ def compile_policies(
             pricing_rule_map[rule_idx] = rule_pricing_names
 
     return CompilationResult(
-        elements=[*non_connections, *connections, *pricing_elements],
+        elements=[*non_connections, *tagged_connections, *dependents, *pricing_elements],
         pricing_rule_map=pricing_rule_map,
     )
 
@@ -336,12 +357,11 @@ def _find_reachable_connections(
     back to the appropriate sources.
 
     Edges whose target lies in ``source_nodes`` are excluded from the
-    result: a VLAN represents power *originating* at its source, so
-    tagged flow must not re-enter that source.  Including such edges on
-    a storage element (battery that is both source and sink for its own
-    VLAN) creates a zero-cost self-loop — Battery:discharge → Inverter →
-    Battery:charge → Battery — that bypasses every downstream cut and
-    exposes arbitrage whenever an inbound edge pays an incentive.
+    result to prevent self-loops.  The caller invokes this function
+    per-source (one source at a time) and unions the results, so the
+    exclusion only blocks edges targeting that specific source — other
+    sources in the same VLAN can still reach those edges through their
+    own reachability calls.
 
     Stays linear in graph size and is stable on cyclic topologies.
     """
@@ -450,9 +470,9 @@ def _min_cut_edges(
     residual: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     conns_by_pair: dict[tuple[str, str], list[str]] = defaultdict(list)
 
-    for src in effective_sources:
+    for src in sorted(effective_sources):
         residual[super_src][src] = inf
-    for dst in effective_destinations:
+    for dst in sorted(effective_destinations):
         residual[dst][super_dst] = inf
     for u, v, conn_name in directed_edges:
         residual[u][v] += 1

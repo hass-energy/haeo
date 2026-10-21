@@ -64,17 +64,7 @@ Optimization settings are stored in `data` under section keys, not in `options`.
         "integration_type": "hub",  # Marker to identify hub entries
         "common": {
             "name": "Home Energy System",
-            "horizon_preset": "custom",
-        },
-        "tiers": {
-            "tier_1_count": 5,
-            "tier_1_duration": 1,
-            "tier_2_count": 11,
-            "tier_2_duration": 5,
-            "tier_3_count": 46,
-            "tier_3_duration": 30,
-            "tier_4_count": 48,
-            "tier_4_duration": 60,
+            "horizon": {"type": "preset", "value": "5_days"},
         },
         "advanced": {
             "advanced_mode": False,
@@ -87,11 +77,14 @@ Optimization settings are stored in `data` under section keys, not in `options`.
 
 Optimization settings are stored in `data` (user-editable), alongside the hub marker.
 The hub flow implementation is in `custom_components/haeo/flows/hub.py`.
-The form uses sectioned schemas (`common`, `advanced`) and an optional `custom_tiers` step when users select a custom planning horizon.
+The form uses sectioned schemas (`common`, `advanced`).
+The planning horizon field is a `ChooseSelector` between a preset and a forecast sensor, built in `custom_components/haeo/flows/horizon.py`.
+The stored `horizon` is either a preset value as shown above or an entity value such as `{"type": "entity", "value": ["sensor.planning_horizon"]}`.
+The hub and options flows both validate a forecast sensor with `validate_horizon()` before saving it.
 
 ### Key implementation points
 
-- Hub flow uses a standard config flow pattern with a user step and optional custom tiers step
+- Hub flow uses a standard config flow pattern with a single user step
 - Prevents duplicate hub names by checking existing entries
 - Stores optimization settings in `data` sections so options flow can update them in-place
 - Hub marker in `data` allows coordinator to identify hub entries
@@ -137,17 +130,6 @@ Element configuration is sectioned, with optional sections only present when con
             "efficiency_source_target": 95.0,
             "efficiency_target_source": 95.0,
         },
-        "partitioning": {
-            "configure_partitions": True,
-        },
-        "undercharge": {
-            "percentage": 5.0,
-            "cost": 1.5,
-        },
-        "overcharge": {
-            "percentage": 95.0,
-            "cost": 1.0,
-        },
     },
 }
 ```
@@ -165,18 +147,22 @@ The element flow mixin is in `custom_components/haeo/flows/element_flow.py`.
 ### Connection endpoint filtering
 
 Connection elements require selecting source and target endpoints from other configured elements.
-The element flow filters available elements based on connectivity level and Advanced Mode setting.
+The element flow filters available elements based on connectivity level and the **Expose raw model elements** hub setting.
 
 Each element type in the `ELEMENT_TYPES` registry defines a connectivity level that controls when it appears in connection selectors.
 The `ConnectivityLevel` enum has three values:
 
 - **`ALWAYS`**: Always shown in connection selectors
-- **`ADVANCED`**: Only shown when Advanced Mode is enabled
+- **`ADVANCED`**: Only shown when **Expose raw model elements** is enabled
 - **`NEVER`**: Never shown in connection selectors
 
-This filtering ensures connection endpoints are appropriate for the user's configuration level.
-It prevents invalid connection topologies by excluding elements that shouldn't be connection endpoints.
-See [`custom_components/haeo/elements/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/elements/__init__.py) for the connectivity level assigned to each element type.
+An element is an endpoint only if a connection to it goes through the same constraints as any other power flow.
+Plain balance points are endpoints.
+An element that applies its own prices, forecasts, limits, or efficiencies on its own connection is `NEVER`, because a connection made directly to it would bypass them.
+Each adapter in `core/adapters/elements/` declares its level in its `connectivity` attribute.
+
+Existing configurations that already connect to a `NEVER` element are reported through the `invalid_connection_endpoints` repair issue.
+`find_invalid_connection_endpoints()` in `validation.py` reads endpoints from the model connections each adapter produces, so it checks every element type the same way.
 
 ### Element-specific implementations
 
@@ -187,6 +173,7 @@ Each element type has its own flow class in `custom_components/haeo/flows/elemen
 - `ConnectionSubentryFlowHandler` - Connection configuration
 - `GridSubentryFlowHandler` - Grid configuration
 - `InverterSubentryFlowHandler` - Inverter configuration
+- `JunctionSubentryFlowHandler` - Junction configuration
 - `LoadSubentryFlowHandler` - Load configuration
 - `NodeSubentryFlowHandler` - Network node configuration
 - `SolarSubentryFlowHandler` - Solar system configuration
@@ -220,9 +207,6 @@ Most elements configure all inputs in a single step:
 3. Based on selection, user either picks entities from a dropdown or enters a constant value inline
 4. Submit creates the element with all configuration
 
-Some elements add a follow-up step when optional settings are enabled.
-For example, the battery flow presents a second step for undercharge and overcharge partitions when the user enables partitioning.
-
 ### UI Sections
 
 Config flows group related fields using `data_entry_flow.section` so advanced settings can be collapsed by default.
@@ -230,6 +214,10 @@ Shared section definitions live in `custom_components/haeo/sections/` and includ
 Element-specific sections live alongside the element flow and schema.
 When using sections, translation strings for labels must live under
 `step.<step_id>.sections.<section_key>.data.<field_name>` (and `data_description` if needed).
+
+The Home Assistant frontend only shows errors keyed by `base` or by a top-level form field, not by a field inside a section.
+`validate_sectioned_choose_fields()` therefore keys each error by its section, which shows it above that section.
+An error keyed by a field inside a section would re-show the form with no visible message.
 
 ### Implementation Pattern
 
@@ -249,118 +237,97 @@ The `get_preferred_choice()` function examines field defaults and current config
 
 ### Entity Creation
 
-HAEO creates input entities (number/switch) for fields configured with "Constant".
-These entities allow runtime adjustment of constant values without reconfiguring the element.
-Fields linked to external entities use those entities directly without creating HAEO input entities.
+HAEO creates an input entity (number or switch) for every field configured with "Entity" or "Constant".
+A constant field's entity is editable, so its value can be adjusted at runtime without reconfiguring the element.
+An entity field's entity is driven by its source sensors and shows the value HAEO loaded from them.
+Fields configured with "None" get no input entity.
 
 ## Field Schema System
 
 HAEO uses a typed schema system to define element configuration fields.
-The schema system provides type safety, validation, and data loading from Home Assistant entities.
+The schema says what each field stores, how the config flow presents it, and how its value loads at runtime.
 
 ### ELEMENT_TYPES Registry
 
-All element types are registered in `custom_components/haeo/elements/__init__.py`:
+All element types are registered in [`core/adapters/registry.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/registry.py), mapping each `ElementType` to its adapter:
 
 ```python
-ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
-    "battery": ElementRegistryEntry(
-        schema=BatteryConfigSchema,  # TypedDict for UI configuration
-        data=BatteryConfigData,  # TypedDict for loaded values
-        defaults={...},  # Default field values
-        translation_key="battery",  # For UI localization
-        adapter=create_battery,  # Creates model elements
-        extract=extract_battery,  # Extracts optimization results
-    ),
+ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
+    ElementType.GRID: grid_adapter,
+    ElementType.BATTERY: battery_adapter,
     # ... other element types
 }
 ```
 
-The registry provides:
+Each adapter implements the `ElementAdapter` protocol:
 
-- **Schema/Data class pairs**: Dual TypedDict pattern for type safety
-- **Default values**: Pre-populated fields in the UI
-- **Adapter functions**: Convert loaded data to model elements
-- **Result extractors**: Convert optimization results to sensor data
+- **Attributes**: `element_type`, `advanced`, `connectivity`, `can_source`, `can_sink`, and `buffer_roles`
+- **`model_elements(config)`**: Turns a loaded config into model element parameters
+- **`outputs(name, model_outputs, ...)`**: Maps model outputs to the element's device outputs
+
+`elements/__init__.py` re-exports the registry and adds the lookups built from the schemas, such as `ELEMENT_CONFIG_DATA` and the input fields of each element type.
 
 ### Schema vs Data Mode
 
-Each element type has two TypedDict definitions:
+Each element type has two TypedDict definitions in `core/schema/elements/{type}.py`:
 
-**Schema mode** (`*ConfigSchema`): What the user enters in the UI
+**Schema mode** (`*ConfigSchema`): What the config flow stores in the subentry
 
-- Contains entity IDs as strings
-- Used during config flow form display and validation
+- Each input field holds a schema value: `{"type": "entity", "value": [entity IDs]}`, `{"type": "constant", "value": number or bool}`, or `{"type": "none"}`
+- Field hints attached with `Annotated` describe how each field loads
 
-**Data mode** (`*ConfigData`): What the optimizer uses
+**Data mode** (`*ConfigData`): What the adapters and optimizer use
 
-- Contains loaded numeric values
-- Produced by the `load()` function during coordinator updates
-
-```python
-# Schema mode: entity IDs with Annotated metadata
-class BatteryConfigSchema(TypedDict):
-    capacity: EnergySensorFieldSchema  # Annotated[str, EntitySelect(...), TimeSeries(...)]
-
-
-# Data mode: loaded values
-class BatteryConfigData(TypedDict):
-    capacity: EnergySensorFieldData  # Annotated[list[float], ...]
-```
-
-### Field Metadata with Annotated
-
-Fields use `Annotated` types with composable metadata markers:
+- Each input field holds its loaded value: a float, a bool, or a NumPy array over the horizon
+- A field configured as "None" takes its field's default, such as 100% efficiency, or is left out when it has none
 
 ```python
-from typing import Annotated
+class GridConfigSchema(ConnectedCommonConfig):
+    element_type: Literal[ElementType.GRID]
+    pricing: Annotated[
+        GridPricingConfig,
+        SectionHints(
+            {
+                CONF_PRICE_SOURCE_TARGET: FieldHint(output_type=OutputType.PRICE, direction="+", time_series=True),
+                CONF_PRICE_TARGET_SOURCE: FieldHint(output_type=OutputType.PRICE, direction="-", time_series=True),
+            }
+        ),
+    ]
 
-# Define field type with composed metadata
-EnergySensorFieldSchema = Annotated[
-    str,
-    EntitySelect(accepted_units=ENERGY_UNITS),
-    TimeSeries(accepted_units=ENERGY_UNITS),
-]
 
-
-class BatteryConfigSchema(TypedDict):
-    capacity: EnergySensorFieldSchema  # Entity ID with attached metadata
+class GridConfigData(ConnectedCommonData):
+    element_type: Literal[ElementType.GRID]
+    pricing: GridPricingData
 ```
 
-The composable metadata types are:
+### Field Hints
 
-- **Validator subclasses**: Define schema validation and UI selectors (e.g., `PositiveKW`, `Percentage`, `EntitySelect`)
-- **LoaderMeta subclasses**: Specify how values are loaded at runtime (e.g., `ConstantFloat`, `TimeSeries`)
-- **Default**: Provides default values for config flow UI forms
+Field hints in [`core/schema/field_hints.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/schema/field_hints.py) attach to schema fields through `Annotated` metadata:
 
-### Available Field Types
+- **`FieldHint`**: One input field.
+    `output_type` sets its unit, device class, and default limits.
+    `time_series` and `boundaries` choose between a scalar, a value per period, and a value per boundary.
+    `default_mode` and `default_value` choose what the config flow pre-selects.
+    `min_value`, `max_value`, `step`, `force_required`, and `calendar` refine it further.
+    `outputs` makes the field feed several inputs instead of being one, each loaded under its own name with its own hint and entity, such as one calendar feeding both a window and a due amount.
+- **`SectionHints`**: The field hints for the fields inside a section
+- **`ListFieldHints`**: The field hints for each item of a list field, such as policy rules
+- **`SurfacedPriceHint`**: A pricing field shown on an element's form but stored as a policy rule
 
-Field types are defined in `custom_components/haeo/core/schema/fields.py`:
-
-| Validator Class | Purpose                       | Base Type |
-| --------------- | ----------------------------- | --------- |
-| `PositiveKW`    | Positive power values in kW   | `float`   |
-| `AnyKW`         | Power flow (pos or neg) in kW | `float`   |
-| `PositiveKWH`   | Positive energy values in kWh | `float`   |
-| `Price`         | Price values in \$/kWh        | `float`   |
-| `Percentage`    | Percentage values (0-100)     | `float`   |
-| `BatterySOC`    | Battery SOC percentage        | `float`   |
-| `Boolean`       | Boolean flags                 | `bool`    |
-| `Name`          | Free-form text names          | `str`     |
-| `ElementName`   | References to other elements  | `str`     |
-| `EntitySelect`  | Entity sensor references      | `str`     |
+`elements/field_hints.py` turns these hints into the `InputFieldInfo` that the config flow and the input entities use.
+A new kind of field is usually a new `OutputType` or a new hint attribute rather than a new class.
 
 ### Data Loading Flow
 
 The schema system integrates with data loading:
 
-1. User enters entity IDs in config flow (Schema mode)
-2. Voluptuous validators ensure valid entity selection
-3. On coordinator update, `load()` converts Schema → Data mode
-4. LoaderMeta markers determine which loader extracts values from Home Assistant
-5. Adapter functions receive Data mode config to create model elements
+1. The user picks "Entity", "Constant", or "None" for each field, and the config flow stores the schema value (Schema mode)
+2. `validate_sectioned_choose_fields()` checks the input before it is stored
+3. At setup, each entity or constant field gets an input store, which resolves its value with `resolve_field` as its field hint directs
+4. The coordinator assembles each element's Data mode config from the stores' resolved values with `load_element_config_from_values`
+5. Adapters receive the Data mode config and create model elements
 
-For details on loaders, see [Data Loading](data-loading.md).
+For details on loading, see [Data Loading](data-loading.md).
 
 ## Options Flow
 
@@ -371,7 +338,7 @@ The options flow implementation is in `custom_components/haeo/flows/options.py`.
 
 ### Key points
 
-- Options flow edits hub-level optimization settings (planning horizon preset, tier configuration, debounce window, advanced mode, forecast recording)
+- Options flow edits hub-level optimization settings (planning horizon, debounce window, expose raw model elements, forecast recording)
 - Element configuration happens via separate config entries
 - Settings stored in `config_entry.data` under section keys
 - Changes trigger coordinator reload to apply new parameters

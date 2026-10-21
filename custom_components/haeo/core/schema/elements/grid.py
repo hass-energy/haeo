@@ -1,12 +1,12 @@
 """Grid element schema definitions."""
 
-from typing import Annotated, Any, Final, Literal, TypedDict
+from typing import Annotated, Final, Literal, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
 from custom_components.haeo.core.schema.sections import (
@@ -35,15 +35,15 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
 class GridPricingConfig(TypedDict):
     """Directional pricing configuration with required values."""
 
-    price_source_target: EntityValue | ConstantValue | NoneValue
-    price_target_source: EntityValue | ConstantValue | NoneValue
+    price_source_target: EntityValue | ConstantValue
+    price_target_source: EntityValue | ConstantValue
 
 
 class GridPricingData(TypedDict):
     """Loaded directional pricing values with required entries."""
 
-    price_source_target: NDArray[np.floating[Any]] | float
-    price_target_source: NDArray[np.floating[Any]] | float
+    price_source_target: NDArray[np.float64] | float
+    price_target_source: NDArray[np.float64] | float
 
 
 class GridConfigSchema(ConnectedCommonConfig):

@@ -1,9 +1,12 @@
 """Tests for HAEO diagnostics utilities."""
 
-from datetime import UTC, datetime, timedelta, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime, timedelta
 import json
 from types import MappingProxyType
-from typing import Any, cast
+from typing import (
+    Any,  # noqa: TID251  # deep chained subscripts into a JSON payload; narrowing would explode assertions
+)
 from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
@@ -24,38 +27,26 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCoordinator, OptimizationContext
 from custom_components.haeo.core.adapters.elements.grid import GRID_POWER_IMPORT
-from custom_components.haeo.core.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-    DEFAULT_TIER_1_COUNT,
-    DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
-    DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
-    DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
-    DEFAULT_TIER_4_DURATION,
-)
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.config_loader import ElementInput
+from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    SECTION_ADVANCED,
     SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
+from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -68,21 +59,17 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.diagnostics import (
-    CurrentStateProvider,
-    HistoricalStateProvider,
-    async_get_config_entry_diagnostics,
-    collect_diagnostics,
-)
+from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics, collect_diagnostics
 from custom_components.haeo.diagnostics.collector import (
     DIAGNOSTICS_SCHEMA_VERSION,
+    HISTORICAL_CALENDAR_LOOKAHEAD,
     _collect_entity_ids_from_entry,
     _extract_entity_ids_from_config,
     _fetch_inputs_at,
     _get_last_run_before,
 )
 from custom_components.haeo.entities.device import build_device_identifier
-from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_COMMON
 from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id, get_horizon_sensor_entity_id
 
 
@@ -99,12 +86,12 @@ def _battery_config(
     efficiency_source_target: float | None = None,
     efficiency_target_source: float | None = None,
     salvage_value: float = 0.0,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Build a sectioned battery config dict for diagnostics tests."""
-    limits: dict[str, Any] = {}
-    power_limits: dict[str, Any] = {}
-    efficiency_section: dict[str, Any] = {}
-    pricing: dict[str, Any] = {CONF_SALVAGE_VALUE: as_constant_value(salvage_value)}
+    limits: dict[str, object] = {}
+    power_limits: dict[str, object] = {}
+    efficiency_section: dict[str, object] = {}
+    pricing: dict[str, object] = {CONF_SALVAGE_VALUE: as_constant_value(salvage_value)}
     if max_power_source_target is not None:
         power_limits[CONF_MAX_POWER_SOURCE_TARGET] = as_constant_value(max_power_source_target)
     if max_power_target_source is not None:
@@ -136,7 +123,7 @@ def _battery_config(
         SECTION_POWER_LIMITS: power_limits,
         SECTION_PRICING: pricing,
         SECTION_EFFICIENCY: efficiency_section,
-        SECTION_PARTITIONING: {},
+        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
     }
 
 
@@ -146,7 +133,7 @@ def _grid_config(
     connection: str,
     price_source_target: list[str] | str | float,
     price_target_source: list[str] | str | float,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Build a sectioned grid config dict for diagnostics tests."""
     return {
         CONF_ELEMENT_TYPE: "grid",
@@ -172,22 +159,22 @@ def _grid_config(
     }
 
 
-def _hub_entry_data(name: str = "Test Hub") -> dict[str, Any]:
+def _hub_entry_data(name: str = "Test Hub") -> dict[str, object]:
     """Build hub entry data using the sectioned schema."""
     return {
         CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-        HUB_SECTION_COMMON: {CONF_NAME: name},
-        HUB_SECTION_TIERS: {
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        HUB_SECTION_COMMON: {CONF_NAME: name, CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS)},
     }
+
+
+def _participants(config: Mapping[str, object]) -> Any:
+    """Return the config's ``participants`` section for exploratory test assertions.
+
+    ``DiagnosticsResult.config`` is honestly typed as ``dict[str, object]`` since its
+    shape is dynamic (redacted, arbitrary element schemas); tests need to chain
+    subscripts into it freely, which this narrow, well-named helper isolates.
+    """
+    return config["participants"]
 
 
 def test_extract_entity_ids_from_config_collects_nested_entities() -> None:
@@ -204,7 +191,8 @@ def test_extract_entity_ids_from_config_collects_nested_entities() -> None:
         "ignored": {"type": "constant", "value": 2.0},
     }
 
-    entity_ids = _extract_entity_ids_from_config(cast("ElementConfigSchema", config))
+    # Fixture includes non-schema keys and invalid entity placeholders; structural guard would reject it.
+    entity_ids = _extract_entity_ids_from_config(config)  # type: ignore[arg-type]
 
     assert entity_ids == {"sensor.import", "sensor.export"}
 
@@ -213,15 +201,17 @@ def test_extract_entity_ids_from_config_collects_nested_entities() -> None:
 
 
 def _make_coordinator_data(
-    participants: dict[str, Any],
+    participants: Mapping[str, object],
     source_states: dict[str, State] | None = None,
-    hub_config: dict[str, Any] | None = None,
+    hub_config: dict[str, object] | None = None,
 ) -> CoordinatorData:
     """Build a CoordinatorData with an OptimizationContext for testing."""
     context = OptimizationContext(
         hub_config=hub_config or _hub_entry_data(),
         horizon_start=datetime(2024, 1, 1, tzinfo=UTC),
-        participants=participants,
+        # Fixture participants are built by _battery_config/_grid_config and don't carry
+        # the full ElementConfigSchema shape; only the diagnostics plumbing is under test.
+        participants=participants,  # type: ignore[arg-type]
         source_states=source_states or {},
     )
     now = datetime(2024, 1, 1, 0, 5, tzinfo=UTC)
@@ -249,7 +239,7 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
 
     # HA entry point returns a dict (via to_dict)
-    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    diagnostics: dict[str, Any] = await async_get_config_entry_diagnostics(hass, entry)
 
     assert "schema_version" not in diagnostics
     assert "diagnostics_version" not in diagnostics
@@ -259,8 +249,7 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     assert "info" not in diagnostics
     assert "outputs" in diagnostics
 
-    assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
-    assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
+    assert diagnostics["config"][HUB_SECTION_COMMON][CONF_HORIZON] == as_horizon_preset_value(HORIZON_PRESET_2_DAYS)
     assert "participants" in diagnostics["config"]
 
     environment = diagnostics["environment"]
@@ -317,21 +306,18 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     entry.add_to_hass(hass)
 
     context_participants = {
-        "Context Battery": cast(
-            "ElementConfigSchema",
-            _battery_config(
-                name="Context Battery",
-                connection="DC Bus",
-                capacity=20.0,
-                initial_charge_percentage=80.0,
-                max_power_source_target=10.0,
-                max_power_target_source=10.0,
-                min_charge_percentage=5.0,
-                max_charge_percentage=95.0,
-                efficiency_source_target=90.0,
-                efficiency_target_source=90.0,
-            ),
-        )
+        "Context Battery": _battery_config(
+            name="Context Battery",
+            connection="DC Bus",
+            capacity=20.0,
+            initial_charge_percentage=80.0,
+            max_power_source_target=10.0,
+            max_power_target_source=10.0,
+            min_charge_percentage=5.0,
+            max_charge_percentage=95.0,
+            efficiency_source_target=90.0,
+            efficiency_target_source=90.0,
+        ),
     }
     context_source_states = {
         "sensor.power": State("sensor.power", "100", {"unit_of_measurement": "W"}),
@@ -345,8 +331,8 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     result = await collect_diagnostics(hass, entry)
 
     # Config comes from context
-    assert "Context Battery" in result.config["participants"]
-    assert result.config["participants"]["Context Battery"][SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(20.0)
+    assert "Context Battery" in _participants(result.config)
+    assert _participants(result.config)["Context Battery"][SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(20.0)
 
     # Inputs come from context source_states
     assert len(result.inputs) == 1
@@ -400,7 +386,7 @@ async def test_collect_diagnostics_unwraps_mappingproxy_participants(hass: HomeA
             initial_charge_percentage=50.0,
         )
     )
-    participants = cast("dict[str, ElementConfigSchema]", {"Grid": grid_config, "Battery": battery_config})
+    participants = {"Grid": grid_config, "Battery": battery_config}
 
     coordinator_data = _make_coordinator_data(participants=participants)
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
@@ -409,8 +395,8 @@ async def test_collect_diagnostics_unwraps_mappingproxy_participants(hass: HomeA
 
     result = await collect_diagnostics(hass, entry)
 
-    grid = result.config["participants"]["Grid"]
-    battery = result.config["participants"]["Battery"]
+    grid = _participants(result.config)["Grid"]
+    battery = _participants(result.config)["Battery"]
     assert type(grid) is dict
     assert type(battery) is dict
     assert grid[CONF_NAME] == "Grid"
@@ -461,7 +447,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     coordinator.data = coordinator_data
     entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
 
-    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    diagnostics: dict[str, Any] = await async_get_config_entry_diagnostics(hass, entry)
 
     outputs = diagnostics["outputs"]
     assert len(outputs) >= 1
@@ -535,7 +521,7 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
     mock_fetch_inputs.assert_called_once_with(hass, entry, run_started)
 
     # Config should be current config from the entry
-    assert "Battery" in result.config["participants"]
+    assert "Battery" in _participants(result.config)
 
     # Inputs come from recorder at the run's started_at
     assert len(result.inputs) == 1
@@ -588,21 +574,18 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
     entry.add_to_hass(hass)
 
     context_participants = {
-        "Context Battery": cast(
-            "ElementConfigSchema",
-            _battery_config(
-                name="Context Battery",
-                connection="DC Bus",
-                capacity=20.0,
-                initial_charge_percentage=80.0,
-                max_power_source_target=10.0,
-                max_power_target_source=10.0,
-                min_charge_percentage=5.0,
-                max_charge_percentage=95.0,
-                efficiency_source_target=90.0,
-                efficiency_target_source=90.0,
-            ),
-        )
+        "Context Battery": _battery_config(
+            name="Context Battery",
+            connection="DC Bus",
+            capacity=20.0,
+            initial_charge_percentage=80.0,
+            max_power_source_target=10.0,
+            max_power_target_source=10.0,
+            min_charge_percentage=5.0,
+            max_charge_percentage=95.0,
+            efficiency_source_target=90.0,
+            efficiency_target_source=90.0,
+        ),
     }
     coordinator_data = _make_coordinator_data(context_participants)
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
@@ -628,7 +611,7 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
         result = await collect_diagnostics(hass, entry, target_time=target_time)
 
     # Should NOT use context — should use entry-based config
-    assert "Context Battery" not in result.config["participants"]
+    assert "Context Battery" not in _participants(result.config)
 
     assert result.environment.diagnostic_target_time is not None
 
@@ -689,7 +672,7 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
     ):
         result = await collect_diagnostics(hass, entry, target_time=target_time)
 
-    participants = result.config["participants"]
+    participants = _participants(result.config)
     assert "Battery One" in participants
     assert participants["Battery One"][CONF_ELEMENT_TYPE] == ElementType.BATTERY
     assert participants["Battery One"][CONF_NAME] == "Battery One"
@@ -759,8 +742,8 @@ async def test_historical_diagnostics_skips_network_subentry(hass: HomeAssistant
     ):
         result = await collect_diagnostics(hass, entry, target_time=datetime(2024, 1, 1, tzinfo=UTC))
 
-    assert "Network Config" not in result.config["participants"]
-    assert "Battery" in result.config["participants"]
+    assert "Network Config" not in _participants(result.config)
+    assert "Battery" in _participants(result.config)
 
 
 async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant) -> None:
@@ -800,167 +783,8 @@ async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant
     ):
         result = await collect_diagnostics(hass, entry, target_time=datetime(2024, 1, 1, tzinfo=UTC))
 
-    assert "Unknown Element" in result.config["participants"]
+    assert "Unknown Element" in _participants(result.config)
     assert result.inputs == []
-
-
-# --- StateProvider tests ---
-
-
-async def test_current_state_provider_get_state(hass: HomeAssistant) -> None:
-    """Test CurrentStateProvider.get_state returns single entity state."""
-    hass.states.async_set(
-        "sensor.test_entity",
-        "42",
-        {"unit_of_measurement": "kW"},
-    )
-
-    provider = CurrentStateProvider(hass)
-
-    state = await provider.get_state("sensor.test_entity")
-    assert state is not None
-    assert state.state == "42"
-
-    state = await provider.get_state("sensor.nonexistent")
-    assert state is None
-
-
-async def test_current_state_provider_properties(hass: HomeAssistant) -> None:
-    """Test CurrentStateProvider properties."""
-    provider = CurrentStateProvider(hass)
-
-    assert provider.is_historical is False
-    assert provider.timestamp is None
-
-
-async def test_historical_state_provider_properties(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider properties."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_recorder = Mock()
-    with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-        return_value=mock_recorder,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-
-    assert provider.is_historical is True
-    assert provider.timestamp == target_time
-
-
-async def test_historical_state_provider_get_state(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider.get_state returns single entity state."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_state = State("sensor.test_entity", "42", {"unit_of_measurement": "kW"})
-
-    mock_recorder = Mock()
-    mock_recorder.async_add_executor_job = AsyncMock(return_value={"sensor.test_entity": [mock_state]})
-
-    with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-        return_value=mock_recorder,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-        state = await provider.get_state("sensor.test_entity")
-
-    assert state is not None
-    assert state.state == "42"
-
-
-async def test_historical_state_provider_get_state_not_found(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider.get_state returns None when entity not found."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_recorder = Mock()
-    mock_recorder.async_add_executor_job = AsyncMock(return_value={})
-
-    with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-        return_value=mock_recorder,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-        state = await provider.get_state("sensor.nonexistent")
-
-    assert state is None
-
-
-async def test_historical_state_provider_get_states(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider.get_states returns multiple entity states."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_state_1 = State("sensor.entity_1", "100", {"unit_of_measurement": "kW"})
-    mock_state_2 = State("sensor.entity_2", "200", {"unit_of_measurement": "kWh"})
-
-    mock_recorder = Mock()
-    mock_recorder.async_add_executor_job = AsyncMock(
-        return_value={
-            "sensor.entity_1": [mock_state_1],
-            "sensor.entity_2": [mock_state_2],
-        }
-    )
-
-    with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-        return_value=mock_recorder,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-        states = await provider.get_states(["sensor.entity_1", "sensor.entity_2"])
-
-    assert len(states) == 2
-    assert states["sensor.entity_1"].state == "100"
-    assert states["sensor.entity_2"].state == "200"
-
-
-async def test_historical_state_provider_get_states_empty(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider.get_states with empty entity list."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_recorder = Mock()
-
-    with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-        return_value=mock_recorder,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-        states = await provider.get_states([])
-
-    assert states == {}
-    mock_recorder.async_add_executor_job.assert_not_called()
-
-
-async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider._get_states_sync calls recorder history."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_state = State("sensor.test", "50", {"unit_of_measurement": "%"})
-
-    mock_recorder = Mock()
-
-    with (
-        patch(
-            "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-            return_value=mock_recorder,
-        ),
-        patch(
-            "custom_components.haeo.diagnostics.historical_state_provider.recorder_history.get_significant_states",
-            return_value={"sensor.test": [mock_state]},
-        ) as mock_get_states,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-        result = provider._get_states_sync(["sensor.test"])
-
-    mock_get_states.assert_called_once_with(
-        hass,
-        start_time=target_time,
-        end_time=target_time,
-        entity_ids=["sensor.test"],
-        include_start_time_state=True,
-        significant_changes_only=False,
-        no_attributes=False,
-    )
-
-    assert result == {"sensor.test": [mock_state]}
 
 
 # --- Internal function tests ---
@@ -968,14 +792,11 @@ async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) ->
 
 def test_extract_entity_ids_handles_non_dict_values() -> None:
     """_extract_entity_ids_from_config ignores non-dict/non-schema values."""
-    config = cast(
-        "ElementConfigSchema",
-        {
-            CONF_ELEMENT_TYPE: "grid",
-            "plain_string": "not_a_schema_value",
-            "plain_number": 42,
-        },
-    )
+    config: ElementConfigSchema = {  # type: ignore[typeddict-item]  # non-schema keys must reach runtime filtering under test
+        CONF_ELEMENT_TYPE: "grid",
+        "plain_string": "not_a_schema_value",
+        "plain_number": 42,
+    }
     entity_ids = _extract_entity_ids_from_config(config)
     assert entity_ids == set()
 
@@ -1089,7 +910,7 @@ async def test_fetch_inputs_at_returns_states(hass: HomeAssistant) -> None:
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.battery_capacity": [cap_state],
                 "sensor.battery_soc": [soc_state],
@@ -1103,6 +924,60 @@ async def test_fetch_inputs_at_returns_states(hass: HomeAssistant) -> None:
     entity_ids = [inp["entity_id"] for inp in inputs]
     assert "sensor.battery_capacity" in entity_ids
     assert "sensor.battery_soc" in entity_ids
+
+
+async def test_fetch_inputs_at_injects_meter_totals_as_of_the_run(hass: HomeAssistant) -> None:
+    """Historical inputs carry each meter input's running totals as of the run, as a live run injects them."""
+    entry = MockConfigEntry(domain=DOMAIN, data=_hub_entry_data(), entry_id="hub_entry")
+    entry.add_to_hass(hass)
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+            )
+        ),
+        subentry_type=ElementType.BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+    target_time = datetime(2024, 1, 1, tzinfo=UTC)
+    meter_input = ElementInput(
+        ("storage", "capacity"),
+        ("storage", "capacity"),
+        FieldHint(output_type=OutputType.ENERGY, meter=MeterFieldHint(since="initial_charge_percentage")),
+    )
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+    totals_at = AsyncMock(return_value=[(target_time.timestamp(), 42.0)])
+
+    with (
+        patch("custom_components.haeo.diagnostics.collector.get_recorder_instance", return_value=mock_recorder),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
+            return_value={
+                "sensor.battery_capacity": [State("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})],
+                "sensor.battery_soc": [State("sensor.battery_soc", "75", {"unit_of_measurement": "%"})],
+            },
+        ),
+        patch("custom_components.haeo.diagnostics.collector.element_inputs", return_value=[meter_input]),
+        patch("custom_components.haeo.diagnostics.collector.async_meter_totals_at", totals_at),
+    ):
+        inputs, missing = await _fetch_inputs_at(hass, entry, target_time)
+
+    assert missing == []
+    by_id = {inp["entity_id"]: inp for inp in inputs}
+    capacity_attributes = by_id["sensor.battery_capacity"]["attributes"]
+    assert isinstance(capacity_attributes, Mapping)
+    assert capacity_attributes[METER_TOTALS_ATTRIBUTE] == [(target_time.timestamp(), 42.0)]
+    soc_attributes = by_id["sensor.battery_soc"]["attributes"]
+    assert isinstance(soc_attributes, Mapping)
+    assert METER_TOTALS_ATTRIBUTE not in soc_attributes
+    assert totals_at.await_args is not None
+    assert totals_at.await_args.args[1:3] == ("sensor.battery_capacity", target_time)
 
 
 async def test_fetch_inputs_at_reports_missing_entities(hass: HomeAssistant) -> None:
@@ -1141,7 +1016,7 @@ async def test_fetch_inputs_at_reports_missing_entities(hass: HomeAssistant) -> 
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={"sensor.battery_capacity": [cap_state]},
         ),
     ):
@@ -1202,7 +1077,7 @@ async def test_get_last_run_before_finds_run(hass: HomeAssistant) -> None:
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.haeo_optimization_duration": [duration_state],
                 "sensor.haeo_forecast_horizon": [horizon_state],
@@ -1286,7 +1161,7 @@ async def test_get_last_run_before_no_recorder_state(hass: HomeAssistant) -> Non
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={},
         ),
     ):
@@ -1323,7 +1198,7 @@ async def test_get_last_run_before_invalid_duration_state(hass: HomeAssistant) -
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.haeo_optimization_duration": [invalid_state],
                 "sensor.haeo_forecast_horizon": [State("sensor.haeo_forecast_horizon", "2024-01-01T00:00:00+00:00")],
@@ -1368,7 +1243,7 @@ async def test_get_last_run_before_no_horizon_state(hass: HomeAssistant) -> None
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.haeo_optimization_duration": [duration_state],
             },
@@ -1459,3 +1334,111 @@ def test_get_horizon_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     assert get_horizon_sensor_entity_id(hass, entry) is None
+
+
+def _calendar_hub(hass: HomeAssistant) -> MockConfigEntry:
+    """Return a hub with one element whose trip section reads calendar.trips."""
+    entry = MockConfigEntry(domain=DOMAIN, data=_hub_entry_data(), entry_id="hub_entry")
+    entry.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(
+        entry,
+        ConfigSubentry(
+            data=MappingProxyType({CONF_NAME: "EV", "trip": {"trip_calendar": as_entity_value(["calendar.trips"])}}),
+            subentry_type="ev",
+            title="EV",
+            unique_id=None,
+        ),
+    )
+    return entry
+
+
+@pytest.mark.parametrize(("fetched", "expect_missing"), [([{"summary": "Trip"}], False), (None, True)])
+async def test_fetch_inputs_at_injects_calendar_events_fetched_for_the_run(
+    hass: HomeAssistant, fetched: list[dict[str, str]] | None, *, expect_missing: bool
+) -> None:
+    """Historical inputs carry each calendar's events from the run, which the recorder never holds."""
+    entry = _calendar_hub(hass)
+    target_time = datetime(2024, 1, 1, tzinfo=UTC)
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+    fetch = AsyncMock(return_value=fetched)
+
+    with (
+        patch("custom_components.haeo.diagnostics.collector.get_recorder_instance", return_value=mock_recorder),
+        patch(
+            "custom_components.haeo.diagnostics.collector._collect_entity_ids_from_entry",
+            return_value={"calendar.trips"},
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
+            return_value={"calendar.trips": [State("calendar.trips", "off", {"friendly_name": "Trips"})]},
+        ),
+        patch("custom_components.haeo.diagnostics.collector.async_fetch_calendar_events", fetch),
+    ):
+        inputs, missing = await _fetch_inputs_at(hass, entry, target_time)
+
+    fetch.assert_awaited_once_with(hass, "calendar.trips", target_time, target_time + HISTORICAL_CALENDAR_LOOKAHEAD)
+    if expect_missing:
+        assert inputs == []
+        assert missing == ["calendar.trips"]
+    else:
+        assert missing == []
+        [captured] = inputs
+        assert captured["attributes"] == {"friendly_name": "Trips", CALENDAR_EVENTS_ATTRIBUTE: fetched}
+
+
+async def test_fetch_inputs_at_keeps_only_the_meter_totals_the_open_window_reads(hass: HomeAssistant) -> None:
+    """Historical meter totals are the one the open window rises from and the latest, not a whole week."""
+    entry = MockConfigEntry(domain=DOMAIN, data=_hub_entry_data(), entry_id="hub_entry")
+    entry.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(
+        entry,
+        ConfigSubentry(
+            data=MappingProxyType(
+                _battery_config(
+                    name="Battery",
+                    connection="DC Bus",
+                    capacity="sensor.battery_capacity",
+                    initial_charge_percentage="calendar.runs",
+                )
+            ),
+            subentry_type=ElementType.BATTERY,
+            title="Battery",
+            unique_id=None,
+        ),
+    )
+    target = datetime(2024, 1, 1, 12, tzinfo=UTC)
+    run = {
+        "start": (target - timedelta(minutes=50)).isoformat(),
+        "end": (target + timedelta(hours=1)).isoformat(),
+        "summary": "Run",
+    }
+    meter_input = ElementInput(
+        ("storage", "capacity"),
+        ("storage", "capacity"),
+        FieldHint(output_type=OutputType.ENERGY, meter=MeterFieldHint(since="initial_charge_percentage")),
+    )
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+    week = [((target - timedelta(minutes=minutes)).timestamp(), 100.0 - minutes) for minutes in (120, 60, 10, 0)]
+
+    with (
+        patch("custom_components.haeo.diagnostics.collector.get_recorder_instance", return_value=mock_recorder),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
+            return_value={
+                "sensor.battery_capacity": [State("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})],
+                "calendar.runs": [State("calendar.runs", "on", {})],
+            },
+        ),
+        patch("custom_components.haeo.diagnostics.collector.element_inputs", return_value=[meter_input]),
+        patch(
+            "custom_components.haeo.diagnostics.collector.async_fetch_calendar_events", AsyncMock(return_value=[run])
+        ),
+        patch("custom_components.haeo.diagnostics.collector.async_meter_totals_at", AsyncMock(return_value=week)),
+    ):
+        inputs, _missing = await _fetch_inputs_at(hass, entry, target)
+
+    capacity = next(inp for inp in inputs if inp["entity_id"] == "sensor.battery_capacity")["attributes"]
+    assert isinstance(capacity, Mapping)
+    assert capacity[METER_TOTALS_ATTRIBUTE] == [week[1], week[-1]]

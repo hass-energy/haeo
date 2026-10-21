@@ -1,5 +1,5 @@
 import type { JSX } from "preact";
-import * as mdi from "@mdi/js";
+import { mdiIcons } from "../mdi-icons";
 
 import { t } from "../i18n";
 import { legendSeriesOrder, seriesIconPath, seriesTooltip } from "../legend-helpers";
@@ -112,9 +112,12 @@ function LegendView(props: LegendProps): JSX.Element {
           const allHidden = hiddenCount === elementSeries.length;
           const active = props.hoveredElement === null || props.hoveredElement === elementName;
           const isBatteryElement = elementSeries.some((series) => series.elementType === "battery");
-          const icons = mdi as Record<string, string>;
-          const batterySocSeriesGroup = isBatteryElement ? sortedSeries.filter((series) => series.lane === "soc") : [];
-          const batteryNonSocSeries = isBatteryElement ? sortedSeries.filter((series) => series.lane !== "soc") : [];
+          const icons = mdiIcons;
+          // Only the battery's own charge joins its group; a buffer it holds keeps its own toggle
+          const isBatterySoc = (series: ForecastSeries): boolean =>
+            series.lane === "soc" && series.elementType === "battery";
+          const batterySocSeriesGroup = isBatteryElement ? sortedSeries.filter(isBatterySoc) : [];
+          const batteryNonSocSeries = isBatteryElement ? sortedSeries.filter((series) => !isBatterySoc(series)) : [];
           return (
             <div
               key={elementName}

@@ -9,44 +9,46 @@ The card reads `forecast` attributes from HAEO output sensors.
 It automatically groups series into lanes (`power`, `price`, `soc`, `shadow`, `other`).
 Power and price series are drawn with step-post semantics.
 State-of-charge series are drawn as continuous lines.
+A [buffer](elements/buffer.md) is drawn as a dotted line in the state-of-charge lane.
+A line your batteries' combined charge should stay above, such as a reserve, is red, and one it should stay below, such as headroom, is purple.
+A buffer held by a single battery is listed under that battery in the legend.
+
+An input that reads its windows from a calendar is drawn as a tinted band across the chart wherever a window is open, with a strip in the element's color along the top.
+The tooltip lists the windows open at the hovered time.
 
 ## Prerequisites
 
 You must already have the HAEO integration installed and running.
 At least one HAEO output sensor must expose a `forecast` attribute.
 
-## Add the card resource
+## Card resources
 
-The integration serves the card bundle at:
+There is nothing to add by hand.
+The integration serves its cards and registers them with the Home Assistant frontend when Home Assistant starts.
 
-`/haeo-static/haeo-forecast-card.min.js`
-
-Add this as a Lovelace resource:
-
-1. Open **Settings -> Dashboards -> Resources**.
-2. Add a new resource URL: `/haeo-static/haeo-forecast-card.min.js`.
-3. Set resource type to **JavaScript module**.
+If you added a Lovelace resource for `/haeo-static/haeo-forecast-card.min.js` under an older release, remove it from **Settings -> Dashboards -> Resources**.
+That URL no longer serves the card, and a cached copy loaded beside the current card can stop the card from appearing.
 
 ## Basic card config
 
 ```yaml
 type: custom:haeo-forecast-card
 title: HAEO forecast
-entities:
-  - sensor.haeo_grid_import_power
-  - sensor.haeo_grid_export_power
-  - sensor.haeo_battery_state_of_charge
+hub_entry_id: <your_haeo_hub_config_entry_id>
 ```
+
+Use the visual card editor to select a HAEO hub. Forecast entities for that hub are discovered automatically at runtime.
 
 ## Configuration options
 
 - `type`: Must be `custom:haeo-forecast-card`.
 - `title`: Optional card title.
-- `entities`: Optional list of forecast sensor entities.
-    If omitted, the card auto-discovers entities with a `forecast` attribute.
+- `hub_entry_id`: Required HAEO hub config entry ID (chosen via the visual editor).
+- `entities`: Optional list of forecast sensor entities. When omitted, the card discovers forecast sensors for the selected hub.
 - `height`: Optional chart height in pixels.
-- `animation_mode`: `off`, `reduced`, or `smooth`.
-- `animation_speed`: Relative timeline slide speed (default `1`).
+- `power_display_mode`: `opposed` or `overlay`. Default is `opposed`.
+- `default_horizon`: Initial horizon slider value. One of `full`, `15m`, `30m`, `1h`, `2h`, `4h`, `8h`, `12h`, `1d`, `2d`, or `3d`. Default is `full`. Shorter values are used automatically when the forecast horizon is shorter than the configured value.
+- `tooltip_visible`: Whether the information panel below the chart is shown initially. Default is `true`.
 
 ## Interaction features
 
@@ -54,15 +56,45 @@ entities:
 - Tooltip with per-series values and per-lane totals.
 - Legend hover highlighting.
 - Automatic scaling based on card dimensions.
-- Smooth time sliding between forecast updates.
+- Chart updates when forecast data changes from Home Assistant.
+
+## Network topology card
+
+The integration also registers `custom:haeo-topology-card` as a separate frontend resource.
+It reads the `topology` attribute from a HAEO optimization status sensor and renders the LP network as an interactive SVG graph.
+
+### Basic topology card config
+
+```yaml
+type: custom:haeo-topology-card
+title: HAEO network topology
+hub_entry_id: <your_haeo_hub_config_entry_id>
+```
+
+Use the visual card editor to select a HAEO hub. The card resolves the hub's optimization status sensor at runtime.
+
+Batteries that hold a reserve [buffer](elements/buffer.md) show a 🛡 marker, and those that keep a headroom buffer show ⤒.
+Hover over an element to see which buffers it holds or is counted in.
+A connection between two parts of one element is drawn inside that element's box.
+
+### Topology card options
+
+- `type`: Must be `custom:haeo-topology-card`.
+- `title`: Optional card title.
+- `hub_entry_id`: Required HAEO hub config entry ID (chosen via the visual editor).
 
 ## Troubleshooting
 
-If no data appears:
+If the card shows an empty state:
 
-- Confirm your selected entity IDs exist.
-- Confirm each entity has a populated `forecast` attribute.
-- Confirm the Lovelace resource URL is exactly `/haeo-static/haeo-forecast-card.min.js`.
+- **Configure a HAEO hub**: Open the card editor and select a hub.
+- **The selected HAEO hub no longer exists**: Your hub was removed or recreated. Open the card editor and choose the current hub again.
+- **No forecast data yet** / **No optimization status sensor**: HAEO is still starting up or has not finished its first optimization run.
+
+For forecast data issues, also confirm:
+
+- Each forecast entity has a populated `forecast` attribute.
+- No Lovelace resource for `/haeo-static/haeo-forecast-card.min.js` is left over from an older release.
 
 ## Next steps
 

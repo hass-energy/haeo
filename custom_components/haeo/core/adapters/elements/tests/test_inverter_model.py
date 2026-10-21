@@ -1,7 +1,7 @@
 """Tests for inverter element model mapping."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import numpy as np
 import pytest
@@ -15,7 +15,7 @@ from custom_components.haeo.core.adapters.elements.inverter import (
     INVERTER_POWER_ACTIVE,
     INVERTER_POWER_DC_TO_AC,
 )
-from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
+from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare, segment_order
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -36,7 +36,7 @@ class CreateCase(TypedDict):
 
     description: str
     data: InverterConfigData
-    model: list[dict[str, Any]]
+    model: list[dict[str, object]]
 
 
 class OutputsCase(TypedDict):
@@ -82,8 +82,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "inverter_main",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                     "power_limit": {"segment_type": "power_limit", "max_power": [8.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                 },
             },
         ],
@@ -121,8 +121,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "inverter_simple",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                     "power_limit": {"segment_type": "power_limit", "max_power": [10.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                 },
             },
         ],
@@ -136,7 +136,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "inverter_main",
         "model_outputs": {
             "inverter_main": {
-                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "inverter_main:dc_to_ac": {
                 connection.CONNECTION_POWER: OutputData(
@@ -144,24 +144,24 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
                     }
                 },
             },
             "inverter_main:ac_to_dc": {
                 connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)),
                     }
                 },
             },
         },
         "outputs": {
             INVERTER_DEVICE_INVERTER: {
-                INVERTER_DC_BUS_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                INVERTER_DC_BUS_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
                 INVERTER_POWER_DC_TO_AC: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
@@ -170,10 +170,44 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 INVERTER_POWER_ACTIVE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction=None),
                 INVERTER_MAX_POWER_DC_TO_AC_PRICE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)
                 ),
                 INVERTER_MAX_POWER_AC_TO_DC_PRICE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)
+                ),
+            }
+        },
+    },
+    {
+        "description": "Inverter AC-to-DC connection pruned - rectifier carries no flow",
+        "name": "inverter_main",
+        "model_outputs": {
+            "inverter_main": {
+                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+            },
+            "inverter_main:dc_to_ac": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
+                ),
+                connection.CONNECTION_SEGMENTS: {
+                    "power_limit": {
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
+                    }
+                },
+            },
+        },
+        "outputs": {
+            INVERTER_DEVICE_INVERTER: {
+                INVERTER_DC_BUS_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                INVERTER_POWER_DC_TO_AC: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
+                ),
+                INVERTER_POWER_AC_TO_DC: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.0,), direction="-"
+                ),
+                INVERTER_POWER_ACTIVE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction=None),
+                INVERTER_MAX_POWER_DC_TO_AC_PRICE: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)
                 ),
             }
         },
@@ -187,6 +221,8 @@ def test_model_elements(case: CreateCase) -> None:
     entry = ELEMENT_TYPES[ElementType.INVERTER]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
+    # Segment order sets which end of a connection the power limit applies to
+    assert segment_order(result) == segment_order(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

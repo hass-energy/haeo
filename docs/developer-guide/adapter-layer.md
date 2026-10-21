@@ -68,6 +68,7 @@ Most Device Layer elements create multiple Model Layer elements:
 | Grid           | `node` + `connection`    |
 | Solar          | `node` + `connection`    |
 | Load           | `node` + `connection`    |
+| Junction       | `node` only              |
 | Node           | `node` only              |
 | Connection     | `connection` only        |
 
@@ -78,21 +79,14 @@ The connection carries operational parameters (power limits, efficiency, pricing
 
 Some Device Layer elements produce multiple devices in Home Assistant:
 
-**Battery**: Creates up to 4 devices based on SOC region configuration:
-
-- Aggregate device (always): Total power, energy, SOC
-- Undercharge device (optional): Region-specific metrics
-- Normal device (optional): Region-specific metrics
-- Overcharge device (optional): Region-specific metrics
-
-Other elements create a single device matching their configuration.
+Each element creates a single device matching its configuration.
 
 ### Sub-element Naming
 
 When adapters create multiple model elements or devices, they use a naming convention:
 
 - Main element: `{name}` (e.g., `Battery`)
-- Sub-elements: `{name}:{subname}` (e.g., `Battery:connection`, `Battery:undercharge`)
+- Sub-elements: `{name}:{subname}` (e.g., `Battery:connection`, `Battery:discharge`)
 
 This prevents naming collisions and groups related components visually.
 
@@ -128,7 +122,7 @@ The adapter architecture supports future composite elements that group multiple 
 
 Composite adapters would create nested element structures and aggregate their outputs, presenting a unified interface to users while maintaining full optimization capability.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

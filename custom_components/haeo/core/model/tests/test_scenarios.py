@@ -19,6 +19,7 @@ def test_simple_optimization() -> None:
             "name": "grid_connection",
             "source": "grid",
             "target": "net",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -38,6 +39,7 @@ def test_simple_optimization() -> None:
             "name": "load_connection",
             "source": "net",
             "target": "load",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -69,6 +71,7 @@ def test_network_validation() -> None:
             "name": "valid_connection",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",

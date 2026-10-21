@@ -26,7 +26,7 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
     main_bus: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "main_bus",
-        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        "role": {CONF_IS_SOURCE: True, CONF_IS_SINK: True},
     }
     baseload: LoadConfigData = {
         "element_type": ElementType.LOAD,
@@ -122,8 +122,9 @@ async def test_create_network_applies_policy_rules_to_connections(hass: HomeAssi
     line = network.elements["line"]
     assert isinstance(line, Connection)
     tags = line.connection_tags()
-    assert 0 in tags
-    assert max(tags) >= 1
+    # node_a is the only source and is policied (VLAN 1), so the connection
+    # only carries the VLAN tag — no unpolicied source can reach it.
+    assert tags == {1}
 
     # Policy pricing is handled by PolicyPricing elements via element updaters
     assert "policies" in element_updaters
@@ -279,12 +280,12 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
     node_a: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "node_a",
-        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        "role": {CONF_IS_SOURCE: True, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "node_b",
-        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: True},
     }
     participants: dict[str, ElementConfigData] = {
         "line": line_cfg,

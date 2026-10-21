@@ -23,10 +23,14 @@ class OutputType(StrEnum):
 
     Monetary types:
         PRICE: Price per energy unit ($/kWh, €/kWh, etc.)
+        PRICE_RATE: Price rate per energy unit per hour ($/kWh/h) for holding costs
         COST: Total cost in currency units
 
     Other types:
         STATUS: Boolean or categorical status
+        AVAILABILITY: Binary availability schedule (0-1)
+        DISTANCE: Distance quantity (km)
+        ENERGY_PER_DISTANCE: Energy consumption per distance (kWh/km)
         DURATION: Time duration
         SHADOW_PRICE: Shadow prices from LP constraints
 
@@ -37,9 +41,13 @@ class OutputType(StrEnum):
     POWER_LIMIT = auto()
     ENERGY = auto()
     PRICE = auto()
+    PRICE_RATE = auto()
     STATE_OF_CHARGE = auto()
     EFFICIENCY = auto()
     COST = auto()
     STATUS = auto()
+    AVAILABILITY = auto()
+    DISTANCE = auto()
+    ENERGY_PER_DISTANCE = auto()
     DURATION = auto()
     SHADOW_PRICE = auto()

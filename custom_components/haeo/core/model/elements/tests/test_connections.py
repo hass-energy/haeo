@@ -1,9 +1,7 @@
 """Model connection output tests covering reporting and validation helpers."""
 
-from typing import Any, TypeGuard, cast
+from typing import TypeGuard
 
-from highspy import Highs
-from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 import pytest
@@ -12,8 +10,11 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.segments.power_limit import PowerLimitSegment
 from custom_components.haeo.core.model.elements.segments.pricing import PricingSegment
+from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.tests import test_data
+from custom_components.haeo.core.model.tests.test_data import minimize, solution_value
 from custom_components.haeo.core.model.tests.test_data.connection_types import (
     ConnectionTestCase,
     ConnectionTestCaseInputs,
@@ -21,6 +22,7 @@ from custom_components.haeo.core.model.tests.test_data.connection_types import (
     ExpectedOutputFixture,
     ExpectedOutputs,
 )
+from custom_components.haeo.core.model.util.solver_rows import add_rows
 
 
 def _serialize_output_value(output_value: ModelOutputValue) -> ExpectedOutputFixture:
@@ -40,7 +42,7 @@ def _serialize_output_value(output_value: ModelOutputValue) -> ExpectedOutputFix
 class DummyElement(Element[str]):
     """Minimal element for connection endpoint wiring in tests."""
 
-    def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs) -> None:
+    def __init__(self, name: str, periods: NDArray[np.float64], solver: Solver) -> None:
         """Create a dummy element with no outputs."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
 
@@ -58,20 +60,19 @@ def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestC
         outputs = element.outputs()
         return {name: _serialize_output_value(output_data) for name, output_data in outputs.items()}
 
-    n_periods = element.n_periods
     periods = element.periods
 
-    cost_terms: list[highs_linear_expression] = []
+    cost_terms: list[LinearArray] = []
 
     if "fix_power_in" in inputs:
         values = inputs["fix_power_in"]
         total_power_in = element.total_power_in
         for i, val in enumerate(values):
-            h.addConstr(total_power_in[i] == val)
+            add_rows(h, total_power_in[i] == val)
 
     if inputs.get("maximize_power_out"):
         total_power_out = element.total_power_out
-        cost_terms.append(-Highs.qsum(total_power_out[i] * periods[i] for i in range(n_periods)))
+        cost_terms.append(-(total_power_out * periods))
 
     # Collect primary cost from element (index 0 only, skip secondary time preference)
     element_cost = element.cost()
@@ -79,8 +80,9 @@ def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestC
         cost_terms.append(element_cost[0])
 
     if cost_terms:
-        h.minimize(Highs.qsum(cost_terms))
-    h.run()
+        minimize(h, total(cost_terms))
+    else:
+        h.run()
 
     outputs = element.outputs()
     return {name: _serialize_output_value(output_data) for name, output_data in outputs.items()}
@@ -88,6 +90,10 @@ def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestC
 
 def _is_expected_output(value: ExpectedOutputFixture) -> TypeGuard[ExpectedOutput]:
     return {"type", "unit", "values"}.issubset(value.keys())
+
+
+def _is_nested_outputs(value: ExpectedOutputFixture) -> TypeGuard[ExpectedOutputs]:
+    return not _is_expected_output(value)
 
 
 def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutputFixture) -> None:
@@ -99,9 +105,10 @@ def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutpu
         assert actual["values"] == pytest.approx(expected["values"], rel=tol[0], abs=tol[1])
         return
 
-    assert not _is_expected_output(actual)
-    actual_map = cast("ExpectedOutputs", actual)
-    expected_map = cast("ExpectedOutputs", expected)
+    assert _is_nested_outputs(actual)
+    assert _is_nested_outputs(expected)
+    actual_map = actual
+    expected_map = expected
     for output_name, expected_value in expected_map.items():
         assert output_name in actual_map, f"Missing expected key: {output_name}"
         _assert_outputs_match(actual_map[output_name], expected_value)
@@ -112,7 +119,7 @@ def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutpu
     test_data.VALID_CONNECTION_CASES,
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
-def test_connection_outputs(case: ConnectionTestCase, solver: Highs) -> None:
+def test_connection_outputs(case: ConnectionTestCase, solver: Solver) -> None:
     """Connection outputs should match expected values for unidirectional flows."""
     factory = case["factory"]
     data = case["data"].copy()
@@ -132,7 +139,7 @@ def test_connection_outputs(case: ConnectionTestCase, solver: Highs) -> None:
     test_data.INVALID_CONNECTION_CASES,
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
-def test_connection_validation(case: ConnectionTestCase, solver: Highs) -> None:
+def test_connection_validation(case: ConnectionTestCase, solver: Solver) -> None:
     """Connection classes should validate input sequence lengths match n_periods."""
     assert "expected_error" in case
     data = case["data"].copy()
@@ -141,7 +148,7 @@ def test_connection_validation(case: ConnectionTestCase, solver: Highs) -> None:
         case["factory"](**data)
 
 
-def test_connection_power_properties(solver: Highs) -> None:
+def test_connection_power_properties(solver: Solver) -> None:
     """Connection power_in, power_out, power_into_source, power_into_target."""
     conn: Connection[str] = Connection(
         name="test_conn",
@@ -149,6 +156,7 @@ def test_connection_power_properties(solver: Highs) -> None:
         solver=solver,
         source="source_element",
         target="target_element",
+        tags={1},
     )
     source = DummyElement("source_element", conn.periods, solver)
     target = DummyElement("target_element", conn.periods, solver)
@@ -156,29 +164,29 @@ def test_connection_power_properties(solver: Highs) -> None:
     conn.constraints()
 
     total_in = conn.total_power_in
-    solver.addConstr(total_in[0] == 5.0)
-    solver.addConstr(total_in[1] == 3.0)
+    add_rows(solver, total_in[0] == 5.0)
+    add_rows(solver, total_in[1] == 3.0)
 
     solver.run()
 
-    power_in = [solver.val(total_in[i]) for i in range(2)]
+    power_in = [solution_value(solver, total_in[i]) for i in range(2)]
     assert power_in == pytest.approx([5.0, 3.0])
 
     total_out = conn.total_power_out
-    power_out = [solver.val(total_out[i]) for i in range(2)]
+    power_out = [solution_value(solver, total_out[i]) for i in range(2)]
     assert power_out == pytest.approx([5.0, 3.0])
 
-    power_into_source = [solver.val(conn.power_into_source[i]) for i in range(2)]
+    power_into_source = [solution_value(solver, conn.power_into_source[i]) for i in range(2)]
     assert power_into_source == pytest.approx([-5.0, -3.0])
 
-    power_into_target = [solver.val(conn.power_into_target[i]) for i in range(2)]
+    power_into_target = [solution_value(solver, conn.power_into_target[i]) for i in range(2)]
     assert power_into_target == pytest.approx([5.0, 3.0])
 
     assert conn.source == "source_element"
     assert conn.target == "target_element"
 
 
-def test_connection_getitem_integer_index(solver: Highs) -> None:
+def test_connection_getitem_integer_index(solver: Solver) -> None:
     """Connection supports integer indexing into segments."""
     conn: Connection[str] = Connection(
         name="idx_conn",
@@ -186,6 +194,7 @@ def test_connection_getitem_integer_index(solver: Highs) -> None:
         solver=solver,
         source="a",
         target="b",
+        tags={1},
         segments={
             "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
             "pricing": {"segment_type": "pricing", "price": 0.10},
@@ -203,7 +212,7 @@ def test_connection_getitem_integer_index(solver: Highs) -> None:
         conn[99]
 
 
-def test_connection_getitem_fallback(solver: Highs) -> None:
+def test_connection_getitem_fallback(solver: Solver) -> None:
     """Connection falls back to Element.__getitem__ for unknown keys."""
     conn: Connection[str] = Connection(
         name="fallback_conn",
@@ -211,6 +220,7 @@ def test_connection_getitem_fallback(solver: Highs) -> None:
         solver=solver,
         source="a",
         target="b",
+        tags={1},
     )
     source = DummyElement("a", conn.periods, solver)
     target = DummyElement("b", conn.periods, solver)
@@ -220,7 +230,7 @@ def test_connection_getitem_fallback(solver: Highs) -> None:
         conn["nonexistent_key"]
 
 
-def test_connection_multiple_cost_sources(solver: Highs) -> None:
+def test_connection_multiple_cost_sources(solver: Solver) -> None:
     """Connection aggregates costs from multiple segments."""
     conn: Connection[str] = Connection(
         name="multi_cost",
@@ -228,6 +238,7 @@ def test_connection_multiple_cost_sources(solver: Highs) -> None:
         solver=solver,
         source="a",
         target="b",
+        tags={1},
         segments={
             "pricing1": {"segment_type": "pricing", "price": 0.10},
             "pricing2": {"segment_type": "pricing", "price": 0.20},
@@ -242,13 +253,13 @@ def test_connection_multiple_cost_sources(solver: Highs) -> None:
     assert cost is not None
     assert cost[0] is not None
 
-    solver.addConstr(conn.total_power_in[0] == 5.0)
-    solver.minimize(cost[0])
+    add_rows(solver, conn.total_power_in[0] == 5.0)
+    minimize(solver, cost[0])
     # Cost = 5 kW * (0.10 + 0.20) $/kWh * 1 h = 1.50
     assert solver.getObjectiveValue() == pytest.approx(1.50)
 
 
-def test_connection_without_tag_costs_has_no_primary_cost(solver: Highs) -> None:
+def test_connection_without_tag_costs_has_no_primary_cost(solver: Solver) -> None:
     """Connection with tags but no pricing segments has no primary cost."""
     conn: Connection[str] = Connection(
         name="no_cost",

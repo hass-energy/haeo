@@ -1,10 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { HassLike } from "./series";
+import { withSingleHubRegistry } from "./fixtures/scenarioOutputs";
 import "./card";
 
+interface ForecastCardConstructor {
+  getStubConfig: (hass?: HassLike) => { title?: string; hub_entry_id?: string };
+}
+
 interface HaeoCardElement extends HTMLElement {
-  setConfig: (config: { type: "custom:haeo-forecast-card"; entities?: string[] }) => void;
-  hass: unknown;
+  setConfig: (config: {
+    type: "custom:haeo-forecast-card";
+    title?: string;
+    hub_entry_id?: string;
+    entities?: string[];
+  }) => void;
+  hass: HassLike | null;
   getCardSize: () => number;
   getGridOptions: () => {
     rows: number;
@@ -14,6 +25,28 @@ interface HaeoCardElement extends HTMLElement {
   getCardWidth: () => number;
 }
 
+const smokeConfig = {
+  type: "custom:haeo-forecast-card" as const,
+  hub_entry_id: "hub-alpha",
+  entities: ["sensor.haeo_grid_import_power"],
+};
+
+/**
+ * Wait for the lazily-imported rendering controller to load and flush its
+ * synchronous render. The element registers instantly but defers heavy
+ * rendering behind a dynamic import, so tests must await that load.
+ */
+async function waitForController(): Promise<void> {
+  await import("./forecast-card-controller");
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+function smokeHass(states: HassLike["states"]): HassLike {
+  return withSingleHubRegistry({ states }, "hub-alpha");
+}
+
 describe("haeo-forecast-card smoke", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -21,47 +54,75 @@ describe("haeo-forecast-card smoke", () => {
 
   it("defines the custom element and accepts config", () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
-    element.setConfig({
-      type: "custom:haeo-forecast-card" as const,
-      entities: ["sensor.haeo_grid_import_power"],
-    });
+    element.setConfig(smokeConfig);
     document.body.appendChild(element);
 
     expect(customElements.get("haeo-forecast-card")).toBeDefined();
     expect(element).toBeInstanceOf(HTMLElement);
   });
 
-  it("renders svg when forecast data is provided", async () => {
+  it("reports fallback sizing before the rendering controller loads", () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
-    element.setConfig({
-      type: "custom:haeo-forecast-card" as const,
-      entities: ["sensor.haeo_grid_import_power"],
-    });
-    element.hass = {
-      states: {
-        "sensor.haeo_grid_import_power": {
-          entity_id: "sensor.haeo_grid_import_power",
-          attributes: {
-            field_type: "power",
-            output_name: "import_power",
-            direction: "-",
-            element_name: "Grid",
-            unit_of_measurement: "kW",
-            forecast: [
-              { time: "2026-03-14T00:00:00Z", value: 1.0 },
-              { time: "2026-03-14T00:05:00Z", value: 2.0 },
-              { time: "2026-03-14T00:10:00Z", value: 1.5 },
-            ],
-          },
+    expect(element.getCardSize()).toBe(6);
+    expect(element.getGridOptions()).toEqual({ rows: 5, min_rows: 4, columns: "full" });
+  });
+
+  it("renders svg when hass is set after connect", async () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    document.body.appendChild(element);
+    element.setConfig(smokeConfig);
+    await waitForController();
+    expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeFalsy();
+
+    element.hass = smokeHass({
+      "sensor.haeo_grid_import_power": {
+        entity_id: "sensor.haeo_grid_import_power",
+        attributes: {
+          field_type: "power",
+          output_name: "import_power",
+          direction: "-",
+          element_name: "Grid",
+          element_type: "grid",
+          unit_of_measurement: "kW",
+          forecast: [
+            { time: "2026-03-14T00:00:00Z", value: 1.0 },
+            { time: "2026-03-14T00:05:00Z", value: 2.0 },
+            { time: "2026-03-14T00:10:00Z", value: 1.5 },
+          ],
         },
       },
-    };
-    document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
     });
+    await waitForController();
 
-    const svg = element.shadowRoot?.querySelector("svg");
+    expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeTruthy();
+    element.remove();
+  });
+
+  it("renders svg when forecast data is provided", async () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    element.setConfig(smokeConfig);
+    element.hass = smokeHass({
+      "sensor.haeo_grid_import_power": {
+        entity_id: "sensor.haeo_grid_import_power",
+        attributes: {
+          field_type: "power",
+          output_name: "import_power",
+          direction: "-",
+          element_name: "Grid",
+          element_type: "grid",
+          unit_of_measurement: "kW",
+          forecast: [
+            { time: "2026-03-14T00:00:00Z", value: 1.0 },
+            { time: "2026-03-14T00:05:00Z", value: 2.0 },
+            { time: "2026-03-14T00:10:00Z", value: 1.5 },
+          ],
+        },
+      },
+    });
+    document.body.appendChild(element);
+    await waitForController();
+
+    const svg = element.shadowRoot?.querySelector(".chartContainer svg");
     expect(svg).toBeTruthy();
     svg?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 200, clientY: 120 }));
     svg?.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
@@ -74,10 +135,8 @@ describe("haeo-forecast-card smoke", () => {
       type: "custom:haeo-forecast-card",
     });
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
-    expect(element.shadowRoot?.textContent).toContain("No forecast data found");
+    await waitForController();
+    expect(element.shadowRoot?.textContent).toContain("Configure a HAEO hub in the card editor");
     element.remove();
   });
 
@@ -110,13 +169,26 @@ describe("haeo-forecast-card smoke", () => {
 
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     try {
-      element.setConfig({
-        type: "custom:haeo-forecast-card",
+      element.setConfig(smokeConfig);
+      element.hass = smokeHass({
+        "sensor.haeo_grid_import_power": {
+          entity_id: "sensor.haeo_grid_import_power",
+          attributes: {
+            field_type: "power",
+            output_name: "import_power",
+            direction: "-",
+            element_name: "Grid",
+            element_type: "grid",
+            unit_of_measurement: "kW",
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1.0 },
+              { time: "2026-03-14T00:05:00Z", value: 2.0 },
+            ],
+          },
+        },
       });
       document.body.appendChild(element);
-      await new Promise((resolve) => {
-        setTimeout(resolve, 20);
-      });
+      await waitForController();
 
       const chartContainer = element.shadowRoot?.querySelector(".chartContainer");
       expect(chartContainer).toBeTruthy();
@@ -166,13 +238,9 @@ describe("haeo-forecast-card smoke", () => {
     });
 
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
-    element.setConfig({
-      type: "custom:haeo-forecast-card",
-    });
+    element.setConfig(smokeConfig);
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
 
     expect(element.getCardSize()).toBe(14);
     element.remove();
@@ -186,5 +254,97 @@ describe("haeo-forecast-card smoke", () => {
 
     bounds.mockReturnValue(new DOMRect(0, 0, 0, 0));
     expect(element.getCardWidth()).toBe(640);
+  });
+
+  it("builds stub config with the first discovered hub", () => {
+    const ctor = customElements.get("haeo-forecast-card");
+    if (ctor === undefined) {
+      throw new Error("Expected haeo-forecast-card custom element");
+    }
+    const cardClass = ctor as unknown as ForecastCardConstructor;
+    expect(cardClass.getStubConfig()).toEqual({ title: "HAEO forecast" });
+    expect(
+      cardClass.getStubConfig({
+        states: {},
+        entities: {
+          "sensor.haeo_status": { platform: "haeo", device_id: "dev-alpha" },
+        },
+        devices: {
+          "dev-alpha": { config_entries: ["hub-alpha"] },
+        },
+      })
+    ).toEqual({ title: "HAEO forecast", hub_entry_id: "hub-alpha" });
+  });
+
+  it("exposes the shared config form", () => {
+    const ctor = customElements.get("haeo-forecast-card");
+    if (ctor === undefined) {
+      throw new Error("Expected haeo-forecast-card custom element");
+    }
+    const cardClass = ctor as unknown as ForecastCardConstructor & {
+      getConfigForm: () => { schema: Array<{ name: string }> };
+    };
+    expect(cardClass.getConfigForm().schema.some((field) => field.name === "hub_entry_id")).toBe(true);
+  });
+
+  it("replays config and hass through the shim after the controller loads", async () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    element.setConfig(smokeConfig);
+    document.body.appendChild(element);
+    await waitForController();
+
+    element.setConfig({ ...smokeConfig, title: "Updated forecast" });
+    element.hass = smokeHass({
+      "sensor.haeo_grid_import_power": {
+        entity_id: "sensor.haeo_grid_import_power",
+        attributes: {
+          field_type: "power",
+          output_name: "import_power",
+          direction: "-",
+          element_name: "Grid",
+          element_type: "grid",
+          unit_of_measurement: "kW",
+          forecast: [
+            { time: "2026-03-14T00:00:00Z", value: 1.0 },
+            { time: "2026-03-14T00:05:00Z", value: 2.0 },
+          ],
+        },
+      },
+    });
+    expect(element.hass.states["sensor.haeo_grid_import_power"]).toBeTruthy();
+    expect(element.getCardWidth()).toBeGreaterThan(0);
+    expect(element.getGridOptions().rows).toBeGreaterThan(5);
+    element.remove();
+  });
+
+  it("reconnects the rendering controller after DOM detach and reattach", async () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    element.setConfig(smokeConfig);
+    element.hass = smokeHass({
+      "sensor.haeo_grid_import_power": {
+        entity_id: "sensor.haeo_grid_import_power",
+        attributes: {
+          field_type: "power",
+          output_name: "import_power",
+          direction: "-",
+          element_name: "Grid",
+          element_type: "grid",
+          unit_of_measurement: "kW",
+          forecast: [
+            { time: "2026-03-14T00:00:00Z", value: 1.0 },
+            { time: "2026-03-14T00:05:00Z", value: 2.0 },
+          ],
+        },
+      },
+    });
+    document.body.appendChild(element);
+    await waitForController();
+    expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeTruthy();
+
+    element.remove();
+    document.body.appendChild(element);
+    await waitForController();
+    expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeTruthy();
+    element.remove();
   });
 });

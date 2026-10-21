@@ -8,18 +8,23 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_PARTITION_COST,
-    CONF_PARTITION_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    SECTION_ADVANCED,
     SECTION_LIMITS,
-    SECTION_OVERCHARGE,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
-    SECTION_UNDERCHARGE,
     BatteryConfigData,
+)
+from custom_components.haeo.core.schema.elements.battery_section import CONF_INITIAL_CHARGE, BatterySectionConfigData
+from custom_components.haeo.core.schema.elements.buffer import KIND_RESERVE, BufferConfigData
+from custom_components.haeo.core.schema.elements.connection import (
+    CONF_SOURCE,
+    CONF_TARGET,
+    SECTION_ENDPOINTS,
+    ConnectionConfigData,
 )
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
@@ -35,7 +40,11 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.validation import format_component_summary, validate_network_topology
+from custom_components.haeo.validation import (
+    find_invalid_connection_endpoints,
+    format_component_summary,
+    validate_network_topology,
+)
 
 BATTERY_CONF_CONNECTION = CONF_CONNECTION
 GRID_CONF_CONNECTION = CONF_CONNECTION
@@ -89,6 +98,29 @@ def test_validate_network_topology_with_implicit_connection() -> None:
     assert result.components == (("grid", "main"),)
 
 
+def test_validate_network_topology_ignores_buffers() -> None:
+    """A buffer reads the elements it covers without being a separate part of the network."""
+    main_node: NodeConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.NODE,
+        CONF_NAME: "main",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+    }
+    backup: BufferConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.BUFFER,
+        CONF_NAME: "backup",
+        "kind": KIND_RESERVE,
+        "participants": {"storage": ["main"]},
+        "requirement": {"window": 4.0},
+        "pricing": {"shortfall_cost": 0.1},
+    }
+    participants: dict[str, ElementConfigData] = {"main_node": main_node, "backup": backup}
+
+    result = validate_network_topology(participants)
+
+    assert result.is_connected is True
+    assert result.components == (("main",),)
+
+
 def test_validate_network_topology_detects_disconnected() -> None:
     """Disconnected components are properly identified."""
     node_a: NodeConfigData = {
@@ -135,18 +167,9 @@ def test_validate_network_topology_detects_disconnected() -> None:
     assert result.num_components == 2
 
 
-@pytest.mark.parametrize(
-    ("include_grid", "include_partitions"),
-    [
-        pytest.param(True, False, id="with_grid"),
-        pytest.param(False, True, id="with_under_overcharge"),
-    ],
-)
-def test_validate_network_topology_with_battery(
-    include_grid: bool,
-    include_partitions: bool,
-) -> None:
-    """Battery element validation works with optional grid and partition sections."""
+@pytest.mark.parametrize("include_grid", [pytest.param(True, id="with_grid"), pytest.param(False, id="without_grid")])
+def test_validate_network_topology_with_battery(include_grid: bool) -> None:
+    """Battery element validation works with and without a grid."""
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "main",
@@ -185,17 +208,8 @@ def test_validate_network_topology_with_battery(
             CONF_EFFICIENCY_SOURCE_TARGET: np.array([95.0, 95.0]),
             CONF_EFFICIENCY_TARGET_SOURCE: np.array([95.0, 95.0]),
         },
-        SECTION_PARTITIONING: {},
+        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: 100.0},
     }
-    if include_partitions:
-        battery[SECTION_UNDERCHARGE] = {
-            CONF_PARTITION_PERCENTAGE: np.array([5.0, 5.0, 5.0]),
-            CONF_PARTITION_COST: np.array([0.05, 0.05]),
-        }
-        battery[SECTION_OVERCHARGE] = {
-            CONF_PARTITION_PERCENTAGE: np.array([95.0, 95.0, 95.0]),
-            CONF_PARTITION_COST: np.array([0.02, 0.02]),
-        }
 
     participants: dict[str, ElementConfigData] = {
         "main_node": main_node,
@@ -210,3 +224,81 @@ def test_validate_network_topology_with_battery(
     components_str = str(result.components)
     assert "battery" in components_str
     assert "main" in components_str
+
+
+def _node(name: str) -> NodeConfigData:
+    return {
+        CONF_ELEMENT_TYPE: ElementType.NODE,
+        CONF_NAME: name,
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+    }
+
+
+def _grid(name: str, target: str) -> GridConfigData:
+    return {
+        CONF_ELEMENT_TYPE: ElementType.GRID,
+        CONF_NAME: name,
+        GRID_CONF_CONNECTION: as_connection_target(target),
+        SECTION_PRICING: {
+            CONF_PRICE_SOURCE_TARGET: np.array([0.30, 0.30]),
+            CONF_PRICE_TARGET_SOURCE: np.array([0.10, 0.10]),
+        },
+        SECTION_POWER_LIMITS: {},
+    }
+
+
+def _connection(name: str, source: str, target: str) -> ConnectionConfigData:
+    return {
+        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+        CONF_NAME: name,
+        SECTION_ENDPOINTS: {
+            CONF_SOURCE: as_connection_target(source),
+            CONF_TARGET: as_connection_target(target),
+        },
+        SECTION_POWER_LIMITS: {},
+        SECTION_PRICING: {},
+        SECTION_EFFICIENCY: {},
+    }
+
+
+def _section(name: str) -> BatterySectionConfigData:
+    return {
+        CONF_ELEMENT_TYPE: ElementType.BATTERY_SECTION,
+        CONF_NAME: name,
+        SECTION_STORAGE: {CONF_CAPACITY: np.array([10.0, 10.0, 10.0]), CONF_INITIAL_CHARGE: 5.0},
+    }
+
+
+@pytest.mark.parametrize(
+    ("participants", "expected"),
+    [
+        pytest.param(
+            [_node("main"), _grid("grid", "main"), _section("section"), _connection("charge", "main", "section")],
+            {},
+            id="node_and_battery_section_endpoints",
+        ),
+        pytest.param(
+            [_node("main"), _grid("grid", "main"), _section("section"), _connection("free", "grid", "section")],
+            {"free": ("grid",)},
+            id="connection_out_of_grid",
+        ),
+        pytest.param(
+            [_node("main"), _grid("grid", "main"), _grid("other", "grid")],
+            {"other": ("grid",)},
+            id="element_targeting_grid",
+        ),
+        pytest.param(
+            [_node("main"), _grid("a", "main"), _grid("b", "main"), _connection("link", "a", "b")],
+            {"link": ("a", "b")},
+            id="connection_between_grids",
+        ),
+    ],
+)
+def test_find_invalid_connection_endpoints(
+    participants: list[ElementConfigData],
+    expected: dict[str, tuple[str, ...]],
+) -> None:
+    """Connections made directly to elements that are never endpoints are reported."""
+    result = find_invalid_connection_endpoints({config[CONF_NAME]: config for config in participants})
+
+    assert result == expected

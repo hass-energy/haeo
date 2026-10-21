@@ -1,17 +1,18 @@
 """Tests for the HAEO number platform."""
 
 from types import MappingProxyType
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import added_entities
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -22,9 +23,11 @@ from custom_components.haeo.core.schema.elements.grid import (
     SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.input_stores import build_input_stores
 from custom_components.haeo.number import async_setup_entry
 
 
@@ -44,16 +47,9 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
-            HUB_SECTION_TIERS: {
-                "tier_1_count": 2,
-                "tier_1_duration": 5,
-                "tier_2_count": 0,
-                "tier_2_duration": 15,
-                "tier_3_count": 0,
-                "tier_3_duration": 30,
-                "tier_4_count": 0,
-                "tier_4_duration": 60,
+            HUB_SECTION_COMMON: {
+                CONF_NAME: "Test Network",
+                CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS),
             },
             HUB_SECTION_ADVANCED: {},
         },
@@ -119,6 +115,11 @@ def _add_subentry(
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(entry, subentry)
+    # Rebuild input stores so the platform can wrap them (production builds these
+    # in async_setup_entry before forwarding the platform setup).
+    runtime_data = entry.runtime_data
+    if runtime_data is not None:
+        runtime_data.input_stores = build_input_stores(hass, entry, runtime_data.horizon_manager)
     return subentry
 
 
@@ -148,8 +149,7 @@ async def test_setup_creates_number_entities_for_grid(
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    async_add_entities.assert_called_once()
-    entities = list(async_add_entities.call_args.args[0])
+    entities = added_entities(async_add_entities)
 
     # Grid should have number entities for price and limit fields
     assert len(entities) >= 2  # At least directional pricing fields
@@ -194,7 +194,7 @@ async def test_setup_skips_missing_fields_in_config(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         # Should only have entities for configured fields
         field_names = {e._field_info.field_name for e in entities}
         assert "price_source_target" in field_names
@@ -226,10 +226,328 @@ async def test_setup_creates_correct_device_identifiers(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         for entity in entities:
             # Each entity should have a device_entry attached
             assert entity.device_entry is not None
+
+
+async def test_mirror_entities_empty_without_policy_subentry(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Mirror entities are not created when the policy subentry does not exist."""
+    from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.entities.device import get_or_create_element_device  # noqa: PLC0415
+    from custom_components.haeo.number import _build_surfaced_mirror_entities  # noqa: PLC0415
+
+    battery = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: str(BATTERY_TYPE), CONF_NAME: "MyBattery"}),
+        subentry_type=str(BATTERY_TYPE),
+        title="MyBattery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, battery)
+
+    runtime_data = config_entry.runtime_data
+    assert runtime_data is not None
+    device_entry = get_or_create_element_device(hass, config_entry, battery, BATTERY_TYPE)
+
+    mirrors = _build_surfaced_mirror_entities(
+        config_entry,
+        battery,
+        str(BATTERY_TYPE),
+        device_entry,
+        runtime_data,
+        horizon_manager,
+        "$",
+    )
+
+    assert mirrors == []
+
+
+async def test_mirror_entities_empty_for_element_without_surfaced_hints(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Elements without surfaced price hints do not get mirror entities."""
+    from custom_components.haeo.entities.device import get_or_create_element_device  # noqa: PLC0415
+    from custom_components.haeo.number import _build_surfaced_mirror_entities  # noqa: PLC0415
+
+    grid = _add_subentry(
+        hass,
+        config_entry,
+        GRID_TYPE,
+        "Main Grid",
+        {
+            "connection": "main_bus",
+            "price_source_target": 0.30,
+            "price_target_source": 0.05,
+        },
+    )
+    runtime_data = config_entry.runtime_data
+    assert runtime_data is not None
+    device_entry = get_or_create_element_device(hass, config_entry, grid, GRID_TYPE)
+
+    mirrors = _build_surfaced_mirror_entities(
+        config_entry,
+        grid,
+        GRID_TYPE,
+        device_entry,
+        runtime_data,
+        horizon_manager,
+        "$",
+    )
+
+    assert mirrors == []
+
+
+async def test_setup_raises_when_runtime_data_missing(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Platform setup fails fast when integration setup did not attach runtime data."""
+    config_entry.runtime_data = None
+    async_add_entities = Mock()
+
+    with pytest.raises(RuntimeError, match="Runtime data not set"):
+        await async_setup_entry(hass, config_entry, async_add_entities)
+
+
+async def test_mirror_entities_skip_when_rule_does_not_match_element(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Mirror entities are not created when no policy rule matches the element."""
+    from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import CONF_RULES  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.entities.device import get_or_create_element_device  # noqa: PLC0415
+    from custom_components.haeo.number import _build_surfaced_mirror_entities  # noqa: PLC0415
+
+    battery = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: str(BATTERY_TYPE), CONF_NAME: "MyBattery"}),
+        subentry_type=str(BATTERY_TYPE),
+        title="MyBattery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, battery)
+
+    policy = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: str(POLICY_TYPE),
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {"name": "charge", "enabled": True, "target": ["OtherBattery"], "price": as_constant_value(-0.001)},
+                ],
+            }
+        ),
+        subentry_type=str(POLICY_TYPE),
+        title="Policies",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, policy)
+
+    runtime_data = config_entry.runtime_data
+    assert runtime_data is not None
+    device_entry = get_or_create_element_device(hass, config_entry, battery, BATTERY_TYPE)
+
+    mirrors = _build_surfaced_mirror_entities(
+        config_entry,
+        battery,
+        str(BATTERY_TYPE),
+        device_entry,
+        runtime_data,
+        horizon_manager,
+        "$",
+    )
+
+    assert mirrors == []
+
+
+async def test_mirror_entities_skip_when_policy_store_missing(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Mirror entities are not created when the backing input store was not built."""
+    from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import CONF_RULES  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.entities.device import get_or_create_element_device  # noqa: PLC0415
+    from custom_components.haeo.number import _build_surfaced_mirror_entities  # noqa: PLC0415
+
+    battery = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: str(BATTERY_TYPE), CONF_NAME: "MyBattery"}),
+        subentry_type=str(BATTERY_TYPE),
+        title="MyBattery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, battery)
+
+    policy = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: str(POLICY_TYPE),
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {"name": "charge", "enabled": True, "target": ["MyBattery"], "price": as_constant_value(-0.001)},
+                ],
+            }
+        ),
+        subentry_type=str(POLICY_TYPE),
+        title="Policies",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, policy)
+
+    runtime_data = config_entry.runtime_data
+    assert runtime_data is not None
+    runtime_data.input_stores = {}
+    device_entry = get_or_create_element_device(hass, config_entry, battery, BATTERY_TYPE)
+
+    mirrors = _build_surfaced_mirror_entities(
+        config_entry,
+        battery,
+        str(BATTERY_TYPE),
+        device_entry,
+        runtime_data,
+        horizon_manager,
+        "$",
+    )
+
+    assert mirrors == []
+
+
+async def test_mirror_entities_skip_when_surfaced_field_metadata_missing(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Mirror entities are not created when surfaced field metadata is unavailable."""
+    from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import CONF_RULES  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.entities.device import get_or_create_element_device  # noqa: PLC0415
+    from custom_components.haeo.number import _build_surfaced_mirror_entities  # noqa: PLC0415
+
+    battery = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: str(BATTERY_TYPE), CONF_NAME: "MyBattery"}),
+        subentry_type=str(BATTERY_TYPE),
+        title="MyBattery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, battery)
+
+    policy = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: str(POLICY_TYPE),
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {"name": "charge", "enabled": True, "target": ["MyBattery"], "price": as_constant_value(-0.001)},
+                ],
+            }
+        ),
+        subentry_type=str(POLICY_TYPE),
+        title="Policies",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, policy)
+
+    runtime_data = config_entry.runtime_data
+    assert runtime_data is not None
+    device_entry = get_or_create_element_device(hass, config_entry, battery, BATTERY_TYPE)
+
+    with patch(
+        "custom_components.haeo.number.get_surfaced_input_fields",
+        return_value={},
+    ):
+        mirrors = _build_surfaced_mirror_entities(
+            config_entry,
+            battery,
+            str(BATTERY_TYPE),
+            device_entry,
+            runtime_data,
+            horizon_manager,
+            "$",
+        )
+
+    assert mirrors == []
+
+
+async def test_mirror_entities_share_policy_store_for_battery_costs(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Battery charge/discharge policy prices surface as entities on the battery device.
+
+    The element-device mirror and the policy-device entity wrap the same store,
+    so editing either updates the single stored value.
+    """
+    from custom_components.haeo.core.schema.elements.battery import (  # noqa: PLC0415
+        CONF_CHARGE_COST,
+        CONF_DISCHARGE_COST,
+    )
+    from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.entities.device import get_or_create_element_device  # noqa: PLC0415
+    from custom_components.haeo.number import _build_surfaced_mirror_entities  # noqa: PLC0415
+
+    battery = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: str(BATTERY_TYPE), CONF_NAME: "MyBattery"}),
+        subentry_type=str(BATTERY_TYPE),
+        title="MyBattery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, battery)
+
+    policy = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: str(POLICY_TYPE),
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {"name": "charge", "enabled": True, "target": ["MyBattery"], "price": as_constant_value(-0.001)},
+                    {"name": "discharge", "enabled": True, "source": ["MyBattery"], "price": as_constant_value(0.02)},
+                ],
+            }
+        ),
+        subentry_type=str(POLICY_TYPE),
+        title="Policies",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, policy)
+
+    runtime_data = config_entry.runtime_data
+    assert runtime_data is not None
+    runtime_data.input_stores = build_input_stores(hass, config_entry, runtime_data.horizon_manager)
+
+    device_entry = get_or_create_element_device(hass, config_entry, battery, BATTERY_TYPE)
+    mirrors = _build_surfaced_mirror_entities(
+        config_entry,
+        battery,
+        str(BATTERY_TYPE),
+        device_entry,
+        runtime_data,
+        horizon_manager,
+        "$",
+    )
+
+    mirror_fields = {e._field_info.field_name for e in mirrors}
+    assert mirror_fields == {CONF_CHARGE_COST, CONF_DISCHARGE_COST}
+
+    # The mirror wraps the same store as the underlying policy rule price.
+    charge_mirror = next(e for e in mirrors if e._field_info.field_name == CONF_CHARGE_COST)
+    assert charge_mirror._store is runtime_data.input_stores[("Policies", (CONF_RULES, "0", CONF_PRICE))]
+    # Mirrors live on the battery device, not the policy device.
+    assert charge_mirror.device_entry is device_entry
 
 
 async def test_setup_handles_multiple_elements(
@@ -265,10 +583,9 @@ async def test_setup_handles_multiple_elements(
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    async_add_entities.assert_called_once()
-    entities = list(async_add_entities.call_args.args[0])
+    entities = added_entities(async_add_entities)
 
     # Should have entities from both grids
-    element_names = {e._subentry.title for e in entities}
+    element_names = {e.extra_state_attributes["element_name"] for e in entities}
     assert "Grid 1" in element_names
     assert "Grid 2" in element_names

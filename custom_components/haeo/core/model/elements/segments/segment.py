@@ -1,57 +1,82 @@
 """Base class for connection segments.
 
 Segments are composable transforms on a single direction of power flow.
-Each segment receives an input power expression at construction time
-and exposes an output power expression. Segments may add constraints
-and costs to the solver.
+Each segment reads its input flow from its upstream, the segment before it,
+and exposes an output flow. Segments may add constraints and costs to the solver.
+
+Flows are read from upstream on every access rather than captured at
+construction, so a constraint or cost that reads a flow records the upstream
+parameters that shaped it, such as an efficiency, and is rebuilt when they change.
 
 A segment instance belongs to one directional connection chain.
 Bidirectional paths are modelled as two separate Connection elements,
 each with its own segment chain.
 """
 
-from functools import reduce
-import operator
-from typing import Any
+from dataclasses import dataclass
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
+    # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
+    # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
+    # unknown output-name type" here; segments only use these via hasattr/isinstance duck typing.
+    Protocol,
+)
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import (
     OutputMethod,
     ReactiveConstraint,
     ReactiveCost,
     TrackedParam,
+    applied_constraint,
     cost,
 )
+from custom_components.haeo.core.model.solver import Solver
+from custom_components.haeo.core.model.util.solver_rows import RowIndices
+
+
+class FlowProvider(Protocol):
+    """Anything a segment can read its input flow from: another segment, or a connection's variables."""
+
+    @property
+    def power_out(self) -> dict[int, LinearArray]:
+        """Per-tag power flowing out to the next segment."""
+        ...
+
+
+@dataclass(frozen=True)
+class FlowVariables:
+    """The upstream of a connection's first segment: its per-tag LP flow variables."""
+
+    power_out: dict[int, LinearArray]
 
 
 class Segment:
     """A single-direction transform on power flow.
 
-    Receives an input power expression at construction and exposes an output
-    power expression. Identity by default — subclasses override `power_out`
-    to transform the flow.
+    Reads its input flow from its upstream and exposes an output flow.
+    Identity by default — subclasses override `power_out` to transform the flow.
     """
 
-    periods: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
+    periods: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
-        solver: Highs,
+        periods: NDArray[np.float64],
+        solver: Solver,
         *,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: dict[int, HighspyArray],
+        upstream: FlowProvider,
     ) -> None:
-        """Initialize segment with input power expression.
+        """Initialize segment with the upstream it reads its input flow from.
 
         Args:
             segment_id: Unique identifier for naming LP variables
@@ -60,7 +85,7 @@ class Segment:
             solver: HiGHS solver instance
             source_element: Connected source element reference
             target_element: Connected target element reference
-            power_in: Per-tag input power flows
+            upstream: The segment or variables this segment's input flow comes from
 
         """
         self._segment_id = segment_id
@@ -69,7 +94,7 @@ class Segment:
         self._solver = solver
         self._source_element = source_element
         self._target_element = target_element
-        self._power_in = power_in
+        self._upstream = upstream
 
     @property
     def segment_id(self) -> str:
@@ -92,37 +117,35 @@ class Segment:
         return self._target_element
 
     @property
-    def power_in(self) -> dict[int, HighspyArray]:
-        """Per-tag input power flows."""
-        return self._power_in
+    def power_in(self) -> dict[int, LinearArray]:
+        """Per-tag input power flows, read from upstream."""
+        return self._upstream.power_out
 
     @property
-    def total_power_in(self) -> HighspyArray:
+    def total_power_in(self) -> LinearArray:
         """Sum of all tag input flows."""
-        return reduce(operator.add, self._power_in.values())
+        return LinearArray.sum_of(self.power_in.values())
 
     @property
-    def power_out(self) -> dict[int, HighspyArray]:
+    def power_out(self) -> dict[int, LinearArray]:
         """Per-tag output power flows. Identity by default."""
-        return self._power_in
+        return self.power_in
 
     @property
-    def total_power_out(self) -> HighspyArray:
+    def total_power_out(self) -> LinearArray:
         """Sum of all tag output flows."""
-        return reduce(operator.add, self.power_out.values())
+        return LinearArray.sum_of(self.power_out.values())
 
-    def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
+    def constraints(self) -> dict[str, RowIndices]:
         """Return all constraints from this segment."""
-        result: dict[str, highs_cons | list[highs_cons]] = {}
+        result: dict[str, RowIndices] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, ReactiveConstraint):
                 method = getattr(self, name)
                 method()
-                state_attr = f"_reactive_state_{name}"
-                state = getattr(self, state_attr, None)
-                if state is not None and "constraint" in state:
-                    result[name] = state["constraint"]
+                if (cons := applied_constraint(self, name)) is not None:
+                    result[name] = cons
         return result
 
     def outputs(self) -> dict[str, OutputData]:
@@ -142,12 +165,12 @@ class Segment:
         return result
 
     @cost
-    def cost(self) -> highs_linear_expression | None:
+    def cost(self) -> LinearArray | None:
         """Return aggregated primary cost expression from this segment."""
         # Access decorator's internal name to skip self in dir() loop
         this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (_name is set by ReactiveCost.__set_name__, not part of public API)
 
-        costs: list[highs_linear_expression] = []
+        costs: list[LinearArray] = []
         for name in dir(type(self)):
             if name == this_method_name:
                 continue
@@ -158,11 +181,7 @@ class Segment:
             if (cost_value := method()) is not None:
                 costs.append(cost_value)
 
-        if not costs:
-            return None
-        if len(costs) == 1:
-            return costs[0]
-        return sum(costs[1:], costs[0])
+        return total(costs)
 
 
 __all__ = ["Segment"]

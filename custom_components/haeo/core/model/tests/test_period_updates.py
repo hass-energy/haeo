@@ -68,6 +68,7 @@ class TestNetworkUpdatePeriods:
                 "name": "conn",
                 "source": "source",
                 "target": "sink",
+                "tags": {1},
                 "segments": {
                     "pricing": {"segment_type": "pricing", "price": 0.10},
                 },
@@ -109,6 +110,7 @@ class TestPeriodUpdateInvalidation:
                 "name": "conn",
                 "source": "battery",
                 "target": "grid",
+                "tags": {1},
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
@@ -154,6 +156,7 @@ class TestPeriodUpdateInvalidation:
                 "name": "conn",
                 "source": "source",
                 "target": "sink",
+                "tags": {1},
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
@@ -210,6 +213,7 @@ class TestPeriodUpdateInvalidation:
                 "name": "conn",
                 "source": "battery",
                 "target": "grid",
+                "tags": {1},
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
@@ -264,6 +268,7 @@ class TestPeriodUpdateWithOtherParams:
                 "name": "conn",
                 "source": "source",
                 "target": "sink",
+                "tags": {1},
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
@@ -311,6 +316,7 @@ class TestPeriodUpdateWithOtherParams:
                 "name": "conn",
                 "source": "battery",
                 "target": "grid",
+                "tags": {1},
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

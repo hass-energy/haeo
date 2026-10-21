@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -19,6 +19,7 @@ from custom_components.haeo.core.schema.elements.battery_section import (
     SECTION_STORAGE,
     BatterySectionConfigData,
 )
+from custom_components.haeo.core.schema.elements.buffer import CONF_STORAGE, BufferRole
 
 type BatterySectionOutputName = Literal[
     "battery_section_power_charge",
@@ -61,6 +62,7 @@ class BatterySectionAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
     can_source: bool = True
     can_sink: bool = True
+    buffer_roles: frozenset[BufferRole] = frozenset({CONF_STORAGE})
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
         """Create model elements for BatterySection configuration.
@@ -72,7 +74,7 @@ class BatterySectionAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": config["name"],
                 "capacity": config[SECTION_STORAGE][CONF_CAPACITY],
-                "initial_charge": config[SECTION_STORAGE][CONF_INITIAL_CHARGE][0],
+                "initial_charge": config[SECTION_STORAGE][CONF_INITIAL_CHARGE],
             }
         ]
 
@@ -80,7 +82,7 @@ class BatterySectionAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[BatterySectionDeviceName, Mapping[BatterySectionOutputName, OutputData]]:
         """Map model outputs to battery section output names."""
         battery_data = {key: expect_output_data(value) for key, value in model_outputs[name].items()}

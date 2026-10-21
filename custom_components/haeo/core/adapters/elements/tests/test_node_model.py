@@ -1,7 +1,7 @@
 """Tests for node element model mapping."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import pytest
 
@@ -21,7 +21,7 @@ class CreateCase(TypedDict):
 
     description: str
     data: NodeConfigData
-    model: list[dict[str, Any]]
+    model: list[dict[str, object]]
 
 
 class OutputsCase(TypedDict):
@@ -54,12 +54,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "node_main",
         "model_outputs": {
             "node_main": {
-                ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             }
         },
         "outputs": {
             NODE_DEVICE_NODE: {
-                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             }
         },
     },

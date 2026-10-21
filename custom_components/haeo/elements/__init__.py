@@ -23,16 +23,14 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Mapping, MutableSequence
+from collections.abc import Mapping, MutableSequence, Sequence
 import logging
 import types
 from typing import (
-    Any,
+    Any,  # noqa: TID251  # reflection over typing constructs (get_origin/get_args on type hints)
     Final,
     Literal,
     NamedTuple,
-    NotRequired,
-    Required,
     TypeAliasType,
     TypeGuard,
     Union,
@@ -45,6 +43,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 
 from custom_components.haeo.const import (
     ELEMENT_TYPE_NETWORK,
+    NETWORK_DEVICE_NAMES,
     NETWORK_OUTPUT_NAMES,
     NetworkDeviceName,
     NetworkOutputName,
@@ -61,11 +60,29 @@ from custom_components.haeo.core.adapters.elements.battery_section import (
     BatterySectionDeviceName,
     BatterySectionOutputName,
 )
+from custom_components.haeo.core.adapters.elements.buffer import (
+    BUFFER_DEVICE_NAMES,
+    BUFFER_OUTPUT_NAMES,
+    BufferDeviceName,
+    BufferOutputName,
+)
 from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_DEVICE_NAMES,
     CONNECTION_OUTPUT_NAMES,
     ConnectionDeviceName,
     ConnectionOutputName,
+)
+from custom_components.haeo.core.adapters.elements.deferrable_load import (
+    DEFERRABLE_LOAD_DEVICE_NAMES,
+    DEFERRABLE_LOAD_ELEMENT_OUTPUT_NAMES,
+    DeferrableLoadDeviceName,
+    DeferrableLoadElementOutputName,
+)
+from custom_components.haeo.core.adapters.elements.ev import (
+    EV_DEVICE_NAMES,
+    EV_OUTPUT_NAMES,
+    EvDeviceName,
+    EvOutputName,
 )
 from custom_components.haeo.core.adapters.elements.grid import (
     GRID_DEVICE_NAMES,
@@ -78,6 +95,12 @@ from custom_components.haeo.core.adapters.elements.inverter import (
     INVERTER_OUTPUT_NAMES,
     InverterDeviceName,
     InverterOutputName,
+)
+from custom_components.haeo.core.adapters.elements.junction import (
+    JUNCTION_DEVICE_NAMES,
+    JUNCTION_OUTPUT_NAMES,
+    JunctionDeviceName,
+    JunctionOutputName,
 )
 from custom_components.haeo.core.adapters.elements.load import (
     LOAD_DEVICE_NAMES,
@@ -100,26 +123,31 @@ from custom_components.haeo.core.adapters.elements.solar import (
 )
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.core.schema.elements import (
-    ELEMENT_CONFIG_SCHEMAS,
-    ElementConfigData,
-    ElementConfigSchema,
-    ElementType,
-)
+from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.battery_section import (
     OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
 )
 from custom_components.haeo.core.schema.elements.battery_section import BatterySectionConfigData
+from custom_components.haeo.core.schema.elements.buffer import OPTIONAL_INPUT_FIELDS as BUFFER_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.buffer import BufferConfigData
 from custom_components.haeo.core.schema.elements.connection import (
     OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS,
 )
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
+from custom_components.haeo.core.schema.elements.deferrable_load import (
+    OPTIONAL_INPUT_FIELDS as DEFERRABLE_LOAD_OPTIONAL_INPUT_FIELDS,
+)
+from custom_components.haeo.core.schema.elements.deferrable_load import DeferrableLoadConfigData
+from custom_components.haeo.core.schema.elements.ev import OPTIONAL_INPUT_FIELDS as EV_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.ev import EvConfigData
 from custom_components.haeo.core.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
+from custom_components.haeo.core.schema.elements.junction import OPTIONAL_INPUT_FIELDS as JUNCTION_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.junction import JunctionConfigData
 from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
 from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
@@ -128,10 +156,11 @@ from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
 from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
 from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
+from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
+from custom_components.haeo.core.schema.surfaced_policy import get_surfaced_price_hints
 from custom_components.haeo.elements.field_hints import build_input_fields, build_list_input_fields
 
-from .field_schema import FieldSchemaInfo
-from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
+from .input_fields import AnyInputFieldInfo, InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -141,10 +170,14 @@ type ElementOutputName = (
     | BatteryOutputName
     | BatterySectionOutputName
     | ConnectionOutputName
+    | DeferrableLoadElementOutputName
+    | EvOutputName
     | GridOutputName
     | LoadOutputName
     | NodeOutputName
+    | JunctionOutputName
     | SolarOutputName
+    | BufferOutputName
     | NetworkOutputName
 )
 
@@ -153,10 +186,14 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     | BATTERY_OUTPUT_NAMES
     | BATTERY_SECTION_OUTPUT_NAMES
     | CONNECTION_OUTPUT_NAMES
+    | DEFERRABLE_LOAD_ELEMENT_OUTPUT_NAMES
+    | EV_OUTPUT_NAMES
     | GRID_OUTPUT_NAMES
     | LOAD_OUTPUT_NAMES
     | NODE_OUTPUT_NAMES
+    | JUNCTION_OUTPUT_NAMES
     | SOLAR_OUTPUT_NAMES
+    | BUFFER_OUTPUT_NAMES
     | NETWORK_OUTPUT_NAMES
 )
 
@@ -165,26 +202,33 @@ type ElementDeviceName = (
     | BatteryDeviceName
     | BatterySectionDeviceName
     | ConnectionDeviceName
+    | DeferrableLoadDeviceName
+    | EvDeviceName
     | GridDeviceName
     | LoadDeviceName
     | NodeDeviceName
+    | JunctionDeviceName
     | SolarDeviceName
     | PolicyDeviceName
+    | BufferDeviceName
     | NetworkDeviceName
 )
 
-NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(("network",))
 
 ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     INVERTER_DEVICE_NAMES
     | BATTERY_DEVICE_NAMES
     | BATTERY_SECTION_DEVICE_NAMES
     | CONNECTION_DEVICE_NAMES
+    | DEFERRABLE_LOAD_DEVICE_NAMES
+    | EV_DEVICE_NAMES
     | GRID_DEVICE_NAMES
     | LOAD_DEVICE_NAMES
     | NODE_DEVICE_NAMES
+    | JUNCTION_DEVICE_NAMES
     | SOLAR_DEVICE_NAMES
     | POLICY_DEVICE_NAMES
+    | BUFFER_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
 )
 
@@ -193,10 +237,14 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.BATTERY: frozenset(BATTERY_DEVICE_NAMES),
     ElementType.BATTERY_SECTION: frozenset(BATTERY_SECTION_DEVICE_NAMES),
     ElementType.CONNECTION: frozenset(CONNECTION_DEVICE_NAMES),
+    ElementType.DEFERRABLE_LOAD: frozenset(DEFERRABLE_LOAD_DEVICE_NAMES),
+    ElementType.EV: frozenset(EV_DEVICE_NAMES),
     ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
     ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
+    ElementType.JUNCTION: frozenset(JUNCTION_DEVICE_NAMES),
     ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
     ElementType.POLICY: frozenset(POLICY_DEVICE_NAMES),
+    ElementType.BUFFER: frozenset(BUFFER_DEVICE_NAMES),
     ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
     ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
 }
@@ -215,11 +263,15 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.BATTERY: BatteryConfigData,
     ElementType.BATTERY_SECTION: BatterySectionConfigData,
     ElementType.CONNECTION: ConnectionConfigData,
+    ElementType.DEFERRABLE_LOAD: DeferrableLoadConfigData,
+    ElementType.EV: EvConfigData,
     ElementType.GRID: GridConfigData,
     ElementType.INVERTER: InverterConfigData,
     ElementType.LOAD: LoadConfigData,
+    ElementType.JUNCTION: JunctionConfigData,
     ElementType.NODE: NodeConfigData,
     ElementType.POLICY: PolicyConfigData,
+    ElementType.BUFFER: BufferConfigData,
     ElementType.SOLAR: SolarConfigData,
 }
 
@@ -227,11 +279,15 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.BATTERY: BATTERY_OPTIONAL_INPUT_FIELDS,
     ElementType.BATTERY_SECTION: BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
     ElementType.CONNECTION: CONNECTION_OPTIONAL_INPUT_FIELDS,
+    ElementType.DEFERRABLE_LOAD: DEFERRABLE_LOAD_OPTIONAL_INPUT_FIELDS,
+    ElementType.EV: EV_OPTIONAL_INPUT_FIELDS,
     ElementType.GRID: GRID_OPTIONAL_INPUT_FIELDS,
     ElementType.INVERTER: INVERTER_OPTIONAL_INPUT_FIELDS,
     ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
+    ElementType.JUNCTION: JUNCTION_OPTIONAL_INPUT_FIELDS,
     ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
+    ElementType.BUFFER: BUFFER_OPTIONAL_INPUT_FIELDS,
 }
 
 
@@ -242,7 +298,6 @@ def get_input_field_schema_info(
     """Return schema metadata for input fields grouped by section."""
     schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
     schema_hints = get_type_hints(schema_cls)
-    schema_optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
 
     results: dict[str, dict[str, FieldSchemaInfo]] = {}
 
@@ -252,7 +307,7 @@ def get_input_field_schema_info(
             msg = f"Section '{section_key}' not found in {schema_cls.__name__}"
             raise RuntimeError(msg)
 
-        section_type = _unwrap_required_type(section_hint)
+        section_type = section_hint
         if isinstance(section_type, TypeAliasType):
             section_type = section_type.__value__
 
@@ -261,7 +316,6 @@ def get_input_field_schema_info(
             raise RuntimeError(msg)
 
         section_optional_keys: frozenset[str] = getattr(section_type, "__optional_keys__", frozenset())
-        section_is_optional = section_key in schema_optional_keys
         section_hints = get_type_hints(section_type)
 
         section_info: dict[str, FieldSchemaInfo] = {}
@@ -270,24 +324,17 @@ def get_input_field_schema_info(
             if field_type is None:
                 msg = f"Field '{section_key}.{field_name}' not found in {section_type.__name__}"
                 raise RuntimeError(msg)
-            is_optional = section_is_optional or field_name in section_optional_keys
-            section_info[field_name] = FieldSchemaInfo(value_type=field_type, is_optional=is_optional)
+            section_info[field_name] = FieldSchemaInfo(
+                value_type=field_type, is_optional=field_name in section_optional_keys
+            )
 
         results[section_key] = section_info
 
     return results
 
 
-def _unwrap_required_type(expected_type: Any) -> Any:
-    """Return the underlying type for Required/NotRequired hints."""
-    origin = get_origin(expected_type)
-    if origin in (NotRequired, Required):
-        return get_args(expected_type)[0]
-    return expected_type
-
-
 def _conforms_to_typed_dict(
-    value: Mapping[str, Any],
+    value: Mapping[str, object],
     typed_dict_cls: type,
     *,
     check_optional: bool = False,
@@ -304,8 +351,7 @@ def _conforms_to_typed_dict(
     # Get type hints for the TypedDict
     hints = get_type_hints(typed_dict_cls)
 
-    def _matches_type(value_item: Any, expected_type: Any) -> bool:
-        expected_type = _unwrap_required_type(expected_type)
+    def _matches_type(value_item: object, expected_type: Any) -> bool:
         if isinstance(expected_type, TypeAliasType):
             expected_type = expected_type.__value__
 
@@ -331,7 +377,10 @@ def _conforms_to_typed_dict(
             )
 
         # Get the origin type for generic types (e.g., list[str] -> list)
+        # HA's deep-freeze converts list→tuple, so accept any sequence where list is expected
         check_type = origin if origin is not None else expected_type
+        if check_type is list:
+            return isinstance(value_item, Sequence) and not isinstance(value_item, str)
         return isinstance(value_item, check_type)
 
     for key in required_keys:
@@ -356,7 +405,7 @@ def _conforms_to_typed_dict(
     return True
 
 
-def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
+def is_element_config_schema(value: object) -> TypeGuard[ElementConfigSchema]:
     """Return True when value matches any ElementConfigSchema TypedDict.
 
     Performs structural validation using reflection - checks that:
@@ -376,22 +425,6 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
     schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
 
     return _conforms_to_typed_dict(value, schema_cls)
-
-
-def is_element_config_data(value: Any) -> TypeGuard[ElementConfigData]:
-    """Return True when value matches any ElementConfigData TypedDict.
-
-    Checks required keys and types, plus optional key types when present.
-    """
-    if not isinstance(value, Mapping):
-        return False
-
-    element_type = value.get(CONF_ELEMENT_TYPE)
-    if not is_element_type(element_type):
-        return False
-
-    data_cls = ELEMENT_CONFIG_DATA[element_type]
-    return _conforms_to_typed_dict(value, data_cls, check_optional=True)
 
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
@@ -454,11 +487,14 @@ def get_element_configs(
     return configs
 
 
-def get_input_fields(element_type: str | ElementType | Mapping[str, Any] | None) -> InputFieldGroups:
+def get_input_fields(element_type: str | ElementType | Mapping[str, object] | None) -> InputFieldGroups:
     """Return input field definitions for an element type."""
     if isinstance(element_type, Mapping):
         if CONF_ELEMENT_TYPE in element_type:
-            element_type = element_type[CONF_ELEMENT_TYPE]
+            # Discriminator field value is genuinely str|ElementType at runtime (see the
+            # matching type: ignore[index] below); the Mapping overload only widens the
+            # value type to object at the boundary.
+            element_type = element_type[CONF_ELEMENT_TYPE]  # type: ignore[assignment]
         else:
             return {}
 
@@ -469,7 +505,7 @@ def get_input_fields(element_type: str | ElementType | Mapping[str, Any] | None)
     return build_input_fields(str(element_type), extract_field_hints(schema_cls))
 
 
-def get_list_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups:
+def get_list_input_fields(element_config: Mapping[str, object]) -> InputFieldGroups:
     """Return dynamic input fields for list-based config structures.
 
     Finds list fields annotated with ``ListFieldHints`` and generates
@@ -489,10 +525,10 @@ def get_list_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups
     if not list_hints:
         return {}
 
-    result: dict[str, dict[str, InputFieldInfo[Any]]] = {}
+    result: dict[str, dict[str, AnyInputFieldInfo]] = {}
     for list_key, hints in list_hints.items():
         items = element_config.get(list_key)
-        if not isinstance(items, (list, tuple)):
+        if not isinstance(items, Sequence) or isinstance(items, str):
             continue
         result.update(
             build_list_input_fields(str(element_type), list_key, hints, items),
@@ -501,25 +537,50 @@ def get_list_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups
     return result
 
 
-def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:
-    """Return (field_path, InputFieldInfo) pairs from nested input fields.
+def get_surfaced_input_fields(element_type: str | ElementType) -> dict[str, AnyInputFieldInfo]:
+    """Return InputFieldInfo objects for surfaced pricing fields.
+
+    These fields appear on the element's config flow but are stored as
+    policy rules. The InputFieldInfo objects drive selector construction
+    and form defaults through the standard field system.
+    """
+    hints = get_surfaced_price_hints(str(element_type))
+    if not hints:
+        return {}
+    section_fields = build_input_fields(
+        str(element_type), {"_surfaced": {name: hint.hint for name, hint in hints.items()}}
+    )
+    return section_fields.get("_surfaced", {})
+
+
+def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, AnyInputFieldInfo]]:
+    """Return (input_path, InputFieldInfo) pairs for every input of the nested fields.
 
     For section-based fields, paths are 2-tuples: ``(section_key, field_name)``.
     For list-based fields (section keys containing ``"."``), paths are expanded
-    into 3-tuples: ``(list_key, index, field_name)``.
+    into 3-tuples: ``(list_key, index, field_name)``. A field with outputs
+    yields its outputs in its place; read their config value from
+    :func:`config_field_path`.
     """
-    results: list[tuple[InputFieldPath, InputFieldInfo[Any]]] = []
+    results: list[tuple[InputFieldPath, AnyInputFieldInfo]] = []
     for section_key, section_fields in input_fields.items():
+        prefix = tuple(section_key.split(".")) if "." in section_key else (section_key,)
         for field_name, field_info in section_fields.items():
-            if "." in section_key:
-                parts = tuple(section_key.split("."))
-                results.append(((*parts, field_name), field_info))
+            if field_info.outputs:
+                results.extend(((*prefix, name), output) for name, output in field_info.outputs.items())
             else:
-                results.append(((section_key, field_name), field_info))
+                results.append(((*prefix, field_name), field_info))
     return results
 
 
-def get_nested_config_value(config: Mapping[str, Any], field_name: str) -> Any | None:
+def config_field_path(input_path: InputFieldPath, field_info: AnyInputFieldInfo) -> InputFieldPath:
+    """Return the config path an input reads: its own, or that of the field feeding it."""
+    if field_info.source_field is None:
+        return input_path
+    return (*input_path[:-1], field_info.source_field)
+
+
+def get_nested_config_value(config: Mapping[str, object], field_name: str) -> object | None:
     """Find a field value in a nested element config."""
     for value in config.values():
         if isinstance(value, Mapping):
@@ -531,7 +592,7 @@ def get_nested_config_value(config: Mapping[str, Any], field_name: str) -> Any |
     return None
 
 
-def find_nested_config_path(config: Mapping[str, Any], field_name: str) -> InputFieldPath | None:
+def find_nested_config_path(config: Mapping[str, object], field_name: str) -> InputFieldPath | None:
     """Find the path to a field in a nested element config."""
     for key, value in config.items():
         if key == field_name:
@@ -543,30 +604,7 @@ def find_nested_config_path(config: Mapping[str, Any], field_name: str) -> Input
     return None
 
 
-def get_nested_config_value_by_path(config: Mapping[str, Any], field_path: InputFieldPath) -> Any | None:
-    """Find a field value in a nested element config using a path.
-
-    Supports both mapping keys and integer indices for list traversal.
-    A path like ``("rules", "0", "price")`` navigates into
-    ``config["rules"][0]["price"]``.
-    """
-    current: Any = config
-    for key in field_path:
-        if isinstance(current, Mapping):
-            if key not in current:
-                return None
-            current = current[key]
-        elif isinstance(current, (list, tuple)):
-            try:
-                current = current[int(key)]
-            except (ValueError, IndexError):
-                return None
-        else:
-            return None
-    return current
-
-
-def set_nested_config_value(config: dict[str, Any], field_name: str, value: Any) -> bool:
+def set_nested_config_value(config: dict[str, object], field_name: str, value: object) -> bool:
     """Set a field value in a nested element config."""
     for nested in config.values():
         if isinstance(nested, dict):
@@ -578,20 +616,20 @@ def set_nested_config_value(config: dict[str, Any], field_name: str, value: Any)
     return False
 
 
-def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFieldPath, value: Any) -> bool:
+def set_nested_config_value_by_path(config: dict[str, object], field_path: InputFieldPath, value: object) -> bool:
     """Set a field value in a nested element config using a path.
 
     Supports both mapping keys and integer indices for list traversal.
     """
-    current: Any = config
+    current: object = config
     for key in field_path[:-1]:
         if isinstance(current, dict):
             next_value = current.get(key)
-            if isinstance(next_value, (dict, list, tuple)):
+            if isinstance(next_value, (dict, Sequence)) and not isinstance(next_value, str):
                 current = next_value
             else:
                 return False
-        elif isinstance(current, (list, tuple)):
+        elif isinstance(current, Sequence) and not isinstance(current, str):
             try:
                 current = current[int(key)]
             except (ValueError, IndexError):
@@ -624,14 +662,14 @@ __all__ = [
     "InputFieldSection",
     "ValidatedElementSubentry",
     "collect_element_subentries",
+    "config_field_path",
     "find_nested_config_path",
     "get_element_configs",
     "get_input_field_schema_info",
     "get_input_fields",
     "get_list_input_fields",
     "get_nested_config_value",
-    "get_nested_config_value_by_path",
-    "is_element_config_data",
+    "get_surfaced_input_fields",
     "is_element_config_schema",
     "iter_input_field_paths",
     "set_nested_config_value",

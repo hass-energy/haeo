@@ -80,13 +80,18 @@ See [Input Entities](inputs.md) for details on how data loading works.
 **3. Optimization**
 
 The network optimization runs in an executor thread via `hass.async_add_executor_job()` to avoid blocking the event loop.
-The coordinator extracts the solver name from configuration and passes it to `network.optimize()`.
+The coordinator calls `network.optimize()`, which uses the bundled HiGHS solver.
 This blocking operation is tracked for diagnostics timing.
 
 **Network building and warm start**:
 
 On the first optimization cycle, the coordinator calls `create_network()` from `coordinator/network.py` to build the complete network from configuration.
 On subsequent cycles, it calls pre-built `ElementUpdater` closures to update element parameters without recreating the network.
+
+Period durations are applied the same way.
+Each cycle copies the horizon manager's current period durations onto the network before handing the solve to the executor.
+A horizon change only signals that an optimization is needed and never touches the network itself.
+At a period boundary the input stores reload first and the last of them can start the optimization immediately, so a horizon-change callback that updated the network would race the solve already running in the executor thread.
 
 The warm start pattern works by:
 
@@ -116,6 +121,13 @@ The coordinator implements comprehensive error handling using Home Assistant's [
 When configured sensors are not yet available, the coordinator returns `PENDING` status without logging an error (this is expected during startup).
 Sensors show "Unavailable" state in the UI, and the coordinator retries on the next input entity update or horizon boundary.
 
+**Inputs without a reading**
+
+A store that cannot load records the sources with no reading (`unavailable_sources`), and its input entity shows as unavailable.
+Before each solve the coordinator raises a repair issue per such input naming those sources, dismisses issues for inputs that have recovered, and fails the update with the `input_unavailable` translation.
+Setup does the same when its inputs do not settle in time, raising `ConfigEntryNotReady` instead.
+A store that rejected its source's value reports that error instead.
+
 **Data loading errors**
 
 When sensor data is available but loading fails (invalid format, missing forecast, type conversion failures), the coordinator raises `UpdateFailed` with a descriptive message.
@@ -124,14 +136,39 @@ When sensor data is available but loading fails (invalid format, missing forecas
 
 When network optimization fails (infeasible constraints, solver not installed, numerical instabilities), the coordinator raises `UpdateFailed` with the solver error.
 
+A solve that stops for any other reason, such as an unbounded model or a solver error, raises `SolverError` carrying the HiGHS status.
+The coordinator fails the update with the `optimization_solver_failed` translation, so the log shows one line instead of a traceback.
+
+An infeasible model raises `InfeasibleError` carrying the conflicting constraint rows.
+The coordinator raises the `optimization_infeasible` repair issue naming the configured elements those rows belong to and the minutes from the start of the plan to the first of them, and fails the update with the same message.
+The wording lives in the translations; the coordinator passes only element names, numbers, and the plan's start time as placeholders.
+
+When the hub's `relax_infeasible` option is on, the network relaxes the model instead and records `Network.relaxations`.
+The coordinator raises the `optimization_relaxed` warning issue after the update succeeds, naming the conflicting elements, the elements where constraints were relaxed, and how many periods.
+
+An impossible or relaxed plan's cause can come and go between optimizations, so the coordinator never dismisses either issue.
+Both are persistent and fixable, and the user resolves them through the confirm flow `repairs.async_create_fix_flow` returns.
+While either is open, later failures leave it as it is.
+
+When either issue is raised, the coordinator saves diagnostics built from the failing optimization's context with `diagnostics_from_context`, plus a `failure` section listing the conflicting and relaxed rows, to `haeo/diagnostics/infeasible_*.json` or `relaxed_*.json`.
+The path goes in the issue's data, and the file is deleted when the issue is resolved or the config entry is removed, so there is at most one file per open issue.
+Issues that change only when the configuration does, such as a disconnected network, clear themselves once fixed and are not fixable.
+
 ### Error propagation
 
 All coordinator errors raise `UpdateFailed`, which:
 
 - Sets `coordinator.last_update_success = False`
 - Logs the error message
-- Makes dependent entities unavailable
+- Makes dependent entities unavailable, except the optimization status sensor
 - Schedules a retry on the next interval
+
+The optimization status sensor is added at setup and stays available.
+It reads `coordinator.optimization_status` (`pending`, `success`, or `failed`) and shows `coordinator.optimization_error` in its `error` attribute.
+Home Assistant notifies listeners only when an update switches between failing and succeeding, so `_async_refresh_finished` also notifies them after each repeated failure to keep that attribute current.
+
+Once updates have kept failing for `FAILURE_SECONDS_BEFORE_REPAIR_ISSUE`, `_async_refresh_finished` raises the general `optimization_failure` repair issue with the error message, once per failing stretch, and the next success dismisses it.
+A failure that raises a repair issue of its own, such as an input without a reading or an infeasible plan whose issue was raised, fails the update with `ReportedUpdateFailed` instead, and the general issue is not raised for it.
 
 State change triggers use the same error handling through the coordinator framework and don't crash the integration.
 
@@ -143,12 +180,13 @@ The coordinator uses event-driven triggers instead of a fixed polling interval.
 
 **Input entity state changes**
 
-When any input entity updates its state (due to external sensor changes or user modification), the coordinator receives a state change event and schedules optimization.
+When an input's value changes (due to external sensor changes or user modification), its input store notifies the coordinator, which schedules optimization.
+A source update that resolves to the same value, timestamps, and availability as before does not notify, so it does not re-optimize.
 
 **Horizon boundary crossings**
 
 The coordinator subscribes to the [HorizonManager](horizon-manager.md).
-When the forecast horizon advances (at period boundaries like every 1 minute for the finest tier), the manager notifies the coordinator to refresh.
+When the forecast horizon advances (at each period boundary of a preset horizon, or when the horizon sensor changes), the manager notifies the coordinator to refresh.
 
 **Manual refresh**
 

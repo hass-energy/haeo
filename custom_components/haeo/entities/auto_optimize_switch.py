@@ -1,12 +1,12 @@
 """Switch entity for controlling automatic optimization."""
 
-from typing import Any
-
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, EntityCategory
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.restore_state import RestoreEntity
+
+from custom_components.haeo.unique_id import hub_unique_id
 
 
 class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -45,7 +45,7 @@ class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[report
         self.device_entry = device_entry
 
         # Unique ID: entry_id + auto_optimize
-        self._attr_unique_id = f"{config_entry.entry_id}_auto_optimize"
+        self._attr_unique_id = hub_unique_id(config_entry.entry_id, "auto_optimize")
 
         # Default state - will be overridden by restored state in async_added_to_hass
         self._attr_is_on = True
@@ -62,7 +62,7 @@ class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[report
             # No previous state - default to enabled
             self._attr_is_on = True
 
-    async def async_turn_on(self, **_kwargs: Any) -> None:
+    async def async_turn_on(self, **_kwargs: object) -> None:
         """Enable automatic optimization.
 
         The coordinator subscribes to this state change and will
@@ -71,7 +71,7 @@ class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[report
         self._attr_is_on = True
         self.async_write_ha_state()
 
-    async def async_turn_off(self, **_kwargs: Any) -> None:
+    async def async_turn_off(self, **_kwargs: object) -> None:
         """Disable automatic optimization.
 
         The coordinator subscribes to this state change and will

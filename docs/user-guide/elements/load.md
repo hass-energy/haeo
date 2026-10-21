@@ -3,10 +3,6 @@
 Loads represent power consumption in your system.
 The Load element uses forecast data to model any type of consumption pattern from fixed baseline loads to variable time-varying consumption.
 
-!!! note "Connection endpoints"
-
-    Load elements appear in connection selectors only when Advanced Mode is enabled on your hub.
-
 ## Configuration
 
 | Field                     | Type                                     | Required | Default | Description                                                                 |
@@ -14,6 +10,8 @@ The Load element uses forecast data to model any type of consumption pattern fro
 | **[Name](#name)**         | String                                   | Yes      | -       | Unique identifier for this load                                             |
 | **[Forecast](#forecast)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW)                                   |
 | **[Shedding](#shedding)** | Boolean                                  | No       | false   | Allow the optimizer to reduce load below the forecast when it is uneconomic |
+
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ## Name
 
@@ -211,10 +209,15 @@ Combine multiple consumption sources:
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number or Switch entities with the `config` entity category.
 
-| Input                       | Unit | Description                                   |
-| --------------------------- | ---- | --------------------------------------------- |
-| `number.{name}_forecast`    | kW   | Load power forecast from configured sensor(s) |
-| `switch.{name}_curtailment` | -    | Whether shedding is permitted                 |
+| Input                            | Unit   | Description                                       |
+| -------------------------------- | ------ | ------------------------------------------------- |
+| `number.{name}_forecast`         | kW     | Load power forecast from configured sensor(s)     |
+| `switch.{name}_curtailment`      | -      | Whether shedding is permitted                     |
+| `number.{name}_consumption_cost` | \$/kWh | Running value of serving the load (if configured) |
+
+The consumption cost surfaces the value of serving this load for shedding decisions.
+It is entered as a positive running value and stored as the negative of a [policy](../../walkthroughs/power-policies.md) rule; the input appears on both the load device and the Policies device.
+This also applies when the value is driven by a sensor: a positive sensor reading is negated for the policy, and the entities continue to display the positive running value.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
@@ -225,10 +228,10 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Load element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                        | Unit  | Description                                     |
-| ------------------------------------------------------------- | ----- | ----------------------------------------------- |
-| [`sensor.{name}_power`](#power)                               | kW    | Power consumed by load                          |
-| [`sensor.{name}_forecast_limit_price`](#forecast-limit-price) | \$/kW | Shadow price of the load power limit constraint |
+| Sensor                                                        | Unit   | Description                                     |
+| ------------------------------------------------------------- | ------ | ----------------------------------------------- |
+| [`sensor.{name}_power`](#power)                               | kW     | Power consumed by load                          |
+| [`sensor.{name}_forecast_limit_price`](#forecast-limit-price) | \$/kWh | Shadow price of the load power limit constraint |
 
 ### Power
 
@@ -279,7 +282,7 @@ For variable loads, the forecast reflects the configured sensor forecast values.
 
 ### Sensor Not Found
 
-**Problem**: Error "Sensors not found or unavailable"
+**Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
 
 **Solutions**:
 
@@ -321,9 +324,10 @@ If optimization fails with loads:
 
 - Disable [Shedding](#shedding) for loads that must always run.
 - Only include loads that represent required consumption in the Load element.
-    For controllable/deferrable loads, model them separately with appropriate constraints.
+    Model flexible loads that need a set amount of energy by a deadline as a [deferrable load](deferrable_load.md).
+    Schedule appliances that run at a set power for a set time once started externally (for example with EMHASS) and drive this element from their forecast sensors.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

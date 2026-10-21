@@ -14,25 +14,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData, async_setup
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
-from custom_components.haeo.core.const import (
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-    DEFAULT_TIER_1_COUNT,
-    DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
-    DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
-    DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
-    DEFAULT_TIER_4_DURATION,
-)
+from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.diagnostics import DIAGNOSTICS_SCHEMA_VERSION, DiagnosticsResult, EnvironmentInfo
 from custom_components.haeo.services import _format_manifest
 
@@ -45,14 +27,6 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Network",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="test_hub_entry",
         title="Test HAEO Hub",
@@ -221,12 +195,22 @@ def test_format_manifest_no_codeowners() -> None:
     assert "codeowners" not in result or result.get("codeowners") == manifest.get("codeowners")
 
 
+@pytest.mark.parametrize(
+    ("time", "file_date"),
+    [
+        pytest.param(datetime(2026, 1, 20, 14, 32, 3, tzinfo=UTC), "2026-01-20", id="with_zone"),
+        pytest.param("2026-01-21 01:32:03", "2026-01-21", id="naive_in_ha_zone"),
+    ],
+)
 async def test_save_diagnostics_with_historical_time(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     tmp_path: Path,
+    time: datetime | str,
+    file_date: str,
 ) -> None:
-    """Test save_diagnostics service with historical time passes target_time to collector."""
+    """A historical time reaches the collector as that moment, with a time without a zone read in Home Assistant's."""
+    await hass.config.async_set_time_zone("Australia/Sydney")
     # Set up the service - need to register recorder component first
     hass.config.components.add("recorder")
     await async_setup(hass, {})
@@ -268,21 +252,18 @@ async def test_save_diagnostics_with_historical_time(
             "save_diagnostics",
             {
                 "config_entry": mock_hub_entry.entry_id,
-                "time": target_timestamp,
+                "time": time,
             },
             blocking=True,
         )
 
-    # Verify collect_diagnostics was called with as_of=target_timestamp
     mock_collect.assert_called_once()
-    call_args = mock_collect.call_args
-    assert call_args.kwargs["target_time"] == target_timestamp
+    assert mock_collect.call_args.kwargs["target_time"] == target_timestamp
 
-    # Verify file was created with the historical timestamp in filename
+    # The filename uses the historical time as given
     files = list(tmp_path.glob("haeo/diagnostics/diagnostics_*.json"))
     assert len(files) == 1
-    # Filename should use the historical timestamp
-    assert "2026-01-20" in files[0].name
+    assert file_date in files[0].name
 
 
 @pytest.mark.parametrize(

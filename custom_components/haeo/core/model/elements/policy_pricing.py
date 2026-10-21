@@ -6,21 +6,30 @@ Updating the price triggers reactive cost invalidation so the next
 optimization picks up the new value without rebuilding the network.
 """
 
-from typing import Any, Final, Literal, TypedDict
+from typing import Final, Literal, NotRequired, Protocol, TypedDict
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.reactive import TrackedParam, cost
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 type PolicyPricingElementTypeName = Literal["policy_pricing"]
 ELEMENT_TYPE: Final[PolicyPricingElementTypeName] = "policy_pricing"
 
 POLICY_PRICING_OUTPUT_NAMES: Final[frozenset[str]] = frozenset()
+
+
+class MeasuredFlows(Protocol):
+    """A connection's per-tag power at its measured point, which a policy price applies to."""
+
+    @property
+    def measured_power(self) -> dict[int, LinearArray]:
+        """Per-tag power at the measured point."""
+        ...
 
 
 class PolicyPricingTerm(TypedDict):
@@ -35,7 +44,8 @@ class PolicyPricingElementConfig(TypedDict):
 
     element_type: PolicyPricingElementTypeName
     name: str
-    price: float | NDArray[np.floating[Any]]
+    label: NotRequired[str]
+    price: float | NDArray[np.float64]
     terms: list[PolicyPricingTerm]
 
 
@@ -48,18 +58,23 @@ class PolicyPricing(Element[str]):
     their costs are summed by the network.
     """
 
-    price: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
+    price: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
-        solver: Highs,
-        price: float | NDArray[np.floating[Any]],
-        power_terms: list[HighspyArray],
+        solver: Solver,
+        price: float | NDArray[np.float64],
+        priced_flows: list[tuple[MeasuredFlows, int]],
+        terms: list[PolicyPricingTerm] | None = None,
     ) -> None:
-        """Initialize with price and LP power flow variables."""
+        """Initialize with a price and the connection tags it applies to.
+
+        Each tag's power is read at the connection's measured point when the cost
+        is built, so a flow shaped by the connection's efficiency follows changes to it.
+        """
         super().__init__(
             name=name,
             periods=periods,
@@ -67,11 +82,12 @@ class PolicyPricing(Element[str]):
             output_names=POLICY_PRICING_OUTPUT_NAMES,
         )
         self.price = broadcast_to_sequence(price, self.n_periods)
-        self._power_terms = power_terms
+        self._priced_flows = priced_flows
+        self.terms = terms or []
+        self.label: str = ""
 
     @cost
-    def pricing_cost(self) -> highs_linear_expression | None:
+    def pricing_cost(self) -> LinearArray | None:
         """Compute the pricing cost for this policy rule placement."""
         price = self.price
-        costs = [Highs.qsum(pt * price * self.periods) for pt in self._power_terms]
-        return costs[0] if len(costs) == 1 else Highs.qsum(costs)
+        return total([connection.measured_power[tag] * price * self.periods for connection, tag in self._priced_flows])

@@ -19,8 +19,6 @@ This tests the model layer's tag infrastructure directly, without
 depending on the policy compilation adapter.
 """
 
-from typing import Any, cast
-
 import numpy as np
 import pytest
 
@@ -45,7 +43,7 @@ def _build_tagged_system(
     battery_capacity: float = 5.0,
     battery_initial_kwh: float = 2.5,
     battery_max_power: float = 5.0,
-) -> list[dict[str, Any]]:
+) -> list[ModelElementConfig]:
     """Build model elements with pre-assigned tags."""
     n = len(periods)
     return [
@@ -192,7 +190,7 @@ def test_tagged_power_flow_scenario() -> None:
 
     network = Network(name="tagged_scenario", periods=periods)
     for elem in sorted(elements, key=lambda e: e.get("element_type") == "connection"):
-        network.add(cast("ModelElementConfig", elem))
+        network.add(elem)
 
     cost = network.optimize()
     h = network._solver
@@ -207,9 +205,9 @@ def test_tagged_power_flow_scenario() -> None:
     assert isinstance(grid_exp, Connection)
     assert isinstance(bat_dis, Connection)
 
-    grid_import_flow = tuple(float(v) for v in h.vals(grid_imp.total_power_in))
-    grid_export_flow = tuple(float(v) for v in h.vals(grid_exp.total_power_in))
-    bat_discharge_flow = tuple(float(v) for v in h.vals(bat_dis.total_power_in))
+    grid_import_flow = tuple(float(v) for v in grid_imp.total_power_in.value(h.column_values()))
+    grid_export_flow = tuple(float(v) for v in grid_exp.total_power_in.value(h.column_values()))
+    bat_discharge_flow = tuple(float(v) for v in bat_dis.total_power_in.value(h.column_values()))
 
     # Period 1: Solar surplus, cheap export ($0.01) + tag surcharge $0.02 = positive net cost
     assert grid_export_flow[1] == pytest.approx(0.0, abs=0.1)
@@ -223,3 +221,58 @@ def test_tagged_power_flow_scenario() -> None:
 
     # Period 4: Grid expensive, battery has stored energy
     assert bat_discharge_flow[4] > 0.5
+
+
+def _optimize_tagged_system(
+    periods: np.ndarray, extra_load: tuple[str, np.ndarray] | None = None
+) -> tuple[float, Network]:
+    """Optimize the tagged system, optionally with an extra fixed load drawn from one element."""
+    elements = _build_tagged_system(
+        periods,
+        grid_import_price=np.array([0.30, 0.30, 0.005, 0.50, 0.50, 0.10]),
+        grid_export_price=np.array([0.04, 0.01, 0.005, 0.15, 0.05, 0.02]),
+        solar_max=np.array([5.0, 5.0, 0.0, 0.0, 0.0, 0.0]),
+        load_fixed=np.full(len(periods), 2.0),
+        battery_capacity=10.0,
+        battery_initial_kwh=1.0,
+        battery_max_power=5.0,
+    )
+    if extra_load is not None:
+        source, power = extra_load
+        elements.append(
+            {"element_type": "node", "name": "extra", "is_source": False, "is_sink": True, "inbound_tags": ALL_TAGS}
+        )
+        elements.append(
+            {
+                "element_type": "connection",
+                "name": "extra_conn",
+                "source": source,
+                "target": "extra",
+                "tags": ALL_TAGS,
+                "segments": {"power_limit": {"segment_type": "power_limit", "max_power": power, "fixed": True}},
+            }
+        )
+
+    network = Network(name="tagged_scenario", periods=periods)
+    for elem in sorted(elements, key=lambda e: e.get("element_type") == "connection"):
+        network.add(elem)
+    return network.optimize(), network
+
+
+@pytest.mark.parametrize("element_name", ["sw", "battery"])
+def test_power_balance_is_marginal_cost_of_extra_load(element_name: str) -> None:
+    """A multi-tag element's power balance is one price per period: the cost of one more kWh drawn there."""
+    periods = np.array([1.0, 1.0, 0.5, 0.5, 0.25, 0.25])
+    base_cost, network = _optimize_tagged_system(periods)
+
+    price = network.elements[element_name].outputs()["element_power_balance"].values
+
+    energy = 1e-3
+    marginal_costs = []
+    for t in range(len(periods)):
+        extra = np.zeros(len(periods))
+        extra[t] = energy / periods[t]
+        perturbed_cost, _ = _optimize_tagged_system(periods, (element_name, extra))
+        marginal_costs.append((perturbed_cost - base_cost) / energy)
+
+    assert price == pytest.approx(marginal_costs, abs=1e-6)

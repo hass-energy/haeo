@@ -12,16 +12,63 @@ from __future__ import annotations
 
 from collections.abc import Generator
 import datetime
+import logging
+import os
+from pathlib import Path
 
 from homeassistant.util import dt as dt_util
 import pytest
+from pytest_socket import enable_socket
+
+from tools.guide_runner import PrerequisiteCache
+
+# pytest-homeassistant-custom-component sets sqlalchemy.engine to INFO when it
+# loads. Guides run a real recorder, so a failing guide's captured log would be
+# thousands of SQL statements burying the actual error.
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 # Guide tests run a full HA instance in a background thread. The global
 # filterwarnings = ["error"] from pyproject.toml turns third-party
 # DeprecationWarnings (aiohttp, HA internals) into RuntimeErrors that
 # crash the background event loop. Reset to "default" for guide tests
 # since we don't control third-party warning behavior.
-pytestmark = [pytest.mark.filterwarnings("default")]
+#
+# HA's frontend static handler can emit unraisable ResourceWarnings when
+# the browser disconnects during shutdown on CI. Ignore pytest's wrapper so
+# guide screenshot assertions remain the signal.
+#
+# These are applied in pytest_collection_modifyitems rather than a conftest
+# pytestmark, because pytest >= 9.0 does not propagate conftest pytestmark to
+# collected tests. As a mark the filters silently did nothing, and the
+# ResourceWarning failed whichever guide test happened to be running when the
+# file object was finalized.
+WARNING_FILTERS = (
+    "default",
+    "ignore::ResourceWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+)
+
+
+@pytest.fixture(autouse=True)
+def _enable_socket_for_guides() -> None:  # pyright: ignore[reportUnusedFunction]
+    """Re-enable real sockets for guide tests.
+
+    pytest-homeassistant-custom-component disables sockets globally; guide
+    tests need real sockets to find a free port and run a live HA HTTP
+    server for Playwright. The `socket_enabled` fixture from pytest-socket
+    used to be applied via a module-level `pytestmark` here, but pytest 9
+    no longer propagates conftest-level pytestmark to test items.
+    """
+    enable_socket()
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Apply the guide warning filters to every collected guide test."""
+    guides_dir = Path(__file__).parent
+    for item in items:
+        if item.path.is_relative_to(guides_dir):
+            for spec in WARNING_FILTERS:
+                item.add_marker(pytest.mark.filterwarnings(spec))
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -55,3 +102,16 @@ def _restore_timezone() -> Generator[None]:  # pyright: ignore[reportUnusedFunct
     yield
     # Reset to datetime.UTC which is what the pytest plugin expects
     dt_util.set_default_time_zone(datetime.UTC)
+
+
+@pytest.fixture(scope="session")
+def prerequisites(tmp_path_factory: pytest.TempPathFactory) -> PrerequisiteCache:
+    """Prerequisite guide snapshots shared by every guide in this run.
+
+    Under xdist each worker has its own temporary directory inside one for the
+    whole run, so the snapshots go there for all workers to share.
+    """
+    run_dir = tmp_path_factory.getbasetemp()
+    if "PYTEST_XDIST_WORKER" in os.environ:
+        run_dir = run_dir.parent
+    return PrerequisiteCache(run_dir / "guide-prerequisites")

@@ -3,9 +3,18 @@
 from homeassistant.const import UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
+
+
+def _hub_entry(hass: HomeAssistant) -> MockConfigEntry:
+    """Create and register a hub config entry for metadata extraction."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Test Hub")
+    entry.add_to_hass(hass)
+    return entry
 
 
 def test_entity_metadata_is_compatible_with_none_unit() -> None:
@@ -90,7 +99,7 @@ async def test_extract_entity_metadata_filters_domain(
     hass.states.async_set("sensor.power", "100", {"unit_of_measurement": "kW"})
     hass.states.async_set("input_number.value", "50", {"unit_of_measurement": "%"})
 
-    result = extract_entity_metadata(hass)
+    result = extract_entity_metadata(hass, _hub_entry(hass))
 
     # Should only include sensor and input_number, not light
     assert len(result) == 2
@@ -123,7 +132,7 @@ async def test_extract_entity_metadata_skips_none_state(
     hass.states.async_set("sensor.power", "100", {"unit_of_measurement": "kW"})
     # sensor.missing will have None state
 
-    result = extract_entity_metadata(hass)
+    result = extract_entity_metadata(hass, _hub_entry(hass))
 
     # Should only include entities with valid state
     assert len(result) == 1
@@ -153,7 +162,7 @@ async def test_extract_entity_metadata_includes_none_unit(
     hass.states.async_set("sensor.power", "100", {"unit_of_measurement": "kW"})
     hass.states.async_set("sensor.no_unit", "on", {})  # No unit_of_measurement
 
-    result = extract_entity_metadata(hass)
+    result = extract_entity_metadata(hass, _hub_entry(hass))
 
     # Should include both entities (with and without units) for exclusion mask
     assert len(result) == 2
@@ -185,9 +194,57 @@ async def test_extract_entity_metadata_uses_get_extracted_units(
         },
     )
 
-    result = extract_entity_metadata(hass)
+    result = extract_entity_metadata(hass, _hub_entry(hass))
 
     # Should extract unit using get_extracted_units
     assert len(result) == 1
     assert result[0].entity_id == "sensor.forecast"
     assert result[0].unit_of_measurement == "kW"
+
+
+async def test_extract_entity_metadata_excludes_own_hub_entities(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Entities created by this hub are excluded to prevent self-referential loops."""
+    hub_entry = _hub_entry(hass)
+
+    own_entity = entity_registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id="hub_price_input",
+        suggested_object_id="hub_price",
+        config_entry=hub_entry,
+    )
+    hass.states.async_set(own_entity.entity_id, "0.25", {"unit_of_measurement": "$/kWh"})
+    hass.states.async_set("sensor.external_price", "0.30", {"unit_of_measurement": "$/kWh"})
+
+    result = extract_entity_metadata(hass, hub_entry)
+
+    entity_ids = {meta.entity_id for meta in result}
+    assert own_entity.entity_id not in entity_ids
+    assert "sensor.external_price" in entity_ids
+
+
+async def test_extract_entity_metadata_includes_other_hub_entities(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Entities from a different hub remain selectable."""
+    hub_entry = _hub_entry(hass)
+    other_hub = MockConfigEntry(domain=DOMAIN, title="Other Hub")
+    other_hub.add_to_hass(hass)
+
+    other_entity = entity_registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id="other_price_input",
+        suggested_object_id="other_price",
+        config_entry=other_hub,
+    )
+    hass.states.async_set(other_entity.entity_id, "0.25", {"unit_of_measurement": "$/kWh"})
+
+    result = extract_entity_metadata(hass, hub_entry)
+
+    entity_ids = {meta.entity_id for meta in result}
+    assert other_entity.entity_id in entity_ids

@@ -2,17 +2,21 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
-from custom_components.haeo.core.adapters.output_utils import expect_output_data
+import numpy as np
+
+from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import CONF_GENERATION, BufferRole
 from custom_components.haeo.core.schema.elements.solar import (
     CONF_CURTAILMENT,
     ELEMENT_TYPE,
@@ -45,13 +49,14 @@ class SolarAdapter:
 
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
-    connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+    connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = False
+    buffer_roles: frozenset[BufferRole] = frozenset({CONF_GENERATION})
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
-        segments: dict[str, Any] = {
+        segments: dict[str, SegmentSpec] = {
             "power_limit": {
                 "segment_type": "power_limit",
                 "max_power": config[SECTION_FORECAST][CONF_FORECAST],
@@ -81,20 +86,26 @@ class SolarAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         *,
         config: SolarConfigData,
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
         """Map model outputs to solar-specific output names."""
-        connection = model_outputs[f"{name}:connection"]
+        connection = model_outputs.get(f"{name}:connection")
         fixed = not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True)
+        forecast = config[SECTION_FORECAST][CONF_FORECAST]
+        if connection is not None:
+            period_count = len(expect_output_data(connection[CONNECTION_POWER]).values)
+        else:
+            period_count = int(np.atleast_1d(forecast).size)
 
-        power = expect_output_data(connection[CONNECTION_POWER])
+        power = connection_power(connection, period_count)
         solar_outputs: dict[SolarOutputName, OutputData] = {
             SOLAR_POWER: replace(power, type=OutputType.POWER, fixed=fixed),
         }
 
         # Shadow price from power_limit segment (if present)
         if (
-            isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
+            connection is not None
+            and isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
             and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
             and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):

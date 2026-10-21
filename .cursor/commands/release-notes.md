@@ -1,1 +1,0 @@
-../../.github/prompts/release-notes.prompt.md

@@ -7,7 +7,11 @@ from custom_components.haeo.core.schema import (
     ConstantValue,
     EntityValue,
     NoneValue,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
     get_schema_value_kinds,
+    is_schema_value,
 )
 
 type ValueAlias = EntityValue | NoneValue
@@ -29,3 +33,18 @@ def test_get_schema_value_kinds_handles_direct_types() -> None:
 def test_get_schema_value_kinds_returns_empty_for_unknown() -> None:
     """get_schema_value_kinds returns empty set for unknown types."""
     assert get_schema_value_kinds(str) == frozenset()
+
+
+def test_is_schema_value_recognizes_all_variants() -> None:
+    """is_schema_value accepts every member of the SchemaValue union."""
+    assert is_schema_value(as_entity_value(["sensor.power"]))
+    assert is_schema_value(as_constant_value(1.5))
+    assert is_schema_value(as_none_value())
+
+
+def test_is_schema_value_rejects_non_schema_values() -> None:
+    """is_schema_value rejects plain values and unknown mappings."""
+    assert not is_schema_value(None)
+    assert not is_schema_value(1.5)
+    assert not is_schema_value("sensor.power")
+    assert not is_schema_value({"type": "unknown", "value": 1})

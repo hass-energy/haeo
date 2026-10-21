@@ -1,6 +1,6 @@
 """Connection element schema definitions."""
 
-from typing import Annotated, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Final, Literal, TypedDict
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import ConnectionTarget
@@ -8,11 +8,8 @@ from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -29,20 +26,15 @@ from custom_components.haeo.core.schema.sections import (
 ELEMENT_TYPE = ElementType.CONNECTION
 
 SECTION_ENDPOINTS: Final = "endpoints"
-SECTION_SEGMENT_ORDER: Final = "segment_order"
 
 CONF_SOURCE: Final = "source"
 CONF_TARGET: Final = "target"
-CONF_MIRROR_SEGMENT_ORDER: Final = "mirror_segment_order"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
         CONF_MAX_POWER_SOURCE_TARGET,
-        CONF_MAX_POWER_TARGET_SOURCE,
         CONF_EFFICIENCY_SOURCE_TARGET,
-        CONF_EFFICIENCY_TARGET_SOURCE,
         CONF_PRICE_SOURCE_TARGET,
-        CONF_PRICE_TARGET_SOURCE,
     }
 )
 
@@ -61,33 +53,16 @@ class EndpointsData(TypedDict):
     target: ConnectionTarget
 
 
-class SegmentOrderConfig(TypedDict, total=False):
-    """Segment order configuration values."""
-
-    mirror_segment_order: bool
-
-
-class SegmentOrderData(TypedDict, total=False):
-    """Loaded segment order values."""
-
-    mirror_segment_order: bool
-
-
 class ConnectionConfigSchema(CommonConfig):
     """Connection element configuration as stored in Home Assistant."""
 
     element_type: Literal[ElementType.CONNECTION]
     endpoints: EndpointsConfig
-    segment_order: NotRequired[SegmentOrderConfig]
     power_limits: Annotated[
         PowerLimitsConfig,
         SectionHints(
             {
                 CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
-                    output_type=OutputType.POWER_LIMIT,
-                    time_series=True,
-                ),
-                CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
                     output_type=OutputType.POWER_LIMIT,
                     time_series=True,
                 ),
@@ -103,11 +78,6 @@ class ConnectionConfigSchema(CommonConfig):
                     direction="-",
                     time_series=True,
                 ),
-                CONF_PRICE_TARGET_SOURCE: FieldHint(
-                    output_type=OutputType.PRICE,
-                    direction="-",
-                    time_series=True,
-                ),
             }
         ),
     ]
@@ -116,10 +86,6 @@ class ConnectionConfigSchema(CommonConfig):
         SectionHints(
             {
                 CONF_EFFICIENCY_SOURCE_TARGET: FieldHint(
-                    output_type=OutputType.EFFICIENCY,
-                    time_series=True,
-                ),
-                CONF_EFFICIENCY_TARGET_SOURCE: FieldHint(
                     output_type=OutputType.EFFICIENCY,
                     time_series=True,
                 ),
@@ -133,7 +99,6 @@ class ConnectionConfigData(CommonData):
 
     element_type: Literal[ElementType.CONNECTION]
     endpoints: EndpointsData
-    segment_order: NotRequired[SegmentOrderData]
     power_limits: PowerLimitsData
     pricing: PricingData
     efficiency: EfficiencyData
@@ -141,12 +106,8 @@ class ConnectionConfigData(CommonData):
 
 __all__ = [
     "CONF_EFFICIENCY_SOURCE_TARGET",
-    "CONF_EFFICIENCY_TARGET_SOURCE",
     "CONF_MAX_POWER_SOURCE_TARGET",
-    "CONF_MAX_POWER_TARGET_SOURCE",
-    "CONF_MIRROR_SEGMENT_ORDER",
     "CONF_PRICE_SOURCE_TARGET",
-    "CONF_PRICE_TARGET_SOURCE",
     "CONF_SOURCE",
     "CONF_TARGET",
     "ELEMENT_TYPE",
@@ -155,11 +116,8 @@ __all__ = [
     "SECTION_ENDPOINTS",
     "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
-    "SECTION_SEGMENT_ORDER",
     "ConnectionConfigData",
     "ConnectionConfigSchema",
     "EndpointsConfig",
     "EndpointsData",
-    "SegmentOrderConfig",
-    "SegmentOrderData",
 ]

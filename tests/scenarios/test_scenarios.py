@@ -3,35 +3,19 @@
 import asyncio
 import logging
 from pathlib import Path
-from types import MappingProxyType
-from typing import Any
 
 from freezegun import freeze_time
-from homeassistant.config_entries import ConfigSubentry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from syrupy.assertion import SnapshotAssertion
 
-from custom_components.haeo import MIGRATION_MINOR_VERSION
-from custom_components.haeo.const import DOMAIN, INTEGRATION_TYPE_HUB, OUTPUT_NAME_OPTIMIZATION_STATUS
-from custom_components.haeo.core.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-)
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.const import OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
+from tools.sim_hass import setup_haeo_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,6 +37,7 @@ _scenarios = _discover_scenarios()
 
 @pytest.mark.scenario
 @pytest.mark.timeout(30)
+@pytest.mark.usefixtures("entity_registry_enabled_by_default")
 @pytest.mark.parametrize(
     "scenario_path",
     _scenarios,
@@ -63,12 +48,14 @@ async def test_scenarios(
     hass: HomeAssistant,
     scenario_path: Path,
     scenario_data: ScenarioData,
-    snapshot: Any,
+    snapshot: SnapshotAssertion,
 ) -> None:
     """Test that scenario sets up correctly and optimization matches expected outputs."""
     # Freeze time at the captured optimization start, in the captured zone.
     freeze_timestamp = scenario_data["environment"]["optimization_start_time"]
     timezone = scenario_data["environment"]["timezone"]
+    assert isinstance(freeze_timestamp, str)
+    assert isinstance(timezone, str)
 
     # Configure HA timezone from scenario environment
     await hass.config.async_set_time_zone(timezone)
@@ -77,48 +64,17 @@ async def test_scenarios(
     with freeze_time(freeze_timestamp):
         # Set up sensor states from scenario data and wait until they are loaded
         for state_data in scenario_data["inputs"]:
-            hass.states.async_set(state_data["entity_id"], state_data["state"], state_data.get("attributes", {}))
+            entity_id = state_data["entity_id"]
+            state = state_data["state"]
+            attributes = state_data.get("attributes", {})
+            assert isinstance(entity_id, str)
+            assert isinstance(state, str)
+            hass.states.async_set(entity_id, state, attributes if isinstance(attributes, dict) else {})
         await hass.async_block_till_done()
 
         # Create hub config entry and add to hass
         scenario_config = scenario_data["config"]
-        # Support both flat tier keys (legacy) and nested under "tiers" (v2+)
-        tiers_data = scenario_config.get("tiers") or scenario_config
-        mock_config_entry = MockConfigEntry(
-            domain=DOMAIN,
-            data={
-                "integration_type": INTEGRATION_TYPE_HUB,
-                HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
-                HUB_SECTION_TIERS: {
-                    CONF_TIER_1_COUNT: tiers_data["tier_1_count"],
-                    CONF_TIER_1_DURATION: tiers_data["tier_1_duration"],
-                    CONF_TIER_2_COUNT: tiers_data.get("tier_2_count", 0),
-                    CONF_TIER_2_DURATION: tiers_data.get("tier_2_duration", 5),
-                    CONF_TIER_3_COUNT: tiers_data.get("tier_3_count", 0),
-                    CONF_TIER_3_DURATION: tiers_data.get("tier_3_duration", 30),
-                    CONF_TIER_4_COUNT: tiers_data.get("tier_4_count", 0),
-                    CONF_TIER_4_DURATION: tiers_data.get("tier_4_duration", 60),
-                },
-                HUB_SECTION_ADVANCED: {},
-            },
-            version=scenario_config.get("version", 1),
-            minor_version=scenario_config.get("minor_version", MIGRATION_MINOR_VERSION),
-        )
-        mock_config_entry.add_to_hass(hass)
-
-        # Create element subentries from the scenario config
-        for name, config in scenario_config["participants"].items():
-            subentry = ConfigSubentry(
-                data=MappingProxyType(config),
-                subentry_type=config[CONF_ELEMENT_TYPE],
-                title=name,
-                unique_id=None,
-            )
-            hass.config_entries.async_add_subentry(mock_config_entry, subentry)
-
-        # Now set up the hub - coordinator will find the subentries via _get_child_elements()
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done(wait_background_tasks=True)
+        mock_config_entry = await setup_haeo_entry(hass, scenario_config)
 
         # Get the coordinator from the config entry
         runtime_data = mock_config_entry.runtime_data
@@ -130,13 +86,13 @@ async def test_scenarios(
 
         # Wait for the coordinator to complete its first update cycle
         # The optimization runs asynchronously in an executor job, so we need to wait for it
-        async def wait_for_sensor_change(hass: HomeAssistant, entity_id: str) -> Any:
+        async def wait_for_sensor_change(hass: HomeAssistant, entity_id: str) -> State | None:
             """Wait for a sensor state to change from its current value."""
             current_state = hass.states.get(entity_id)
             if current_state is None or current_state.state == "pending":
-                future = hass.loop.create_future()
+                future: asyncio.Future[State | None] = hass.loop.create_future()
 
-                def _changed(event: Any) -> None:
+                def _changed(event: Event[EventStateChangedData]) -> None:
                     if event.data.get("entity_id") == entity_id and not future.done():
                         future.set_result(event.data["new_state"])
 
@@ -191,7 +147,8 @@ async def test_scenarios(
             output_sensors,
             scenario_path.name,
             scenario_path / "visualizations",
-            coordinator.network,
+            coordinator.topology,
+            anchor_time=freeze_timestamp,
         )
 
         # Compare actual outputs with expected outputs using snapshot

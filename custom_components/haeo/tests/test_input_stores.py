@@ -1,0 +1,282 @@
+"""Tests for the input store builder and subentry storage binding."""
+
+from types import MappingProxyType
+from unittest.mock import Mock
+
+from homeassistant.config_entries import ConfigSubentry
+from homeassistant.core import HomeAssistant
+import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from conftest import FakeEntityState, FakeStateMachine
+from custom_components.haeo import HaeoRuntimeData
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
+from custom_components.haeo.core.data.input_store import InputMode
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.battery import (
+    CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    SECTION_ADVANCED,
+    SECTION_LIMITS,
+    SECTION_STORAGE,
+)
+from custom_components.haeo.core.schema.elements.grid import (
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
+from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
+from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.input_stores import SubentryStorage, build_input_stores, input_error_placeholders
+
+
+@pytest.fixture
+def horizon_manager() -> Mock:
+    """Return a mock horizon manager."""
+    manager = Mock(spec=HorizonManager)
+    manager.get_forecast_timestamps.return_value = (0.0, 300.0, 600.0)
+    manager.subscribe.return_value = Mock()
+    return manager
+
+
+@pytest.fixture
+def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
+    """Return a config entry with runtime data for store tests."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Network",
+        data={
+            HUB_SECTION_COMMON: {
+                CONF_NAME: "Test Network",
+                CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS),
+            },
+            HUB_SECTION_ADVANCED: {},
+        },
+        entry_id="test_input_stores_entry",
+    )
+    entry.add_to_hass(hass)
+    entry.runtime_data = HaeoRuntimeData(coordinator=None, horizon_manager=horizon_manager)
+    return entry
+
+
+def _add_grid(hass: HomeAssistant, entry: MockConfigEntry) -> ConfigSubentry:
+    """Add a grid subentry with one constant field, one driven field, one none field."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: GRID_TYPE,
+                CONF_NAME: "Main Grid",
+                CONF_CONNECTION: as_connection_target("main_bus"),
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.30),
+                    CONF_PRICE_TARGET_SOURCE: as_entity_value(["sensor.export_price"]),
+                },
+                SECTION_POWER_LIMITS: {
+                    CONF_MAX_POWER_SOURCE_TARGET: as_none_value(),
+                    CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+                },
+            }
+        ),
+        subentry_type=GRID_TYPE,
+        title="Main Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, subentry)
+    return subentry
+
+
+def test_build_input_stores_creates_stores_for_configured_fields(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """build_input_stores creates a store per configured field and skips none fields."""
+    _add_grid(hass, config_entry)
+
+    stores = build_input_stores(hass, config_entry, horizon_manager)
+
+    constant_key = ("Main Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))
+    driven_key = ("Main Grid", (SECTION_PRICING, CONF_PRICE_TARGET_SOURCE))
+    limit_key = ("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_TARGET_SOURCE))
+    none_key = ("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET))
+
+    assert constant_key in stores
+    assert driven_key in stores
+    assert limit_key in stores
+    # None/disabled field gets no store
+    assert none_key not in stores
+
+    assert stores[constant_key].mode == InputMode.EDITABLE
+    assert stores[driven_key].mode == InputMode.DRIVEN
+    assert stores[driven_key].source_entity_ids == ["sensor.export_price"]
+
+
+async def test_input_error_placeholders_describe_rejected_store(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Placeholders add the element, field, and source entities to the error's own."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: GRID_TYPE,
+                CONF_NAME: "Main Grid",
+                CONF_CONNECTION: as_connection_target("main_bus"),
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.30),
+                    CONF_PRICE_TARGET_SOURCE: as_constant_value(0.05),
+                },
+                SECTION_POWER_LIMITS: {
+                    CONF_MAX_POWER_SOURCE_TARGET: as_entity_value(["sensor.import_limit"]),
+                },
+            }
+        ),
+        subentry_type=GRID_TYPE,
+        title="Main Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, subentry)
+    key = ("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET))
+    store = build_input_stores(hass, config_entry, horizon_manager)[key]
+
+    sm = FakeStateMachine({"sensor.import_limit": FakeEntityState("sensor.import_limit", "-4.5", {})})
+    assert await store.async_load(sm) is False
+
+    assert store.error is not None
+    assert input_error_placeholders(key, store.error, store) == {
+        "element": "Main Grid",
+        "field": f"{SECTION_POWER_LIMITS}.{CONF_MAX_POWER_SOURCE_TARGET}",
+        "entities": "sensor.import_limit",
+        "value": "-4.5",
+    }
+
+
+async def test_build_input_stores_negates_entity_surfaced_price(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """An entity-valued negated surfaced price resolves to its negative.
+
+    The load consumption cost surfaces a running (positive) value but the policy
+    must see its negative. Constants are negated at the storage layer, so this
+    covers the entity-driven path where negation happens on load.
+    """
+    import numpy as np  # noqa: PLC0415
+
+    from conftest import FakeEntityState, FakeStateMachine  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_TYPE  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_TYPE  # noqa: PLC0415
+
+    load = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: str(LOAD_TYPE), CONF_NAME: "MyLoad"}),
+        subentry_type=str(LOAD_TYPE),
+        title="MyLoad",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, load)
+
+    policy = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: str(POLICY_TYPE),
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {
+                        "name": "consumption",
+                        "enabled": True,
+                        "target": ["MyLoad"],
+                        "price": as_entity_value(["sensor.cost"]),
+                    },
+                ],
+            }
+        ),
+        subentry_type=str(POLICY_TYPE),
+        title="Policies",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, policy)
+
+    stores = build_input_stores(hass, config_entry, horizon_manager)
+    price_store = stores[("Policies", (CONF_RULES, "0", CONF_PRICE))]
+
+    assert price_store.mode == InputMode.DRIVEN
+
+    sm = FakeStateMachine(
+        {"sensor.cost": FakeEntityState("sensor.cost", "0.15", {"forecast": [0.15, 0.25, 0.35]})},
+    )
+    assert await price_store.async_load(sm) is True
+
+    assert isinstance(price_store.value, np.ndarray)
+    assert np.all(price_store.value < 0)
+
+
+async def test_subentry_storage_write_updates_subentry(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """SubentryStorage.write persists a new value to the subentry."""
+    subentry = _add_grid(hass, config_entry)
+    storage = SubentryStorage(
+        hass,
+        config_entry,
+        subentry.subentry_id,
+        (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET),
+    )
+
+    await storage.write(as_constant_value(0.45))
+
+    # Read back through a fresh lookup to confirm the live subentry changed
+    stored = config_entry.subentries[subentry.subentry_id].data[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET]
+    assert stored == as_constant_value(0.45)
+    assert config_entry.runtime_data.value_update_in_progress is True
+
+
+async def test_build_input_stores_uses_the_full_field_hint(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """A store resolves with its schema hint, so a cost whose minimum is zero rejects a negative sensor value."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CONNECTION: as_connection_target("main_bus"),
+                SECTION_STORAGE: {
+                    CONF_CAPACITY: as_constant_value(10.0),
+                    CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
+                },
+                SECTION_LIMITS: {},
+                SECTION_POWER_LIMITS: {},
+                SECTION_PRICING: {},
+                SECTION_EFFICIENCY: {},
+                SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_entity_value(["sensor.charge_limit_cost"])},
+            }
+        ),
+        subentry_type=ElementType.BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, subentry)
+    store = build_input_stores(hass, config_entry, horizon_manager)[
+        ("Battery", (SECTION_ADVANCED, CONF_CHARGE_LIMIT_COST))
+    ]
+
+    sm = FakeStateMachine({"sensor.charge_limit_cost": FakeEntityState("sensor.charge_limit_cost", "-5", {})})
+    await store.async_load(sm)
+
+    assert store.error is not None
+    assert store.error.translation_key == "negative_input_value"

@@ -1,19 +1,30 @@
 """Model element output tests covering reporting and validation helpers."""
 
-from typing import Any
+# The scenario helper drives heterogeneous element types dynamically (reads
+# per-element attributes, monkeypatches methods), which a static base type
+# cannot express.
+from typing import Any  # noqa: TID251
 
-from highspy import Highs
-from highspy.highs import HighspyArray
 import numpy as np
 import pytest
 
+from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.elements.battery import Battery, BatteryElementConfig
 from custom_components.haeo.core.model.elements.node import Node
+from custom_components.haeo.core.model.linear import LinearArray, total
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.tests import test_data
-from custom_components.haeo.core.model.tests.test_data.element_types import ElementTestCase, ElementTestCaseInputs
+from custom_components.haeo.core.model.tests.test_data import minimize
+from custom_components.haeo.core.model.tests.test_data.element_types import (
+    ElementTestCase,
+    ElementTestCaseInputs,
+    ExpectedOutput,
+)
 from custom_components.haeo.core.model.util import broadcast_to_sequence
+from custom_components.haeo.core.model.util.solver_rows import add_rows
 
 
-def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) -> dict[str, dict[str, Any]]:
+def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) -> dict[str, ExpectedOutput]:
     """Set up and solve an optimization scenario for an element.
 
     Args:
@@ -35,23 +46,23 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         # Regular elements (Battery, Grid, PV, Load)
         power = inputs.get("power", [None] * n_periods)
 
-        # Create HighspyArray variables to inject power
-        power_in_vars = h.addVariables(n_periods, lb=0.0, name_prefix="test_in_", out_array=True)
-        power_out_vars = h.addVariables(n_periods, lb=0.0, name_prefix="test_out_", out_array=True)
+        # Create LinearArray variables to inject power
+        power_in_vars = h.add_variables(n_periods, name="power_in_vars")
+        power_out_vars = h.add_variables(n_periods, name="power_out_vars")
 
         # For fixed values, add constraints to fix the variables
         for i, val in enumerate(power):
             if val is not None:
                 # Fixed value - constrain the variables
-                h.addConstr(power_in_vars[i] == max(val, 0.0))
-                h.addConstr(power_out_vars[i] == max(-val, 0.0))
+                add_rows(h, power_in_vars[i] == max(val, 0.0))
+                add_rows(h, power_out_vars[i] == max(-val, 0.0))
 
-        # Total power as HighspyArray
+        # Total power as LinearArray
         total_power = power_in_vars - power_out_vars
 
         # Mock connection_power() to return the power array for all periods
         # This allows elements to set up their own internal power balance constraints
-        def mock_connection_power() -> HighspyArray:
+        def mock_connection_power() -> LinearArray:
             return total_power
 
         element.connection_power = mock_connection_power
@@ -73,7 +84,7 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
 
         # Minimize
         if cost_terms:
-            h.minimize(Highs.qsum(cost_terms))
+            minimize(h, total(cost_terms))
         else:
             h.run()
 
@@ -94,7 +105,7 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
     test_data.VALID_ELEMENT_CASES,
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
-def test_element_outputs(case: ElementTestCase, solver: Highs) -> None:
+def test_element_outputs(case: ElementTestCase, solver: Solver) -> None:
     """Element.get_outputs should report expected series for each element type."""
 
     # Create element using the factory with the solver
@@ -135,7 +146,7 @@ def test_element_outputs(case: ElementTestCase, solver: Highs) -> None:
     test_data.INVALID_ELEMENT_CASES,
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
-def test_element_validation(case: ElementTestCase, solver: Highs) -> None:
+def test_element_validation(case: ElementTestCase, solver: Solver) -> None:
     """Element classes should validate input sequence lengths match n_periods."""
 
     assert "expected_error" in case
@@ -145,13 +156,13 @@ def test_element_validation(case: ElementTestCase, solver: Highs) -> None:
         case["factory"](**data)
 
 
-def test_extract_values_converts_highs_variables() -> None:
-    """Element.extract_values should coerce HiGHS variables to floats."""
-    h = Highs()
+def test_extract_values_converts_variables() -> None:
+    """Element.extract_values should evaluate variables to floats."""
+    h = Solver()
     output_off = False
     h.setOptionValue("output_flag", output_off)
 
-    variables, h = test_data.highs_sequence(h, "test", 3)
+    variables = test_data.fixed_variables(h, 3)
 
     # Create a simple element to test extract_values
     element = Node(name="test", periods=np.array([1.0, 1.0, 1.0]), solver=h)
@@ -160,15 +171,92 @@ def test_extract_values_converts_highs_variables() -> None:
     assert isinstance(result, tuple)
     assert len(result) == 3
     assert all(isinstance(value, float) for value in result)
-    # Values should be 1.0, 2.0, 3.0 (set in highs_sequence)
+    # Values should be 1.0, 2.0, 3.0 (set in fixed_variables)
     assert result == pytest.approx((1.0, 2.0, 3.0))
 
 
 def test_extract_values_handles_none() -> None:
     """Element.extract_values should return empty tuple for None input."""
-    h = Highs()
+    h = Solver()
     element = Node(name="test", periods=np.array([1.0]), solver=h)
     result = element.extract_values(None)
 
     assert isinstance(result, tuple)
     assert len(result) == 0
+
+
+@pytest.mark.parametrize(
+    ("max_charge", "ceiling"),
+    [
+        pytest.param(None, 12.0, id="unset_max_follows_capacity"),
+        pytest.param(8.0, 8.0, id="set_max_stays"),
+    ],
+)
+def test_battery_charge_ceiling_reads_capacity_live(max_charge: float | None, ceiling: float) -> None:
+    """A battery with no max charge fills to its capacity after the capacity changes, and one with a max to it."""
+    network = Network(name="test", periods=np.ones(2))
+    config: BatteryElementConfig = {
+        "element_type": "battery",
+        "name": "battery",
+        "capacity": 10.0,
+        "initial_charge": 5.0,
+        "charge_limit_cost": 100.0,
+    }
+    if max_charge is not None:
+        config["max_charge"] = max_charge
+    network.add(config)
+    network.add({"element_type": "node", "name": "grid", "is_source": True, "is_sink": False})
+    network.add(
+        {
+            "element_type": "connection",
+            "name": "grid:charge",
+            "source": "grid",
+            "target": "battery",
+            "tags": {0},
+            "segments": {"pricing": {"segment_type": "pricing", "price": -1.0}},
+        }
+    )
+    network.optimize()
+    battery = network.elements["battery"]
+    assert isinstance(battery, Battery)
+
+    battery.capacity = np.full(3, 12.0)
+    network.optimize()
+
+    np.testing.assert_allclose(battery.charge_ceiling, ceiling)
+    assert battery.outputs()["battery_energy_stored"].values[-1] == pytest.approx(ceiling)
+
+
+def test_battery_charge_limit_cost_updates_live() -> None:
+    """Lowering the charge limit cost below what discharging earns lets the battery go below its min charge."""
+    network = Network(name="test", periods=np.ones(2))
+    network.add(
+        {
+            "element_type": "battery",
+            "name": "battery",
+            "capacity": 10.0,
+            "initial_charge": 5.0,
+            "min_charge": 2.0,
+            "charge_limit_cost": 100.0,
+        }
+    )
+    network.add({"element_type": "node", "name": "grid", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": "connection",
+            "name": "battery:discharge",
+            "source": "battery",
+            "target": "grid",
+            "tags": {0},
+            "segments": {"pricing": {"segment_type": "pricing", "price": -50.0}},
+        }
+    )
+    network.optimize()
+    battery = network.elements["battery"]
+    assert isinstance(battery, Battery)
+    assert battery.outputs()["battery_energy_stored"].values[-1] == pytest.approx(2.0)
+
+    battery.charge_limit_cost = np.full(2, 10.0)
+    network.optimize()
+
+    assert battery.outputs()["battery_energy_stored"].values[-1] == pytest.approx(0.0)

@@ -5,34 +5,37 @@ Each segment type applies a specific transformation or constraint to power flow:
 - PassthroughSegment: Lossless passthrough (no constraints)
 - PowerLimitSegment: Limits power flow
 - PricingSegment: Adds transfer pricing costs
-- SocPricingSegment: Adds SOC-based pricing penalties
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Final, Literal, TypeGuard
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
+    # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
+    # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
+    # unknown output-name type" here; segments only use these via hasattr/isinstance duck typing.
+    Final,
+    Literal,
+    TypeGuard,
+)
 
-from highspy import Highs
-from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.solver import Solver
 
 from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
 from .power_limit import PowerLimitSegment, PowerLimitSegmentSpec
 from .pricing import PricingSegment, PricingSegmentSpec
-from .segment import Segment
-from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
+from .segment import FlowProvider, FlowVariables, Segment
 
 # Discriminated union of segment type strings
-type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing", "soc_pricing"]
+type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing"]
 
 # Union type for all segment specifications
-type SegmentSpec = (
-    EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec | SocPricingSegmentSpec
-)
+type SegmentSpec = EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec
 
 
 def is_efficiency_spec(spec: SegmentSpec) -> TypeGuard[EfficiencySegmentSpec]:
@@ -55,11 +58,6 @@ def is_pricing_spec(spec: SegmentSpec) -> TypeGuard[PricingSegmentSpec]:
     return spec["segment_type"] == "pricing"
 
 
-def is_soc_pricing_spec(spec: SegmentSpec) -> TypeGuard[SocPricingSegmentSpec]:
-    """Return True when spec is for a SOC pricing segment."""
-    return spec["segment_type"] == "soc_pricing"
-
-
 @dataclass(frozen=True, slots=True)
 class SegmentSpecEntry:
     """Specification for a segment type."""
@@ -73,7 +71,6 @@ SEGMENTS: Final[dict[SegmentType, SegmentSpecEntry]] = {
     "passthrough": SegmentSpecEntry(factory=PassthroughSegment),
     "power_limit": SegmentSpecEntry(factory=PowerLimitSegment),
     "pricing": SegmentSpecEntry(factory=PricingSegment),
-    "soc_pricing": SegmentSpecEntry(factory=SocPricingSegment),
 }
 
 
@@ -81,12 +78,12 @@ def create_segment(
     *,
     segment_id: str,
     n_periods: int,
-    periods: NDArray[np.floating[Any]],
-    solver: Highs,
+    periods: NDArray[np.float64],
+    solver: Solver,
     spec: SegmentSpec,
     source_element: Element[Any],
     target_element: Element[Any],
-    power_in: dict[int, HighspyArray],
+    upstream: FlowProvider,
 ) -> Segment:
     """Create a segment instance from a segment specification."""
     segment_type = spec["segment_type"]
@@ -99,7 +96,7 @@ def create_segment(
         spec=spec,
         source_element=source_element,
         target_element=target_element,
-        power_in=power_in,
+        upstream=upstream,
     )
 
 
@@ -107,6 +104,8 @@ __all__ = [
     "SEGMENTS",
     "EfficiencySegment",
     "EfficiencySegmentSpec",
+    "FlowProvider",
+    "FlowVariables",
     "PassthroughSegment",
     "PassthroughSegmentSpec",
     "PowerLimitSegment",
@@ -117,12 +116,9 @@ __all__ = [
     "SegmentSpec",
     "SegmentSpecEntry",
     "SegmentType",
-    "SocPricingSegment",
-    "SocPricingSegmentSpec",
     "create_segment",
     "is_efficiency_spec",
     "is_passthrough_spec",
     "is_power_limit_spec",
     "is_pricing_spec",
-    "is_soc_pricing_spec",
 ]

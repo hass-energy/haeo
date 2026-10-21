@@ -17,7 +17,7 @@ This lets you model real-world scenarios like:
 ## Prerequisites
 
 This guide builds on the [Sigenergy System walkthrough](sigenergy-system.md).
-The setup block below replays that configuration automatically.
+Complete that walkthrough first — the steps here assume your system is already configured.
 
 ```guide-setup
 run_guide("sigenergy-system")
@@ -75,7 +75,7 @@ add_policies(
     page,
     name="Battery to Load",
     source="Battery",
-    target="Constant Load",
+    target="House load",
     price=0.02,
 )
 ```
@@ -101,10 +101,14 @@ add_policies(
 
 ### Step 5: Verify and review
 
-Validate that all four policies were saved correctly, then open the reconfigure view to see them.
+Validate that all policies were saved correctly, then open the reconfigure view to see them.
+The first two rules were created automatically: the battery added charge and discharge cost rules.
+The load leaves its consumption cost unset by default, so no consumption cost rule is created.
 
 ```guide
 validate_policies(hass, expected_rules=[
+    "Battery charge cost",
+    "Battery discharge cost",
     "Solar to Grid",
     "Battery to Grid",
     "Battery to Load",
@@ -114,6 +118,25 @@ validate_policies(hass, expected_rules=[
 
 ```guide
 reconfigure_policies(page)
+```
+
+## Comparing the plans
+
+Each rule has an enabled switch, so you can turn it off from a dashboard without deleting it.
+Use the arrows to flick from the plan without these rules to the plan with all four, adding one rule at a time.
+Each plan keeps the rules before it.
+
+```guide
+everything = ["Battery", "House load", "Solar", "Grid"]
+rules = ["Solar to Grid", "Battery to Grid", "Battery to Load", "Grid to Battery"]
+
+for rule in rules:
+    set_policy_rule(hass, rule=rule, enabled=False)
+show_forecast_card(page, hass, step="Without these rules", elements=everything, inputs=["Solar"], horizon="2d")
+
+for rule in rules:
+    set_policy_rule(hass, rule=rule, enabled=True)
+    show_forecast_card(page, hass, step=f"Adding {rule}", elements=everything, inputs=["Solar"], horizon="2d")
 ```
 
 ## How policies affect optimization
@@ -138,7 +161,7 @@ Intermediate *sinks* (battery, load, grid-as-destination) terminate the provenan
 
 In practical terms:
 
-- **Junction elements** (inverters, switchboard nodes with both flags off) pass provenance through.
+- **Junction elements** (inverters, the switchboard and other junctions) pass provenance through.
     A policy can price the whole source-to-destination chain that runs through junctions.
 - **Sink elements** (loads, battery-when-charging) absorb the provenance.
     Any onward flow from a sink is re-tagged by that sink's own identity, or becomes unpolicied.
@@ -146,10 +169,10 @@ In practical terms:
     Energy charged into a battery is accounted for separately from energy discharged out of it.
     Two policies are needed to price both legs — for example `Solar → Battery: -$0.001/kWh` (charge incentive) *and* `Battery → Grid: $0.10/kWh` (discharge export cost).
 
-If you need to route policied flow through a junction, model the junction as a plain `Node` (with `is_source=false` and `is_sink=false`) and hang the real sink/source elements off it.
+If you need to route policied flow through a junction, model it as a [Junction](../user-guide/elements/junction.md) and hang the real sink/source elements off it.
 See [Node roles and policy scope](../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

@@ -1,40 +1,32 @@
 """Number entity for HAEO input configuration."""
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from datetime import datetime
-from enum import Enum
-import logging
-from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.const import PERCENTAGE, EntityCategory
-from homeassistant.core import Event, State, callback
+from homeassistant.const import EntityCategory
+from homeassistant.core import Event, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.calendar_loader import is_calendar_driven
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
-from custom_components.haeo.core.data.loader import ScalarLoader, TimeSeriesLoader
-from custom_components.haeo.core.schema import (
-    as_constant_value,
-    as_entity_value,
-    is_connection_target,
-    is_constant_value,
-    is_entity_value,
-    is_none_value,
-    is_schema_value,
-)
-from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
+from custom_components.haeo.core.data.input_store import InputMode, InputStore
+from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
+from custom_components.haeo.core.schema import as_constant_value
+from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
+from custom_components.haeo.elements import InputFieldPath, find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
+from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.util import async_update_subentry_value
-
-_LOGGER = logging.getLogger(__name__)
+from custom_components.haeo.unique_id import element_unique_id
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -43,7 +35,7 @@ SECTION_FIELD_PATH_LENGTH = 2
 
 
 def _field_name_is_reused_in_other_sections(
-    subentry_data: Mapping[str, Any],
+    subentry_data: Mapping[str, object],
     *,
     current_section: str,
     field_name: str,
@@ -57,26 +49,12 @@ def _field_name_is_reused_in_other_sections(
     return False
 
 
-class ConfigEntityMode(Enum):
-    """Operating mode for config entities."""
-
-    EDITABLE = "editable"  # User can set value, no external source
-    DRIVEN = "driven"  # Value driven by external entity
-
-
 class HaeoInputNumber(NumberEntity):
     """Number entity representing a configurable input parameter.
 
-    This entity serves as an intermediate layer between external sensors
-    and the optimization model. It can operate in two modes:
-
-    - EDITABLE: User can directly set the value. Used when config contains
-      a static value rather than an entity ID.
-      Value is persisted to config entry and survives restarts.
-    - DRIVEN: Value is driven by an external sensor. Used when config
-      contains an entity ID. In this mode, user edits are ignored.
-
-    Both modes provide a forecast attribute with values across the time horizon.
+    Thin HA binding layer around an InputStore. The store (in core/) handles
+    all data management. This entity handles HA lifecycle: device registration,
+    unique_id, state attributes, event subscriptions, and config persistence.
     """
 
     _attr_should_poll = False
@@ -90,11 +68,13 @@ class HaeoInputNumber(NumberEntity):
         field_info: InputFieldInfo[NumberEntityDescription],
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
+        store: InputStore,
         field_path: InputFieldPath | None = None,
+        *,
+        negate: bool = False,
     ) -> None:
         """Initialize the input number entity."""
         self._config_entry: HaeoConfigEntry = config_entry
-        self._subentry = subentry
         self._field_info = field_info
         self._field_path = (
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
@@ -102,76 +82,47 @@ class HaeoInputNumber(NumberEntity):
         self._horizon_manager = horizon_manager
         self._uses_forecast = field_info.time_series
 
+        # When True the entity surfaces the running (positive) value while the
+        # backing store holds its negative. Used by surfaced policy mirrors.
+        self._negate = negate
+
+        # Suppresses reacting to store change notifications this entity itself
+        # triggered, so only sibling entities sharing the store react.
+        self._suppress_store_change = False
+
+        # A reload from source entities queued but not yet started
+        self._pending_reload: asyncio.Task[None] | None = None
+
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
-        # Determine mode from schema value type
-        config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
+        # Wrap the prebuilt InputStore (the system's source of truth)
+        self._store = store
 
-        match config_value:
-            case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, list):
-                # DRIVEN mode: value comes from external sensors
-                self._entity_mode = ConfigEntityMode.DRIVEN
-                self._source_entity_ids = entity_ids
-                self._attr_native_value = None  # Will be set when data loads
-            case {"type": "constant", "value": constant}:
-                # EDITABLE mode: value is a constant
-                self._entity_mode = ConfigEntityMode.EDITABLE
-                self._source_entity_ids = []
-                self._attr_native_value = float(constant)
-            case {"type": "none"} | None:
-                # Disabled or missing configuration
-                self._entity_mode = ConfigEntityMode.EDITABLE
-                self._source_entity_ids = []
-                self._attr_native_value = None
-            case _:
-                msg = f"Invalid config value for field {field_info.field_name}"
-                raise RuntimeError(msg)
+        # Set initial native value from store
+        self._attr_native_value = self._display_value(self._store.native_value)
 
-        # Unique ID: entry_id + subentry_id + stable_key.
-        # Keep leaf-only keys for simple fields, but disambiguate section fields
-        # when the same leaf appears in multiple sections.
+        # Unique ID
         field_path_key = ".".join(self._field_path)
         is_list_item_field = len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH
         unique_key = field_info.field_name
-        if is_list_item_field:
-            unique_key = field_path_key
-        elif len(self._field_path) == SECTION_FIELD_PATH_LENGTH and _field_name_is_reused_in_other_sections(
-            subentry.data,
-            current_section=self._field_path[0],
-            field_name=field_info.field_name,
-        ):
-            unique_key = (
-                f"{field_info.device_type}.{field_info.field_name}" if field_info.device_type else field_path_key
+        if is_list_item_field or (
+            len(self._field_path) == SECTION_FIELD_PATH_LENGTH
+            and _field_name_is_reused_in_other_sections(
+                subentry.data,
+                current_section=self._field_path[0],
+                field_name=field_info.field_name,
             )
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
+        ):
+            unique_key = field_path_key
+        self._attr_unique_id = element_unique_id(config_entry.entry_id, subentry.subentry_id, unique_key)
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
 
-        # Pass subentry data as translation placeholders
-        placeholders: dict[str, str] = {}
+        placeholders = build_translation_placeholders(subentry)
 
-        def format_placeholder(value: Any) -> str:
-            if is_entity_value(value):
-                return ", ".join(value["value"])
-            if is_constant_value(value):
-                return str(value["value"])
-            if is_none_value(value):
-                return ""
-            if is_connection_target(value):
-                return value["value"]
-            return str(value)
-
-        for key, value in subentry.data.items():
-            if isinstance(value, Mapping) and not is_schema_value(value) and not is_connection_target(value):
-                for nested_key, nested_value in value.items():
-                    placeholders.setdefault(nested_key, format_placeholder(nested_value))
-                continue
-            placeholders[key] = format_placeholder(value)
-        placeholders.setdefault("name", subentry.title)
-
-        # For list item fields (e.g., rules.0.price), add the item's name as a placeholder
+        # For list item fields, add the item's name as a placeholder
         if len(self._field_path) > 1:
             list_key, index_str, *_ = self._field_path
             try:
@@ -185,10 +136,10 @@ class HaeoInputNumber(NumberEntity):
 
         self._attr_translation_placeholders = placeholders
 
-        # Build base extra state attributes (static values)
-        source_role = classify_source_role(self._entity_mode.value, field_info.field_name)
-        self._base_extra_attrs: dict[str, Any] = {
-            "config_mode": self._entity_mode.value,
+        # Build base extra state attributes
+        source_role = classify_source_role(self._store.mode.value, field_info.field_name)
+        self._base_extra_attrs: dict[str, object] = {
+            "config_mode": self._store.mode.value,
             SOURCE_ROLE_KEY: source_role,
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
@@ -197,12 +148,14 @@ class HaeoInputNumber(NumberEntity):
             "field_type": field_info.output_type,
             "time_series": field_info.time_series,
         }
-        if self._source_entity_ids:
-            self._base_extra_attrs["source_entities"] = self._source_entity_ids
+        if self._store.source_entity_ids:
+            self._base_extra_attrs["source_entities"] = self._store.source_entity_ids
+        if field_info.calendar is not None:
+            self._base_extra_attrs["calendar_projection"] = field_info.calendar.projection
         if field_info.direction:
             self._base_extra_attrs["direction"] = field_info.direction
 
-        # For list item fields, expose sibling fields from the list item
+        # For list item fields, expose sibling fields
         if len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH:
             own_field = field_info.field_name
             item = get_nested_config_value_by_path(subentry.data, self._field_path[:2])
@@ -213,52 +166,58 @@ class HaeoInputNumber(NumberEntity):
 
         self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
-        # Loaders for time series and scalar data
-        self._time_series_loader = TimeSeriesLoader()
-        self._scalar_loader = ScalarLoader()
-        self._loader = self._time_series_loader
-
-        # Event that signals data is ready for coordinator access
-        self._data_ready = asyncio.Event()
-
-        # Captured source states for reproducibility (populated when loading data)
-        self._captured_source_states: Mapping[str, State] = {}
-
         self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
 
-    def _get_forecast_timestamps(self) -> tuple[float, ...]:
-        """Get forecast timestamps from horizon manager."""
-        return self._horizon_manager.get_forecast_timestamps()
+    def _display_value(self, value: float | None) -> float | None:
+        """Transform a stored value into the value surfaced by this entity."""
+        if value is None:
+            return None
+        return -value if self._negate else value
+
+    @contextmanager
+    def _suppress_self_notifications(self) -> Iterator[None]:
+        """Suppress reacting to store notifications fired by this entity's own mutation."""
+        self._suppress_store_change = True
+        try:
+            yield
+        finally:
+            self._suppress_store_change = False
 
     async def async_added_to_hass(self) -> None:
-        """Set up state tracking and load initial data.
-
-        For EDITABLE mode entities, this updates the forecast in memory
-        synchronously. For DRIVEN mode entities, this awaits data loading
-        from source sensors, ensuring the entity is ready for coordinator
-        access after async_block_till_done() completes.
-        """
+        """Set up state tracking and load initial data."""
         await super().async_added_to_hass()
         self._apply_recorder_attribute_filtering()
+
+        # Track store changes so entities sharing a store (e.g. a policy rule
+        # surfaced on both the policy device and an element device) stay in sync.
+        self.async_on_remove(self._store.add_listener(self._handle_store_change))
 
         # Subscribe to horizon manager for consistent time windows
         if self._uses_forecast:
             self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
 
-        if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Update forecast for initial value
-            self._update_editable_forecast()
+        if is_calendar_driven(self._store):
+            # The calendar loader fetches events and loads inputs with a
+            # calendar source; a calendar's own state carries no events, so
+            # this entity only shows what the store holds.
+            self._sync_from_store()
+        elif self._store.mode == InputMode.EDITABLE:
+            # Refresh to signal readiness (mirrors previous _update_editable_forecast path)
+            with self._suppress_self_notifications():
+                self._store.refresh()
+            self._sync_from_store()
         else:
             # Subscribe to source entity changes for DRIVEN mode
+            self.async_on_remove(self._cancel_pending_reload)
             self.async_on_remove(
                 async_track_state_change_event(
                     self.hass,
-                    self._source_entity_ids,
+                    self._store.source_entity_ids,
                     self._handle_source_state_change,
                 )
             )
-            # Load initial data - await ensures entity is ready when added_to_hass completes
-            await self._async_load_data()
+            # Load initial data
+            await self._async_load_and_sync()
 
     def _apply_recorder_attribute_filtering(self) -> None:
         """Apply recorder filtering to this entity's runtime state info."""
@@ -268,244 +227,136 @@ class HaeoInputNumber(NumberEntity):
 
     @callback
     def _handle_horizon_change(self) -> None:
-        """Handle horizon change - refresh forecast with new time windows."""
-        if not self._uses_forecast:
+        """Handle horizon change - refresh with new time windows."""
+        if not self._uses_forecast or is_calendar_driven(self._store):
             return
-        if self._entity_mode == ConfigEntityMode.EDITABLE:
-            self._update_editable_forecast()
+        if self._store.mode == InputMode.EDITABLE:
+            with self._suppress_self_notifications():
+                self._store.refresh()
+            self._sync_from_store()
             self.async_write_ha_state()
         else:
-            # Re-load data and push state for driven mode
-            self.hass.async_create_task(self._async_load_data_and_update())
+            # Reload at once so the store is never left on the previous horizon
+            self.hass.async_create_task(self._async_load_sync_and_update())
+
+    @callback
+    def _handle_store_change(self) -> None:
+        """Handle a value change made through another entity sharing this store."""
+        if self._suppress_store_change:
+            return
+        self._sync_from_store()
+        self.async_write_ha_state()
 
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
-        self.hass.async_create_task(self._async_load_data_and_update())
+        self._schedule_reload()
 
-    async def _async_load_data_and_update(self) -> None:
-        """Load data and write state update."""
-        await self._async_load_data()
+    @callback
+    def _schedule_reload(self) -> None:
+        """Queue one reload from source entities for the next event loop iteration.
+
+        Forecast integrations write all of their entities in a single pass, and a
+        field reads every one of its sources on each reload. Deferring the reload
+        lets every change in that pass arrive first, so they share one reload
+        rather than each re-reading all of the sources.
+        """
+        if self._pending_reload is None:
+            self._pending_reload = self.hass.async_create_task(self._async_pending_reload(), eager_start=False)
+
+    async def _async_pending_reload(self) -> None:
+        """Run the queued reload, letting later source changes queue another."""
+        self._pending_reload = None
+        await self._async_load_sync_and_update()
+
+    @callback
+    def _cancel_pending_reload(self) -> None:
+        """Cancel a queued reload so it does not run after the entity is removed."""
+        if self._pending_reload is not None:
+            self._pending_reload.cancel()
+            self._pending_reload = None
+
+    async def _async_load_sync_and_update(self) -> None:
+        """Load data, sync attributes, and write state."""
+        await self._async_load_and_sync()
         self.async_write_ha_state()
 
-    async def _async_load_data(self) -> None:
-        """Load data from source entities and update attributes.
+    async def _async_load_and_sync(self) -> None:
+        """Load data from store via HA state machine and sync entity attributes.
 
-        This method updates _attr_native_value and _attr_extra_state_attributes
-        but does NOT call async_write_ha_state().
-
-        During normal update flows (e.g., _async_load_data_and_update() or
-        tasks scheduled from horizon-change handlers), callers should call
-        async_write_ha_state() after this method returns to publish the new
-        state. Do not write state from async_added_to_hass(); Home Assistant
-        will handle initial state once the entity has been fully added.
+        A failed load keeps the previous value, and the entity shows as
+        unavailable until a load succeeds.
         """
-        # Capture source states before loading for reproducibility
-        self._captured_source_states = {
-            eid: state for eid in self._source_entity_ids if (state := self.hass.states.get(eid)) is not None
-        }
-
         sm = HomeAssistantStateMachine(self.hass)
+        with self._suppress_self_notifications():
+            await self._store.async_load(sm)
+        self._sync_from_store()
 
+    def _sync_from_store(self) -> None:
+        """Synchronize HA entity attributes from the store's current state."""
+        self._attr_native_value = self._display_value(self._store.native_value)
+
+        extra_attrs = dict(self._base_extra_attrs)
+        if self._uses_forecast and self._store.native_value is not None:
+            extra_attrs["forecast"] = self._build_forecast_attribute()
+            if not self._field_info.boundaries:
+                extra_attrs["interpolation_mode"] = InterpolationMode.PREVIOUS
+        self._attr_extra_state_attributes = extra_attrs
+
+    def _build_forecast_attribute(self) -> list[dict[str, datetime | float | None]]:
+        """Build the HA forecast attribute from store values.
+
+        Uses the store's display values (percentage fields already scaled back
+        to 0-100) paired with the loaded forecast timestamps.
+        """
         if not self._uses_forecast:
-            if not self._source_entity_ids:
-                return
-            try:
-                scalar_value = await self._scalar_loader.load(
-                    sm=sm,
-                    value=as_entity_value(self._source_entity_ids),
-                )
-            except Exception:
-                _LOGGER.debug(
-                    "Scalar load failed for %s from sources %s; keeping previous value",
-                    self.entity_id or self._attr_unique_id,
-                    self._source_entity_ids,
-                    exc_info=True,
-                )
-                return
+            return []
 
-            self._attr_native_value = scalar_value
-            self._attr_extra_state_attributes = dict(self._base_extra_attrs)
-            self._data_ready.set()
-            return
+        display_values = self._store.display_values
+        if display_values is None:
+            return []
 
-        forecast_timestamps = self._get_forecast_timestamps()
-
-        try:
-            if self._field_info.boundaries:
-                # Boundary fields: n+1 values at time boundaries
-                values = await self._time_series_loader.load_boundaries(
-                    sm=sm,
-                    value=as_entity_value(self._source_entity_ids),
-                    forecast_times=list(forecast_timestamps),
-                )
-            else:
-                # Interval fields: n values for periods between boundaries
-                values = await self._time_series_loader.load_intervals(
-                    sm=sm,
-                    value=as_entity_value(self._source_entity_ids),
-                    forecast_times=list(forecast_timestamps),
-                )
-        except Exception:
-            # If loading fails, don't update state. Log at debug so persistent
-            # failures can be investigated via component log level without
-            # spamming warnings during ordinary source-entity transients.
-            _LOGGER.debug(
-                "Time-series load failed for %s from sources %s; keeping previous forecast",
-                self.entity_id or self._attr_unique_id,
-                self._source_entity_ids,
-                exc_info=True,
-            )
-            return
-
-        if not values:
-            _LOGGER.debug(
-                "Time-series load returned no values for %s from sources %s; keeping previous forecast",
-                self.entity_id or self._attr_unique_id,
-                self._source_entity_ids,
-            )
-            return
-
-        # Build forecast as list of ForecastPoint-style dicts.
-        # For boundaries: n+1 values at each timestamp
-        # For intervals: n values corresponding to periods (use timestamps[:-1])
+        forecast_timestamps = self._store.forecast_timestamps
         local_tz = dt_util.get_default_time_zone()
-        if self._field_info.boundaries:
-            forecast = [
-                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
-                for ts, val in zip(forecast_timestamps, values, strict=True)
-            ]
-        else:
-            forecast = [
-                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
-                for ts, val in zip(forecast_timestamps[:-1], values, strict=True)
-            ]
 
-        # Build updated extra state attributes
-        extra_attrs = dict(self._base_extra_attrs)
-        extra_attrs["forecast"] = forecast
+        timestamps = forecast_timestamps if self._field_info.boundaries else forecast_timestamps[:-1]
+        return [
+            {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._display_value(val)}
+            for ts, val in zip(timestamps, display_values, strict=True)
+        ]
 
-        # Update native value to current (first) value
-        self._attr_native_value = values[0]
-        self._attr_extra_state_attributes = extra_attrs
-
-        # Signal that data is ready
-        self._data_ready.set()
-
-    def _update_editable_forecast(self) -> None:
-        """Update forecast attribute for editable mode with constant value."""
-        extra_attrs = dict(self._base_extra_attrs)
-
-        if self._attr_native_value is not None and self._uses_forecast:
-            forecast_timestamps = self._get_forecast_timestamps()
-
-            # Build forecast as list of ForecastPoint-style dicts with constant value.
-            # For boundaries: n+1 values at each timestamp
-            # For intervals: n values corresponding to periods (use timestamps[:-1])
-            local_tz = dt_util.get_default_time_zone()
-            if self._field_info.boundaries:
-                forecast = [
-                    {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
-                    for ts in forecast_timestamps
-                ]
-            else:
-                forecast = [
-                    {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
-                    for ts in forecast_timestamps[:-1]
-                ]
-            extra_attrs["forecast"] = forecast
-
-        self._attr_extra_state_attributes = extra_attrs
-
-        # Signal that data is ready
-        self._data_ready.set()
+    @property
+    def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
+        """Return whether the input holds a value the optimization can use."""
+        return self._store.available
 
     def is_ready(self) -> bool:
         """Return True if data has been loaded and entity is ready."""
-        return self._data_ready.is_set()
+        return self._store.is_ready()
 
     async def wait_ready(self) -> None:
         """Wait for data to be ready."""
-        await self._data_ready.wait()
-
-    @property
-    def entity_mode(self) -> ConfigEntityMode:
-        """Return the entity's operating mode (EDITABLE or DRIVEN)."""
-        return self._entity_mode
-
-    @property
-    def uses_forecast(self) -> bool:
-        """Return True if this entity produces time-series forecast data."""
-        return self._uses_forecast
-
-    @property
-    def horizon_start(self) -> float | None:
-        """Return the first forecast timestamp, or None if not loaded."""
-        forecast = self._attr_extra_state_attributes.get("forecast")
-        if forecast and len(forecast) > 0:
-            first_point = forecast[0]
-            if isinstance(first_point, dict) and "time" in first_point:
-                time_val = first_point["time"]
-                if isinstance(time_val, datetime):
-                    return time_val.timestamp()
-        return None
-
-    def get_values(self) -> tuple[float, ...] | None:
-        """Return the forecast values as a tuple, or None if not loaded."""
-        if not self._uses_forecast:
-            if self._attr_native_value is None:
-                return None
-            value = float(self._attr_native_value)
-            if self.entity_description.native_unit_of_measurement == PERCENTAGE:
-                return (value / 100.0,)
-            return (value,)
-        forecast = self._attr_extra_state_attributes.get("forecast")
-        if forecast:
-            values = tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
-            if self.entity_description.native_unit_of_measurement == PERCENTAGE:
-                return tuple(float(value) / 100.0 for value in values)
-            return values
-        return None
-
-    @property
-    def captured_source_states(self) -> Mapping[str, State]:
-        """Source states captured when data was last loaded.
-
-        Returns:
-            Dict mapping source entity IDs to their State objects at load time.
-            Empty dict for EDITABLE mode entities (no source entities).
-
-        """
-        return self._captured_source_states
+        await self._store.wait_ready()
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.
 
-        In DRIVEN mode, user changes are effectively ignored because the
-        source entity will overwrite with its value.
-
-        In EDITABLE mode, the value is persisted to the config entry so it
-        survives restarts and is visible in reconfigure flows.
+        In DRIVEN mode, user changes are effectively ignored.
+        In EDITABLE mode, the store is updated and persisted to config entry.
         """
-        if self._entity_mode == ConfigEntityMode.DRIVEN:
-            # Read-only in driven mode, but we still update to avoid confusion
+        if self._store.mode == InputMode.DRIVEN:
             self.async_write_ha_state()
             return
 
-        self._attr_native_value = value
-        self._update_editable_forecast()
+        store_value = -value if self._negate else value
+        with self._suppress_self_notifications():
+            self._store.set_value(store_value)
+        self._sync_from_store()
 
-        # Persist to config entry before writing state so the coordinator
-        # reads the updated config when handling the synchronous state change
-        await async_update_subentry_value(
-            self.hass,
-            self._config_entry,
-            self._subentry,
-            field_path=self._field_path,
-            value=as_constant_value(value),
-        )
+        # Persist through the store's storage binding
+        await self._store.persist(as_constant_value(store_value))
 
         self.async_write_ha_state()
 
 
-__all__ = ["ConfigEntityMode", "HaeoInputNumber"]
+__all__ = ["HaeoInputNumber"]

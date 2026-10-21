@@ -1,22 +1,24 @@
 [project]
 name = "haeo"
-version = "0.4.0rc5"
+version = "0.5.0rc1"
 description = "Home Assistant Energy Network Optimizer"
 readme = "README.md"
 requires-python = ">=3.13.2,<3.14"
 
-dependencies = ["homeassistant>=2026.1.1", "numpy>=2.3.2", "highspy>=1.12.0"]
+dependencies = ["homeassistant>=2026.1.1", "numpy>=2.3.2", "highspy>=1.15.1"]
 
 [project.scripts]
+check = "tools.check:main"
 diag = "tools.diag:main"
 snapshot = "tools.snapshot:main"
+sim = "tools.sim:main"
 
 [dependency-groups]
 dev = [
+    "filelock>=3.20.1",
     "freezegun>=1.5.2",
+    "ical==12.1.2",  # matches the local_calendar requirement of the locked Home Assistant
     "home-assistant-frontend>=20260107.1",
-    "matplotlib>=3.10.8",
-    "networkx>=3.4.2",
     "playwright>=1.57.0",
     "tabulate>=0.9.0",
     "mdformat-beautysh>=1.0.0",
@@ -34,6 +36,7 @@ dev = [
     "pytest>=9.0.0",
     "pytest-cov>=7.0.0",
     "pytest-homeassistant-custom-component>=0.13.300",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.14.10",
     "setuptools>=80.9.0",
     "syrupy>=5.0.0",
@@ -71,6 +74,12 @@ ignore = [
     'TRY301',  # Abstract raise to inner function - overly pedantic, creates unnecessary indirection
     'PLR0911', # Too many return statements - something for code review not linting
 ]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"typing.Any" = { msg = "Avoid Any: use a precise type, a TypedDict/Protocol, a generic TypeVar, or object (narrow before use). If Any is structurally required (e.g. numpy dtype parameters, voluptuous schemas, HA framework overrides), add # noqa: TID251 on the import with a comment saying why." }
+"typing_extensions.Any" = { msg = "Avoid Any: use a precise type, a TypedDict/Protocol, a generic TypeVar, or object (narrow before use). If Any is structurally required (e.g. numpy dtype parameters, voluptuous schemas, HA framework overrides), add # noqa: TID251 on the import with a comment saying why." }
+"typing.cast" = { msg = "Fix the types properly, or use a TypeGuard if needed, as a last resort use # type: ignore[...] with an explanation as to why there was no other viable option." }
+"typing_extensions.cast" = { msg = "Fix the types properly, or use a TypeGuard if needed, as a last resort use # type: ignore[...] with an explanation as to why there was no other viable option." }
 
 [tool.ruff.lint.isort]
 known-first-party = ["haeo"]
@@ -126,6 +135,7 @@ split-on-trailing-comma = false
     'PYI',    # Stub-specific rules - we're matching external API
     'I',      # Import order doesn't matter in stubs
     'PIE790', # Allow ... in stub classes
+    'TID251', # Stubs mirror external APIs, which may genuinely be Any-typed
 ]
 
 "tools/**/*.py" = [
@@ -167,7 +177,14 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
-addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib", "--benchmark-disable", "--benchmark-group-by=param", "--benchmark-sort=mean"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+    "--benchmark-disable",
+    "--benchmark-group-by=param",
+    "--benchmark-sort=mean",
+]
 filterwarnings = ["error"]
 markers = [
     "scenario: marks tests as scenario tests (select with '-m \"scenario\"')",

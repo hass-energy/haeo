@@ -1,6 +1,6 @@
 """Battery element schema definitions."""
 
-from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
+from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints, SurfacedPriceHint
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -29,21 +29,41 @@ from custom_components.haeo.core.schema.sections import (
 ELEMENT_TYPE = ElementType.BATTERY
 
 SECTION_STORAGE: Final = "storage"
-SECTION_UNDERCHARGE: Final = "undercharge"
-SECTION_OVERCHARGE: Final = "overcharge"
 SECTION_LIMITS: Final = "limits"
-SECTION_PARTITIONING: Final = "partitioning"
+SECTION_ADVANCED: Final = "advanced"
 
 CONF_CAPACITY: Final = "capacity"
 CONF_INITIAL_CHARGE_PERCENTAGE: Final = "initial_charge_percentage"
 
 CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
 CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
-CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
 
-CONF_PARTITION_PERCENTAGE: Final = "percentage"
-CONF_PARTITION_COST: Final = "cost"
 CONF_SALVAGE_VALUE: Final = "salvage_value"
+CONF_CHARGE_LIMIT_COST: Final = "charge_limit_cost"
+
+CONF_CHARGE_COST: Final = "charge_cost"
+CONF_DISCHARGE_COST: Final = "discharge_cost"
+
+SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
+    CONF_CHARGE_COST: SurfacedPriceHint(
+        hint=FieldHint(
+            output_type=OutputType.PRICE,
+            time_series=True,
+            default_mode="value",
+            default_value=-0.001,
+        ),
+        source_is_wildcard=True,
+    ),
+    CONF_DISCHARGE_COST: SurfacedPriceHint(
+        hint=FieldHint(
+            output_type=OutputType.PRICE,
+            time_series=True,
+            default_mode="value",
+            default_value=0.0,
+        ),
+        source_is_wildcard=False,
+    ),
+}
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
@@ -53,17 +73,7 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_MAX_POWER_TARGET_SOURCE,
         CONF_EFFICIENCY_SOURCE_TARGET,
         CONF_EFFICIENCY_TARGET_SOURCE,
-        CONF_PARTITION_PERCENTAGE,
-        CONF_PARTITION_COST,
     }
-)
-
-# Partition field names (hidden behind checkbox)
-PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
-    (
-        CONF_PARTITION_PERCENTAGE,
-        CONF_PARTITION_COST,
-    )
 )
 
 
@@ -77,7 +87,7 @@ class StorageSocConfig(TypedDict):
 class StorageSocData(TypedDict):
     """Loaded storage values with required SOC percentage."""
 
-    capacity: NDArray[np.floating[Any]]
+    capacity: NDArray[np.float64]
     initial_charge_percentage: float
 
 
@@ -91,34 +101,20 @@ class LimitsConfig(TypedDict, total=False):
 class LimitsData(TypedDict, total=False):
     """Loaded charge percentage limits."""
 
-    min_charge_percentage: NDArray[np.floating[Any]] | float
-    max_charge_percentage: NDArray[np.floating[Any]] | float
+    min_charge_percentage: NDArray[np.float64] | float
+    max_charge_percentage: NDArray[np.float64] | float
 
 
-class PartitioningConfig(TypedDict, total=False):
-    """Partitioning configuration values."""
+class BatteryAdvancedConfig(TypedDict):
+    """Advanced battery configuration values."""
 
-    configure_partitions: bool
-
-
-class PartitioningData(TypedDict, total=False):
-    """Loaded partitioning values."""
-
-    configure_partitions: bool
+    charge_limit_cost: EntityValue | ConstantValue
 
 
-class PartitionConfig(TypedDict, total=False):
-    """Partition configuration (undercharge/overcharge)."""
+class BatteryAdvancedData(TypedDict):
+    """Loaded advanced battery values."""
 
-    percentage: EntityValue | ConstantValue | NoneValue
-    cost: EntityValue | ConstantValue | NoneValue
-
-
-class PartitionData(TypedDict, total=False):
-    """Loaded partition values (undercharge/overcharge)."""
-
-    percentage: NDArray[np.floating[Any]] | float
-    cost: NDArray[np.floating[Any]] | float
+    charge_limit_cost: NDArray[np.float64] | float
 
 
 class BatteryPricingConfig(TypedDict, total=False):
@@ -226,60 +222,20 @@ class BatteryConfigSchema(ConnectedCommonConfig):
             }
         ),
     ]
-    partitioning: PartitioningConfig
-    undercharge: NotRequired[
-        Annotated[
-            PartitionConfig,
-            SectionHints(
-                {
-                    CONF_PARTITION_PERCENTAGE: FieldHint(
-                        output_type=OutputType.STATE_OF_CHARGE,
-                        time_series=True,
-                        boundaries=True,
-                        default_mode="value",
-                        default_value=0,
-                        force_required=True,
-                        device_type="undercharge_partition",
-                    ),
-                    CONF_PARTITION_COST: FieldHint(
-                        output_type=OutputType.PRICE,
-                        direction="-",
-                        time_series=True,
-                        default_mode="value",
-                        default_value=0,
-                        force_required=True,
-                        device_type="undercharge_partition",
-                    ),
-                }
-            ),
-        ]
-    ]
-    overcharge: NotRequired[
-        Annotated[
-            PartitionConfig,
-            SectionHints(
-                {
-                    CONF_PARTITION_PERCENTAGE: FieldHint(
-                        output_type=OutputType.STATE_OF_CHARGE,
-                        time_series=True,
-                        boundaries=True,
-                        default_mode="value",
-                        default_value=100,
-                        force_required=True,
-                        device_type="overcharge_partition",
-                    ),
-                    CONF_PARTITION_COST: FieldHint(
-                        output_type=OutputType.PRICE,
-                        direction="-",
-                        time_series=True,
-                        default_mode="value",
-                        default_value=0,
-                        force_required=True,
-                        device_type="overcharge_partition",
-                    ),
-                }
-            ),
-        ]
+    advanced: Annotated[
+        BatteryAdvancedConfig,
+        SectionHints(
+            {
+                CONF_CHARGE_LIMIT_COST: FieldHint(
+                    output_type=OutputType.PRICE_RATE,
+                    direction="-",
+                    time_series=True,
+                    min_value=0.0,
+                    default_mode="value",
+                    default_value=100.0,
+                ),
+            }
+        ),
     ]
 
 
@@ -292,14 +248,12 @@ class BatteryConfigData(ConnectedCommonData):
     power_limits: PowerLimitsData
     pricing: BatteryPricingData
     efficiency: EfficiencyData
-    partitioning: PartitioningData
-    undercharge: NotRequired[PartitionData]
-    overcharge: NotRequired[PartitionData]
+    advanced: BatteryAdvancedData
 
 
 __all__ = [
     "CONF_CAPACITY",
-    "CONF_CONFIGURE_PARTITIONS",
+    "CONF_CHARGE_LIMIT_COST",
     "CONF_CONNECTION",
     "CONF_EFFICIENCY_SOURCE_TARGET",
     "CONF_EFFICIENCY_TARGET_SOURCE",
@@ -308,30 +262,21 @@ __all__ = [
     "CONF_MAX_POWER_SOURCE_TARGET",
     "CONF_MAX_POWER_TARGET_SOURCE",
     "CONF_MIN_CHARGE_PERCENTAGE",
-    "CONF_PARTITION_COST",
-    "CONF_PARTITION_PERCENTAGE",
     "CONF_SALVAGE_VALUE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
-    "PARTITION_FIELD_NAMES",
+    "SECTION_ADVANCED",
     "SECTION_EFFICIENCY",
     "SECTION_LIMITS",
-    "SECTION_OVERCHARGE",
-    "SECTION_PARTITIONING",
     "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
     "SECTION_STORAGE",
-    "SECTION_UNDERCHARGE",
     "BatteryConfigData",
     "BatteryConfigSchema",
     "BatteryPricingConfig",
     "BatteryPricingData",
     "LimitsConfig",
     "LimitsData",
-    "PartitionConfig",
-    "PartitionData",
-    "PartitioningConfig",
-    "PartitioningData",
     "StorageSocConfig",
     "StorageSocData",
 ]

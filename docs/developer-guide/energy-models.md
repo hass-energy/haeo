@@ -45,6 +45,16 @@ Most new elements will be Device Layer elements that compose `node` and `connect
 
 Model elements derive from the `Element` base class and use decorators to declare their constraints, costs, and outputs.
 
+### Linear expressions
+
+Variables and expressions are `LinearArray` values from `core/model/linear.py`, with one linear expression per period.
+Each array stores its terms as a column index matrix and a coefficient matrix, so arithmetic on a whole horizon is a few numpy operations rather than one Python object per period.
+Create variables with `solver.add_variables(count, name=...)` and combine them with `+`, `-`, and multiplication by a scalar or one value per row.
+Comparing an array with `<=`, `>=`, or `==` produces `Rows`, which a `@constraint` method returns.
+`total()` sums every row into a single row, which is the form a `@cost` method returns.
+When each row reaches several rows of another array with varying coefficients, build the coefficient matrix with numpy and write `matrix @ array`.
+`solver.describe(rows)` shows each row as an expression over named columns, such as `Battery.energy_in[3] - Battery.energy_in[4] <= 0`.
+
 ### TrackedParam for parameters
 
 Parameters that can change between optimizations (forecasts, capacities, prices) should use `TrackedParam`:
@@ -63,7 +73,7 @@ class Battery(Element[BatteryOutputName]):
         name: str,
         periods: Sequence[float],
         *,
-        solver: Highs,
+        solver: Solver,
         capacity: NDArray[np.floating[Any]],
         initial_charge: float,
     ):
@@ -75,6 +85,16 @@ class Battery(Element[BatteryOutputName]):
 ```
 
 When a `TrackedParam` value changes, the system automatically invalidates dependent constraints for rebuilding.
+Dependencies are recorded per object, so a constraint that reads another element's parameter is invalidated too.
+Use `@computed` for a cached value computed from parameters that constraints and costs build on, such as a segment's transformed flow.
+Anything that reads a `@computed` method depends on it and is rebuilt when it changes.
+
+A constraint returns the same rows on every call so the LP keeps its shape and later optimizations still warm start.
+When part of a constraint does not currently apply, such as a power limit with no maximum set,
+return those rows from the expression's `free()` method.
+They are added as free rows that do not bind, and become binding later by changing only their bounds.
+A constraint whose rows are all free has no shadow price and is not listed by `constraints()`.
+A constraint with no rows at all returns `Rows.concat([])`; returning anything other than `Rows` is an error.
 
 ### @constraint decorator
 
@@ -86,18 +106,18 @@ from custom_components.haeo.core.model.reactive import constraint
 
 
 @constraint(output=True, unit="$/kWh")
-def battery_soc_max(self) -> list[highs_linear_expression]:
+def battery_soc_max(self) -> Rows:
     """Constraint: stored energy cannot exceed capacity.
 
     Output: shadow price indicating the marginal value of additional capacity.
     """
-    return list(self.stored_energy[1:] <= self.capacity[1:])
+    return self.stored_energy[1:] <= self.capacity[1:]
 ```
 
 Parameters:
 
 - `output=True`: Expose constraint shadow prices as outputs (default `False`)
-- `unit`: Unit for shadow price outputs (default `"$/kW"`)
+- `unit`: Unit for shadow price outputs (default `"$/kWh"`)
 
 ### @cost decorator
 
@@ -109,11 +129,11 @@ from custom_components.haeo.core.model.reactive import cost
 
 
 @cost
-def cost_source_target(self) -> highs_linear_expression | None:
+def cost_source_target(self) -> LinearArray | None:
     """Cost for power flow from source to target."""
     if self.price_source_target is None:
         return None
-    return Highs.qsum(self.power_source_target * self.price_source_target * self.periods)
+    return (self.power_source_target * self.price_source_target * self.periods).total()
 ```
 
 The element's `cost()` aggregator collects all `@cost` methods and sums them into a single primary expression.
@@ -147,9 +167,9 @@ Use `@output(name="...")` to expose a custom output name when the method name is
 
 The solver uses pure linear programming, so every constraint and cost must be linear in the decision variables.
 Approximate nonlinear behaviour with piecewise constants or external preprocessing when necessary.
-The default solvers also support mixed-integer linear programming, but treat binary or integer variables as a last resort because they increase solve time dramatically.
-Before you add discrete decisions, look for linear encodings such as mutually dependent constraints, large penalty weights, or auxiliary slack variables that approximate the choice without integer branching.
-If MILP is truly required, keep the integer variable count minimal and document the trade-offs so reviewers understand the performance impact.
+HiGHS also supports mixed-integer linear programming, but HAEO treats **MILP as a tool of last resort**: prefer pure LP for performance, and add integers only when no linear formulation can achieve the same outcome.
+Before introducing discrete variables, try linear encodings—mutually dependent constraints, large penalty weights, or auxiliary slack variables that approximate the behaviour without branching.
+If MILP is unavoidable, keep the integer count as small as possible and document why LP was insufficient so reviewers understand the performance trade-off.
 
 ### Keep units consistent
 
@@ -209,13 +229,15 @@ See the [tagged power formulation](../modeling/tagged-power.md) for the mathemat
 
 Connections create the **only LP variables** for power flow (one per time step).
 Each connection is unidirectional (source → target). Bidirectional paths use two connections.
-Segments are functional transforms that receive a `power_in` expression at construction
-and expose a `power_out` expression. Most segments are identity transforms that add
+Segments are functional transforms that read a `power_in` flow from their upstream, the segment before them,
+and expose a `power_out` flow. Most segments are identity transforms that add
 constraints or costs as side effects. Subclasses that transform the flow
-override the output expression.
+override the output expression, computing it in a `@computed` method so that
+downstream constraints are rebuilt when the transforming parameter changes.
 
-When adding a new segment type, implement `__init__` accepting `power_in`.
-Store the input for constraint/cost methods to reference. Avoid creating
+When adding a new segment type, implement `__init__` accepting its `upstream`
+and pass it to `Segment`. Read `self.power_in` inside constraint and cost methods rather
+than storing the flow, so the dependency on upstream parameters is recorded. Avoid creating
 power flow LP variables — the Connection owns those. Auxiliary variables
 (e.g., slack variables for penalty terms) are acceptable.
 

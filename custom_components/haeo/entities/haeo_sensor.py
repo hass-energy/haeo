@@ -1,16 +1,13 @@
 """Simplified sensor implementation for HAEO outputs."""
 
-from typing import Any
-
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.const import CONF_RECORD_FORECASTS, OUTPUT_NAME_OPTIMIZATION_STATUS
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
@@ -18,6 +15,20 @@ from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, SOURC
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
+
+
+def output_attributes(
+    element_title: str, element_type: str, output_name: str, field_type: OutputType
+) -> dict[str, object]:
+    """Return the attributes every HAEO output sensor carries, which the frontend cards read."""
+    return {
+        "element_name": element_title,
+        "element_type": element_type,
+        "output_name": output_name,
+        "field_type": field_type,
+        SOURCE_ROLE_KEY: SOURCE_ROLE_OUTPUT,
+        "advanced": False,
+    }
 
 
 class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
@@ -61,6 +72,12 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._attr_unique_id = unique_id
         if translation_placeholders is not None:
             self._attr_translation_placeholders = translation_placeholders
+        # Outputs flagged advanced are LP-internal diagnostics (e.g. battery
+        # aggregate energy flows, SOC envelope bounds) that change at every
+        # optimisation tick. Disable them in the entity registry so the
+        # recorder doesn't track them by default; advanced users can enable
+        # individually if they want to see them.
+        self._attr_entity_registry_enabled_default = not output_data.advanced
         self._apply_output(output_data)
 
         self._record_forecasts = coordinator.config_entry.data.get(CONF_RECORD_FORECASTS, False)
@@ -74,14 +91,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updates from the coordinator."""
 
-        attributes: dict[str, Any] = {
-            "element_name": self._element_title,
-            "element_type": self._element_type,
-            "output_name": self._output_name,
-            "field_type": self._output_type,
-            SOURCE_ROLE_KEY: SOURCE_ROLE_OUTPUT,
-            "advanced": False,
-        }
+        attributes = output_attributes(self._element_title, self._element_type, self._output_name, self._output_type)
         native_value: StateType | None = None
 
         # Navigate the nested structure: subentry -> device -> outputs
@@ -105,10 +115,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
                 if output_data.forecast:
                     attributes["forecast"] = self._scale_percentage_forecast(output_data.unit, output_data.forecast)
-
-        if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS:
-            # UTC keeps last_run stable across CI machines and HA time zones (snapshot tests).
-            attributes["last_run"] = dt_util.as_utc(self.coordinator.data.completed_at).isoformat()
+                if output_data.interpolation_mode is not None:
+                    attributes["interpolation_mode"] = output_data.interpolation_mode
 
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes
@@ -122,9 +130,9 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
     def _apply_recorder_attribute_filtering(self) -> None:
         """Apply recorder filtering to this entity's runtime state info."""
-        if self._record_forecasts:
-            return
-        self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
+        # Forecasts excluded unless explicitly opted in
+        if not self._record_forecasts:
+            self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
 
     def _apply_output(self, output: CoordinatorOutput) -> None:
         """Apply device class, options, and unit metadata for an output."""
@@ -134,6 +142,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._attr_device_class = output.device_class
         self._attr_state_class = output.state_class
         self._attr_options = list(output.options) if output.options is not None else None
+        self._attr_suggested_display_precision = output.display_precision
 
     @staticmethod
     def _scale_percentage_state(unit: str | None, value: StateType) -> StateType:
@@ -151,4 +160,4 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         return [{"time": point["time"], "value": float(point["value"]) * 100.0} for point in forecast]
 
 
-__all__ = ["HaeoSensor"]
+__all__ = ["HaeoSensor", "output_attributes"]

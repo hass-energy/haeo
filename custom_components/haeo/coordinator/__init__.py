@@ -8,10 +8,12 @@ from .coordinator import (
     CoordinatorOutput,
     ForecastPoint,
     HaeoDataUpdateCoordinator,
+    SubentryDevices,
     _build_coordinator_output,  # pyright: ignore[reportPrivateUsage] (exported for testing)
     _build_optimization_context,  # pyright: ignore[reportPrivateUsage] (exported for testing)
-    _localize_currency,  # pyright: ignore[reportPrivateUsage] (exported for testing)
     detect_currency_symbol,
+    forecast_datetimes,
+    price_currency_sources,
 )
 from .network import ElementUpdater, create_network, evaluate_network_connectivity
 
@@ -23,10 +25,12 @@ __all__ = [
     "ForecastPoint",
     "HaeoDataUpdateCoordinator",
     "OptimizationContext",
+    "SubentryDevices",
     "_build_coordinator_output",
     "_build_optimization_context",
-    "_localize_currency",
     "create_network",
     "detect_currency_symbol",
     "evaluate_network_connectivity",
+    "forecast_datetimes",
+    "price_currency_sources",
 ]

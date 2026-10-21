@@ -31,7 +31,7 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": 0.1,
         },
         "expected_outputs": {
-            "element_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
+            "element_power_balance": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
 ]

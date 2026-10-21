@@ -2,29 +2,103 @@
 
 import logging
 
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.core.schema import is_none_value
+from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
+from custom_components.haeo.core.schema.surfaced_policy import (
+    find_surfaced_rule,
+    get_surfaced_price_hints,
+    resolve_surfaced_endpoints,
+)
+from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import (
     get_input_fields,
     get_list_input_fields,
-    get_nested_config_value_by_path,
+    get_surfaced_input_fields,
     is_element_config_schema,
     iter_input_field_paths,
 )
+from custom_components.haeo.elements.input_fields import is_number_field_info, localize_input_field
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
+from custom_components.haeo.flows.surfaced_policy import find_policy_subentry
+from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
+
+# Number entities are backed by InputStore state, not by external I/O, so unlimited parallel updates is safe
+PARALLEL_UPDATES = 0
+
+
+def _build_surfaced_mirror_entities(
+    config_entry: HaeoConfigEntry,
+    subentry: ConfigSubentry,
+    element_type: str,
+    device_entry: DeviceEntry,
+    runtime_data: HaeoRuntimeData,
+    horizon_manager: HorizonManager,
+    currency: str,
+) -> list[HaeoInputNumber]:
+    """Build mirror entities for an element's surfaced policy prices.
+
+    Surfaced prices (e.g. battery charge/discharge cost) live as rules in the
+    single policy subentry, so they already appear as entities on the policy
+    device. This creates additional entities on the element's own device that
+    wrap the same store, so editing either updates the one stored value.
+    Monetary units are shown in ``currency``.
+    """
+    surfaced_hints = get_surfaced_price_hints(element_type)
+    if not surfaced_hints:
+        return []
+
+    policy_subentry = find_policy_subentry(config_entry)
+    if policy_subentry is None:
+        return []
+
+    rules = list(policy_subentry.data.get(CONF_RULES, []))
+    surfaced_fields = get_surfaced_input_fields(element_type)
+
+    entities: list[HaeoInputNumber] = []
+    for field_name, hint in surfaced_hints.items():
+        field_info = surfaced_fields.get(field_name)
+        if field_info is None or not is_number_field_info(field_info):
+            continue
+
+        source, target = resolve_surfaced_endpoints(hint, subentry.title)
+        rule_index = find_surfaced_rule(rules, source=source, target=target)
+        if rule_index is None:
+            continue
+
+        store_key = (policy_subentry.title, (CONF_RULES, str(rule_index), CONF_PRICE))
+        store = runtime_data.input_stores.get(store_key)
+        if store is None:
+            continue
+
+        entities.append(
+            HaeoInputNumber(
+                config_entry=config_entry,
+                subentry=subentry,
+                field_info=localize_input_field(field_info, currency),
+                field_path=(field_name,),
+                device_entry=device_entry,
+                horizon_manager=horizon_manager,
+                store=store,
+                negate=hint.negate,
+            )
+        )
+
+    return entities
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up HAEO number entities from a config entry.
 
@@ -38,8 +112,7 @@ async def async_setup_entry(
 
     runtime_data = config_entry.runtime_data
     horizon_manager = runtime_data.horizon_manager
-
-    entities: list[HaeoInputNumber] = []
+    currency = currency_symbol(hass.config.currency)
 
     for subentry in config_entry.subentries.values():
         if not is_element_config_schema(subentry.data):
@@ -61,38 +134,47 @@ async def async_setup_entry(
         number_fields = [
             (field_path, field_info)
             for field_path, field_info in iter_input_field_paths(all_fields)
-            if type(field_info.entity_description).__name__ == "NumberEntityDescription"
+            if is_number_field_info(field_info)
         ]
 
-        if not number_fields:
+        surfaced_hints = get_surfaced_price_hints(element_type)
+        if not number_fields and not surfaced_hints:
             continue
 
         # Get or create device using centralized device creation
         # Input entities go on the main device (element_type matches device_name)
         device_entry = get_or_create_element_device(hass, config_entry, subentry, element_type)
 
+        entities: list[HaeoInputNumber] = []
         for field_path, field_info in number_fields:
-            # Only create entities for configured fields
-            config_value = get_nested_config_value_by_path(subentry.data, field_path)
-            if config_value is None or is_none_value(config_value):
+            # Only create entities for fields that have a prebuilt store
+            # (none/disabled fields are skipped during store construction)
+            store = runtime_data.input_stores.get((subentry.title, field_path))
+            if store is None:
                 continue
 
             entity = HaeoInputNumber(
                 config_entry=config_entry,
                 subentry=subentry,
-                field_info=field_info,
+                field_info=localize_input_field(field_info, currency),
                 field_path=field_path,
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
+                store=store,
             )
             entities.append(entity)
 
-            # Register in runtime_data for coordinator access
-            element_name = subentry.title
-            runtime_data.input_entities[(element_name, field_path)] = entity
+        entities.extend(
+            _build_surfaced_mirror_entities(
+                config_entry,
+                subentry,
+                element_type,
+                device_entry,
+                runtime_data,
+                horizon_manager,
+                currency,
+            )
+        )
 
-    if entities:
-        _LOGGER.debug("Creating %d number entities for HAEO inputs", len(entities))
-        async_add_entities(entities)
-    else:
-        _LOGGER.debug("No number entities to create for entry %s", config_entry.entry_id)
+        _LOGGER.debug("Creating %d number entities for %s", len(entities), subentry.title)
+        async_add_entities(entities, config_subentry_id=subentry.subentry_id)

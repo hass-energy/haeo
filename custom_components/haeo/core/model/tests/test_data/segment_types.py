@@ -3,15 +3,14 @@
 from collections.abc import Callable, Sequence
 from typing import Any, NotRequired, TypedDict
 
-from highspy import Highs
 import numpy as np
-from numpy.typing import NDArray
-
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.segments import SegmentSpec
+from custom_components.haeo.core.model.solver import Solver
+from numpy.typing import NDArray
 
 type ExpectedValue = Sequence[float] | Sequence[str] | float
-type SegmentEndpointFactory = Callable[[Highs, NDArray[np.floating[Any]]], tuple[Element[Any], Element[Any]]]
+type SegmentEndpointFactory = Callable[[Solver, NDArray[np.float64]], tuple[Element[Any], Element[Any]]]
 
 
 class SegmentScenarioInputs(TypedDict, total=False):
@@ -28,7 +27,7 @@ class SegmentScenario(TypedDict):
     description: str
     factory: type
     spec: SegmentSpec
-    periods: NDArray[np.floating[Any]]
+    periods: NDArray[np.float64]
     inputs: SegmentScenarioInputs
     expected_outputs: dict[str, ExpectedValue]
     endpoint_factory: NotRequired[SegmentEndpointFactory]
@@ -40,7 +39,7 @@ class SegmentErrorScenario(TypedDict):
     description: str
     factory: type
     spec: SegmentSpec
-    periods: NDArray[np.floating[Any]]
+    periods: NDArray[np.float64]
     error: type[Exception]
     match: str | None
     endpoint_factory: NotRequired[SegmentEndpointFactory]
@@ -52,14 +51,14 @@ class ConnectionScenarioInputs(TypedDict, total=False):
     power_in: Sequence[float]
     maximize: dict[str, float]
     minimize_cost: bool
-    updates: Sequence[tuple[str, str, Sequence[float] | NDArray[np.floating[Any]]]]
+    updates: Sequence[tuple[str, str, Sequence[float] | NDArray[np.float64]]]
 
 
 class ConnectionScenario(TypedDict):
     """Scenario describing connection behavior."""
 
     description: str
-    periods: NDArray[np.floating[Any]]
+    periods: NDArray[np.float64]
     segments: dict[str, SegmentSpec] | None
     inputs: ConnectionScenarioInputs
     expected_outputs: dict[str, ExpectedValue]

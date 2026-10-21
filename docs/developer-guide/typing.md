@@ -12,7 +12,7 @@ External data (API responses, sensor values, user input) should be validated and
 
 ```python
 # ✅ Good: Type at the boundary
-def load_config(raw_data: dict[str, Any]) -> BatteryConfigData:
+def load_config(raw_data: dict[str, object]) -> BatteryConfigData:
     """Validate and type external data immediately."""
     return BatteryConfigData(
         name=raw_data["name"],
@@ -22,7 +22,7 @@ def load_config(raw_data: dict[str, Any]) -> BatteryConfigData:
 
 
 # ❌ Bad: Pass untyped data through the system
-def process_config(raw_data: dict[str, Any]) -> None:
+def process_config(raw_data: dict[str, object]) -> None:
     """Delay typing until deep in the call stack."""
     # raw_data flows through multiple functions untyped
     capacity = raw_data.get("capacity")  # Unknown type
@@ -76,8 +76,8 @@ Use TypedDict to type dictionary-like structures, especially configuration data 
 
 HAEO uses a dual TypedDict pattern for element configuration:
 
-- **Schema mode**: Contains entity IDs as strings (what the user enters in config flow)
-- **Data mode**: Contains loaded values (what the optimizer uses at runtime)
+- **Schema mode**: Contains schema values (what the config flow stores in the subentry)
+- **Data mode**: Contains loaded values (what the adapters and optimizer use at runtime)
 
 Each element defines these types in its own schema module:
 
@@ -85,23 +85,20 @@ Each element defines these types in its own schema module:
 # core/schema/elements/battery.py
 
 
-class BatteryConfigSchema(TypedDict):
-    """Schema mode: entity IDs for UI configuration."""
+class StorageSocConfig(TypedDict):
+    """Schema mode: an entity, constant, or none value per field."""
 
-    element_type: Literal["battery"]
-    name: str
-    capacity: str  # Entity ID string
+    capacity: EntityValue | ConstantValue
 
 
-class BatteryConfigData(TypedDict):
+class StorageSocData(TypedDict):
     """Data mode: loaded values for optimization."""
 
-    element_type: Literal["battery"]
-    name: str
-    capacity: list[float]  # Loaded float values in kWh
+    capacity: NDArray[np.float64]  # kWh at each horizon boundary
 ```
 
-The `load()` function in each element's adapter module converts from Schema mode to Data mode, performing validation and data loading at the boundary.
+The config loader (`core/data/loader/config_loader.py`) converts Schema mode to Data mode at the boundary, as each field's hint directs.
+See [Config flow](config-flow.md#schema-vs-data-mode) for the full pattern.
 
 ## Model element configs
 
@@ -132,30 +129,9 @@ def process_element(config: ElementConfigData) -> None:
 
 Each element type has dedicated modules split across three packages:
 
-- **`core/schema/elements/{type}.py`**: Defines `ConfigSchema` and `ConfigData` TypedDicts with explicit types
-- **`flows/elements/{type}.py`**: Implements config flow with voluptuous schemas and selectors
-- **`core/adapters/elements/{type}.py`**: Contains `load()` function to convert Schema to Data mode
-
-This explicit approach keeps the types clear at a glance:
-
-```python
-# core/schema/elements/solar.py
-class SolarConfigSchema(TypedDict):
-    element_type: Literal["solar"]
-    name: str
-    connection: str
-    forecast: str  # Entity ID for forecast sensor
-
-
-# flows/elements/solar.py
-def async_get_schema(hass: HomeAssistant) -> vol.Schema:
-    return vol.Schema(
-        {
-            vol.Required(CONF_NAME): TextSelector(...),
-            vol.Required(CONF_FORECAST): EntitySelector(...),
-        }
-    )
-```
+- **`core/schema/elements/{type}.py`**: Defines the `ConfigSchema` and `ConfigData` TypedDicts and the field hints
+- **`flows/elements/{type}.py`**: Implements the config flow, building its form from the field hints
+- **`core/adapters/elements/{type}.py`**: Implements the adapter that turns `ConfigData` into model elements and outputs
 
 ## Pyright configuration
 
@@ -173,8 +149,48 @@ typeCheckingMode = "strict"
 - All function parameters and return types must be annotated
 - All class attributes must have type annotations
 - Generic types must specify type parameters (`list[str]` not `list`)
-- Use `cast()` sparingly and only when type checker cannot infer
-- Prefer `assert` statements over `cast()` when narrowing types
+- Do not import `typing.cast` (banned by Ruff); prefer `TypeGuard`, boundary typing, or `assert` for narrowing
+- When the type checker cannot be satisfied otherwise, use `# type: ignore[...]` on the same line with a short comment explaining why a TypeGuard or other narrowing approach was not viable
+
+## Avoiding Any
+
+`typing.Any` disables type checking entirely for a value — every attribute access, call, and
+assignment silently passes. Importing it is banned by Ruff (TID251), the same mechanism used for
+`typing.cast`. Prefer, in order:
+
+1. **A precise type**: a TypedDict, dataclass, Protocol, or union that describes the actual shape
+2. **A generic `TypeVar`**: when the function relates its input and output types
+3. **`object`**: for values that are genuinely unknown at a boundary. Unlike `Any`, `object`
+    forces narrowing (isinstance, TypeGuard) before use — mistakes surface at the checker instead
+    of at runtime
+
+```python
+# ✅ Good: object forces narrowing before use
+def coerce_float(value: object) -> float | None:
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return float(value)
+    return None
+
+
+# ❌ Bad: Any lets mistakes flow through silently
+def coerce_float(value: Any) -> float | None:
+    return value  # No checker error, wrong at runtime
+```
+
+For numpy arrays, use the concrete `NDArray[np.float64]` — every array in this codebase is
+created as float64, so the generic `np.floating[Any]` form is never needed.
+
+Some `Any` usage is structurally required and allowed with a justified `# noqa: TID251` on the
+import line:
+
+- dynamic test helpers that drive heterogeneous classes or monkeypatch methods (Mock-style)
+- reflection over typing constructs (`get_origin`/`get_args` introspection)
+- voluptuous schema dictionaries, which are heterogeneous by design
+- Home Assistant framework signatures that are `Any`-typed upstream
+
+Every remaining `# noqa: TID251` in the codebase carries a specific structural justification on
+the import line. Adding a new one requires the same: a short comment stating why no precise type
+can express the code. Remove the noqa when the last structural use in a file goes away.
 
 ## Assertion helpers
 
@@ -202,7 +218,7 @@ These assertions:
 - Document the architectural invariant being relied upon
 - Return the narrowed type for continued type-safe use
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

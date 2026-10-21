@@ -1,6 +1,6 @@
 # Installation
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hass-community/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
 
 This guide will walk you through installing HAEO on your Home Assistant instance.
 
@@ -8,33 +8,31 @@ This guide will walk you through installing HAEO on your Home Assistant instance
 
 Before installing HAEO, ensure you have:
 
-- **Home Assistant** version 2025.4.4 or newer
-- **HACS** (Home Assistant Community Store) installed (recommended)
+- **Home Assistant** version 2026.1.1 or newer
+- **[HACS](https://hacs.xyz/)** (Home Assistant Community Store) installed (recommended)
 
-## Method 1: HACS Installation (Recommended)
+## Method 1: HACS installation (recommended)
 
-HACS provides automatic updates and easy installation.
+HAEO is published in the [default HACS store](https://github.com/hacs/default).
+You do not need to [add a custom repository](https://hacs.xyz/docs/faq/custom_repositories/).
+HACS provides automatic updates after installation.
 
-### Step 1: Add Custom Repository
+For the general download workflow, see the [HACS dashboard documentation](https://hacs.xyz/docs/use/repositories/dashboard/).
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hass-energy&repository=haeo&category=integration)
+
+### Step 1: Install HAEO
 
 1. Open your Home Assistant instance
-2. Navigate to **HACS** → **Integrations**
-3. Click the three dots (⋮) in the top right corner
-4. Select **Custom repositories**
-5. Add the following details:
-    - **Repository**: `https://github.com/hass-energy/haeo`
-    - **Category**: `Integration`
-6. Click **Add**
+2. Open **HACS** from the sidebar
+3. Go to **Integrations**
+4. Search for **HAEO** or **Home Assistant Energy Optimizer**
+5. Open the repository entry and select **Download** (see [downloading a repository](https://hacs.xyz/docs/use/repositories/dashboard/#downloading-a-repository) in the HACS docs)
+6. Confirm the latest version
 
-### Step 2: Install HAEO
+You can also use the [My Home Assistant](https://my.home-assistant.io/) link above to open HAEO directly in HACS.
 
-1. In HACS, search for **HAEO** or **Home Assistant Energy Optimizer**
-2. Click on the integration
-3. Click **Download**
-4. Select the latest version
-5. Click **Download** again to confirm
-
-### Step 3: Restart Home Assistant
+### Step 2: Restart Home Assistant
 
 After installation, restart Home Assistant:
 
@@ -136,7 +134,7 @@ Manual removal:
 1. Delete the `custom_components/haeo` directory
 2. Restart Home Assistant
 
-## Next Steps
+## Next steps
 
 Move on to these topics once the integration is installed.
 

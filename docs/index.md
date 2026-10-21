@@ -48,8 +48,8 @@ It works alongside other Home Assistant integrations that provide sensor data, a
 ### Optimization that follows your data
 
 HAEO watches the sensors you configure and re-optimizes whenever inputs change.
-You choose the horizon and resolution through the UI to balance responsiveness with complexity.
-See the [configuration guide](user-guide/configuration.md#custom-tiers) for advice on selecting interval tiers.
+You choose the planning horizon through the UI to balance lookahead with solve time.
+See the [configuration guide](user-guide/configuration.md#planning-horizon) for the available options.
 
 ### Built for the Home Assistant ecosystem
 
@@ -107,7 +107,7 @@ If HAEO has helped you save on your energy bills, consider buying us a coffee!
 
 <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="haeo.io" data-color="#5F7FFF" data-emoji="" data-font="Lato" data-text="Buy us a coffee" data-outline-color="#000000" data-font-color="#ffffff" data-coffee-color="#FFDD00"></script>
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

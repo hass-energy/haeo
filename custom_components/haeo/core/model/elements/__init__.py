@@ -4,7 +4,9 @@ This module re-exports all element classes for convenient imports.
 """
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, TypeGuard
+
+from custom_components.haeo.core.model.element import NetworkElement
 
 from .battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
 from .battery import BATTERY_POWER_CONSTRAINTS as BATTERY_POWER_CONSTRAINTS
@@ -14,6 +16,12 @@ from .battery import BatteryConstraintName as BatteryConstraintName
 from .battery import BatteryElementConfig as BatteryElementConfig
 from .battery import BatteryElementTypeName as BatteryElementTypeName
 from .battery import BatteryOutputName as BatteryOutputName
+from .buffer import BUFFER_OUTPUT_NAMES as BUFFER_OUTPUT_NAMES
+from .buffer import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_BUFFER
+from .buffer import Buffer as Buffer
+from .buffer import BufferElementConfig as BufferElementConfig
+from .buffer import BufferElementTypeName as BufferElementTypeName
+from .buffer import BufferOutputName as BufferOutputName
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER as CONNECTION_POWER
 from .connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
@@ -21,6 +29,13 @@ from .connection import Connection as Connection
 from .connection import ConnectionElementConfig as ConnectionElementConfig
 from .connection import ConnectionElementTypeName as ConnectionElementTypeName
 from .connection import ConnectionOutputName as ConnectionOutputName
+from .deferrable_load import DEFERRABLE_LOAD_OUTPUT_NAMES as DEFERRABLE_LOAD_OUTPUT_NAMES
+from .deferrable_load import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD
+from .deferrable_load import DeferrableLoad as DeferrableLoad
+from .deferrable_load import DeferrableLoadConstraintName as DeferrableLoadConstraintName
+from .deferrable_load import DeferrableLoadElementConfig as DeferrableLoadElementConfig
+from .deferrable_load import DeferrableLoadElementTypeName as DeferrableLoadElementTypeName
+from .deferrable_load import DeferrableLoadOutputName as DeferrableLoadOutputName
 from .node import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_NODE
 from .node import NODE_OUTPUT_NAMES
 from .node import Node as Node
@@ -40,16 +55,33 @@ from .segments import PricingSegment as PricingSegment
 from .segments import Segment as Segment
 from .segments import SegmentSpec as SegmentSpec
 from .segments import SegmentType as SegmentType
-from .segments import SocPricingSegment as SocPricingSegment
-from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 
 # Type for all model element types
 ModelElementType = (
-    BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName | PolicyPricingElementTypeName
+    BatteryElementTypeName
+    | NodeElementTypeName
+    | ConnectionElementTypeName
+    | PolicyPricingElementTypeName
+    | BufferElementTypeName
+    | DeferrableLoadElementTypeName
 )
 
 # Typed configs for all model elements (discriminated by element_type)
-ModelElementConfig = BatteryElementConfig | NodeElementConfig | ConnectionElementConfig | PolicyPricingElementConfig
+ModelElementConfig = (
+    BatteryElementConfig
+    | NodeElementConfig
+    | ConnectionElementConfig
+    | PolicyPricingElementConfig
+    | BufferElementConfig
+    | DeferrableLoadElementConfig
+)
+
+# Configs of the elements that produce or consume power themselves, which
+# connections join and power balance applies to
+type NetworkElementConfig = BatteryElementConfig | NodeElementConfig | DeferrableLoadElementConfig
+
+# Configs of the network elements that may produce power, which take outbound tags
+type SourceElementConfig = BatteryElementConfig | NodeElementConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,12 +92,22 @@ class ElementSpec:
     output_names: frozenset[str]
 
 
+# Element types that read other elements' power flows, so they are added after the connections
+FLOW_READER_ELEMENT_TYPES: Final[frozenset[str]] = frozenset(
+    (MODEL_ELEMENT_TYPE_BUFFER, MODEL_ELEMENT_TYPE_POLICY_PRICING)
+)
+
+
 # Registry of all model element types.
 # Keys are element type strings used by Network.add().
 ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
     MODEL_ELEMENT_TYPE_BATTERY: ElementSpec(
         factory=Battery,
         output_names=BATTERY_OUTPUT_NAMES,
+    ),
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD: ElementSpec(
+        factory=DeferrableLoad,
+        output_names=DEFERRABLE_LOAD_OUTPUT_NAMES,
     ),
     MODEL_ELEMENT_TYPE_NODE: ElementSpec(
         factory=Node,
@@ -77,28 +119,53 @@ ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
     ),
 }
 
+
+def is_network_element_config(config: ModelElementConfig) -> TypeGuard[NetworkElementConfig]:
+    """Return whether a config builds a network element, one that produces or consumes power itself."""
+    spec = ELEMENTS.get(config["element_type"])
+    return spec is not None and issubclass(spec.factory, NetworkElement)
+
+
+def is_source_element_config(config: NetworkElementConfig) -> TypeGuard[SourceElementConfig]:
+    """Return whether a network element may produce power, so it takes outbound tags; it may unless declared not to."""
+    return config.get("is_source", True)
+
+
 __all__ = [
     "BATTERY_OUTPUT_NAMES",
     "BATTERY_POWER_CONSTRAINTS",
+    "BUFFER_OUTPUT_NAMES",
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
+    "DEFERRABLE_LOAD_OUTPUT_NAMES",
     "ELEMENTS",
+    "FLOW_READER_ELEMENT_TYPES",
     "MODEL_ELEMENT_TYPE_BATTERY",
+    "MODEL_ELEMENT_TYPE_BUFFER",
     "MODEL_ELEMENT_TYPE_CONNECTION",
+    "MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD",
     "MODEL_ELEMENT_TYPE_NODE",
     "MODEL_ELEMENT_TYPE_POLICY_PRICING",
     "Battery",
     "BatteryConstraintName",
     "BatteryElementConfig",
     "BatteryOutputName",
+    "Buffer",
+    "BufferElementConfig",
+    "BufferOutputName",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
     "ConnectionOutputName",
+    "DeferrableLoad",
+    "DeferrableLoadConstraintName",
+    "DeferrableLoadElementConfig",
+    "DeferrableLoadOutputName",
     "EfficiencySegment",
     "ElementSpec",
     "ModelElementConfig",
     "ModelElementType",
+    "NetworkElementConfig",
     "Node",
     "NodeElementConfig",
     "NodeOutputName",
@@ -111,6 +178,7 @@ __all__ = [
     "Segment",
     "SegmentSpec",
     "SegmentType",
-    "SocPricingSegment",
-    "SocPricingSegmentSpec",
+    "SourceElementConfig",
+    "is_network_element_config",
+    "is_source_element_config",
 ]

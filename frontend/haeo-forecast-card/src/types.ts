@@ -1,4 +1,5 @@
-export type MotionMode = "off" | "reduced" | "smooth";
+import type { DefaultHorizonPreset } from "./horizon-config";
+
 export type PowerDisplayMode = "opposed" | "overlay";
 
 export interface ForecastCardConfig {
@@ -6,23 +7,33 @@ export interface ForecastCardConfig {
   title?: string;
   hub_entry_id?: string;
   entities?: string[];
-  animation_mode?: MotionMode;
-  animation_speed?: number;
   power_display_mode?: PowerDisplayMode;
+  default_horizon?: DefaultHorizonPreset;
+  tooltip_visible?: boolean;
+}
+
+export interface TopologyCardConfig {
+  type: "custom:haeo-topology-card";
+  title?: string;
+  hub_entry_id?: string;
 }
 
 export type ElementType =
   | "battery"
   | "battery_section"
   | "connection"
+  | "deferrable_load"
+  | "ev"
   | "grid"
   | "inverter"
+  | "junction"
   | "load"
   | "node"
   | "solar"
-  | "policy";
-export type CardOutputType = "power" | "price" | "state_of_charge";
-export type LaneType = "power" | "price" | "soc" | "shadow" | "other";
+  | "policy"
+  | "buffer";
+export type CardOutputType = "power" | "price" | "state_of_charge" | "window";
+export type LaneType = "power" | "price" | "soc" | "window" | "shadow" | "other";
 export type DrawType = "step" | "line";
 export type SeriesSourceRole = "output" | "forecast" | "limit";
 export type ConfigMode = "editable" | "driven";

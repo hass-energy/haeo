@@ -10,9 +10,11 @@ from homeassistant.helpers.device_registry import DeviceEntry
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import added_entities
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
+from custom_components.haeo.core.data.input_store import InputMode
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -33,11 +35,12 @@ from custom_components.haeo.core.schema.elements.solar import (
     SECTION_FORECAST,
 )
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
-from custom_components.haeo.entities.haeo_number import ConfigEntityMode
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.input_stores import build_input_stores
 from custom_components.haeo.switch import async_setup_entry
 
 
@@ -61,16 +64,9 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
-            HUB_SECTION_TIERS: {
-                "tier_1_count": 2,
-                "tier_1_duration": 5,
-                "tier_2_count": 0,
-                "tier_2_duration": 15,
-                "tier_3_count": 0,
-                "tier_3_duration": 30,
-                "tier_4_count": 0,
-                "tier_4_duration": 60,
+            HUB_SECTION_COMMON: {
+                CONF_NAME: "Test Network",
+                CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS),
             },
             HUB_SECTION_ADVANCED: {},
         },
@@ -146,6 +142,11 @@ def _add_subentry(
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(entry, subentry)
+    # Rebuild input stores so the platform can wrap them (production builds these
+    # in async_setup_entry before forwarding the platform setup).
+    runtime_data = entry.runtime_data
+    if runtime_data is not None:
+        runtime_data.input_stores = build_input_stores(hass, entry, runtime_data.horizon_manager)
     return subentry
 
 
@@ -154,7 +155,10 @@ async def test_setup_raises_error_when_runtime_data_missing(hass: HomeAssistant)
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Network",
-        data={HUB_SECTION_COMMON: {CONF_NAME: "Test"}, HUB_SECTION_ADVANCED: {}, HUB_SECTION_TIERS: {}},
+        data={
+            HUB_SECTION_COMMON: {CONF_NAME: "Test", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS)},
+            HUB_SECTION_ADVANCED: {},
+        },
         entry_id="test_missing_runtime",
     )
     entry.add_to_hass(hass)
@@ -177,8 +181,7 @@ async def test_setup_creates_auto_optimize_switch_for_network(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     # Auto-optimize switch is created for network
-    async_add_entities.assert_called_once()
-    entities = list(async_add_entities.call_args.args[0])
+    entities = added_entities(async_add_entities)
     assert len(entities) == 1
     assert isinstance(entities[0], AutoOptimizeSwitch)
 
@@ -218,7 +221,7 @@ async def test_setup_creates_auto_optimize_switch_for_network(
                 CONF_CURTAILMENT: "input_boolean.curtail_solar",
             },
             CONF_CURTAILMENT,
-            ConfigEntityMode.DRIVEN,
+            InputMode.DRIVEN,
             id="solar_driven_switch",
         ),
     ],
@@ -230,7 +233,7 @@ async def test_setup_handles_switch_field_variants(
     title: str,
     data: dict[str, object],
     expect_field: str | None,
-    expect_mode: ConfigEntityMode | None,
+    expect_mode: InputMode | None,
 ) -> None:
     """Setup handles elements with missing, absent, or driven switch fields."""
     _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
@@ -239,7 +242,7 @@ async def test_setup_handles_switch_field_variants(
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    entities = list(async_add_entities.call_args.args[0]) if async_add_entities.called else []
+    entities = added_entities(async_add_entities)
     input_switches = [e for e in entities if hasattr(e, "_field_info")]
 
     if expect_field is None:
@@ -247,7 +250,7 @@ async def test_setup_handles_switch_field_variants(
     else:
         matches = [e for e in input_switches if e._field_info.field_name == expect_field]
         assert matches
-        assert matches[0]._entity_mode == expect_mode
+        assert matches[0]._store.mode == expect_mode
 
 
 async def test_setup_creates_switch_entities_for_solar_curtailment(
@@ -274,7 +277,7 @@ async def test_setup_creates_switch_entities_for_solar_curtailment(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         # Filter out AutoOptimizeSwitch to get only input switches
         input_switches = [e for e in entities if hasattr(e, "_field_info")]
         # Check if any switch entity was created for curtailment
@@ -308,7 +311,7 @@ async def test_setup_creates_switch_entities_for_policy_rule_enabled(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     assert async_add_entities.called
-    entities = list(async_add_entities.call_args.args[0])
+    entities = added_entities(async_add_entities)
     input_switches = [e for e in entities if hasattr(e, "_field_info")]
     enabled_switches = [e for e in input_switches if e._field_info.field_name == CONF_POLICY_ENABLED]
     assert enabled_switches
@@ -337,7 +340,7 @@ async def test_setup_creates_correct_device_identifiers(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         for entity in entities:
             # Each entity should have a device_entry attached
             assert entity.device_entry is not None
@@ -377,12 +380,12 @@ async def test_setup_handles_multiple_solar_elements(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         # Filter out AutoOptimizeSwitch to get only input switches
         input_switches = [e for e in entities if hasattr(e, "_subentry")]
 
         # Should have entities from both solar panels
-        element_names = {e._subentry.title for e in input_switches}
+        element_names = {e.extra_state_attributes["element_name"] for e in input_switches}
         if len(input_switches) > 0:
             # At least one should be present
             assert "Solar North" in element_names or "Solar South" in element_names
