@@ -195,12 +195,22 @@ def test_format_manifest_no_codeowners() -> None:
     assert "codeowners" not in result or result.get("codeowners") == manifest.get("codeowners")
 
 
+@pytest.mark.parametrize(
+    ("time", "file_date"),
+    [
+        pytest.param(datetime(2026, 1, 20, 14, 32, 3, tzinfo=UTC), "2026-01-20", id="with_zone"),
+        pytest.param("2026-01-21 01:32:03", "2026-01-21", id="naive_in_ha_zone"),
+    ],
+)
 async def test_save_diagnostics_with_historical_time(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     tmp_path: Path,
+    time: datetime | str,
+    file_date: str,
 ) -> None:
-    """Test save_diagnostics service with historical time passes target_time to collector."""
+    """A historical time reaches the collector as that moment, with a time without a zone read in Home Assistant's."""
+    await hass.config.async_set_time_zone("Australia/Sydney")
     # Set up the service - need to register recorder component first
     hass.config.components.add("recorder")
     await async_setup(hass, {})
@@ -242,21 +252,18 @@ async def test_save_diagnostics_with_historical_time(
             "save_diagnostics",
             {
                 "config_entry": mock_hub_entry.entry_id,
-                "time": target_timestamp,
+                "time": time,
             },
             blocking=True,
         )
 
-    # Verify collect_diagnostics was called with as_of=target_timestamp
     mock_collect.assert_called_once()
-    call_args = mock_collect.call_args
-    assert call_args.kwargs["target_time"] == target_timestamp
+    assert mock_collect.call_args.kwargs["target_time"] == target_timestamp
 
-    # Verify file was created with the historical timestamp in filename
+    # The filename uses the historical time as given
     files = list(tmp_path.glob("haeo/diagnostics/diagnostics_*.json"))
     assert len(files) == 1
-    # Filename should use the historical timestamp
-    assert "2026-01-20" in files[0].name
+    assert file_date in files[0].name
 
 
 @pytest.mark.parametrize(
