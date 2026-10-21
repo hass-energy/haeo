@@ -34,6 +34,7 @@ class JunctionAdapter:
     can_source: bool = False
     can_sink: bool = False
     switchboard: bool = True
+    device_names: frozenset[JunctionDeviceName] = JUNCTION_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: JunctionConfigData) -> list[ModelElementConfig]:

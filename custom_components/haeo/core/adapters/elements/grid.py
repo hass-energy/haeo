@@ -71,6 +71,7 @@ class GridAdapter:
     can_source: bool = True
     can_sink: bool = True
     switchboard: bool = False
+    device_names: frozenset[GridDeviceName] = GRID_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:

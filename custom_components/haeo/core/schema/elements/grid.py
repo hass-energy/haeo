@@ -1,6 +1,6 @@
 """Grid element schema definitions."""
 
-from typing import Annotated, Final, Literal, TypedDict
+from typing import Annotated, Literal, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -23,13 +23,6 @@ from custom_components.haeo.core.schema.sections import (
 )
 
 ELEMENT_TYPE = ElementType.GRID
-
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
-    {
-        CONF_MAX_POWER_SOURCE_TARGET,
-        CONF_MAX_POWER_TARGET_SOURCE,
-    }
-)
 
 
 class GridPricingConfig(TypedDict):
@@ -104,7 +97,6 @@ __all__ = [
     "CONF_PRICE_SOURCE_TARGET",
     "CONF_PRICE_TARGET_SOURCE",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_POWER_LIMITS",
     "SECTION_PRICING",
     "GridConfigData",

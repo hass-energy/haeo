@@ -57,6 +57,7 @@ class SolarAdapter:
     can_source: bool = True
     can_sink: bool = False
     switchboard: bool = False
+    device_names: frozenset[SolarDeviceName] = SOLAR_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_GENERATION})
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:

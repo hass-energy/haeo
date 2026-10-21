@@ -44,8 +44,6 @@ KIND_HEADROOM: Final = "headroom"
 type BufferKind = Literal["reserve", "headroom"]
 BUFFER_KINDS: Final[tuple[BufferKind, ...]] = (KIND_RESERVE, KIND_HEADROOM)
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_LEVEL})
-
 
 class ParticipantsConfig(TypedDict):
     """Elements the buffer covers and the batteries that hold it."""
@@ -162,7 +160,6 @@ __all__ = [
     "ELEMENT_TYPE",
     "KIND_HEADROOM",
     "KIND_RESERVE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_PARTICIPANTS",
     "SECTION_PRICING",
     "SECTION_REQUIREMENT",

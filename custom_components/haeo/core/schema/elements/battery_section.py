@@ -23,8 +23,6 @@ SECTION_STORAGE: Final = "storage"
 CONF_CAPACITY: Final = "capacity"
 CONF_INITIAL_CHARGE: Final = "initial_charge"
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
-
 
 class StorageChargeConfig(TypedDict):
     """Storage config with required initial charge."""
@@ -75,7 +73,6 @@ __all__ = [
     "CONF_CAPACITY",
     "CONF_INITIAL_CHARGE",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_STORAGE",
     "BatterySectionConfigData",
     "BatterySectionConfigSchema",

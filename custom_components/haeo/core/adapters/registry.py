@@ -52,6 +52,11 @@ class ElementAdapter(Protocol):
     # elements connect to, which a hub outside advanced mode always has
     switchboard: bool
 
+    @property
+    def device_names(self) -> frozenset[str]:
+        """Names of the devices the element creates."""
+        ...
+
     # What a buffer can count the element as: a load it covers, generation
     # it covers, or storage that holds it
     buffer_roles: frozenset[BufferRole]

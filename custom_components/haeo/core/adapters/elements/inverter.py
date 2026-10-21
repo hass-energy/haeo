@@ -67,6 +67,7 @@ class InverterAdapter:
     can_source: bool = False
     can_sink: bool = False
     switchboard: bool = False
+    device_names: frozenset[InverterDeviceName] = INVERTER_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:

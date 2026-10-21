@@ -124,37 +124,6 @@ from custom_components.haeo.core.adapters.elements.solar import (
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigSchema, ElementType
-from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
-from custom_components.haeo.core.schema.elements.battery_section import (
-    OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
-)
-from custom_components.haeo.core.schema.elements.battery_section import BatterySectionConfigData
-from custom_components.haeo.core.schema.elements.buffer import OPTIONAL_INPUT_FIELDS as BUFFER_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.buffer import BufferConfigData
-from custom_components.haeo.core.schema.elements.connection import (
-    OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS,
-)
-from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
-from custom_components.haeo.core.schema.elements.deferrable_load import (
-    OPTIONAL_INPUT_FIELDS as DEFERRABLE_LOAD_OPTIONAL_INPUT_FIELDS,
-)
-from custom_components.haeo.core.schema.elements.deferrable_load import DeferrableLoadConfigData
-from custom_components.haeo.core.schema.elements.ev import OPTIONAL_INPUT_FIELDS as EV_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.ev import EvConfigData
-from custom_components.haeo.core.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.grid import GridConfigData
-from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
-from custom_components.haeo.core.schema.elements.junction import OPTIONAL_INPUT_FIELDS as JUNCTION_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.junction import JunctionConfigData
-from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.load import LoadConfigData
-from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.node import NodeConfigData
-from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
-from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.solar import SolarConfigData
 from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
 from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
 from custom_components.haeo.core.schema.surfaced_policy import get_surfaced_price_hints
@@ -232,21 +201,9 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | NETWORK_DEVICE_NAMES
 )
 
-ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
-    ElementType.INVERTER: frozenset(INVERTER_DEVICE_NAMES),
-    ElementType.BATTERY: frozenset(BATTERY_DEVICE_NAMES),
-    ElementType.BATTERY_SECTION: frozenset(BATTERY_SECTION_DEVICE_NAMES),
-    ElementType.CONNECTION: frozenset(CONNECTION_DEVICE_NAMES),
-    ElementType.DEFERRABLE_LOAD: frozenset(DEFERRABLE_LOAD_DEVICE_NAMES),
-    ElementType.EV: frozenset(EV_DEVICE_NAMES),
-    ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
-    ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
-    ElementType.JUNCTION: frozenset(JUNCTION_DEVICE_NAMES),
-    ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
-    ElementType.POLICY: frozenset(POLICY_DEVICE_NAMES),
-    ElementType.BUFFER: frozenset(BUFFER_DEVICE_NAMES),
-    ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
-    ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
+ELEMENT_DEVICE_NAMES_BY_TYPE: Final[Mapping[str, frozenset[str]]] = {
+    **{element_type: adapter.device_names for element_type, adapter in ELEMENT_TYPES.items()},
+    ELEMENT_TYPE_NETWORK: NETWORK_DEVICE_NAMES,
 }
 
 
@@ -257,38 +214,6 @@ class ValidatedElementSubentry(NamedTuple):
     element_type: ElementType
     subentry: ConfigSubentry
     config: ElementConfigSchema
-
-
-ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
-    ElementType.BATTERY: BatteryConfigData,
-    ElementType.BATTERY_SECTION: BatterySectionConfigData,
-    ElementType.CONNECTION: ConnectionConfigData,
-    ElementType.DEFERRABLE_LOAD: DeferrableLoadConfigData,
-    ElementType.EV: EvConfigData,
-    ElementType.GRID: GridConfigData,
-    ElementType.INVERTER: InverterConfigData,
-    ElementType.LOAD: LoadConfigData,
-    ElementType.JUNCTION: JunctionConfigData,
-    ElementType.NODE: NodeConfigData,
-    ElementType.POLICY: PolicyConfigData,
-    ElementType.BUFFER: BufferConfigData,
-    ElementType.SOLAR: SolarConfigData,
-}
-
-ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
-    ElementType.BATTERY: BATTERY_OPTIONAL_INPUT_FIELDS,
-    ElementType.BATTERY_SECTION: BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
-    ElementType.CONNECTION: CONNECTION_OPTIONAL_INPUT_FIELDS,
-    ElementType.DEFERRABLE_LOAD: DEFERRABLE_LOAD_OPTIONAL_INPUT_FIELDS,
-    ElementType.EV: EV_OPTIONAL_INPUT_FIELDS,
-    ElementType.GRID: GRID_OPTIONAL_INPUT_FIELDS,
-    ElementType.INVERTER: INVERTER_OPTIONAL_INPUT_FIELDS,
-    ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
-    ElementType.JUNCTION: JUNCTION_OPTIONAL_INPUT_FIELDS,
-    ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
-    ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
-    ElementType.BUFFER: BUFFER_OPTIONAL_INPUT_FIELDS,
-}
 
 
 def get_input_field_schema_info(
@@ -652,7 +577,6 @@ def set_nested_config_value_by_path(config: dict[str, object], field_path: Input
 __all__ = [
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_DEVICE_NAMES_BY_TYPE",
-    "ELEMENT_OPTIONAL_INPUT_FIELDS",
     "ElementDeviceName",
     "ElementOutputName",
     "FieldSchemaInfo",
