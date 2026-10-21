@@ -84,7 +84,7 @@ Use developer tools to inspect the system state:
 1. Navigate to Developer Tools → States
 2. Find input entities (Number and Switch entities for your configured elements) and check their states and `forecast` attributes
 3. Find output sensors and check their states and attributes
-4. Check the optimization status sensor for error messages
+4. Check the optimization status sensor's `error` attribute for the cause of a failed optimization
 
 ### Monitor with automations
 

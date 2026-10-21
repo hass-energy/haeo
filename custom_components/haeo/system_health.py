@@ -11,10 +11,8 @@ from .const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     NETWORK_DEVICE_NETWORK,
-    OPTIMIZATION_STATUS_PENDING,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 
 
@@ -61,11 +59,7 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, JsonValueTy
         outputs = coordinator.data.outputs if coordinator.data else {}
         network_outputs = outputs.get(network_subentry_title, {}).get(NETWORK_DEVICE_NETWORK, {})
 
-        status_output = network_outputs.get(OUTPUT_NAME_OPTIMIZATION_STATUS)
-        optimization_status = (
-            status_output.state if status_output and status_output.state else OPTIMIZATION_STATUS_PENDING
-        )
-        health_info[f"{prefix}optimization_status"] = optimization_status
+        health_info[f"{prefix}optimization_status"] = coordinator.optimization_status
 
         cost_output = network_outputs.get(OUTPUT_NAME_OPTIMIZATION_COST)
         duration_output = network_outputs.get(OUTPUT_NAME_OPTIMIZATION_DURATION)

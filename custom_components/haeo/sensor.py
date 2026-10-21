@@ -8,11 +8,12 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK, NETWORK_DEVICE_NETWORK, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.device import get_or_create_element_device, get_or_create_network_device
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+from custom_components.haeo.entities.haeo_status import HaeoStatusSensor
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.unique_id import element_output_unique_id
 
@@ -59,9 +60,20 @@ async def async_setup_entry(
         device_entry=network_device_entry,
         horizon_manager=horizon_manager,
     )
+    status_entity = HaeoStatusSensor(
+        coordinator,
+        device_entry=network_device_entry,
+        network_subentry=network_subentry,
+        unique_id=element_output_unique_id(
+            config_entry.entry_id,
+            network_subentry.subentry_id,
+            NETWORK_DEVICE_NETWORK,
+            OUTPUT_NAME_OPTIMIZATION_STATUS,
+        ),
+    )
     # Every entity is linked to its element's subentry so that removing the
     # element removes its entities. Hub-level entities belong to the network.
-    async_add_entities([horizon_entity], config_subentry_id=network_subentry.subentry_id)
+    async_add_entities([horizon_entity, status_entity], config_subentry_id=network_subentry.subentry_id)
 
     # Output sensors are built from the coordinator's outputs. If the first optimization
     # after a load or reload failed there are none yet, so they are added on the first

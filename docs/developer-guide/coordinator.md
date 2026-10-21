@@ -136,6 +136,9 @@ When sensor data is available but loading fails (invalid format, missing forecas
 
 When network optimization fails (infeasible constraints, solver not installed, numerical instabilities), the coordinator raises `UpdateFailed` with the solver error.
 
+A solve that stops for any other reason, such as an unbounded model or a solver error, raises `SolverError` carrying the HiGHS status.
+The coordinator fails the update with the `optimization_solver_failed` translation, so the log shows one line instead of a traceback.
+
 An infeasible model raises `InfeasibleError` carrying the conflicting constraint rows.
 The coordinator raises the `optimization_infeasible` repair issue naming the configured elements those rows belong to and the minutes from the start of the plan to the first of them, and fails the update with the same message.
 The wording lives in the translations; the coordinator passes only element names, numbers, and the plan's start time as placeholders.
@@ -157,8 +160,15 @@ All coordinator errors raise `UpdateFailed`, which:
 
 - Sets `coordinator.last_update_success = False`
 - Logs the error message
-- Makes dependent entities unavailable
+- Makes dependent entities unavailable, except the optimization status sensor
 - Schedules a retry on the next interval
+
+The optimization status sensor is added at setup and stays available.
+It reads `coordinator.optimization_status` (`pending`, `success`, or `failed`) and shows `coordinator.optimization_error` in its `error` attribute.
+Home Assistant notifies listeners only when an update switches between failing and succeeding, so `_async_refresh_finished` also notifies them after each repeated failure to keep that attribute current.
+
+Once updates have kept failing for `FAILURE_SECONDS_BEFORE_REPAIR_ISSUE`, `_async_refresh_finished` raises the general `optimization_failure` repair issue with the error message, once per failing stretch, and the next success dismisses it.
+A failure that raises a repair issue of its own, such as an input without a reading or an infeasible plan whose issue was raised, fails the update with `ReportedUpdateFailed` instead, and the general issue is not raised for it.
 
 State change triggers use the same error handling through the coordinator framework and don't crash the integration.
 

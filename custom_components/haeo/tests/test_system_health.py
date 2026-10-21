@@ -16,7 +16,6 @@ from custom_components.haeo.const import (
     NETWORK_DEVICE_NETWORK,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from custom_components.haeo.coordinator import (
     CoordinatorData,
@@ -126,13 +125,11 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
 
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = True
+    coordinator.optimization_status = "success"
     coordinator.data = _make_coordinator_data(
         {
             NETWORK_SUBENTRY_TITLE: {
                 NETWORK_DEVICE_NETWORK: {
-                    OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
-                        type=OutputType.STATUS, unit=None, state="success", forecast=None
-                    ),
                     OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
                         type=OutputType.COST, unit="$", state=42.75, forecast=None
                     ),
@@ -172,10 +169,11 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
 
 
 async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None:
-    """Failed coordinator updates without data are surfaced as update_failed with pending status."""
+    """Failed coordinator updates without data are surfaced as update_failed with failed status."""
 
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = False
+    coordinator.optimization_status = "failed"
     coordinator.data = None
 
     entry = _make_entry(hass)
@@ -185,7 +183,7 @@ async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None
 
     assert info == {
         "HAEO Hub_status": "update_failed",
-        "HAEO Hub_optimization_status": "pending",
+        "HAEO Hub_optimization_status": "failed",
         "HAEO Hub_outputs": 0,
         "HAEO Hub_total_periods": 35,
         "HAEO Hub_horizon_minutes": 1440,
