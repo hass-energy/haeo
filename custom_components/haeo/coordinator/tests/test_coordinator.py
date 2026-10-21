@@ -45,7 +45,7 @@ from custom_components.haeo.coordinator import (
     forecast_datetimes,
     price_currency_sources,
 )
-from custom_components.haeo.coordinator.coordinator import FAILURE_SECONDS_BEFORE_REPAIR_ISSUE
+from custom_components.haeo.coordinator.coordinator import FAILURE_SECONDS_BEFORE_REPAIR_ISSUE, ReportedUpdateFailed
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
 from custom_components.haeo.core.adapters.elements.grid import GRID_COST_NET, GRID_POWER_MAX_IMPORT_PRICE
@@ -834,6 +834,7 @@ async def test_async_update_data_reports_an_infeasible_plan(
     assert issues.async_get_issue(DOMAIN, f"optimization_relaxed_{mock_hub_entry.entry_id}") is not None
 
 
+@pytest.mark.parametrize("cause", ["unwritable_folder", "collection_error"])
 @pytest.mark.usefixtures("mock_grid_subentry")
 async def test_async_update_data_reports_an_infeasible_plan_whose_diagnostics_cannot_be_saved(
     hass: HomeAssistant,
@@ -842,14 +843,20 @@ async def test_async_update_data_reports_an_infeasible_plan_whose_diagnostics_ca
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
+    cause: str,
 ) -> None:
-    """A diagnostics file that cannot be written leaves the issue for the next plan, and still reports the failure."""
+    """Diagnostics that cannot be saved leave the issue for the next plan, and still report the failure."""
     # HAEO's loggers write to the console only, so let this one reach caplog
     monkeypatch.setattr(logging.getLogger("custom_components.haeo"), "propagate", True)
     hass.config.config_dir = str(tmp_path)
-    # A file where the diagnostics folder belongs makes writing it fail
-    (tmp_path / "haeo").mkdir()
-    (tmp_path / "haeo" / "diagnostics").write_text("")
+    if cause == "unwritable_folder":
+        # A file where the diagnostics folder belongs makes writing it fail
+        (tmp_path / "haeo").mkdir()
+        (tmp_path / "haeo" / "diagnostics").write_text("")
+    else:
+        monkeypatch.setattr(
+            "custom_components.haeo.diagnostics.diagnostics_from_context", AsyncMock(side_effect=KeyError("Grid"))
+        )
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     coordinator.network = MagicMock()
     coordinator.network.optimize.side_effect = InfeasibleError((RowLabel("Test Grid:import", "power_limit", 1),))
@@ -1081,59 +1088,28 @@ def _make_source_state(unit: str) -> Mock:
     return Mock(attributes={"unit_of_measurement": unit})
 
 
-def test_detect_currency_symbol_from_price_entity() -> None:
-    """Currency symbol should be extracted from price sensor units."""
-    assert detect_currency_symbol({"s1": _make_source_state("£/kWh")}) == "£"
-    assert detect_currency_symbol({"s1": _make_source_state("€/MWh")}) == "€"
-    assert detect_currency_symbol({"s1": _make_source_state("$/kWh")}) == "$"
-    assert detect_currency_symbol({"s1": _make_source_state("A$/kWh")}) == "A$"
-
-
-def test_detect_currency_symbol_ignores_non_price_entities() -> None:
-    """Non-price units should be skipped, falling back to $."""
-    assert (
-        detect_currency_symbol(
-            {
-                "s1": _make_source_state("kW"),
-                "s2": _make_source_state("kWh"),
-            }
-        )
-        == "$"
-    )
-
-
-def test_detect_currency_symbol_falls_back_to_dollar() -> None:
-    """When no price entities exist, fall back to $."""
-    assert detect_currency_symbol({}, fallback_currency=None) == "$"
-
-
-def test_detect_currency_symbol_falls_back_to_configured_currency() -> None:
-    """When no price entities exist, use the configured currency fallback."""
-    assert detect_currency_symbol({}, fallback_currency="AUD") == "AUD"
-
-
-def test_detect_currency_symbol_uses_first_price_entity() -> None:
-    """When multiple price entities exist, the first match is used."""
-    states = {
-        "s1": _make_source_state("kW"),
-        "s2": _make_source_state("£/kWh"),
-        "s3": _make_source_state("€/kWh"),
-    }
-    # The first price entity is s2, so the detected symbol should be £
-    assert detect_currency_symbol(states) == "£"
-
-
-def test_detect_currency_symbol_reads_minor_currency_units() -> None:
-    """Pence show as pounds, while cents name no currency and fall back to the configured one."""
-    assert detect_currency_symbol({"s1": _make_source_state("p/kWh")}) == "£"
-    assert detect_currency_symbol({"s1": _make_source_state("ct/kWh")}) == "€"
-    assert detect_currency_symbol({"s1": _make_source_state("c/kWh")}, fallback_currency="€") == "€"
-    assert (
-        detect_currency_symbol(
-            {"s1": _make_source_state("c/kWh"), "s2": _make_source_state("£/kWh")}, fallback_currency="€"
-        )
-        == "£"
-    )
+@pytest.mark.parametrize(
+    ("units", "fallback", "expected"),
+    [
+        pytest.param(("£/kWh",), None, "£", id="pounds"),
+        pytest.param(("€/MWh",), None, "€", id="euros_per_mwh"),
+        pytest.param(("$/kWh",), None, "$", id="dollars"),
+        pytest.param(("A$/kWh",), None, "A$", id="australian_dollars"),
+        pytest.param(("EUR/kWh",), None, "€", id="currency_code"),
+        pytest.param(("kW", "kWh"), None, "$", id="no_price_entity"),
+        pytest.param((), None, "$", id="nothing"),
+        pytest.param((), "EUR", "€", id="configured_currency"),
+        pytest.param(("kW", "£/kWh", "€/kWh"), None, "£", id="first_price_entity"),
+        pytest.param(("p/kWh",), None, "£", id="pence"),
+        pytest.param(("ct/kWh",), None, "€", id="euro_cents"),
+        pytest.param(("c/kWh",), "EUR", "€", id="cents_of_configured_currency"),
+        pytest.param(("c/kWh", "£/kWh"), "EUR", "£", id="cents_then_pounds"),
+    ],
+)
+def test_detect_currency_symbol(units: tuple[str, ...], fallback: str | None, expected: str) -> None:
+    """The symbol comes from the first price unit that names a currency, then the configured currency, then $."""
+    states = {f"sensor.s{index}": _make_source_state(unit) for index, unit in enumerate(units)}
+    assert detect_currency_symbol(states, fallback_currency=fallback) == expected
 
 
 @pytest.mark.parametrize(
@@ -2425,3 +2401,48 @@ def _switch_event(state: str) -> Any:
     event = MagicMock()
     event.data = {"entity_id": "switch.haeo_auto_optimize", "old_state": None, "new_state": new_state}
     return event
+
+
+async def test_failures_of_a_new_kind_wait_before_raising_the_general_issue(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Time spent failing with a cause that has its own issue does not count toward the general one."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    errors = [ReportedUpdateFailed("Input unavailable"), ReportedUpdateFailed("Input unavailable"), ValueError("x")]
+
+    with (
+        freeze_time("2025-01-01 12:00:00") as frozen,
+        patch.object(coordinator, "_async_update_data", AsyncMock(side_effect=errors)),
+    ):
+        await coordinator.async_refresh()
+        frozen.tick(FAILURE_SECONDS_BEFORE_REPAIR_ISSUE)
+        await coordinator.async_refresh()
+        frozen.tick(1)
+        await coordinator.async_refresh()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_failure_{mock_hub_entry.entry_id}") is None
+
+
+async def test_every_relaxed_plan_is_logged(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A relaxed plan logs a warning even while an earlier relaxation's issue is still raised."""
+    # HAEO's loggers write to the console only, so let this one reach caplog
+    monkeypatch.setattr(logging.getLogger("custom_components.haeo"), "propagate", True)
+    create_optimization_relaxed_issue(hass, mock_hub_entry.entry_id, EARLIER_ISSUE, EARLIER_DIAGNOSTICS)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+    coordinator.network.optimize.return_value = 1.0
+    coordinator.network.elements = {}
+    coordinator.network.relaxations = (Relaxation(RowLabel("Switchboard", "element_power_balance", 0), 0.1),)
+
+    with patch.object(coordinator, "_load_from_input_stores", return_value={}):
+        await coordinator._async_update_data()
+
+    assert "The plan relaxed constraints it cannot meet" in caplog.text

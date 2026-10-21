@@ -167,12 +167,13 @@ def detect_currency_symbol(
     currency prefix, or the main currency of a minor unit such as ``p/kWh``.
     Cents written as ``c/kWh`` name no currency and are skipped. Falls back to
     the configured currency when no price entity names one, and then ``$`` if
-    no configured currency is available.
+    no configured currency is available. A currency code such as ``EUR`` reads
+    as its symbol, so every spelling of a currency shows the same way.
     """
     for state in source_states.values():
         if (currency := price_currency(state.attributes.get("unit_of_measurement"))) is not None:
-            return currency
-    return fallback_currency or "$"
+            return currency_symbol(currency)
+    return currency_symbol(fallback_currency) if fallback_currency else "$"
 
 
 def price_currency_sources(source_states: Mapping[str, "EntityState"]) -> dict[str, list[str]]:
@@ -382,7 +383,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._optimization_lock = asyncio.Lock()
         # Whether an optimization was requested since the last one started
         self._refresh_requested: bool = False
+        # When optimizations started failing, and whether that failure raises an issue of its own
         self._failing_since: float | None = None
+        self._failure_reported = False
         self._failure_issue_raised = False
         self._pending_element_updates: dict[str, ElementConfigData] = {}
 
@@ -759,19 +762,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         They hold the config and inputs the optimization used, so the failure can be
         run again from the file a user attaches to a report. Returns None when the
-        file cannot be written, so its issue waits for the next optimization rather
-        than the plan or its error being lost.
+        diagnostics cannot be collected or written, so its issue waits for the next
+        optimization rather than the plan or its error being lost.
         """
         # Imported here because the diagnostics package imports the integration, which imports this module
         from custom_components.haeo.diagnostics import diagnostics_from_context  # noqa: PLC0415
 
         now = dt_util.now()
-        result = await diagnostics_from_context(
-            self.hass, self.config_entry, context, started_at=started_at, completed_at=now, outputs=None
-        )
         try:
+            result = await diagnostics_from_context(
+                self.hass, self.config_entry, context, started_at=started_at, completed_at=now, outputs=None
+            )
             path = await async_save_diagnostics(self.hass, {**result.to_dict(), "failure": failure}, kind, now)
-        except OSError:
+        except Exception:
+            # Any failure here must not replace the report of the plan it describes
             _LOGGER.exception(
                 "Could not save the %s plan's diagnostics, so its repair issue waits for the next plan", kind
             )
@@ -828,11 +832,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
             return
         now = time.time()
+        reported = isinstance(self.last_exception, ReportedUpdateFailed)
         if self._failing_since is None:
             self._failing_since = now
+            self._failure_reported = reported
             return
         self.async_update_listeners()
-        if isinstance(self.last_exception, ReportedUpdateFailed):
+        # Time spent failing for a cause with its own issue does not count toward the general one
+        if reported != self._failure_reported:
+            self._failing_since = now
+            self._failure_reported = reported
+        if reported:
             return
         if not self._failure_issue_raised and now - self._failing_since >= FAILURE_SECONDS_BEFORE_REPAIR_ISSUE:
             self._failure_issue_raised = True
@@ -960,6 +970,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._last_optimization_time = end_time
 
         _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
+        if network.relaxations:
+            _LOGGER.warning("The plan relaxed constraints it cannot meet: %s", listing(map(str, network.relaxations)))
         if (
             network.relaxations
             and not optimization_relaxed_issue_raised(self.hass, entry_id)
@@ -975,7 +987,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 )
             )
         ):
-            _LOGGER.warning("The plan relaxed constraints it cannot meet: %s", listing(map(str, network.relaxations)))
             relaxed_rows = [relaxation.row for relaxation in network.relaxations]
             conflicts = network.conflicts or relaxed_rows
             create_optimization_relaxed_issue(
@@ -1006,7 +1017,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         currency_sym = detect_currency_symbol(
             context.source_states,
-            fallback_currency=currency_symbol(self.hass.config.currency),
+            fallback_currency=self.hass.config.currency,
         )
 
         outputs: dict[str, SubentryDevices] = {
