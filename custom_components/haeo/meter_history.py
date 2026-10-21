@@ -16,7 +16,7 @@ loader started, so a window that began earlier is credited only those.
 """
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 import logging
 from typing import Final
@@ -28,7 +28,7 @@ from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.recorder import get_instance
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE, MeterTotal
+from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE, MeterTotal, totals_since
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,6 +52,11 @@ def _unit(state: State | None) -> str | None:
     """Return a meter state's unit of measurement, or None when it states none."""
     unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state is not None else None
     return unit if isinstance(unit, str) else None
+
+
+def _carries_totals(state: State | None) -> bool:
+    """Return True when a meter's state already carries its running totals."""
+    return state is not None and METER_TOTALS_ATTRIBUTE in state.attributes
 
 
 def _reading(state: State | None) -> float | None:
@@ -145,9 +150,22 @@ class MeterHistory:
         if reading is not None and meter is not None and state is not None:
             meter.record(state, reading, state.last_updated_timestamp)
 
-    def attributes(self) -> dict[str, dict[str, object]]:
-        """Return the totals to inject into each meter's state."""
-        return {entity_id: {METER_TOTALS_ATTRIBUTE: list(meter.totals)} for entity_id, meter in self._meters.items()}
+    def attributes(self, since: Mapping[str, float | None]) -> dict[str, dict[str, object]]:
+        """Return the totals to inject into each meter's state, from when each meter is read since.
+
+        Only the total a rise since that time starts from and the latest are
+        injected, so the captured state stays small however long the history
+        is. A meter read
+        since no time, as when no window is open, carries only its latest
+        total. A meter whose state already carries totals, as a replayed
+        diagnostics or scenario state does, keeps them, as a calendar keeps
+        its events.
+        """
+        return {
+            entity_id: {METER_TOTALS_ATTRIBUTE: totals_since(meter.totals, since.get(entity_id))}
+            for entity_id, meter in self._meters.items()
+            if not _carries_totals(self._hass.states.get(entity_id))
+        }
 
     async def _async_recorded(self, entity_id: str, state: State | None) -> tuple[list[MeterTotal], float | None]:
         """Return a meter's recorded totals over the lookback and its last recorded reading."""

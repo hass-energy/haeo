@@ -63,6 +63,23 @@ def rise_since(totals: Sequence[MeterTotal], since: float) -> float | None:
     return max(totals[-1][1] - start, 0.0)
 
 
+def totals_since(totals: Sequence[MeterTotal], since: float | None) -> list[MeterTotal]:
+    """Return the totals a rise since *since* reads: the one it rises from and the latest.
+
+    The rise starts from the last total at or before *since*, or the
+    earliest when the totals start later. With no window open there is no
+    rise to read, so only the latest total is kept.
+    """
+    if not totals or since is None:
+        return list(totals[-1:])
+    start = totals[0]
+    for total in totals:
+        if total[0] > since:
+            break
+        start = total
+    return [start] if start == totals[-1] else [start, totals[-1]]
+
+
 def resolve_meter(
     entity_ids: Sequence[str], output_type: OutputType, sm: StateMachine, forecast_times: Sequence[float]
 ) -> float | None:
@@ -85,7 +102,7 @@ def resolve_meter(
     events: list[CalendarEventData] = []
     meters: list[EntityState] = []
     for state in states:
-        found = load_calendar_events(state)
+        found = load_calendar_events(state, sm.time_zone)
         if found is not None:
             events.extend(found)
         elif state is not None:
@@ -116,4 +133,5 @@ __all__ = [
     "read_meter_totals",
     "resolve_meter",
     "rise_since",
+    "totals_since",
 ]

@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine, Mapping
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, tzinfo
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from homeassistant.components.calendar import CalendarEntity
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
@@ -26,8 +26,10 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo.core.data.loader.calendar import (
     CALENDAR_EVENTS_ATTRIBUTE,
     CalendarEventData,
+    EventValueText,
     capture_calendar_events,
     load_calendar_events,
+    open_window_start,
     rejected_events,
 )
 from custom_components.haeo.core.data.util.field_units import field_unit_label
@@ -72,6 +74,11 @@ class CalendarStateMachine(StateMachine):
         self._base = base
         self._events_by_entity = events_by_entity
 
+    @property
+    def time_zone(self) -> tzinfo:
+        """Return the base state machine's time zone."""
+        return self._base.time_zone
+
     def get(self, entity_id: str) -> EntityState | None:
         """Return the entity state, with events merged for known calendars."""
         state = self._base.get(entity_id)
@@ -88,6 +95,25 @@ def _as_datetime(value: datetime | date) -> datetime:
     if isinstance(value, datetime):
         return value
     return dt_util.start_of_local_day(value)
+
+
+# Longest event text quoted in the repair issue, so a long description does not swamp it
+_QUOTED_TEXT_LENGTH: Final = 60
+
+
+def _one_line(text: str) -> str:
+    """Return text on one line, shortened with an ellipsis when it is long."""
+    text = " ".join(text.split())
+    return text if len(text) <= _QUOTED_TEXT_LENGTH else f"{text[: _QUOTED_TEXT_LENGTH - 1].rstrip()}…"
+
+
+def _ignored_event_line(event: CalendarEventData, value_text: EventValueText) -> str:
+    """Describe an ignored event by its start, its summary, and the text its value was read from.
+
+    For example: ``2026-10-22T10:00:00+11:00 Pool pump — "Run 2 kW or 3 kW"``.
+    """
+    name = f" {_one_line(event.summary)}" if event.summary and value_text.field != "summary" else ""
+    return f'{event.start.isoformat()}{name} — "{_one_line(value_text.text)}"'
 
 
 class CalendarInputLoader:
@@ -223,13 +249,38 @@ class CalendarInputLoader:
         than leaving the last plan in place, and an unchanged fetch does not
         re-optimize.
         """
-        sm = AnnotatedStateMachine(
-            CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events), self._meters.attributes()
-        )
+        calendars = CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events)
+        sm = AnnotatedStateMachine(calendars, self._meters.attributes(self._meters_read_since(calendars)))
         changed = [store for store in self._stores.values() if store.resolve_from_sources(sm)]
         for store in changed:
             store.notify_listeners()
         self._report_ignored_event_values(sm)
+
+    def _meters_read_since(self, calendars: StateMachine) -> dict[str, float | None]:
+        """Return when each meter is read since: the earliest start of the windows open at the horizon start.
+
+        A meter input measures its meters from the window its calendars have
+        open at the horizon start. A meter read by no open window is read
+        since no time.
+        """
+        at = datetime.fromtimestamp(self._horizon_manager.get_forecast_timestamps()[0], tz=UTC)
+        since: dict[str, float | None] = {}
+        for store in self._stores.values():
+            if store.hint.meter is None:
+                continue
+            events = [
+                event
+                for eid in store.source_entity_ids
+                if is_calendar_entity(eid)
+                for event in load_calendar_events(calendars.get(eid), calendars.time_zone) or []
+            ]
+            opened = open_window_start(events, at)
+            for eid in store.source_entity_ids:
+                if is_calendar_entity(eid):
+                    continue
+                known = since.get(eid)
+                since[eid] = opened if known is None else known if opened is None else min(known, opened)
+        return since
 
     def _report_ignored_event_values(self, sm: StateMachine) -> None:
         """Raise a repair issue for each input ignoring calendar events whose values it cannot use.
@@ -249,9 +300,11 @@ class CalendarInputLoader:
         for (element_name, field_path), (store, unit) in reading_values.items():
             calendars = [eid for eid in store.source_entity_ids if is_calendar_entity(eid)]
             ignored = [
-                f"{event.start.isoformat()} {event.summary or ''}: {typed}"
+                _ignored_event_line(event, value_text)
                 for eid in calendars
-                for event, typed in rejected_events(load_calendar_events(sm.get(eid)) or [], store.hint.output_type)
+                for event, value_text in rejected_events(
+                    load_calendar_events(sm.get(eid), sm.time_zone) or [], store.hint.output_type
+                )
             ]
             if ignored:
                 create_calendar_event_values_issue(
@@ -303,8 +356,12 @@ async def async_fetch_calendar_events(
         _LOGGER.debug("Calendar entity %s not found; no events injected", entity_id)
         return None
 
+    # Calendars match floating event times (no timezone, as create_event and
+    # many imported calendars store them) in the query's timezone, so ask in
+    # local time, which is what a floating time means in Home Assistant
+    local_tz = dt_util.get_default_time_zone()
     try:
-        calendar_events = await entity.async_get_events(hass, start, end)
+        calendar_events = await entity.async_get_events(hass, start.astimezone(local_tz), end.astimezone(local_tz))
     except Exception:
         _LOGGER.warning("Failed to fetch events from %s", entity_id, exc_info=True)
         return None

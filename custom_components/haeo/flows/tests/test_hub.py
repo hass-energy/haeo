@@ -9,6 +9,7 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_5_DAYS
 import custom_components.haeo.flows as flows_module
 from custom_components.haeo.flows import get_hub_setup_schema
+from custom_components.haeo.flows.horizon import async_horizon_preset_labels
 from custom_components.haeo.flows.hub import HubConfigFlow
 
 # Test data for hub flow
@@ -84,7 +85,7 @@ async def test_config_abort_translations_exist(hass: HomeAssistant) -> None:
 
 async def test_hub_setup_schema_has_expected_fields(hass: HomeAssistant) -> None:
     """Test that the hub setup schema has the expected simplified fields."""
-    schema = get_hub_setup_schema()
+    schema = get_hub_setup_schema(await async_horizon_preset_labels(hass))
 
     # Get field names from common section
     common_section = schema.schema[vol.Required(flows_module.HUB_SECTION_COMMON)]
@@ -98,9 +99,24 @@ async def test_hub_setup_schema_has_expected_fields(hass: HomeAssistant) -> None
     assert CONF_DEBOUNCE_SECONDS not in field_names
 
 
+async def test_hub_setup_schema_labels_horizon_presets(hass: HomeAssistant) -> None:
+    """The horizon presets carry their translated labels, which the nested select cannot look up itself."""
+    schema = get_hub_setup_schema(await async_horizon_preset_labels(hass))
+
+    common_section = schema.schema[vol.Required(flows_module.HUB_SECTION_COMMON)]
+    schema_values = {vol_key.schema: value for vol_key, value in common_section.schema.schema.items()}
+    preset_select = schema_values[CONF_HORIZON].config["choices"]["preset"]["selector"]["select"]
+    assert preset_select["options"] == [
+        {"value": "2_days", "label": "2 days"},
+        {"value": "3_days", "label": "3 days"},
+        {"value": "5_days", "label": "5 days"},
+        {"value": "7_days", "label": "7 days"},
+    ]
+
+
 async def test_hub_setup_schema_default_preset(hass: HomeAssistant) -> None:
     """Test that the hub setup schema defaults to 5 days preset."""
-    schema = get_hub_setup_schema()
+    schema = get_hub_setup_schema(await async_horizon_preset_labels(hass))
 
     common_section = schema.schema[vol.Required(flows_module.HUB_SECTION_COMMON)]
     schema_keys = {vol_key.schema: vol_key for vol_key in common_section.schema.schema}

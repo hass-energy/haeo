@@ -51,9 +51,11 @@ Each calendar event is one window:
 - **Start/end time**: When the load is allowed to run
 - **Event text**: The energy the window must receive, with its unit (e.g., `8 kWh` or `500 Wh`)
 
-The value is read from the first of the location, summary, or description fields that holds a number, and converted to kWh.
+The energy can sit among other words and numbers, such as a summary of `EV 8kWh` or `Charger 7 kW, needs 8 kWh`, and is converted to kWh.
+It is read from the first of the location, summary, or description fields holding any number, which must hold exactly one number in an energy unit.
+[Calendars as forecasts](../forecasts-and-sensors.md#calendars-as-forecasts) gives the exact rules.
 An event without a number is still a window, but needs no energy.
-A number HAEO cannot use, such as one without a unit or a negative energy, is ignored and listed in a repair issue so you can fix the event.
+An event whose numbers HAEO cannot use, such as one without a unit, a negative energy, or two energies in one field, is ignored and listed in a repair issue so you can fix the event.
 Power can only flow to the load while a window is open.
 
 Events may overlap.
@@ -130,6 +132,14 @@ The run window calendar also creates four input entities showing what HAEO reads
     Mathematical formulation for deferrable loads.
 
     [:material-arrow-right: Deferrable load modeling](../../modeling/device-layer/deferrable_load.md)
+
+- :material-car-electric:{ .lg .middle } **EV configuration**
+
+    ---
+
+    Trip-aware EV charging built on the same mechanism.
+
+    [:material-arrow-right: EV guide](ev.md)
 
 - :material-home-lightning-bolt:{ .lg .middle } **Automation examples**
 

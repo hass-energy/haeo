@@ -599,3 +599,19 @@ async def test_calendar_store_without_injected_events_is_unavailable(states: dic
 
     assert not await store.async_load(FakeStateMachine(states))
     assert not store.available
+
+
+async def test_driven_store_reads_listed_states_as_on_and_off() -> None:
+    """A store whose entity value lists the states meaning off reads its entity's words as on or off."""
+    store = _make_store(
+        storage_value=as_entity_value(["sensor.charger"], off_states=["Idle"]),
+        output_type=OutputType.AVAILABILITY,
+        time_series=True,
+    )
+
+    await store.async_load(FakeStateMachine({"sensor.charger": FakeEntityState("sensor.charger", "Charging", {})}))
+    np.testing.assert_allclose(np.asarray(store.value), [1.0, 1.0])
+
+    await store.async_load(FakeStateMachine({"sensor.charger": FakeEntityState("sensor.charger", "Idle", {})}))
+    np.testing.assert_allclose(np.asarray(store.value), [0.0, 0.0])
+    assert store.captured_source_states["sensor.charger"].state == "Idle"

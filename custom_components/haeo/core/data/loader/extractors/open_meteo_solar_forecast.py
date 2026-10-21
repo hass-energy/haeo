@@ -1,7 +1,7 @@
 """Open-Meteo solar forecast parser."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -14,6 +14,12 @@ _LOGGER = logging.getLogger(__name__)
 
 Format = Literal["open_meteo_solar_forecast"]
 DOMAIN: Format = "open_meteo_solar_forecast"
+
+# How far each watts value's timestamp is ahead of the instant its power is for.
+# The library computes watts from Open-Meteo's instantaneous irradiance, which
+# applies at its own timestamp, but keys it 15 minutes earlier, as it does the
+# preceding 15 minute means.
+WATTS_OFFSET_SECONDS = 15 * 60
 
 
 class OpenMeteoSolarAttributes(TypedDict):
@@ -49,10 +55,17 @@ class Parser:
         return all(is_parsable_to_datetime(k) and isinstance(v, (int, float)) for k, v in watts.items())
 
     @staticmethod
-    def extract(state: OpenMeteoSolarState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
-        """Extract forecast data from Open-Meteo solar forecast format."""
-        parsed: list[tuple[int, float]] = [
-            (parse_datetime_to_timestamp(time), value) for time, value in state.attributes["watts"].items()
-        ]
-        parsed.sort(key=lambda x: x[0])
+    def extract(
+        state: OpenMeteoSolarState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+        """Extract forecast data from Open-Meteo solar forecast format.
+
+        Each watts value is the instantaneous power 15 minutes after its
+        timestamp, so it is placed at that instant and the fuser interpolates
+        between instants.
+        """
+        parsed = sorted(
+            (parse_datetime_to_timestamp(time, time_zone) + WATTS_OFFSET_SECONDS, value)
+            for time, value in state.attributes["watts"].items()
+        )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

@@ -108,13 +108,23 @@ With no window open the rise is zero.
 
 The calendar loader keeps each meter's running totals with the [meter history](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/meter_history.py).
 It reads the meter's sum from the recorder's 5-minute statistics over the past week, which carries on through resets as the Energy dashboard reads it.
-It extends the sum with the meter's state changes as they arrive, keeping totals five minutes apart, and injects the totals into the meter's state as the `haeo_meter_totals` attribute.
+It extends the sum with the meter's state changes as they arrive, keeping totals five minutes apart.
+Into the meter's state, as the `haeo_meter_totals` attribute, it injects only the two totals a rise reads: the one at or before the open window's start and the latest.
+A meter with no window open carries only its latest total.
 It detects resets as the recorder does: a `total_increasing` reading below 90% of the last one, or a `total` meter whose `last_reset` changes, rose from zero.
 Statistics only exist for sensors with a `total` or `total_increasing` state class, so meter fields only offer those sensors.
 When the totals start after the window began, the rise counts from the earliest total, the most the meter is known to have risen.
 
 The input store captures the calendars with their events and the meters with their totals, so diagnostics replay the same rise.
-Historical diagnostics read each meter's totals as of the run from the recorder and inject them the same way.
+Historical diagnostics read each meter's totals as of the run from the recorder and inject the same two, for the window open at the run.
+
+### On and off states
+
+An on/off input reads binary sensors as `on` and `off`.
+When one of its entities reports words instead, the element flow's `states` step asks which states mean on and which mean off, and stores them in the entity value as `on_states` and `off_states`.
+`resolve_field` then reads those entities through `OnOffStateMachine`, which rewrites each state to `on` or `off` before the sensor loader parses it.
+With only one list, every other state is the opposite; with both, a state in neither reads as `unknown`, and states already reading as on or off keep their reading unless listed.
+Input stores capture the states as reported, so diagnostics replay the same reading from the stored lists.
 
 ### Responsibilities
 
@@ -180,6 +190,36 @@ The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/m
 | Volcast                   | Solar forecasting            | [`volcast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/volcast.py)                                     |
 | Open-Meteo Solar Forecast | Solar forecasting            | [`open_meteo_solar_forecast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/open_meteo_solar_forecast.py) |
 | Calendar events           | Calendars as forecasts       | [`calendar_events.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/calendar_events.py)                     |
+
+### Period values and point values
+
+The fuser interpolates linearly between points, so an extractor must place each value at the time it describes.
+
+A value that is constant over a period, such as a tariff price or an optimizer's schedule, becomes a step function.
+`step_points()` emits two points per period, `(start, value)` and `(end, value)`.
+Adjacent periods share a boundary timestamp, and `extract()` separates it with `separate_duplicate_timestamps()` so the fuser steps there instead of ramping.
+A source that gives only start times ends each period where the next one starts (`hold_until_next()`).
+
+A quantity that varies continuously, such as solar or load power, stays as points and is interpolated.
+An instantaneous value sits at its instant.
+A mean over a period sits at the middle of the period, where a smoothly varying quantity equals its mean, so interpolating between midpoints recovers the period means.
+`period_means()` emits those midpoints and holds the first and last means out to the forecast's start and end, so the fuser's cycling never fills the edges.
+
+| Source                     | Reading                                                                                                                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Amber Electric, Amber2MQTT | Prices held from `start_time` to `end_time`                                                                                                                                      |
+| AEMO NEM                   | Prices held from `start_time` to `end_time`, or the next start, or 30 minutes                                                                                                    |
+| Nordpool                   | Prices held from `start` to `end`                                                                                                                                                |
+| Flow Power                 | Prices held until the next period starts                                                                                                                                         |
+| Solcast                    | Mean power over the 30 minutes from `period_start`, at the period's middle                                                                                                       |
+| Volcast                    | Mean power over the 5 minutes from `period_start`, at the period's middle, with zero across the periods Volcast leaves out and just before and after the forecast                |
+| Open-Meteo Solar Forecast  | Instantaneous `watts` at 15 minutes after its timestamp, which is when the irradiance it is computed from applies                                                                |
+| EMHASS                     | Schedules, prices and the `forecasts` attribute held over their step; ML load forecasts at the middle of their step; state of charge at the step's end; temperature at its start |
+| HAEO                       | Linear points unless `interpolation_mode` says otherwise                                                                                                                         |
+
+HAEO's own sensors and numbers publish interval forecasts (power, prices, and other per-period values) with one point at each period start and `interpolation_mode: previous`.
+In previous mode each value holds until the next point and the last for as long as the step before it, so an input reading a HAEO output gets each period's value back unchanged.
+Boundary forecasts (stored energy and other states) publish a point at every boundary and no interpolation mode.
 
 ### Calendar Events
 

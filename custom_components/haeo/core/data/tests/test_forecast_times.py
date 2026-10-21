@@ -349,7 +349,19 @@ def _forecast_state(forecast: object) -> FakeEntityState:
 )
 def test_forecast_boundaries_reads_forecast_times(forecast: object, expected: tuple[float, ...]) -> None:
     """Each forecast point's time is a period boundary."""
-    assert forecast_boundaries(_forecast_state(forecast)) == expected
+    assert forecast_boundaries(_forecast_state(forecast), UTC) == expected
+
+
+def test_forecast_boundaries_reads_naive_times_in_local_time() -> None:
+    """Forecast times without a time zone are local times, here in Adelaide at UTC+10:30."""
+    forecast = [{"time": "2025-01-01T12:00:00"}, {"time": "2025-01-01T12:30:00"}]
+
+    boundaries = forecast_boundaries(_forecast_state(forecast), ZoneInfo("Australia/Adelaide"))
+
+    assert boundaries == (
+        datetime(2025, 1, 1, 1, 30, tzinfo=UTC).timestamp(),
+        datetime(2025, 1, 1, 2, 0, tzinfo=UTC).timestamp(),
+    )
 
 
 @pytest.mark.parametrize(
@@ -396,7 +408,7 @@ def test_forecast_boundaries_reads_forecast_times(forecast: object, expected: tu
 def test_forecast_boundaries_rejects_unusable_forecasts(state: FakeEntityState, match: str) -> None:
     """A state without a usable forecast of times raises ValueError naming the entity."""
     with pytest.raises(ValueError, match=f"sensor.horizon .*{match}"):
-        forecast_boundaries(state)
+        forecast_boundaries(state, UTC)
 
 
 @pytest.mark.parametrize(

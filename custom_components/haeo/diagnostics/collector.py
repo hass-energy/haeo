@@ -19,14 +19,20 @@ from custom_components.haeo.calendar_loader import async_fetch_calendar_events
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.context import OptimizationContext
-from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
-from custom_components.haeo.core.data.loader.config_loader import configured_value, element_inputs
-from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.calendar import (
+    CALENDAR_EVENTS_ATTRIBUTE,
+    CalendarEventDict,
+    load_calendar_events,
+    open_window_start,
+)
+from custom_components.haeo.core.data.loader.config_loader import configured_value, element_inputs, input_value
+from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE, totals_since
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
 from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.ha_state_machine import AnnotatedState
 from custom_components.haeo.meter_history import async_meter_totals_at
 from custom_components.haeo.sensor_utils import (
     SensorStateDict,
@@ -245,10 +251,15 @@ async def _fetch_inputs_at(
     events = dict(zip(calendars, fetched, strict=True))
     unqueryable = {eid for eid, calendar_events in events.items() if calendar_events is None}
 
-    meters = sorted(_collect_meter_entity_ids(config_entry) & set(entity_states))
-    totals = await asyncio.gather(
+    read_since = _meters_read_since(config_entry, entity_states, events, target_time)
+    meters = sorted(read_since.keys() & entity_states.keys())
+    recorded = await asyncio.gather(
         *(async_meter_totals_at(hass, eid, target_time, entity_states[eid]) for eid in meters)
     )
+    totals = [
+        None if meter_totals is None else totals_since(meter_totals, read_since[eid])
+        for eid, meter_totals in zip(meters, recorded, strict=True)
+    ]
 
     extra_attributes: dict[str, Mapping[str, object]] = {
         **{
@@ -271,18 +282,45 @@ async def _fetch_inputs_at(
     return inputs, sorted(missing)
 
 
-def _collect_meter_entity_ids(config_entry: HaeoConfigEntry) -> set[str]:
-    """Collect the entities read by meter inputs in config entry subentries."""
-    meters: set[str] = set()
+def _meters_read_since(
+    config_entry: HaeoConfigEntry,
+    entity_states: Mapping[str, State],
+    events: Mapping[str, list[CalendarEventDict] | None],
+    target_time: datetime,
+) -> dict[str, float | None]:
+    """Return when each meter read by a meter input is read since, as of a past time.
+
+    A meter input measures its meters from the window its calendars had open
+    at the target time, the replayed horizon's start; a meter read by no open
+    window is read since no time.
+    """
+    since: dict[str, float | None] = {}
     for subentry in config_entry.subentries.values():
         participant_config = {**subentry.data, CONF_ELEMENT_TYPE: subentry.subentry_type}
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK or not is_element_config_schema(participant_config):
             continue
         for element_input in element_inputs(participant_config):
-            value = configured_value(participant_config, element_input.config_path)
-            if element_input.hint.meter is not None and is_entity_value(value):
-                meters.update(value["value"])
-    return meters
+            meters = configured_value(participant_config, element_input.config_path)
+            value = input_value(participant_config, element_input)
+            if element_input.hint.meter is None or not is_entity_value(meters) or not is_entity_value(value):
+                continue
+            calendars = [eid for eid in value["value"] if eid not in meters["value"]]
+            opened = open_window_start(
+                [
+                    event
+                    for eid in calendars
+                    if (state := entity_states.get(eid)) is not None and (found := events.get(eid)) is not None
+                    for event in load_calendar_events(
+                        AnnotatedState(state, {CALENDAR_EVENTS_ATTRIBUTE: found}), dt_util.get_default_time_zone()
+                    )
+                    or []
+                ],
+                target_time,
+            )
+            for eid in meters["value"]:
+                known = since.get(eid)
+                since[eid] = opened if known is None else known if opened is None else min(known, opened)
+    return since
 
 
 def _captured_state(state: State, extra_attributes: Mapping[str, object] | None) -> Mapping[str, object]:
@@ -410,24 +448,7 @@ async def collect_diagnostics(
             before the requested time (historical).
 
     """
-    now = _to_local_iso(dt_util.utcnow())
-
-    if target_time is not None:
-        run = await _get_last_run_before(hass, config_entry, target_time)
-        if run is None:
-            msg = "Cannot collect diagnostics: no optimization run found before the requested time"
-            raise RuntimeError(msg)
-
-        started_at, completed_at, horizon_start = run
-        config = _config_from_entry(config_entry)
-        config["version"] = config_entry.version
-        config["minor_version"] = config_entry.minor_version
-        inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
-        diagnostic_target_time = _to_local_iso(target_time)
-        optimization_start_time = _to_local_iso(started_at)
-        optimization_end_time = _to_local_iso(completed_at)
-        outputs = None
-    else:
+    if target_time is None:
         runtime_data = config_entry.runtime_data
         if (
             not isinstance(runtime_data, HaeoRuntimeData)
@@ -438,24 +459,32 @@ async def collect_diagnostics(
             raise RuntimeError(msg)
 
         coordinator_data = runtime_data.coordinator.data
-        config = _config_from_context(coordinator_data.context)
-        config["version"] = config_entry.version
-        config["minor_version"] = config_entry.minor_version
-        inputs = _inputs_from_context(coordinator_data.context)
-        missing = []
-        diagnostic_target_time = None
-        optimization_start_time = _to_local_iso(coordinator_data.started_at)
-        optimization_end_time = _to_local_iso(coordinator_data.completed_at)
-        horizon_start = _to_local_iso(coordinator_data.context.horizon_start)
-        outputs = get_output_sensors(hass, config_entry)
+        return await diagnostics_from_context(
+            hass,
+            config_entry,
+            coordinator_data.context,
+            started_at=coordinator_data.started_at,
+            completed_at=coordinator_data.completed_at,
+            outputs=get_output_sensors(hass, config_entry),
+        )
 
+    run = await _get_last_run_before(hass, config_entry, target_time)
+    if run is None:
+        msg = "Cannot collect diagnostics: no optimization run found before the requested time"
+        raise RuntimeError(msg)
+
+    started_at, completed_at, horizon_start = run
+    config = _config_from_entry(config_entry)
+    config["version"] = config_entry.version
+    config["minor_version"] = config_entry.minor_version
+    inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
     environment = await _build_environment(
         hass,
         config_entry,
-        diagnostic_request_time=now,
-        diagnostic_target_time=diagnostic_target_time,
-        optimization_start_time=optimization_start_time,
-        optimization_end_time=optimization_end_time,
+        diagnostic_request_time=_to_local_iso(dt_util.utcnow()),
+        diagnostic_target_time=_to_local_iso(target_time),
+        optimization_start_time=_to_local_iso(started_at),
+        optimization_end_time=_to_local_iso(completed_at),
         horizon_start=horizon_start,
     )
 
@@ -463,9 +492,50 @@ async def collect_diagnostics(
         config=async_redact_data(config, _REDACTED_CONFIG_KEYS),
         environment=environment,
         inputs=inputs,
-        outputs=outputs,
+        outputs=None,
         missing_entity_ids=tuple(missing),
     )
 
 
-__all__ = ["DIAGNOSTICS_SCHEMA_VERSION", "DiagnosticsResult", "EnvironmentInfo", "collect_diagnostics"]
+async def diagnostics_from_context(
+    hass: HomeAssistant,
+    config_entry: HaeoConfigEntry,
+    context: OptimizationContext,
+    *,
+    started_at: datetime,
+    completed_at: datetime,
+    outputs: dict[str, SensorStateDict] | None,
+) -> DiagnosticsResult:
+    """Collect diagnostics from the config and inputs an optimization used.
+
+    An optimization that failed has no outputs, but its context still holds
+    everything needed to run it again.
+    """
+    config = _config_from_context(context)
+    config["version"] = config_entry.version
+    config["minor_version"] = config_entry.minor_version
+    environment = await _build_environment(
+        hass,
+        config_entry,
+        diagnostic_request_time=_to_local_iso(dt_util.utcnow()),
+        diagnostic_target_time=None,
+        optimization_start_time=_to_local_iso(started_at),
+        optimization_end_time=_to_local_iso(completed_at),
+        horizon_start=_to_local_iso(context.horizon_start),
+    )
+    return DiagnosticsResult(
+        config=async_redact_data(config, _REDACTED_CONFIG_KEYS),
+        environment=environment,
+        inputs=_inputs_from_context(context),
+        outputs=outputs,
+        missing_entity_ids=(),
+    )
+
+
+__all__ = [
+    "DIAGNOSTICS_SCHEMA_VERSION",
+    "DiagnosticsResult",
+    "EnvironmentInfo",
+    "collect_diagnostics",
+    "diagnostics_from_context",
+]

@@ -1,5 +1,7 @@
 """Test data for AEMO NEM forecast sensors."""
 
+import numpy as np
+
 VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.aemo_forecast",
@@ -15,7 +17,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "aemo_nem",
         "expected_unit": "$/kWh",
-        "expected_data": [(1759662000.0, 0.0748)],
+        "expected_data": [(1759662000.0, 0.0748), (1759663800.0, 0.0748)],
         "description": "Single AEMO forecast entry",
     },
     {
@@ -37,8 +39,32 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "aemo_nem",
         "expected_unit": "$/kWh",
-        "expected_data": [(1759662000.0, 0.0748), (1759663800.0, 0.0823)],
+        "expected_data": [
+            (1759662000.0, 0.0748),
+            (np.nextafter(1759663800.0, -np.inf), 0.0748),
+            (1759663800.0, 0.0823),
+            (1759665600.0, 0.0823),
+        ],
         "description": "Multiple AEMO forecast entries",
+    },
+    {
+        "entity_id": "sensor.aemo_unordered_forecast",
+        "state": "0.0748",
+        "attributes": {
+            "forecast": [
+                {"start_time": "2025-10-05T21:30:00+10:00", "price": 0.0823},
+                {"start_time": "2025-10-05T21:00:00+10:00", "price": 0.0748},
+            ]
+        },
+        "expected_format": "aemo_nem",
+        "expected_unit": "$/kWh",
+        "expected_data": [
+            (1759662000.0, 0.0748),
+            (np.nextafter(1759663800.0, -np.inf), 0.0748),
+            (1759663800.0, 0.0823),
+            (1759665600.0, 0.0823),
+        ],
+        "description": "AEMO forecast without end times ends each block at the next start",
     },
 ]
 
@@ -94,5 +120,13 @@ INVALID: list[dict[str, object]] = [
         "expected_format": None,
         "expected_count": 0,
         "description": "AEMO sensor with invalid timestamp",
+    },
+    {
+        "entity_id": "sensor.aemo_bad_end_time",
+        "state": "0",
+        "attributes": {"forecast": [{"start_time": "2024-01-01T00:00:00Z", "end_time": "not a timestamp", "price": 0.1}]},
+        "expected_format": None,
+        "expected_count": 0,
+        "description": "AEMO sensor with invalid end time",
     },
 ]

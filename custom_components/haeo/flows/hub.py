@@ -18,7 +18,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_DEBOUNCE_SECONDS,
 )
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.flows.horizon import validate_horizon
+from custom_components.haeo.flows.horizon import async_horizon_preset_labels, validate_horizon
 from custom_components.haeo.migrations import MIGRATION_MINOR_VERSION
 
 from . import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, get_element_flow_classes, get_hub_setup_schema
@@ -59,7 +59,9 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=get_hub_setup_schema(suggested_name=default_hub_name),
+            data_schema=get_hub_setup_schema(
+                await async_horizon_preset_labels(self.hass), suggested_name=default_hub_name
+            ),
             errors=errors,
         )
 

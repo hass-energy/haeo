@@ -240,6 +240,8 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         *,
         solver: Solver,
         output_names: frozenset[OutputNameT],
+        is_source: bool = True,
+        is_sink: bool = True,
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
@@ -250,6 +252,8 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             periods: Array of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
             output_names: Frozenset of valid output names for this element type (used for type narrowing)
+            is_source: Whether the element can produce power, so policies may draw from it
+            is_sink: Whether the element can consume power, so policies may deliver to it
             outbound_tags: Tags that produced power can be placed on (None = all tags)
             inbound_tags: Tags that consumed power can draw from (None = all tags)
 
@@ -260,6 +264,8 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             solver=solver,
             output_names=output_names,
         )
+        self.is_source = is_source
+        self.is_sink = is_sink
         self.outbound_tags: set[int] | None = outbound_tags
         self.inbound_tags: set[int] | None = inbound_tags
 
@@ -444,6 +450,17 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
         return Rows.concat(blocks)
 
+    def balance_rows(self) -> RowIndices | None:
+        """Return the rows that balance each tag's power, or None when the balance does not apply.
+
+        These lead the power balance rows, ahead of the rows that split production
+        and consumption across tags and the rows that block tags from passing.
+        """
+        rows = applied_constraint(self, "element_power_balance")
+        if rows is None:
+            return None
+        return rows[: self._balance_count() * self.n_periods]
+
     @output(name=ELEMENT_POWER_BALANCE)
     def power_balance_price(self) -> OutputData | None:
         """Return the marginal cost of drawing one more kWh from this element in each period.
@@ -451,10 +468,10 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         Each balanced tag's dual is the cost of withdrawing a kWh of that tag here.
         An extra load draws whichever tag is cheapest, so the price is the lowest of them.
         """
-        rows = applied_constraint(self, "element_power_balance")
+        rows = self.balance_rows()
         if rows is None:
             return None
-        duals = self._solver.row_duals()[rows][: self._balance_count() * self.n_periods]
+        duals = self._solver.row_duals()[rows]
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kWh",

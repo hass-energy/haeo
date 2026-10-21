@@ -136,6 +136,21 @@ When sensor data is available but loading fails (invalid format, missing forecas
 
 When network optimization fails (infeasible constraints, solver not installed, numerical instabilities), the coordinator raises `UpdateFailed` with the solver error.
 
+An infeasible model raises `InfeasibleError` carrying the conflicting constraint rows.
+The coordinator raises the `optimization_infeasible` repair issue naming the configured elements those rows belong to and the minutes from the start of the plan to the first of them, and fails the update with the same message.
+The wording lives in the translations; the coordinator passes only element names, numbers, and the plan's start time as placeholders.
+
+When the hub's `relax_infeasible` option is on, the network relaxes the model instead and records `Network.relaxations`.
+The coordinator raises the `optimization_relaxed` warning issue after the update succeeds, naming the conflicting elements, the elements where constraints were relaxed, and how many periods.
+
+An impossible or relaxed plan's cause can come and go between optimizations, so the coordinator never dismisses either issue.
+Both are persistent and fixable, and the user resolves them through the confirm flow `repairs.async_create_fix_flow` returns.
+While either is open, later failures leave it as it is.
+
+When either issue is raised, the coordinator saves diagnostics built from the failing optimization's context with `diagnostics_from_context`, plus a `failure` section listing the conflicting and relaxed rows, to `haeo/diagnostics/infeasible_*.json` or `relaxed_*.json`.
+The path goes in the issue's data, and the file is deleted when the issue is resolved or the config entry is removed, so there is at most one file per open issue.
+Issues that change only when the configuration does, such as a disconnected network, clear themselves once fixed and are not fixable.
+
 ### Error propagation
 
 All coordinator errors raise `UpdateFailed`, which:

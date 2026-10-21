@@ -45,7 +45,7 @@ from custom_components.haeo.input_stores import (
     input_error_placeholders,
     unavailable_input_placeholders,
 )
-from custom_components.haeo.repairs import dismiss_entry_issues, sync_unavailable_input_issues
+from custom_components.haeo.repairs import async_dismiss_entry_issues, sync_unavailable_input_issues
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
 
@@ -550,7 +550,7 @@ async def async_unload_entry(_hass: HomeAssistant, entry: HaeoConfigEntry) -> bo
 
 async def async_remove_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
     """Dismiss the repair issues raised for a removed config entry."""
-    dismiss_entry_issues(hass, entry.entry_id)
+    await async_dismiss_entry_issues(hass, entry.entry_id)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:

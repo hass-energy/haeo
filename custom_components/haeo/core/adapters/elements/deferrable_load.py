@@ -22,6 +22,7 @@ from custom_components.haeo.core.model.elements.deferrable_load import (
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import CONF_LOADS, BufferRole
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
     CONF_DUE,
@@ -71,7 +72,7 @@ class DeferrableLoadAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = True
-    can_store: bool = False
+    buffer_roles: frozenset[BufferRole] = frozenset({CONF_LOADS})
 
     def model_elements(self, config: DeferrableLoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for deferrable load configuration.

@@ -1,7 +1,7 @@
 import { classifyPowerSeries, isPowerPotentialSeries, powerPairKey } from "./power-series-classification";
 import type { ForecastSeries } from "./types";
 
-export type TooltipSectionId = "produced" | "available" | "consumed" | "possible" | "price" | "soc";
+export type TooltipSectionId = "produced" | "available" | "consumed" | "possible" | "price" | "soc" | "window";
 
 export function tooltipSection(series: ForecastSeries): TooltipSectionId {
   if (series.lane === "price") {
@@ -9,6 +9,9 @@ export function tooltipSection(series: ForecastSeries): TooltipSectionId {
   }
   if (series.lane === "soc") {
     return "soc";
+  }
+  if (series.lane === "window") {
+    return "window";
   }
   const category = classifyPowerSeries(series);
   if (category.group === "production") {
@@ -51,6 +54,7 @@ const LANE_SORT_ORDER: Record<TooltipSectionId, number> = {
   possible: 3,
   price: 4,
   soc: 5,
+  window: 6,
 };
 
 export function buildTooltipRows(
@@ -82,6 +86,10 @@ export function buildTooltipRows(
     }
     const idx = hoverIndices.get(series.key) ?? 0;
     const section = tooltipSection(series);
+    // A window is only worth listing while it is open
+    if (section === "window" && (series.values[idx] ?? 0) <= 0) {
+      continue;
+    }
     const duplicated = (nameCounts.get(series.label.trim().toLowerCase()) ?? 0) > 1;
     const potential = series.lane === "power" ? potentialByPair.get(powerPairKey(series)) : undefined;
     const potentialIdx = potential ? (potentialIndices.get(potential.key) ?? 0) : 0;

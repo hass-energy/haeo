@@ -12,7 +12,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "open_meteo_solar_forecast",
         "expected_unit": "kW",
-        "expected_data": [(1759693500.0, 0.175), (1759694400.0, 0.2)],
+        "expected_data": [(1759694400.0, 0.175), (1759695300.0, 0.2)],
         "description": "Open-Meteo forecast with watts dict",
     },
     {
@@ -26,7 +26,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "open_meteo_solar_forecast",
         "expected_unit": "kW",
-        "expected_data": [(1759693500.0, 0.175), (1759694400.0, 0.2)],
+        "expected_data": [(1759694400.0, 0.175), (1759695300.0, 0.2)],
         "description": "Multiple Open-Meteo forecast entries",
     },
 ]

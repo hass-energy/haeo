@@ -17,6 +17,7 @@ from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.calendar_loader import is_calendar_driven
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
+from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path
@@ -149,6 +150,8 @@ class HaeoInputNumber(NumberEntity):
         }
         if self._store.source_entity_ids:
             self._base_extra_attrs["source_entities"] = self._store.source_entity_ids
+        if field_info.calendar is not None:
+            self._base_extra_attrs["calendar_projection"] = field_info.calendar.projection
         if field_info.direction:
             self._base_extra_attrs["direction"] = field_info.direction
 
@@ -296,6 +299,8 @@ class HaeoInputNumber(NumberEntity):
         extra_attrs = dict(self._base_extra_attrs)
         if self._uses_forecast and self._store.native_value is not None:
             extra_attrs["forecast"] = self._build_forecast_attribute()
+            if not self._field_info.boundaries:
+                extra_attrs["interpolation_mode"] = InterpolationMode.PREVIOUS
         self._attr_extra_state_attributes = extra_attrs
 
     def _build_forecast_attribute(self) -> list[dict[str, datetime | float | None]]:

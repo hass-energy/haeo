@@ -210,3 +210,31 @@ describe("buildTooltipRows", () => {
     });
   });
 });
+
+describe("window rows", () => {
+  const window = (key: string, values: number[]): ForecastSeries =>
+    makeSeries({
+      key,
+      label: key,
+      lane: "window",
+      outputType: "window",
+      direction: null,
+      values: new Float64Array(values),
+    });
+
+  it("puts window series in the window section", () => {
+    expect(tooltipSection(window("pump", [1, 1, 1]))).toBe("window");
+  });
+
+  it("lists only the windows open at the hovered time", () => {
+    const series = [window("open", [0, 1, 0]), window("closed", [1, 0, 1])];
+    const indices = new Map([
+      ["open", 1],
+      ["closed", 1],
+    ]);
+
+    const rows = buildTooltipRows(series, indices, series, indices, (_series, value) => value);
+
+    expect(rows.map((row) => [row.label, row.lane])).toEqual([["open", "window"]]);
+  });
+});

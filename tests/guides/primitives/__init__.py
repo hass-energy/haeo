@@ -14,7 +14,7 @@ Example usage:
     with screenshot_context(output_dir) as ctx:
         add_integration(page, network_name="My System")
         add_battery(page, name="Battery", connection="Inverter", ...)
-        # ctx.screenshots contains OrderedDict of all captured images
+        # ctx.screenshots lists the filenames captured, each saved in both themes
 """
 
 from tests.guides.primitives.capture import ScreenshotContext, guide_step, pause_screenshots, screenshot_context
@@ -26,14 +26,17 @@ from tests.guides.primitives.haeo import (
     EntityInput,
     add_battery,
     add_buffer,
+    add_ev,
     add_grid,
     add_integration,
     add_inverter,
     add_junction,
     add_load,
+    add_local_calendar,
     add_node,
     add_policies,
     add_solar,
+    create_calendar_event,
     login,
     reconfigure_policies,
     verify_setup,
@@ -51,14 +54,17 @@ __all__ = [
     # HAEO element primitives
     "add_battery",
     "add_buffer",
+    "add_ev",
     "add_grid",
     "add_integration",
     "add_inverter",
     "add_junction",
     "add_load",
+    "add_local_calendar",
     "add_node",
     "add_policies",
     "add_solar",
+    "create_calendar_event",
     "guide_step",
     "login",
     "optimize",

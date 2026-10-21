@@ -23,6 +23,7 @@ from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import (
     SchemaValue,
@@ -1003,7 +1004,7 @@ async def test_editable_time_series_builds_forecast_attribute(
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """Editable interval fields build a forecast attribute aligned to interval starts."""
+    """Editable interval fields build a forecast attribute aligned to interval starts that holds each value."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
     config_entry.runtime_data = None
 
@@ -1017,6 +1018,7 @@ async def test_editable_time_series_builds_forecast_attribute(
     assert len(forecast) == 2
     assert [point["time"].timestamp() for point in forecast] == [0.0, 300.0]
     assert all(point["value"] == 10.0 for point in forecast)
+    assert attrs["interpolation_mode"] == InterpolationMode.PREVIOUS
 
 
 async def test_editable_boundaries_builds_forecast_attribute(
@@ -1038,6 +1040,7 @@ async def test_editable_boundaries_builds_forecast_attribute(
     forecast = attrs["forecast"]
     assert len(forecast) == 3
     assert [point["time"].timestamp() for point in forecast] == [0.0, 300.0, 600.0]
+    assert "interpolation_mode" not in attrs
 
 
 async def test_horizon_change_updates_forecast_timestamps_editable(
@@ -1472,3 +1475,4 @@ async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
 
     assert entity._store.available
     assert entity.native_value == 1.0
+    assert entity._attr_extra_state_attributes["calendar_projection"] == "window_active"
