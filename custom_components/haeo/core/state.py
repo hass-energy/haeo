@@ -1,6 +1,7 @@
 """Core state interfaces used across the optimization pipeline."""
 
 from collections.abc import Mapping
+from datetime import tzinfo
 from typing import Protocol
 
 
@@ -29,6 +30,11 @@ class EntityState(Protocol):
 
 class StateMachine(Protocol):
     """Minimal state lookup interface for core data-loading code."""
+
+    @property
+    def time_zone(self) -> tzinfo:
+        """Local time zone, in which timestamps without a time zone are read."""
+        ...
 
     def get(self, entity_id: str) -> EntityState | None:
         """Return entity state for *entity_id* when available."""

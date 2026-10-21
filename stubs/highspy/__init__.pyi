@@ -75,6 +75,19 @@ class HighsLp:
     row_lower_: list[float]
     row_upper_: list[float]
 
+class IisStrategy(IntEnum):
+    kIisStrategyLight = 0
+    kIisStrategyFromRay = 1
+    kIisStrategyFromLp = 2
+    kIisStrategyIrreducible = 4
+    kIisStrategyColPriority = 8
+    kIisStrategyRelaxation = 16
+
+class HighsIis:
+    valid_: bool
+    row_index_: list[int]
+    col_index_: list[int]
+
 class HighsInfo:
     max_dual_infeasibility: float
     simplex_iteration_count: int
@@ -158,5 +171,15 @@ class Highs:
     def getInfo(self) -> HighsInfo: ...
     def getBasis(self) -> HighsBasis: ...
     def getLp(self) -> HighsLp: ...
+    def getIis(self) -> tuple[HighsStatus, HighsIis]: ...
+    def feasibilityRelaxation(
+        self,
+        global_lower_penalty: float,
+        global_upper_penalty: float,
+        global_rhs_penalty: float,
+        local_lower_penalty: NDArray[np.float64] | None = None,
+        local_upper_penalty: NDArray[np.float64] | None = None,
+        local_rhs_penalty: NDArray[np.float64] | None = None,
+    ) -> HighsStatus: ...
     def clearLinearObjectives(self) -> None: ...
     def clearSolver(self) -> HighsStatus: ...

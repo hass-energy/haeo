@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine, Mapping
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, tzinfo
 import logging
 from typing import TYPE_CHECKING, Final
 
@@ -73,6 +73,11 @@ class CalendarStateMachine(StateMachine):
         """Initialize with a base state machine and per-entity event lists."""
         self._base = base
         self._events_by_entity = events_by_entity
+
+    @property
+    def time_zone(self) -> tzinfo:
+        """Return the base state machine's time zone."""
+        return self._base.time_zone
 
     def get(self, entity_id: str) -> EntityState | None:
         """Return the entity state, with events merged for known calendars."""
@@ -267,7 +272,7 @@ class CalendarInputLoader:
                 event
                 for eid in store.source_entity_ids
                 if is_calendar_entity(eid)
-                for event in load_calendar_events(calendars.get(eid)) or []
+                for event in load_calendar_events(calendars.get(eid), calendars.time_zone) or []
             ]
             opened = open_window_start(events, at)
             for eid in store.source_entity_ids:
@@ -298,7 +303,7 @@ class CalendarInputLoader:
                 _ignored_event_line(event, value_text)
                 for eid in calendars
                 for event, value_text in rejected_events(
-                    load_calendar_events(sm.get(eid)) or [], store.hint.output_type
+                    load_calendar_events(sm.get(eid), sm.time_zone) or [], store.hint.output_type
                 )
             ]
             if ignored:
@@ -351,8 +356,12 @@ async def async_fetch_calendar_events(
         _LOGGER.debug("Calendar entity %s not found; no events injected", entity_id)
         return None
 
+    # Calendars match floating event times (no timezone, as create_event and
+    # many imported calendars store them) in the query's timezone, so ask in
+    # local time, which is what a floating time means in Home Assistant
+    local_tz = dt_util.get_default_time_zone()
     try:
-        calendar_events = await entity.async_get_events(hass, start, end)
+        calendar_events = await entity.async_get_events(hass, start.astimezone(local_tz), end.astimezone(local_tz))
     except Exception:
         _LOGGER.warning("Failed to fetch events from %s", entity_id, exc_info=True)
         return None

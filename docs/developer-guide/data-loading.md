@@ -191,6 +191,36 @@ The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/m
 | Open-Meteo Solar Forecast | Solar forecasting            | [`open_meteo_solar_forecast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/open_meteo_solar_forecast.py) |
 | Calendar events           | Calendars as forecasts       | [`calendar_events.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/calendar_events.py)                     |
 
+### Period values and point values
+
+The fuser interpolates linearly between points, so an extractor must place each value at the time it describes.
+
+A value that is constant over a period, such as a tariff price or an optimizer's schedule, becomes a step function.
+`step_points()` emits two points per period, `(start, value)` and `(end, value)`.
+Adjacent periods share a boundary timestamp, and `extract()` separates it with `separate_duplicate_timestamps()` so the fuser steps there instead of ramping.
+A source that gives only start times ends each period where the next one starts (`hold_until_next()`).
+
+A quantity that varies continuously, such as solar or load power, stays as points and is interpolated.
+An instantaneous value sits at its instant.
+A mean over a period sits at the middle of the period, where a smoothly varying quantity equals its mean, so interpolating between midpoints recovers the period means.
+`period_means()` emits those midpoints and holds the first and last means out to the forecast's start and end, so the fuser's cycling never fills the edges.
+
+| Source                     | Reading                                                                                                                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Amber Electric, Amber2MQTT | Prices held from `start_time` to `end_time`                                                                                                                                      |
+| AEMO NEM                   | Prices held from `start_time` to `end_time`, or the next start, or 30 minutes                                                                                                    |
+| Nordpool                   | Prices held from `start` to `end`                                                                                                                                                |
+| Flow Power                 | Prices held until the next period starts                                                                                                                                         |
+| Solcast                    | Mean power over the 30 minutes from `period_start`, at the period's middle                                                                                                       |
+| Volcast                    | Mean power over the 5 minutes from `period_start`, at the period's middle, with zero across the periods Volcast leaves out and just before and after the forecast                |
+| Open-Meteo Solar Forecast  | Instantaneous `watts` at 15 minutes after its timestamp, which is when the irradiance it is computed from applies                                                                |
+| EMHASS                     | Schedules, prices and the `forecasts` attribute held over their step; ML load forecasts at the middle of their step; state of charge at the step's end; temperature at its start |
+| HAEO                       | Linear points unless `interpolation_mode` says otherwise                                                                                                                         |
+
+HAEO's own sensors and numbers publish interval forecasts (power, prices, and other per-period values) with one point at each period start and `interpolation_mode: previous`.
+In previous mode each value holds until the next point and the last for as long as the step before it, so an input reading a HAEO output gets each period's value back unchanged.
+Boundary forecasts (stored energy and other states) publish a point at every boundary and no interpolation mode.
+
 ### Calendar Events
 
 A calendar's state only shows its current or next event, so the calendar extractor cannot read a calendar directly.

@@ -1,6 +1,7 @@
 """Data extractor package for different energy data providers."""
 
 from collections.abc import Sequence
+from datetime import tzinfo
 from enum import StrEnum
 from typing import Final, NamedTuple
 
@@ -47,8 +48,11 @@ class ExtractedData(NamedTuple):
     """Unit of measurement after conversion to base units. (None if unknown)"""
 
 
-def extract(state: EntityState, *, output_type: OutputType | None = None) -> ExtractedData:
+def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | None = None) -> ExtractedData:
     """Extract data from a State object and convert to base units.
+
+    Timestamps without a time zone are read in ``time_zone``, Home Assistant's
+    local time zone.
 
     A calendar reads the value typed in each event against the input's output
     type when it is given, so values the input cannot use are ignored.
@@ -60,27 +64,28 @@ def extract(state: EntityState, *, output_type: OutputType | None = None) -> Ext
     device_class: DeviceClass | None
 
     if calendar_events.Parser.detect(state):
-        data, unit, device_class = calendar_events.Parser.extract(state, output_type)
+        data, unit, device_class = calendar_events.Parser.extract(state, time_zone, output_type)
     elif aemo_nem.Parser.detect(state):
-        data, unit, device_class = aemo_nem.Parser.extract(state)
+        data, unit, device_class = aemo_nem.Parser.extract(state, time_zone)
     elif amber2mqtt.Parser.detect(state):
-        data, unit, device_class = amber2mqtt.Parser.extract(state)
+        data, unit, device_class = amber2mqtt.Parser.extract(state, time_zone)
     elif amberelectric.Parser.detect(state):
-        data, unit, device_class = amberelectric.Parser.extract(state)
+        data, unit, device_class = amberelectric.Parser.extract(state, time_zone)
     elif emhass.Parser.detect(state):
-        data, unit, device_class = emhass.Parser.extract(state)
+        data, unit, device_class = emhass.Parser.extract(state, time_zone)
     elif flow_power.Parser.detect(state):
-        data, unit, device_class = flow_power.Parser.extract(state)
+        data, unit, device_class = flow_power.Parser.extract(state, time_zone)
     elif haeo.Parser.detect(state):
-        data, unit, device_class = haeo.Parser.extract(state)
+        data, unit, device_class = haeo.Parser.extract(state, time_zone)
     elif nordpool.Parser.detect(state):
-        data, unit, device_class = nordpool.Parser.extract(state)
+        data, unit, device_class = nordpool.Parser.extract(state, time_zone)
     elif open_meteo_solar_forecast.Parser.detect(state):
-        data, unit, device_class = open_meteo_solar_forecast.Parser.extract(state)
-    elif solcast_solar.Parser.detect(state):
-        data, unit, device_class = solcast_solar.Parser.extract(state)
+        data, unit, device_class = open_meteo_solar_forecast.Parser.extract(state, time_zone)
     elif volcast.Parser.detect(state):
-        data, unit, device_class = volcast.Parser.extract(state)
+        # Volcast entries also carry a Solcast-style pv_estimate, so Volcast is checked first
+        data, unit, device_class = volcast.Parser.extract(state, time_zone)
+    elif solcast_solar.Parser.detect(state):
+        data, unit, device_class = solcast_solar.Parser.extract(state, time_zone)
     else:
         # If no extractor matched read the state as a single float value
         data = _parse_scalar_state(state.state)

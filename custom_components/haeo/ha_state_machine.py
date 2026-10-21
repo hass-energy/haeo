@@ -1,8 +1,10 @@
 """Home Assistant-backed state machine adapter."""
 
 from collections.abc import Mapping
+from datetime import tzinfo
 
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.core.state import EntityState, StateMachine
 
@@ -13,6 +15,11 @@ class HomeAssistantStateMachine(StateMachine):
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize the state machine adapter."""
         self._hass = hass
+
+    @property
+    def time_zone(self) -> tzinfo:
+        """Return Home Assistant's configured time zone."""
+        return dt_util.get_default_time_zone()
 
     def get(self, entity_id: str) -> EntityState | None:
         """Return current state for *entity_id*."""
@@ -59,6 +66,11 @@ class AnnotatedStateMachine(StateMachine):
         """Initialize with a base state machine and the extra attributes per entity."""
         self._base = base
         self._attributes = attributes
+
+    @property
+    def time_zone(self) -> tzinfo:
+        """Return the base state machine's time zone."""
+        return self._base.time_zone
 
     def get(self, entity_id: str) -> EntityState | None:
         """Return the entity state, with its extra attributes merged when known."""

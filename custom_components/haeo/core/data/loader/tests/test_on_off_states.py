@@ -1,5 +1,7 @@
 """Tests for reading entities whose states are words as on or off."""
 
+from zoneinfo import ZoneInfo
+
 import numpy as np
 import pytest
 
@@ -83,3 +85,12 @@ def test_an_ev_reads_a_charger_reporting_words(charger_state: str, expected: flo
     assert loaded["element_type"] == ElementType.EV
 
     np.testing.assert_allclose(loaded["charging"]["connected"], [expected, expected])
+
+
+def test_state_machine_reads_in_the_base_time_zone() -> None:
+    """Reading entities as on or off keeps the base state machine's time zone."""
+    adelaide = ZoneInfo("Australia/Adelaide")
+
+    sm = OnOffStateMachine(FakeStateMachine({}, time_zone=adelaide), as_entity_value([CHARGER], off_states=["Idle"]))
+
+    assert sm.time_zone is adelaide

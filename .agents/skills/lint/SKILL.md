@@ -22,6 +22,7 @@ One line per gate with timing, output only for failures, non-zero exit if anythi
 Some gates cannot run outside GitHub Actions and are reported as skipped with the reason rather than silently omitted:
 
 - `hassfest` and `hacs` are provided wholly by third-party actions.
+    Hassfest can still be run by hand, as [Running hassfest](#running-hassfest) describes; run it whenever you change `translations/en.json`, `manifest.json`, `services.yaml`, or repair issues.
 - `guide` is slow and needs Playwright Firefox. It runs in `guides.yml` and is not part of the required check. Run it explicitly with `uv run check guide` when touching `docs/walkthroughs/`.
 
 ## Step 2: fix what failed
@@ -49,6 +50,25 @@ Everything still failing needs a real change:
     Run `uv sync` after changing either.
 
 The main branch is always clean, so any failure belongs to the current branch and must be fixed rather than worked around.
+
+## Running hassfest
+
+Hassfest validates the manifest, translations, and services against Home Assistant's schemas.
+For example, it rejects a fixable repair issue that has both a `description` and a `fix_flow`.
+Its script is not in the `homeassistant` package, so fetch it from Home Assistant's source at the version the venv has:
+
+```bash
+version=$(uv run python -c "import homeassistant.const as c; print(c.__version__)")
+git clone --quiet --depth 1 --filter=blob:none --sparse --branch "$version" \
+    https://github.com/home-assistant/core /tmp/hacore
+git -C /tmp/hacore sparse-checkout set script
+cd /tmp/hacore && PATH="$OLDPWD/.venv/bin:$PATH" \
+    python -m script.hassfest --integration-path "$OLDPWD/custom_components/haeo"
+```
+
+`Invalid integrations: 0` means it passed; errors are listed under the integration.
+Hassfest calls `ruff`, so the venv must be on `PATH`.
+CI runs the latest Home Assistant's hassfest, so a rule added since the pinned version can still fail there.
 
 ## Running a single gate
 

@@ -1,7 +1,10 @@
 """Tests for the HAEO data update coordinator."""
 
-from collections.abc import Generator
+from collections.abc import Awaitable, Callable, Generator
 from datetime import UTC, datetime, timedelta
+import json
+import logging
+from pathlib import Path
 import time
 from types import MappingProxyType
 from typing import Any  # noqa: TID251  # Mock-typed test doubles (MagicMock spec=) and monkeypatched callback stand-ins
@@ -10,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant, State
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import EventStateChangedData
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -51,9 +55,11 @@ from custom_components.haeo.core.const import (
     DEFAULT_DEBOUNCE_SECONDS,
     HORIZON_PRESET_2_DAYS,
 )
+from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import Network, OutputData, OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.infeasibility import InfeasibleError, Relaxation, RowLabel
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
@@ -91,6 +97,32 @@ from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_element_configs
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.input_stores import build_input_stores
+from custom_components.haeo.repairs import create_optimization_infeasible_issue, create_optimization_relaxed_issue
+
+# Placeholders of an issue raised by an earlier optimization
+EARLIER_ISSUE = {"elements": "Earlier Load", "minutes": "45"}
+EARLIER_DIAGNOSTICS = "/config/haeo/diagnostics/earlier.json"
+
+
+def _run_jobs_but(hass: HomeAssistant, skipped: object, result: object) -> Callable[..., Awaitable[object]]:
+    """Return an executor stand-in that runs every job but ``skipped``, which returns ``result`` instead."""
+    run = hass.async_add_executor_job
+
+    async def run_job(target: Callable[..., object], *args: object) -> object:
+        if target is skipped:
+            return result
+        return await run(target, *args)
+
+    return run_job
+
+
+def _saved_diagnostics(hass: HomeAssistant, path: str, kind: str) -> dict[str, Any]:
+    """Read a diagnostics file saved for a failed or relaxed plan, checking where it was saved."""
+    saved = Path(path)
+    assert saved.parent == Path(hass.config.path("haeo", "diagnostics"))
+    assert saved.name.startswith(f"{kind}_")
+    return json.loads(saved.read_text())
+
 
 _TIMES = tuple(datetime(2024, 6, 1, tzinfo=UTC) + timedelta(minutes=30 * i) for i in range(4))
 
@@ -245,6 +277,7 @@ def mock_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> H
     # Create mock horizon manager (typed as HorizonManager but is MagicMock at runtime)
     mock_horizon: Any = MagicMock(spec=HorizonManager)
     mock_horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
+    mock_horizon.current_start_time = datetime.fromtimestamp(1000.0, tz=UTC)
     mock_horizon.subscribe.return_value = MagicMock()  # Unsubscribe function
 
     # Create mock auto-optimize switch (default to on)
@@ -328,20 +361,58 @@ def test_update_interval_is_none_for_event_driven(
 
 
 @pytest.mark.usefixtures("mock_connection_subentry")
+@pytest.mark.parametrize(
+    ("conflicts", "relaxations", "relaxed_issue"),
+    [
+        pytest.param((), (), None, id="feasible"),
+        pytest.param(
+            (
+                RowLabel("Test Grid:import", "power_limit_power_limit", 1),
+                RowLabel("Switchboard", "element_power_balance", 1, balance=True),
+                RowLabel("Test Grid:export", "power_limit_power_limit", 1),
+            ),
+            (
+                Relaxation(RowLabel("Switchboard", "element_power_balance", 0, balance=True), -0.05),
+                Relaxation(RowLabel("Switchboard", "element_power_balance", 1, balance=True), -0.25),
+                Relaxation(RowLabel("Test Battery", "energy", None), 0.2),
+            ),
+            {"elements": "Test Grid, Switchboard", "minutes": "30", "relaxed_elements": "Switchboard, Test Battery"},
+            id="relaxed",
+        ),
+        pytest.param(
+            (),
+            (Relaxation(RowLabel("Test Battery", "element_power_balance", 1, balance=True), 0.1),),
+            {"elements": "Test Battery", "minutes": "30", "relaxed_elements": "Test Battery"},
+            id="relaxed_without_conflicts",
+        ),
+    ],
+)
 async def test_async_update_data_returns_outputs(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
     mock_runtime_data: HaeoRuntimeData,
+    conflicts: tuple[RowLabel, ...],
+    relaxations: tuple[Relaxation, ...],
+    relaxed_issue: dict[str, str] | None,
+    tmp_path: Path,
 ) -> None:
-    """Coordinator returns optimization results merged with element outputs."""
+    """Coordinator returns optimization results merged with element outputs, and reports any relaxed constraints."""
+    hass.config.config_dir = str(tmp_path)
     fake_element = MagicMock()
     fake_element.outputs.return_value = {
         BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0))
     }
 
     fake_network = MagicMock()
+    fake_network.conflicts = conflicts
+    fake_network.relaxations = relaxations
+    if relaxed_issue is None:
+        create_optimization_relaxed_issue(hass, mock_hub_entry.entry_id, EARLIER_ISSUE, EARLIER_DIAGNOSTICS)
+    create_optimization_infeasible_issue(
+        hass, mock_hub_entry.entry_id, "optimization_infeasible", EARLIER_ISSUE, EARLIER_DIAGNOSTICS
+    )
     empty_element = MagicMock()
     empty_element.outputs.return_value = {}
 
@@ -375,6 +446,7 @@ async def test_async_update_data_returns_outputs(
 
     # Configure mock horizon manager with forecast timestamps
     _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = expected_forecast_times
+    _get_mock_horizon(mock_runtime_data).periods_seconds = [1800, 1800]
 
     # Mock connection adapter to return proper outputs
     mock_connection_adapter = MagicMock()
@@ -410,7 +482,9 @@ async def test_async_update_data_returns_outputs(
     # Patch coordinator to use mocked _load_from_input_stores
     with (
         patch("custom_components.haeo.coordinator.coordinator.network_module.create_network", new_callable=AsyncMock),
-        patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
+        patch.object(
+            hass, "async_add_executor_job", side_effect=_run_jobs_but(hass, fake_network.optimize, 123.45)
+        ) as mock_executor,
         patch("custom_components.haeo.coordinator.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.coordinator.dt_util.utcnow", return_value=generated_at),
         patch("custom_components.haeo.coordinator.coordinator.async_get_translations", mock_translations),
@@ -423,7 +497,6 @@ async def test_async_update_data_returns_outputs(
             },
         ),
     ):
-        mock_executor.return_value = 123.45
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         # Set network directly (it's created in async_initialize in production)
         coordinator.network = fake_network
@@ -432,7 +505,7 @@ async def test_async_update_data_returns_outputs(
         with patch.object(coordinator, "_load_from_input_stores", return_value=mock_loaded_configs):
             result = await coordinator._async_update_data()
 
-    mock_executor.assert_awaited_once_with(fake_network.optimize)
+    mock_executor.assert_any_call(fake_network.optimize)
 
     # Verify result is a CoordinatorData dataclass
     assert result.context is not None
@@ -472,6 +545,29 @@ async def test_async_update_data_returns_outputs(
     ]
 
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
+
+    # A plan that is found leaves an earlier impossible plan for the user to resolve
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_infeasible_{mock_hub_entry.entry_id}") is not None
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_relaxed_{mock_hub_entry.entry_id}")
+    assert issue is not None
+    if relaxed_issue is None:
+        # A plan that meets every constraint leaves an earlier relaxation for the user to resolve
+        assert issue.translation_placeholders == {**EARLIER_ISSUE, "diagnostics": EARLIER_DIAGNOSTICS}
+    else:
+        relaxed_periods = str(len({r.row.period for r in relaxations if r.row.period is not None}))
+        planned_at = f"{dt_util.as_local(dt_util.utc_from_timestamp(expected_forecast_times[0])):%Y-%m-%d %H:%M}"
+        assert issue.translation_placeholders is not None
+        diagnostics = _saved_diagnostics(hass, issue.translation_placeholders["diagnostics"], "relaxed")
+        assert issue.translation_placeholders == {
+            **relaxed_issue,
+            "relaxed_periods": relaxed_periods,
+            "planned_at": planned_at,
+            "diagnostics": issue.translation_placeholders["diagnostics"],
+        }
+        assert diagnostics["data"]["failure"] == {
+            "conflicts": [str(row) for row in conflicts],
+            "relaxations": [str(relaxation) for relaxation in relaxations],
+        }
 
 
 async def test_async_initialize_with_empty_input_stores(
@@ -532,6 +628,120 @@ async def test_async_update_data_propagates_errors(
         await coordinator._async_update_data()
 
 
+@pytest.mark.parametrize(
+    ("conflicts", "translation_key", "placeholders"),
+    [
+        pytest.param(
+            (
+                RowLabel("Switchboard", "element_power_balance", 2, balance=True),
+                RowLabel("Test Grid:import", "power_limit_power_limit", 1),
+                RowLabel("Test Grid:import", "power_limit_power_limit", 2),
+            ),
+            "optimization_infeasible",
+            {"elements": "Switchboard, Test Grid", "minutes": "17"},
+            id="conflicts",
+        ),
+        pytest.param((), "optimization_infeasible_unexplained", {}, id="no_conflicts"),
+    ],
+)
+@pytest.mark.usefixtures("mock_grid_subentry")
+async def test_async_update_data_reports_an_infeasible_plan(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    conflicts: tuple[RowLabel, ...],
+    translation_key: str,
+    placeholders: dict[str, str],
+    tmp_path: Path,
+) -> None:
+    """An infeasible plan fails the update with a repair issue naming the elements and how far into the plan."""
+    hass.config.config_dir = str(tmp_path)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+    coordinator.network.optimize.side_effect = InfeasibleError(conflicts)
+    create_optimization_relaxed_issue(hass, mock_hub_entry.entry_id, EARLIER_ISSUE, EARLIER_DIAGNOSTICS)
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        pytest.raises(UpdateFailed) as error,
+    ):
+        await coordinator._async_update_data()
+
+    assert error.value.translation_key == translation_key
+    assert error.value.translation_placeholders == placeholders
+    issues = ir.async_get(hass)
+    issue = issues.async_get_issue(DOMAIN, f"optimization_infeasible_{mock_hub_entry.entry_id}")
+    assert issue is not None
+    assert issue.translation_key == translation_key
+    planned_at = f"{dt_util.as_local(dt_util.utc_from_timestamp(1000.0)):%Y-%m-%d %H:%M}"
+    assert issue.translation_placeholders is not None
+    path = issue.translation_placeholders["diagnostics"]
+    assert issue.translation_placeholders == {**placeholders, "planned_at": planned_at, "diagnostics": path}
+    diagnostics = _saved_diagnostics(hass, path, "infeasible")
+    assert diagnostics["data"]["failure"] == {"conflicts": [str(row) for row in conflicts]}
+    assert {"config", "environment", "inputs"} <= diagnostics["data"].keys()
+    # An earlier relaxation stays for the user to resolve
+    assert issues.async_get_issue(DOMAIN, f"optimization_relaxed_{mock_hub_entry.entry_id}") is not None
+
+
+@pytest.mark.usefixtures("mock_grid_subentry")
+async def test_async_update_data_reports_an_infeasible_plan_whose_diagnostics_cannot_be_saved(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A diagnostics file that cannot be written leaves the issue for the next plan, and still reports the failure."""
+    # HAEO's loggers write to the console only, so let this one reach caplog
+    monkeypatch.setattr(logging.getLogger("custom_components.haeo"), "propagate", True)
+    hass.config.config_dir = str(tmp_path)
+    # A file where the diagnostics folder belongs makes writing it fail
+    (tmp_path / "haeo").mkdir()
+    (tmp_path / "haeo" / "diagnostics").write_text("")
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+    coordinator.network.optimize.side_effect = InfeasibleError((RowLabel("Test Grid:import", "power_limit", 1),))
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        pytest.raises(UpdateFailed) as error,
+    ):
+        await coordinator._async_update_data()
+
+    assert error.value.translation_key == "optimization_infeasible"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_infeasible_{mock_hub_entry.entry_id}") is None
+    assert "Could not save the infeasible plan's diagnostics" in caplog.text
+
+
+async def test_async_update_data_keeps_an_unresolved_infeasible_issue_and_its_diagnostics(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    tmp_path: Path,
+) -> None:
+    """Another impossible plan leaves the issue the user has not resolved, and saves no more diagnostics."""
+    hass.config.config_dir = str(tmp_path)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+    coordinator.network.optimize.side_effect = InfeasibleError((RowLabel("Switchboard", "element_power_balance", 0),))
+    create_optimization_infeasible_issue(
+        hass, mock_hub_entry.entry_id, "optimization_infeasible", EARLIER_ISSUE, EARLIER_DIAGNOSTICS
+    )
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_infeasible_{mock_hub_entry.entry_id}")
+    assert issue is not None
+    assert issue.translation_placeholders == {**EARLIER_ISSUE, "diagnostics": EARLIER_DIAGNOSTICS}
+    assert not Path(hass.config.path("haeo", "diagnostics")).exists()
+
+
 async def test_async_update_data_raises_on_missing_model_element(
     hass: HomeAssistant,
     mock_hub_entry: ConfigEntry,
@@ -590,10 +800,11 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
         {"time": forecast_times[0], "value": 1.2},
         {"time": forecast_times[1], "value": 3.4},
     ]
+    assert output.interpolation_mode is None
 
 
 def test_build_coordinator_output_maps_interval_values_onto_period_starts() -> None:
-    """Interval values take the first n of the n+1 boundary times."""
+    """Interval values take the first n of the n+1 boundary times and hold until the next."""
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0)),
@@ -605,6 +816,7 @@ def test_build_coordinator_output_maps_interval_values_onto_period_starts() -> N
         {"time": _TIMES[0], "value": 1.0},
         {"time": _TIMES[1], "value": 2.0},
     ]
+    assert output.interpolation_mode == InterpolationMode.PREVIOUS
 
 
 @pytest.mark.parametrize("value_count", [2, 5], ids=["too-few", "too-many"])
@@ -1295,6 +1507,53 @@ async def test_async_update_data_clears_flags_in_finally(
     # Flags should be cleared by finally block
     assert coordinator._optimization_in_progress is False
     assert coordinator._pending_refresh is False
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+async def test_inputs_changed_during_optimization_request_another(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """An input change while an optimization runs requests another once the debounce window passes."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    def change_inputs_mid_solve() -> None:
+        coordinator.signal_optimization_stale()
+        msg = "test"
+        raise UpdateFailed(msg)
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", side_effect=change_inputs_mid_solve),
+        patch("custom_components.haeo.coordinator.coordinator.async_call_later") as call_later,
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+    assert coordinator._pending_refresh is True
+    call_later.assert_called_once()
+    assert call_later.call_args.args[2] == coordinator._debounce_timer_callback
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+async def test_requests_before_optimization_are_met_by_it(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A request made before an optimization starts is met by it, so no further optimization follows."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator._pending_refresh = True
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", side_effect=UpdateFailed("test")),
+        patch("custom_components.haeo.coordinator.coordinator.async_call_later") as call_later,
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+    assert coordinator._pending_refresh is False
+    call_later.assert_not_called()
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")

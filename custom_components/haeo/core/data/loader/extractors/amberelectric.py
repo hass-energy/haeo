@@ -1,14 +1,14 @@
 """Amber Electric energy pricing forecast parser."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,33 +66,27 @@ class Parser:
         )
 
     @staticmethod
-    def _round_to_minute(timestamp: str | datetime) -> int:
+    def _round_to_minute(timestamp: str | datetime, time_zone: tzinfo) -> int:
         """Round timestamp to nearest minute (Amber provides times 1 second into each period)."""
-        raw = parse_datetime_to_timestamp(timestamp)
+        raw = parse_datetime_to_timestamp(timestamp, time_zone)
         return int(round(raw / 60.0) * 60.0)
 
     @staticmethod
-    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+    def extract(
+        state: AmberElectricState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Amber Electric pricing format.
 
-        Emits boundary prices to create step functions: each window produces two points
-        (start, price) and (end, price) to ensure constant pricing within the window
-        without linear interpolation. Adjacent windows will have the same timestamp
-        at boundaries to prevent interpolation.
+        Each price holds for its whole window, so the windows become a step function.
 
         Returns timestamps in seconds as integers.
         """
-        forecasts = list(state.attributes["forecasts"])
-        parsed: list[tuple[int, float]] = []
-
-        for item in forecasts:
-            start = Parser._round_to_minute(item["start_time"])
-            end = Parser._round_to_minute(item["end_time"])
-            price = item["per_kwh"]
-
-            # Emit start of window and end of window with same price
-            parsed.append((start, price))
-            parsed.append((end, price))
-
-        parsed.sort(key=lambda x: x[0])
+        parsed = step_points(
+            (
+                Parser._round_to_minute(item["start_time"], time_zone),
+                Parser._round_to_minute(item["end_time"], time_zone),
+                item["per_kwh"],
+            )
+            for item in state.attributes["forecasts"]
+        )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS
