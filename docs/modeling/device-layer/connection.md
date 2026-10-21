@@ -64,7 +64,7 @@ The reported connection power is the power entering the chain at the source, bef
 | ------------------ | ---- | --------- | -------------------------------------------------- |
 | `connection_power` | kW   | Real-time | Power leaving the source, before efficiency losses |
 
-See [Connection Configuration](../../user-guide/elements/connections.md) for detailed sensor and configuration documentation.
+See [Connection Configuration](../../user-guide/elements/connection.md) for detailed sensor and configuration documentation.
 
 ## Configuration examples
 
@@ -148,7 +148,7 @@ Use explicit Connection devices when you need:
 
     Configure connections in your Home Assistant setup.
 
-    [:material-arrow-right: Connection configuration](../../user-guide/elements/connections.md)
+    [:material-arrow-right: Connection configuration](../../user-guide/elements/connection.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 

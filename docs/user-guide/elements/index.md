@@ -139,6 +139,6 @@ Explore detailed configuration for each element type:
 
     Explicit power flow paths between elements.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 </div>

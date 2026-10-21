@@ -219,7 +219,7 @@ Avoid using 100% efficiency unless your inverter truly has no losses.
 
     Connect batteries and solar panels to the inverter's DC bus.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 - :material-battery-charging:{ .lg .middle } **Configure battery**
 

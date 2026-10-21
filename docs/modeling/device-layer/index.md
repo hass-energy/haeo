@@ -92,7 +92,7 @@ This prevents naming collisions and groups related components visually in Home A
 
     Power consumption modeling.
 
-    [:material-arrow-right: Load modeling](loads.md)
+    [:material-arrow-right: Load modeling](load.md)
 
 - :material-shield-check:{ .lg .middle } **Buffer**
 

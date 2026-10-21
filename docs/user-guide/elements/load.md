@@ -345,7 +345,7 @@ If optimization fails with loads:
 
     Learn how to connect your load to other elements using connections.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 - :material-chart-line:{ .lg .middle } **Configure forecast sensors**
 

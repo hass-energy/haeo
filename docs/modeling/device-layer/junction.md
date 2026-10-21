@@ -36,7 +36,7 @@ The adapter transforms user configuration into model parameters:
 | —                  | Node          | `is_sink`       | Always `false`: a junction cannot remove it |
 
 A Junction device is always a pure junction.
-Power enters and leaves the network only through device elements that bound and price it, such as [Grid](grid.md), [Solar](solar.md), and [Loads](loads.md).
+Power enters and leaves the network only through device elements that bound and price it, such as [Grid](grid.md), [Solar](solar.md), and [Loads](load.md).
 The [Node](node.md) device exposes the model-layer source and sink flags for when unlimited production or consumption is wanted.
 
 ## Sensors created

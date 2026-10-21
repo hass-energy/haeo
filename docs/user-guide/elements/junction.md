@@ -190,7 +190,7 @@ Set connection power limits to match the inverter rating.
 | AC Bus → DC Bus | Inverter input rating (e.g., 10 kW)  |
 
 The [Inverter](inverter.md) element builds this pattern for you, including its own DC bus.
-See [Connections](connections.md) for detailed configuration guidance.
+See [Connections](connection.md) for detailed configuration guidance.
 
 ## Next steps
 
@@ -202,7 +202,7 @@ See [Connections](connections.md) for detailed configuration guidance.
 
     Learn how to connect elements using power flow connections.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 - :material-source-branch:{ .lg .middle } **Nodes**
 

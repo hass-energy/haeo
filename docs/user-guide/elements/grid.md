@@ -328,7 +328,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
     Learn how to connect your grid to other elements using connections.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 - :material-chart-line:{ .lg .middle } **Configure price sensors**
 

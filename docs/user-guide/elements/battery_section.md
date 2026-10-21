@@ -241,7 +241,7 @@ Check that the Battery Section element exists before creating connections.
 
     Learn how to connect Battery Section to other elements using Connection elements.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 - :material-battery-charging:{ .lg .middle } **Standard Battery element**
 

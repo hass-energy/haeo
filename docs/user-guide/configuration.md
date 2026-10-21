@@ -181,7 +181,7 @@ This network requires connections between elements and the central node.
 Most elements create these connections automatically.
 You only need explicit Connection elements when you need custom power flow paths, efficiency losses, or transmission costs.
 
-See the [Connections guide](elements/connections.md) for detailed information and examples.
+See the [Connections guide](elements/connection.md) for detailed information and examples.
 
 ## Viewing configuration
 

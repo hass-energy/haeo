@@ -186,7 +186,7 @@ It indicates whether more solar generation would be beneficial or detrimental.
 
     Learn how to connect your solar to other elements using connections.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 - :material-chart-line:{ .lg .middle } **Understand sensor loading**
 

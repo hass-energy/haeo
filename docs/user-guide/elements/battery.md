@@ -290,7 +290,7 @@ If your battery remains idle:
     See the [forecasts page](../forecasts-and-sensors.md) for details.
 2. **Verify SOC sensor**: Ensure it's reporting correctly
 3. **Review constraints**: Too-tight SOC limits may prevent operation
-4. **Check connections**: Battery must be [connected](connections.md) to the network
+4. **Check connections**: Battery must be [connected](connection.md) to the network
 
 ### Unrealistic SOC predictions
 
@@ -344,7 +344,7 @@ Build on your battery configuration with these guides.
 
     Create power flow links between your battery and the rest of the network.
 
-    [:material-arrow-right: Connection setup](connections.md)
+    [:material-arrow-right: Connection setup](connection.md)
 
 - :material-chart-line:{ .lg .middle } **View optimization results**
 

@@ -10,7 +10,7 @@ This guide covers everything you need to know as an end user:
 1. **[Installation](installation.md)** - Install HAEO via HACS or manually
 2. **[Configuration](configuration.md)** - Set up your first energy network
 3. **[Elements](elements/index.md)** - Configure batteries, grids, solar, and loads
-4. **[Connections](elements/connections.md)** - Define how energy flows between devices
+4. **[Connections](elements/connection.md)** - Define how energy flows between devices
 5. **[Understanding Results](optimization.md)** - Interpret optimization outputs
 6. **[Walkthroughs](../walkthroughs/index.md)** - Step-by-step system configuration guides
 7. **[Troubleshooting](troubleshooting.md)** - Solve common issues

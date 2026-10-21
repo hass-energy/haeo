@@ -12,7 +12,7 @@ Use it to build a custom endpoint when no other element fits, and put the limits
 !!! danger "Attach a node only through a limiting, priced connection"
 
     A node that can produce or consume power does so without any limit or price of its own.
-    Connect it to the rest of your network only through [connections](connections.md) that set a power limit and a price.
+    Connect it to the rest of your network only through [connections](connection.md) that set a power limit and a price.
     Connections are one-way, so a node that both produces and consumes power needs a limited, priced connection in each direction.
     Without them, the optimizer can create free power from a source node or dump power for free into a sink node, and the resulting plan will not be physically meaningful.
 
@@ -151,7 +151,7 @@ Add a limit and a price to every connection to or from the node.
 
     Set the limits and prices on the connections to your node.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 - :material-source-branch:{ .lg .middle } **Junctions**
 

@@ -184,7 +184,7 @@ gold:
 
   docs-supported-functions:
     status: done
-    comment: docs/modeling/device-layer/ enumerates every published output per element (battery.md, grid.md, solar.md, loads.md, inverter.md, node.md, connection.md) and docs/user-guide/elements/ describes user-facing configuration
+    comment: docs/modeling/device-layer/ enumerates every published output per element (battery.md, grid.md, solar.md, load.md, inverter.md, node.md, connection.md) and docs/user-guide/elements/ describes user-facing configuration
 
   docs-known-limitations:
     status: done
