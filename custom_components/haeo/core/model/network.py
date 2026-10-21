@@ -46,6 +46,18 @@ _LOGGER = logging.getLogger(__name__)
 OnOffChoose = Literal["on", "off", "choose"]
 
 
+class SolverError(ValueError):
+    """The solver stopped without a plan for a reason other than infeasibility.
+
+    The status is HiGHS's name for how the solve ended, such as ``Unbounded``.
+    """
+
+    def __init__(self, status: str) -> None:
+        """Record the solver status the solve ended with."""
+        super().__init__(f"Optimization failed with status: {status}")
+        self.status = status
+
+
 # Calibration search bounds in log10 space.  The secondary objective can
 # be many orders of magnitude larger than the primary, so we need a wide
 # range.  1e-12 is effectively zero influence; 1e-1 would dominate.
@@ -732,6 +744,5 @@ def _ensure_optimal(solver: Highs) -> float:
     """Validate solver status and return the objective value."""
     status = solver.getModelStatus()
     if status != HighsModelStatus.kOptimal:
-        msg = f"Optimization failed with status: {solver.modelStatusToString(status)}"
-        raise ValueError(msg)
+        raise SolverError(solver.modelStatusToString(status))
     return solver.getObjectiveValue()

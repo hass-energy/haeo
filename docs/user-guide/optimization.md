@@ -35,8 +35,9 @@ This sensor exists from the moment the hub loads and stays available when an opt
 When the status is `failed`, its `error` attribute holds the error message, and the other output sensors are unavailable until an optimization succeeds.
 Its `last_run` attribute is the time the latest successful optimization finished.
 
-If optimizations keep failing, HAEO also raises a repair issue under **Settings** → **System** → **Repairs** with the error message.
-The issue clears on the next successful optimization.
+Some failures, such as an input with no reading or a plan that cannot meet every constraint, raise their own repair issue under **Settings** → **System** → **Repairs** that names the cause.
+If optimizations keep failing for any other reason for five minutes, HAEO raises an "Optimization failed" repair issue with the error message.
+That issue clears on the next successful optimization.
 
 ### Optimization Duration
 

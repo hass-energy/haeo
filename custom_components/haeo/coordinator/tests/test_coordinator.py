@@ -57,7 +57,7 @@ from custom_components.haeo.core.const import (
 )
 from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.data.util.input_values import InputError
-from custom_components.haeo.core.model import Network, OutputData, OutputType
+from custom_components.haeo.core.model import Network, OutputData, OutputType, SolverError
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.infeasibility import InfeasibleError, Relaxation, RowLabel
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
@@ -383,6 +383,76 @@ async def test_failures_raise_one_repair_issue_after_failing_for_a_while(
     assert coordinator.optimization_status == "success"
     assert coordinator.optimization_error is None
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def _keep_failing_past_the_repair_delay(coordinator: HaeoDataUpdateCoordinator) -> None:
+    """Refresh a failing coordinator until it has failed for longer than a repair issue waits."""
+    with (
+        freeze_time("2025-01-01 12:00:00") as frozen,
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+    ):
+        await coordinator.async_refresh()
+        frozen.tick(FAILURE_SECONDS_BEFORE_REPAIR_ISSUE)
+        await coordinator.async_refresh()
+    assert coordinator.optimization_status == "failed"
+
+
+@pytest.mark.parametrize(
+    ("diagnostics_saved", "general_issue_raised"),
+    [
+        pytest.param(True, False, id="own_issue"),
+        pytest.param(False, True, id="diagnostics_not_saved"),
+    ],
+)
+@pytest.mark.usefixtures("mock_grid_subentry", "mock_runtime_data")
+async def test_infeasible_plans_raise_the_general_issue_only_without_their_own(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    tmp_path: Path,
+    diagnostics_saved: bool,
+    general_issue_raised: bool,
+) -> None:
+    """Infeasible plans that keep failing are reported by their own issue, or by the general one when it is missing."""
+    hass.config.config_dir = str(tmp_path)
+    if not diagnostics_saved:
+        # A file where the diagnostics folder belongs makes writing it fail
+        (tmp_path / "haeo").mkdir()
+        (tmp_path / "haeo" / "diagnostics").write_text("")
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+    coordinator.network.optimize.side_effect = InfeasibleError((RowLabel("Test Grid:import", "power_limit", 1),))
+
+    await _keep_failing_past_the_repair_delay(coordinator)
+
+    issues = ir.async_get(hass)
+    entry_id = mock_hub_entry.entry_id
+    assert (issues.async_get_issue(DOMAIN, f"optimization_infeasible_{entry_id}") is not None) == diagnostics_saved
+    assert (issues.async_get_issue(DOMAIN, f"optimization_failure_{entry_id}") is not None) == general_issue_raised
+
+
+async def test_unavailable_inputs_raise_only_their_own_issue(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """An input that stays without a reading is reported by its own issue, not the general one."""
+    unavailable_store = MagicMock()
+    unavailable_store.available = False
+    unavailable_store.error = None
+    unavailable_store.source_entity_ids = ["sensor.price"]
+    unavailable_store.unavailable_sources = ("sensor.price",)
+    unavailable_store.captured_source_states = {}
+    mock_runtime_data.input_stores[("Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = unavailable_store
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+
+    await _keep_failing_past_the_repair_delay(coordinator)
+
+    issues = ir.async_get(hass)
+    entry_id = mock_hub_entry.entry_id
+    field = f"{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}"
+    assert issues.async_get_issue(DOMAIN, f"unavailable_input_{entry_id}_Grid_{field}") is not None
+    assert issues.async_get_issue(DOMAIN, f"optimization_failure_{entry_id}") is None
 
 
 async def test_repeated_failures_notify_listeners(
@@ -789,6 +859,26 @@ async def test_async_update_data_reports_an_infeasible_plan_whose_diagnostics_ca
     assert error.value.translation_key == "optimization_infeasible"
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_infeasible_{mock_hub_entry.entry_id}") is None
     assert "Could not save the infeasible plan's diagnostics" in caplog.text
+
+
+@pytest.mark.usefixtures("mock_grid_subentry", "mock_runtime_data")
+async def test_async_update_data_reports_a_solver_failure(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """A solve that stops for a reason other than infeasibility fails the update with the solver status."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+    coordinator.network.optimize.side_effect = SolverError("Unbounded")
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        pytest.raises(UpdateFailed) as error,
+    ):
+        await coordinator._async_update_data()
+
+    assert error.value.translation_key == "optimization_solver_failed"
+    assert error.value.translation_placeholders == {"status": "Unbounded"}
 
 
 async def test_async_update_data_keeps_an_unresolved_infeasible_issue_and_its_diagnostics(

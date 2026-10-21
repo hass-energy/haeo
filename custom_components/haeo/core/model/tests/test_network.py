@@ -8,7 +8,7 @@ from highspy import HighsBasisStatus, HighsIis, HighsModelStatus, HighsStatus
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model import Network, SolverError
 from custom_components.haeo.core.model import network as network_module
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
@@ -287,29 +287,6 @@ def test_log_callback_handles_empty_message() -> None:
     Network._log_callback(1, "   ")  # Whitespace only
 
 
-def test_network_optimize_raises_on_solver_failure(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Optimize should surface solver failure status with context."""
-    network = Network(name="test_network", periods=np.array([1.0]))
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
-
-    def mock_optimize() -> float:
-        for element in network.elements.values():
-            element.constraints()
-        # Mock the model status to indicate failure
-        monkeypatch.setattr(network._solver, "getModelStatus", lambda: HighsModelStatus.kUnbounded)
-        network._solver.run()
-        status = network._solver.getModelStatus()
-        if status != HighsModelStatus.kOptimal:
-            msg = f"Optimization failed with status: {network._solver.modelStatusToString(status)}"
-            raise ValueError(msg)
-        return network._solver.getObjectiveValue()
-
-    with pytest.raises(ValueError, match="Optimization failed with status: Unbounded"):
-        mock_optimize()
-
-
 def test_network_optimize_raises_when_the_solver_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -349,9 +326,9 @@ def test_network_optimize_raises_when_the_solver_fails(
     monkeypatch.setattr(network._solver, "run", mock_run)
     monkeypatch.setattr(network._solver, "getModelStatus", mock_get_model_status)
 
-    # This should raise ValueError with the error message from optimize()
-    with pytest.raises(ValueError, match="Optimization failed with status:"):
+    with pytest.raises(SolverError) as error:
         network.optimize()
+    assert error.value.status == "Solve error"
 
 
 def _over_demanded_network(*, relax_infeasible: bool = False) -> Network:

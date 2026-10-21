@@ -801,6 +801,7 @@
     "optimization_infeasible_unexplained": {
       "message": "No plan meets every constraint, and the solver could not narrow down which elements conflict."
     },
+    "optimization_solver_failed": { "message": "The solver stopped without a plan (status: {status})." },
     "setup_failed_permanent": {
       "message": "Setup failed due to configuration error: {error}. Please check your configuration."
     },

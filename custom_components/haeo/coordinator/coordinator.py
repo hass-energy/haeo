@@ -35,7 +35,7 @@ from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMEN
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
 from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
-from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType, SolverError
 from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel, listing
 from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
@@ -79,6 +79,14 @@ _LOGGER = logging.getLogger(__name__)
 # How long optimizations must keep failing before HAEO raises a repair issue, so a
 # brief failure, such as an input that is unavailable for a moment, does not raise one
 FAILURE_SECONDS_BEFORE_REPAIR_ISSUE = 300
+
+
+class ReportedUpdateFailed(UpdateFailed):
+    """An optimization failure that raises a repair issue of its own.
+
+    The general optimization failure issue is not raised for it, so the user
+    sees one issue that names the cause rather than two.
+    """
 
 
 class ForecastPoint(TypedDict):
@@ -786,6 +794,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._failing_since = now
             return
         self.async_update_listeners()
+        if isinstance(self.last_exception, ReportedUpdateFailed):
+            return
         if not self._failure_issue_raised and now - self._failing_since >= FAILURE_SECONDS_BEFORE_REPAIR_ISSUE:
             self._failure_issue_raised = True
             create_optimization_persistent_failure_issue(
@@ -844,7 +854,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         translation_key=error.translation_key,
                         translation_placeholders=input_error_placeholders(key, error, store),
                     )
-                raise UpdateFailed(
+                raise ReportedUpdateFailed(
                     translation_domain=DOMAIN,
                     translation_key="input_unavailable",
                     translation_placeholders=unavailable_input_placeholders(key, unavailable[key]),
@@ -895,10 +905,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         {**placeholders, "planned_at": _plan_start(forecast_timestamps)},
                         diagnostics,
                     )
-                raise UpdateFailed(
+                # Without its diagnostics the issue is not raised, so the general one reports the failure
+                failure = (
+                    ReportedUpdateFailed if optimization_infeasible_issue_raised(self.hass, entry_id) else UpdateFailed
+                )
+                raise failure(
                     translation_domain=DOMAIN,
                     translation_key=translation_key,
                     translation_placeholders=placeholders,
+                ) from error
+            except SolverError as error:
+                raise UpdateFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="optimization_solver_failed",
+                    translation_placeholders={"status": error.status},
                 ) from error
 
             end_time = time.time()
