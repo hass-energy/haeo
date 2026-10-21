@@ -362,3 +362,14 @@ def test_interpolation_context_before_horizon_start() -> None:
 
     # Without the prior cycle fix, this returns 0.5 (flat extrapolation from first block point)
     assert result[0] == pytest.approx(expected_value, abs=0.01)
+
+
+def test_whole_day_forecast_ramps_to_its_end_value_before_repeating() -> None:
+    """A forecast ending at its start's time of day reaches its last value, then repeats from its first."""
+    # Six-hourly points from midnight to the next midnight
+    forecast: list[tuple[int, float]] = [(hour * 3600, hour / 6) for hour in range(0, 25, 6)]
+    horizon_times = [hour * 3600.0 for hour in (7, 21, 23, 25)]
+
+    result = fuse_to_boundaries(None, forecast, horizon_times)
+
+    assert result == pytest.approx([7 / 6, 3.5, 23 / 6, 1 / 6])
