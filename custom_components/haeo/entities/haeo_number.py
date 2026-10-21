@@ -326,7 +326,7 @@ class HaeoInputNumber(NumberEntity):
         ]
 
     @property
-    def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
+    def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]  # Entity declares available as a cached_property
         """Return whether the input holds a value the optimization can use."""
         return self._store.available
 

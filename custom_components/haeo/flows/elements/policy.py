@@ -68,7 +68,7 @@ CHOICE_ELEMENTS: str = "elements"
 POLICIES_TITLE: str = "Policies"
 
 
-class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
+class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]  # registering a selector erases its config type parameter
     """ChooseSelector for policy endpoints that normalizes to list[str] or empty.
 
     - "none" choice (any element): normalizes to empty string
@@ -87,7 +87,7 @@ class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
                     msg = "At least one element must be selected"
                     raise vol.Invalid(msg)
                 return elements
-        return super().__call__(data)  # type: ignore[misc]
+        return super().__call__(data)  # type: ignore[misc]  # the erased base hides Selector.__call__
 
 
 def _as_str_list(value: object) -> list[str] | None:

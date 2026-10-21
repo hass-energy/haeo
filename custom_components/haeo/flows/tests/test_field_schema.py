@@ -910,7 +910,7 @@ def test_build_entity_selector_without_include_entities(hass: HomeAssistant) -> 
     """build_entity_selector with no include_entities does not restrict to a subset."""
     selector = build_entity_selector(include_entities=None)
     config = selector.config
-    assert config["domain"] == [DOMAIN, "sensor", "input_number", "number", "switch"]
+    assert config.get("domain") == [DOMAIN, "sensor", "input_number", "number", "switch"]
     assert "include_entities" not in config
 
 
@@ -926,7 +926,7 @@ def test_build_entity_selector_does_not_add_incompatible_haeo_entities(
         suggested_object_id="grid_export_limit",
     )
     selector = build_entity_selector(include_entities=["sensor.import_price"])
-    include_entities = selector.config.get("include_entities")
+    include_entities = selector.config.get("include_entities", [])
 
     assert include_entities == ["sensor.import_price"]
     assert "number.grid_export_limit" not in include_entities

@@ -355,10 +355,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # from their persisted value).
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
     # Register cleanup - will be called on failure or unload
-    # Return the coroutine directly - HA will wrap it in async_create_task
-    entry.async_on_unload(
-        lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
-    )
+
+    async def _async_unload_input_platforms() -> None:
+        await hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)
+
+    entry.async_on_unload(_async_unload_input_platforms)
 
     # Wait for every input store to have data or to reject its source's value,
     # so a rejected value is reported at once rather than after the timeout
@@ -417,10 +418,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Set up output platforms after coordinator has data
     await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)
     # Register cleanup - will be called on failure or unload
-    # Return the coroutine directly - HA will wrap it in async_create_task
-    entry.async_on_unload(
-        lambda: hass.config_entries.async_unload_platforms(entry, OUTPUT_PLATFORMS)  # type: ignore[arg-type]
-    )
+
+    async def _async_unload_output_platforms() -> None:
+        await hass.config_entries.async_unload_platforms(entry, OUTPUT_PLATFORMS)
+
+    entry.async_on_unload(_async_unload_output_platforms)
 
     # Register update listener LAST - after all setup is complete
     # This prevents reload loops from subentry additions during initial setup
