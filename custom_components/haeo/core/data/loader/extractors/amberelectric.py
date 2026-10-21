@@ -8,7 +8,7 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,24 +77,16 @@ class Parser:
     ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Amber Electric pricing format.
 
-        Emits boundary prices to create step functions: each window produces two points
-        (start, price) and (end, price) to ensure constant pricing within the window
-        without linear interpolation. Adjacent windows will have the same timestamp
-        at boundaries to prevent interpolation.
+        Each price holds for its whole window, so the windows become a step function.
 
         Returns timestamps in seconds as integers.
         """
-        forecasts = list(state.attributes["forecasts"])
-        parsed: list[tuple[int, float]] = []
-
-        for item in forecasts:
-            start = Parser._round_to_minute(item["start_time"], time_zone)
-            end = Parser._round_to_minute(item["end_time"], time_zone)
-            price = item["per_kwh"]
-
-            # Emit start of window and end of window with same price
-            parsed.append((start, price))
-            parsed.append((end, price))
-
-        parsed.sort(key=lambda x: x[0])
+        parsed = step_points(
+            (
+                Parser._round_to_minute(item["start_time"], time_zone),
+                Parser._round_to_minute(item["end_time"], time_zone),
+                item["per_kwh"],
+            )
+            for item in state.attributes["forecasts"]
+        )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

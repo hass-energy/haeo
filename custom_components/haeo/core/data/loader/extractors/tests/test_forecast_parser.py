@@ -1,8 +1,9 @@
 """Tests for data extractor functionality."""
 
-from datetime import UTC
+from datetime import UTC, datetime
 
 from homeassistant.core import HomeAssistant, State
+import numpy as np
 import pytest
 
 from custom_components.haeo.core.data.loader import extractors
@@ -10,6 +11,7 @@ from custom_components.haeo.core.data.loader.extractors.tests.test_data.sensors 
     ALL_INVALID_SENSORS,
     ALL_VALID_SENSORS,
 )
+from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_intervals
 
 
 def _create_sensor_state(hass: HomeAssistant, entity_id: str, state_value: str, attributes: dict[str, object]) -> State:
@@ -138,6 +140,78 @@ def test_extract_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
         extractors.extract(state, time_zone=UTC)
 
 
+def test_aemo_block_prices_fuse_to_steps(hass: HomeAssistant) -> None:
+    """AEMO block prices hold for their whole block instead of ramping into the next one."""
+    blocks = [
+        ("2025-10-05T21:00:00+10:00", "2025-10-05T21:30:00+10:00", 0.0),
+        ("2025-10-05T21:30:00+10:00", "2025-10-05T22:00:00+10:00", 0.0),
+        ("2025-10-05T22:00:00+10:00", "2025-10-05T22:30:00+10:00", 0.5),
+        ("2025-10-05T22:30:00+10:00", "2025-10-05T23:00:00+10:00", 0.5),
+    ]
+    state = _create_sensor_state(
+        hass,
+        "sensor.aemo_forecast",
+        "0.0",
+        {"forecast": [{"start_time": start, "end_time": end, "price": price} for start, end, price in blocks]},
+    )
+
+    result = extractors.extract(state, time_zone=UTC)
+    assert isinstance(result.data, list)
+    start = 1759662000
+    horizon_times = [start + 1800 * period for period in range(5)]
+
+    assert fuse_to_intervals(None, result.data, horizon_times) == pytest.approx([0.0, 0.0, 0.5, 0.5], abs=1e-9)
+
+
+def test_solcast_period_means_of_a_ramp_fuse_back_to_the_same_means(hass: HomeAssistant) -> None:
+    """Solcast means sit at the middle of their periods, so a linear ramp fuses back to its period means."""
+    start = 1759662000
+    means = [1.0, 2.0, 3.0, 4.0]
+    state = _create_sensor_state(
+        hass,
+        "sensor.solcast_forecast",
+        "1.0",
+        {
+            "detailedForecast": [
+                {"period_start": datetime.fromtimestamp(start + 1800 * period, tz=UTC), "pv_estimate": mean}
+                for period, mean in enumerate(means)
+            ]
+        },
+    )
+
+    result = extractors.extract(state, time_zone=UTC)
+    assert isinstance(result.data, list)
+    horizon_times = [start + 1800 * period for period in range(len(means) + 1)]
+
+    # The first and last periods are only half covered by the ramp, so only the inner periods are exact
+    assert fuse_to_intervals(None, result.data, horizon_times)[1:-1] == pytest.approx(means[1:-1])
+
+
+def test_haeo_interval_forecast_fuses_to_its_period_values(hass: HomeAssistant) -> None:
+    """A HAEO interval forecast read back by another input keeps each period's value, including the last."""
+    start = 1759662000
+    values = [1.0, 3.0, 2.0]
+    state = _create_sensor_state(
+        hass,
+        "sensor.haeo_battery_power",
+        "1.0",
+        {
+            "forecast": [
+                {"time": datetime.fromtimestamp(start + 1800 * period, tz=UTC), "value": value}
+                for period, value in enumerate(values)
+            ],
+            "unit_of_measurement": "kW",
+            "interpolation_mode": "previous",
+        },
+    )
+
+    result = extractors.extract(state, time_zone=UTC)
+    assert isinstance(result.data, list)
+    horizon_times = [start + 1800 * period for period in range(len(values) + 1)]
+
+    assert fuse_to_intervals(None, result.data, horizon_times) == pytest.approx(values, abs=1e-9)
+
+
 # --- Interpolation Mode Tests ---
 
 
@@ -172,8 +246,8 @@ class TestInterpolationModeExtraction:
         assert isinstance(result.data, list)
         assert len(result.data) == 2
 
-    def test_previous_mode_adds_synthetic_points(self, hass: HomeAssistant) -> None:
-        """Previous mode adds synthetic points for step function behavior."""
+    def test_previous_mode_holds_each_value_until_the_next(self, hass: HomeAssistant) -> None:
+        """Previous mode holds each value until the next point, and the last for one more step."""
         state = _create_sensor_state(
             hass,
             "sensor.haeo_forecast",
@@ -189,15 +263,12 @@ class TestInterpolationModeExtraction:
         )
 
         result = extractors.extract(state, time_zone=UTC)
-        assert isinstance(result.data, list)
-        # Previous mode: 2 original + 1 synthetic = 3 points
-        assert len(result.data) == 3
-        # First point unchanged
-        assert result.data[0][1] == 100.0
-        # Synthetic point just before second with previous value
-        assert result.data[1][1] == 100.0
-        # Second point
-        assert result.data[2][1] == 200.0
+        assert result.data == [
+            (1704067200.0, 100.0),
+            (np.nextafter(1704070800.0, -np.inf), 100.0),
+            (1704070800.0, 200.0),
+            (1704074400.0, 200.0),
+        ]
 
     def test_next_mode_adds_synthetic_points(self, hass: HomeAssistant) -> None:
         """Next mode adds synthetic points for forward step behavior."""

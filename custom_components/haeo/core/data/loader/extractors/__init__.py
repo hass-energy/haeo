@@ -81,10 +81,11 @@ def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | 
         data, unit, device_class = nordpool.Parser.extract(state, time_zone)
     elif open_meteo_solar_forecast.Parser.detect(state):
         data, unit, device_class = open_meteo_solar_forecast.Parser.extract(state, time_zone)
+    elif volcast.Parser.detect(state):
+        # Volcast entries also carry a Solcast-style pv_estimate, so Volcast is checked first
+        data, unit, device_class = volcast.Parser.extract(state, time_zone)
     elif solcast_solar.Parser.detect(state):
         data, unit, device_class = solcast_solar.Parser.extract(state, time_zone)
-    elif volcast.Parser.detect(state):
-        data, unit, device_class = volcast.Parser.extract(state, time_zone)
     else:
         # If no extractor matched read the state as a single float value
         data = _parse_scalar_state(state.state)

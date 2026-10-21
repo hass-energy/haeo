@@ -14,7 +14,7 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,28 +87,19 @@ class Parser:
     ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Amber2MQTT pricing format.
 
-        Emits boundary prices to create step functions: each window produces two points
-        (start, price) and (end, price) to ensure constant pricing within the window
-        without linear interpolation. Adjacent windows will have the same timestamp
-        at boundaries to prevent interpolation.
+        Each price holds for its whole window, so the windows become a step function.
 
         For feed-in sensors (detected by channel_type attribute), the per_kwh value is negated.
 
         Returns timestamps in seconds as integers.
         """
-        forecasts = list(state.attributes["Forecasts"])
-        parsed: list[tuple[int, float]] = []
-
-        is_feedin = state.attributes.get("channel_type") == "feedin"
-
-        for item in forecasts:
-            start = Parser._round_to_minute(item["start_time"], time_zone)
-            end = Parser._round_to_minute(item["end_time"], time_zone)
-            price = -item["advanced_price_predicted"] if is_feedin else item["advanced_price_predicted"]
-
-            # Emit start of window and end of window with same price
-            parsed.append((start, price))
-            parsed.append((end, price))
-
-        parsed.sort(key=lambda x: x[0])
+        sign = -1 if state.attributes.get("channel_type") == "feedin" else 1
+        parsed = step_points(
+            (
+                Parser._round_to_minute(item["start_time"], time_zone),
+                Parser._round_to_minute(item["end_time"], time_zone),
+                sign * item["advanced_price_predicted"],
+            )
+            for item in state.attributes["Forecasts"]
+        )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

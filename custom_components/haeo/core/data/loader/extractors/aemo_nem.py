@@ -3,23 +3,27 @@
 from collections.abc import Mapping, Sequence
 from datetime import datetime, tzinfo
 import logging
-from typing import Literal, Protocol, TypedDict, TypeGuard
+from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
 
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
 
 _LOGGER = logging.getLogger(__name__)
 
 Format = Literal["aemo_nem"]
 DOMAIN: Format = "aemo_nem"
 
+# Length of an AEMO pre-dispatch forecast block, used when a block has no end time
+BLOCK_SECONDS = 30 * 60
+
 
 class AemoForecastEntry(TypedDict):
     """Type definition for an AEMO forecast entry."""
 
     start_time: str | datetime
+    end_time: NotRequired[str | datetime]
     price: float
 
 
@@ -59,6 +63,7 @@ class Parser:
             and "price" in item
             and isinstance(item["price"], (int, float))
             and is_parsable_to_datetime(item["start_time"])
+            and ("end_time" not in item or is_parsable_to_datetime(item["end_time"]))
             for item in forecast
         )
 
@@ -66,10 +71,28 @@ class Parser:
     def extract(
         state: AemoNemState, time_zone: tzinfo
     ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
-        """Extract forecast data from AEMO energy market format."""
-        parsed: list[tuple[int, float]] = [
-            (parse_datetime_to_timestamp(item["start_time"], time_zone), item["price"])
-            for item in state.attributes["forecast"]
-        ]
-        parsed.sort(key=lambda x: x[0])
+        """Extract forecast data from AEMO energy market format.
+
+        Each price holds for its whole block, so the blocks become a step
+        function. A block ends at its end time. Without one, it ends where the next block
+        starts, and the last block lasts one pre-dispatch interval.
+        """
+        blocks = sorted(
+            (
+                (parse_datetime_to_timestamp(item["start_time"], time_zone), item)
+                for item in state.attributes["forecast"]
+            ),
+            key=lambda block: block[0],
+        )
+        starts = [start for start, _ in blocks]
+        next_starts = [*starts[1:], starts[-1] + BLOCK_SECONDS]
+
+        parsed = step_points(
+            (
+                start,
+                parse_datetime_to_timestamp(item["end_time"], time_zone) if "end_time" in item else next_start,
+                item["price"],
+            )
+            for (start, item), next_start in zip(blocks, next_starts, strict=True)
+        )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

@@ -16,7 +16,7 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,20 +98,16 @@ class Parser:
         return f"{state.attributes['currency']}/kWh"
 
     @staticmethod
-    def _parse_entries(entries: Sequence[NordpoolForecastEntry], time_zone: tzinfo) -> list[tuple[int, float]]:
-        """Parse a list of Nordpool forecast entries into step-function boundary points.
-
-        Each entry produces two points (start, value) and (end, value) to create
-        a step function without linear interpolation between periods.
-        """
-        parsed: list[tuple[int, float]] = []
-        for item in entries:
-            start = parse_datetime_to_timestamp(item["start"], time_zone)
-            end = parse_datetime_to_timestamp(item["end"], time_zone)
-            value = item["value"]
-            parsed.append((start, value))
-            parsed.append((end, value))
-        return parsed
+    def _blocks(entries: Sequence[NordpoolForecastEntry], time_zone: tzinfo) -> list[tuple[int, int, float]]:
+        """Parse a list of Nordpool forecast entries into (start, end, value) blocks."""
+        return [
+            (
+                parse_datetime_to_timestamp(item["start"], time_zone),
+                parse_datetime_to_timestamp(item["end"], time_zone),
+                item["value"],
+            )
+            for item in entries
+        ]
 
     @staticmethod
     def extract(state: NordpoolState, time_zone: tzinfo) -> tuple[Sequence[tuple[int, float]], str, DeviceClass]:
@@ -120,13 +116,9 @@ class Parser:
         Combines ``raw_today`` and ``raw_tomorrow`` (when available) into a
         single time series with step-function boundaries.
         """
-        parsed = Parser._parse_entries(state.attributes["raw_today"], time_zone)
-
-        raw_tomorrow = state.attributes["raw_tomorrow"]
-        if raw_tomorrow:
-            parsed.extend(Parser._parse_entries(raw_tomorrow, time_zone))
-
-        parsed.sort(key=lambda x: x[0])
+        parsed = step_points(
+            Parser._blocks([*state.attributes["raw_today"], *state.attributes["raw_tomorrow"]], time_zone)
+        )
 
         unit = Parser._unit(state)
         return parsed, unit, Parser.DEVICE_CLASS
