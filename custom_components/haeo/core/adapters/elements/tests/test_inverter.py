@@ -1,4 +1,4 @@
-"""Tests for inverter adapter availability checks and power limits."""
+"""Tests for inverter adapter power limits."""
 
 from collections.abc import Mapping
 

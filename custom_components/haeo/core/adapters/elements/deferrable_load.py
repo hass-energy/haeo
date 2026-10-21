@@ -72,6 +72,8 @@ class DeferrableLoadAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = True
+    switchboard: bool = False
+    device_names: frozenset[DeferrableLoadDeviceName] = DEFERRABLE_LOAD_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_LOADS})
 
     def model_elements(self, config: DeferrableLoadConfigData) -> list[ModelElementConfig]:

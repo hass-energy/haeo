@@ -44,7 +44,7 @@ class HaeoStatusSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntit
         self._attr_unique_id = unique_id
 
     @property
-    def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
+    def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]  # Entity declares available as a cached_property
         """Return True, because the sensor reports failed optimizations rather than hiding them."""
         return True
 

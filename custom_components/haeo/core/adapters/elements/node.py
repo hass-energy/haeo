@@ -44,6 +44,8 @@ class NodeAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
     can_source: bool = True
     can_sink: bool = True
+    switchboard: bool = True
+    device_names: frozenset[NodeDeviceName] = NODE_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:

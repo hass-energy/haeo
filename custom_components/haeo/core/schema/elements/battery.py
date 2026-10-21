@@ -53,6 +53,7 @@ SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
             default_value=-0.001,
         ),
         source_is_wildcard=True,
+        section=SECTION_PRICING,
     ),
     CONF_DISCHARGE_COST: SurfacedPriceHint(
         hint=FieldHint(
@@ -62,19 +63,9 @@ SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
             default_value=0.0,
         ),
         source_is_wildcard=False,
+        section=SECTION_PRICING,
     ),
 }
-
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
-    {
-        CONF_MIN_CHARGE_PERCENTAGE,
-        CONF_MAX_CHARGE_PERCENTAGE,
-        CONF_MAX_POWER_SOURCE_TARGET,
-        CONF_MAX_POWER_TARGET_SOURCE,
-        CONF_EFFICIENCY_SOURCE_TARGET,
-        CONF_EFFICIENCY_TARGET_SOURCE,
-    }
-)
 
 
 class StorageSocConfig(TypedDict):
@@ -264,7 +255,6 @@ __all__ = [
     "CONF_MIN_CHARGE_PERCENTAGE",
     "CONF_SALVAGE_VALUE",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_ADVANCED",
     "SECTION_EFFICIENCY",
     "SECTION_LIMITS",

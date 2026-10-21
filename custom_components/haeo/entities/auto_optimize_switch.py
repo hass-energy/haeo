@@ -9,7 +9,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from custom_components.haeo.unique_id import hub_unique_id
 
 
-class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
+class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]  # SwitchEntity and RestoreEntity declare shared attributes differently
     """Switch entity to enable/disable automatic optimization.
 
     This switch controls whether HAEO automatically runs optimization

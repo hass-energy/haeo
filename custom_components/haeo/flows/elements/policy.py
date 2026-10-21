@@ -12,7 +12,7 @@ Flow design:
 from collections.abc import Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures upstream; ChooseSelector.__call__ is Any-typed upstream
 
-from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import ConfigSubentry, SubentryFlowResult
 from homeassistant.helpers.selector import (
     BooleanSelector,
     BooleanSelectorConfig,
@@ -48,7 +48,7 @@ from custom_components.haeo.core.schema.entity_value import as_entity_value, is_
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_list_input_fields
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, localize_input_field
-from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map
+from custom_components.haeo.flows.element_flow import ElementSubentryFlow, build_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
@@ -68,7 +68,7 @@ CHOICE_ELEMENTS: str = "elements"
 POLICIES_TITLE: str = "Policies"
 
 
-class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
+class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]  # registering a selector erases its config type parameter
     """ChooseSelector for policy endpoints that normalizes to list[str] or empty.
 
     - "none" choice (any element): normalizes to empty string
@@ -87,7 +87,7 @@ class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
                     msg = "At least one element must be selected"
                     raise vol.Invalid(msg)
                 return elements
-        return super().__call__(data)  # type: ignore[misc]
+        return super().__call__(data)  # type: ignore[misc]  # the erased base hides Selector.__call__
 
 
 def _as_str_list(value: object) -> list[str] | None:
@@ -97,8 +97,10 @@ def _as_str_list(value: object) -> list[str] | None:
     return None
 
 
-class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+class PolicySubentryFlowHandler(ElementSubentryFlow):
     """Handle policy element configuration flows."""
+
+    element_type = ELEMENT_TYPE
 
     def __init__(self) -> None:
         """Initialize the policy flow handler."""
@@ -440,10 +442,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                         title=POLICIES_TITLE,
                         data=self._build_entry_data(),
                     )
-                return self.async_create_entry(
-                    title=POLICIES_TITLE,
-                    data=self._build_entry_data(),
-                )
+                return await self._async_save_entry(POLICIES_TITLE, self._build_entry_data())
 
         source_preferred_choice = CHOICE_NONE
         target_preferred_choice = CHOICE_NONE
@@ -486,12 +485,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 if 0 <= rule_index < len(self._rules):
                     self._rules.pop(rule_index)
                 if subentry is not None:
-                    return self.async_update_and_abort(
-                        self._get_entry(),
-                        subentry,
-                        title=POLICIES_TITLE,
-                        data=self._build_entry_data(),
-                    )
+                    return await self._async_save_entry(POLICIES_TITLE, self._build_entry_data())
 
             if action == ACTION_EDIT and 0 <= rule_index < len(self._rules):
                 self._editing_index = rule_index
@@ -528,14 +522,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 self._rules[idx] = rule
             self._editing_index = None
 
-            subentry = self._get_subentry()
-            if subentry is not None:
-                return self.async_update_and_abort(
-                    self._get_entry(),
-                    subentry,
-                    title=POLICIES_TITLE,
-                    data=self._build_entry_data(),
-                )
+            if self._get_subentry() is not None:
+                return await self._async_save_entry(POLICIES_TITLE, self._build_entry_data())
 
         if merged_input is not None:
             defaults = merged_input

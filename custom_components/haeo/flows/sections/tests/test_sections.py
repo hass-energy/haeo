@@ -16,7 +16,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.sections import (
+from custom_components.haeo.flows.sections import (
     curtailment_section,
     efficiency_section,
     forecast_section,

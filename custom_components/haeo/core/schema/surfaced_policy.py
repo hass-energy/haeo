@@ -9,24 +9,17 @@ Surfaced rules follow a pattern where one side is always a wildcard:
 """
 
 from collections.abc import Mapping, Sequence
-from typing import Final
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.core.schema.elements.battery import SURFACED_PRICE_HINTS as BATTERY_SURFACED_PRICE_HINTS
+from custom_components.haeo.core.schema.elements import ELEMENT_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.elements.load import SURFACED_PRICE_HINTS as LOAD_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES, CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
 
-SURFACED_PRICE_HINTS_BY_TYPE: Final[dict[str, dict[str, SurfacedPriceHint]]] = {
-    str(ElementType.BATTERY): BATTERY_SURFACED_PRICE_HINTS,
-    str(ElementType.LOAD): LOAD_SURFACED_PRICE_HINTS,
-}
 
-
-def get_surfaced_price_hints(element_type: str) -> dict[str, SurfacedPriceHint]:
+def get_surfaced_price_hints(element_type: str) -> Mapping[str, SurfacedPriceHint]:
     """Return the surfaced price hints for an element type."""
-    return SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_type), {})
+    return ELEMENT_SURFACED_PRICE_HINTS.get(element_type, {})
 
 
 def resolve_surfaced_endpoints(
@@ -108,7 +101,6 @@ def negated_price_paths(participants: Mapping[str, Mapping[str, object]]) -> dic
 
 
 __all__ = [
-    "SURFACED_PRICE_HINTS_BY_TYPE",
     "find_surfaced_rule",
     "get_surfaced_price_hints",
     "negated_price_paths",

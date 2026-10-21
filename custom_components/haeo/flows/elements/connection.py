@@ -22,7 +22,7 @@ from custom_components.haeo.core.schema.elements.connection import (
 from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import (
-    ElementFlowMixin,
+    ElementSubentryFlow,
     build_participant_selector,
     build_sectioned_inclusion_map,
 )
@@ -38,8 +38,7 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.flows.on_off_states import ElementSubentryFlow
-from custom_components.haeo.sections import (
+from custom_components.haeo.flows.sections import (
     build_common_fields,
     efficiency_section,
     power_limits_section,
@@ -65,8 +64,10 @@ def _build_endpoints_fields(
     }
 
 
-class ConnectionSubentryFlowHandler(ElementFlowMixin, ElementSubentryFlow):
+class ConnectionSubentryFlowHandler(ElementSubentryFlow):
     """Handle connection element configuration flows."""
+
+    element_type = ELEMENT_TYPE
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
@@ -101,12 +102,12 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ElementSubentryFlow):
             if subentry_data
             else None
         )
-        default_name = await self._async_get_default_name(ELEMENT_TYPE)
+        default_name = await self._async_get_default_name()
         if not isinstance(current_source, str):
             current_source = participants[0] if participants else ""
         if not isinstance(current_target, str):
             current_target = participants[min(1, len(participants) - 1)] if participants else ""
-        input_fields = self._get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields()
 
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
@@ -236,7 +237,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ElementSubentryFlow):
 
     def _build_config(self, user_input: Mapping[str, object]) -> dict[str, object]:
         """Build final config dict from user input."""
-        input_fields = self._get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields()
         config_dict = convert_sectioned_choose_data_to_config(
             user_input,
             input_fields,

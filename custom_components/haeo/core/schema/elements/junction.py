@@ -4,14 +4,12 @@ A junction is a pure power balance point: power flowing in equals power flowing 
 It has no configuration beyond its name.
 """
 
-from typing import Final, Literal
+from typing import Literal
 
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.sections import CommonConfig, CommonData
 
 ELEMENT_TYPE = ElementType.JUNCTION
-
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
 
 
 class JunctionConfigSchema(CommonConfig):
@@ -28,7 +26,6 @@ class JunctionConfigData(CommonData):
 
 __all__ = [
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "JunctionConfigData",
     "JunctionConfigSchema",
 ]

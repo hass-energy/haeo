@@ -129,6 +129,7 @@ class SurfacedPriceHint:
         hint: The field hint defining output type, defaults, and constraints.
         source_is_wildcard: If True, the rule pattern is ``* → element``.
             If False, the pattern is ``element → *``.
+        section: The section of the element's form the field shows in.
         negate: If True, the surfaced value is the negation of the stored policy
             price. The element form and surfaced entities show the running
             (positive) value while the policy rule stores its negative.
@@ -137,6 +138,7 @@ class SurfacedPriceHint:
 
     hint: FieldHint
     source_is_wildcard: bool
+    section: str
     negate: bool = False
 
 
