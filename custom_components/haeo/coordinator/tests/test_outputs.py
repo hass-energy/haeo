@@ -2,10 +2,14 @@
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any  # noqa: TID251  # Mock-typed test doubles (MagicMock spec=) and monkeypatched callback stand-ins
+from typing import (
+    Any,  # noqa: TID251  # Mock-typed test doubles (MagicMock spec=) and monkeypatched callback stand-ins
+    Literal,
+)
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -287,39 +291,36 @@ async def test_async_update_data_raises_on_missing_model_element(
         await coordinator._async_update_data()
 
 
-def test_build_coordinator_output_emits_forecast_entries() -> None:
-    """Forecast data is mapped onto ISO timestamps when lengths match."""
-
-    base_time = datetime(2024, 6, 1, tzinfo=UTC)
-    forecast_times = (base_time, base_time + timedelta(minutes=30))
+@pytest.mark.parametrize(
+    ("values", "state_last", "times", "state", "forecast", "interpolation_mode"),
+    [
+        pytest.param((1.0, 2.0, 3.0, 4.0), False, 4, 1.0, (1.0, 2.0, 3.0, 4.0), None, id="boundary_values"),
+        pytest.param((1.0, 2.0), False, 3, 1.0, (1.0, 2.0), InterpolationMode.PREVIOUS, id="interval_values"),
+        pytest.param((1.0, 2.0, 3.0), True, 3, 3.0, (1.0, 2.0, 3.0), None, id="state_last"),
+        pytest.param((5.0,), False, 2, 5.0, None, None, id="single_value"),
+        pytest.param((), False, 2, None, None, None, id="no_values"),
+    ],
+)
+def test_build_coordinator_output_state_and_forecast(
+    values: tuple[float, ...],
+    state_last: bool,
+    times: int,
+    state: float | None,
+    forecast: tuple[float, ...] | None,
+    interpolation_mode: InterpolationMode | None,
+) -> None:
+    """Interval values take the first n of the n+1 boundary times and hold until the next; boundary values take all."""
     output = build_coordinator_output(
         SOLAR_POWER,
-        OutputData(type=OutputType.POWER, unit="kW", values=(1.2, 3.4)),
-        forecast_times=forecast_times,
+        OutputData(type=OutputType.POWER, unit="kW", values=values, state_last=state_last),
+        forecast_times=_TIMES[:times],
         currency_sym="$",
     )
 
-    assert output.forecast == [
-        {"time": forecast_times[0], "value": 1.2},
-        {"time": forecast_times[1], "value": 3.4},
-    ]
-    assert output.interpolation_mode is None
-
-
-def test_build_coordinator_output_maps_interval_values_onto_period_starts() -> None:
-    """Interval values take the first n of the n+1 boundary times and hold until the next."""
-    output = build_coordinator_output(
-        SOLAR_POWER,
-        OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0)),
-        forecast_times=_TIMES[:3],
-        currency_sym="$",
-    )
-
-    assert output.forecast == [
-        {"time": _TIMES[0], "value": 1.0},
-        {"time": _TIMES[1], "value": 2.0},
-    ]
-    assert output.interpolation_mode == InterpolationMode.PREVIOUS
+    assert output.state == state
+    expected = None if forecast is None else [{"time": _TIMES[i], "value": v} for i, v in enumerate(forecast)]
+    assert output.forecast == expected
+    assert output.interpolation_mode == interpolation_mode
 
 
 @pytest.mark.parametrize("value_count", [2, 5], ids=["too-few", "too-many"])
@@ -334,63 +335,38 @@ def test_build_coordinator_output_rejects_values_that_do_not_fit_the_forecast_ti
         )
 
 
-def test_build_coordinator_output_skips_forecast_for_single_value() -> None:
-    """Single-value outputs should not emit forecast entries."""
-
-    output = build_coordinator_output(
-        SOLAR_POWER,
-        OutputData(type=OutputType.POWER, unit="kW", values=(5.0,)),
-        forecast_times=_TIMES[:2],
-        currency_sym="$",
-    )
-
-    assert output.state == 5.0
-    assert output.forecast is None
-
-
-def test_build_coordinator_output_uses_last_value_when_state_last() -> None:
-    """Cumulative outputs with state_last=True should use the last value as state."""
-
-    output = build_coordinator_output(
-        SOLAR_POWER,
-        OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0, 3.0), state_last=True),
-        forecast_times=_TIMES[:3],
-        currency_sym="$",
-    )
-
-    assert output.state == 3.0  # Last value, not first
-    assert output.forecast is not None
-
-
 @pytest.mark.parametrize(
-    "output_data",
+    ("output_data", "currency", "unit", "entity_category"),
     [
-        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3), direction="+"),
-        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3), direction="-"),
-        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3)),
+        pytest.param(
+            OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.05,), diagnostic=True),
+            "£",
+            "£/kWh",
+            EntityCategory.DIAGNOSTIC,
+            id="diagnostic_price",
+        ),
+        pytest.param(OutputData(type=OutputType.COST, unit="$", values=(42.0,)), "€", "€", None, id="cost"),
+        pytest.param(OutputData(type=OutputType.POWER, unit="kW", values=(1.0,)), "€", "kW", None, id="power"),
     ],
-    ids=["reserve", "headroom", "none"],
 )
-def test_build_coordinator_output_carries_state_of_charge_direction(output_data: OutputData) -> None:
+def test_build_coordinator_output_unit_and_category(
+    output_data: OutputData, currency: str, unit: str, entity_category: EntityCategory | None
+) -> None:
+    """Monetary units show the detected currency, and diagnostic outputs make diagnostic entities."""
+    output = build_coordinator_output(SOLAR_POWER, output_data, forecast_times=None, currency_sym=currency)
+
+    assert output.unit == unit
+    assert output.entity_category == entity_category
+
+
+@pytest.mark.parametrize("direction", ["+", "-", None], ids=["reserve", "headroom", "none"])
+def test_build_coordinator_output_carries_state_of_charge_direction(direction: Literal["+", "-"] | None) -> None:
     """The flow a state of charge line holds the batteries ready for carries through to the coordinator output."""
+    output_data = OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3), direction=direction)
 
     output = build_coordinator_output(SOLAR_POWER, output_data, forecast_times=_TIMES[:2], currency_sym="$")
 
-    assert output.direction == output_data.direction
-
-
-def test_build_coordinator_output_handles_empty_values() -> None:
-    """Empty values should result in None state."""
-
-    output = build_coordinator_output(
-        SOLAR_POWER,
-        OutputData(type=OutputType.POWER, unit="kW", values=()),
-        forecast_times=_TIMES[:2],
-        currency_sym="$",
-    )
-
-    assert output.state is None
-    assert output.forecast is None
+    assert output.direction == direction
 
 
 def test_forecast_datetimes_are_in_home_assistant_time_zone() -> None:

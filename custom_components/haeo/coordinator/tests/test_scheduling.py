@@ -540,3 +540,36 @@ def _switch_event(state: str) -> Any:
     event = MagicMock()
     event.data = {"entity_id": "switch.haeo_auto_optimize", "old_state": None, "new_state": new_state}
     return event
+
+
+@pytest.mark.parametrize(
+    ("stores", "aligned"),
+    [
+        pytest.param([(True, True, 1000.5)], True, id="aligned_within_a_second"),
+        pytest.param([(True, True, 1002.0)], False, id="misaligned"),
+        pytest.param([(True, True, None)], False, id="not_loaded"),
+        pytest.param([(True, False, 500.0)], True, id="unavailable_store_reports_instead"),
+        pytest.param([(True, True, 1000.0), (False, True, None)], True, id="scalar_inputs_are_neutral"),
+    ],
+)
+def test_are_inputs_aligned(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    stores: list[tuple[bool, bool, float | None]],
+    aligned: bool,
+) -> None:
+    """Forecast inputs are aligned when each available one starts with the horizon.
+
+    A store that is unavailable, because it rejected or could not load its source's
+    value, keeps its previous horizon, and the optimization reports it instead of
+    waiting for an alignment that will not come.
+    """
+    mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (1000.0, 2000.0)
+    for index, (time_series, available, horizon_start) in enumerate(stores):
+        mock_runtime_data.input_stores[("Test Battery", (f"field_{index}",))] = MagicMock(
+            time_series=time_series, available=available, horizon_start=horizon_start
+        )
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    assert coordinator._are_inputs_aligned() is aligned

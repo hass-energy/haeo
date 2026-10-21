@@ -265,3 +265,39 @@ def test_get_element_configs_raises_for_invalid_element_type(
 
     with pytest.raises(ValueError, match="Subentry 'Invalid Element' failed config validation"):
         get_element_configs(mock_hub_entry, {"Invalid Element": invalid_subentry.subentry_id})
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+async def test_changed_inputs_reach_the_network_at_the_next_optimization(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """An element whose inputs change is updated from the configs the next optimization loads, and only then."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator._network = MagicMock()
+    updater = MagicMock()
+    coordinator._element_updaters = {"Test Battery": updater}
+    loaded = {"Test Battery": MagicMock()}
+
+    with patch.object(coordinator, "signal_optimization_stale") as signal:
+        coordinator._handle_element_update("Test Battery")
+    signal.assert_called_once()
+    updater.assert_not_called()
+
+    for _ in range(2):
+        with (
+            patch.object(coordinator, "_load_from_input_stores", return_value=loaded),
+            patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, side_effect=UpdateFailed("stop")),
+            pytest.raises(UpdateFailed, match="stop"),
+        ):
+            await coordinator._async_update_data()
+
+    updater.assert_called_once_with(loaded["Test Battery"])
+
+
+def test_coordinator_requires_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
+    """The coordinator reads its entry's runtime data, so the entry must have it first."""
+    mock_hub_entry.runtime_data = None
+    with pytest.raises(RuntimeError, match="runtime data must be set"):
+        HaeoDataUpdateCoordinator(hass, mock_hub_entry)
