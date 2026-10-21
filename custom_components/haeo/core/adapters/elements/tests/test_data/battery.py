@@ -1,10 +1,6 @@
-"""Tests for battery element model mapping."""
-
-from collections.abc import Mapping, Sequence
-from typing import TypedDict
+"""Adapter mapping cases for the battery element."""
 
 import numpy as np
-import pytest
 
 from custom_components.haeo.core.adapters.elements.battery import (
     BATTERY_DEVICE_BATTERY,
@@ -19,9 +15,6 @@ from custom_components.haeo.core.adapters.elements.battery import (
     BATTERY_SOC_MIN,
     BATTERY_STATE_OF_CHARGE,
 )
-from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare, segment_order
-from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
-from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as battery_model
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import (
@@ -34,26 +27,9 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 
+from . import CreateCase, OutputsCase
 
-class CreateCase(TypedDict):
-    """Test case for model_elements."""
-
-    description: str
-    data: BatteryConfigData
-    model: list[dict[str, object]]
-
-
-class OutputsCase(TypedDict):
-    """Test case for outputs mapping."""
-
-    description: str
-    name: str
-    data: BatteryConfigData
-    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
-    outputs: Mapping[str, Mapping[str, OutputData]]
-
-
-CREATE_CASES: Sequence[CreateCase] = [
+CREATE_CASES: list[CreateCase] = [
     {
         "description": "Battery with charge limits",
         "data": BatteryConfigData(
@@ -237,10 +213,9 @@ CREATE_CASES: Sequence[CreateCase] = [
 ]
 
 
-OUTPUTS_CASES: Sequence[OutputsCase] = [
+OUTPUTS_CASES: list[OutputsCase] = [
     {
         "description": "Battery normal range outputs",
-        "name": "battery_no_balance",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
             name="battery_no_balance",
@@ -298,6 +273,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
             },
         },
+        "periods": np.array([1.0]),
         "outputs": {
             BATTERY_DEVICE_BATTERY: {
                 BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
@@ -319,7 +295,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     },
     {
         "description": "Battery charge connection pruned - charge carries no flow",
-        "name": "battery_no_balance",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
             name="battery_no_balance",
@@ -372,6 +347,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
             },
         },
+        "periods": np.array([1.0]),
         "outputs": {
             BATTERY_DEVICE_BATTERY: {
                 BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.0,), direction="-"),
@@ -393,7 +369,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     },
     {
         "description": "Battery outputs report stored energy as held",
-        "name": "battery_with_thresholds",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
             name="battery_with_thresholds",
@@ -451,6 +426,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
             },
         },
+        "periods": np.array([1.0]),
         "outputs": {
             BATTERY_DEVICE_BATTERY: {
                 BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
@@ -471,21 +447,3 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
     },
 ]
-
-
-@pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
-def test_model_elements(case: CreateCase) -> None:
-    """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES[ElementType.BATTERY]
-    result = entry.model_elements(case["data"])
-    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
-    # Segment order sets which end of a connection the power limit applies to
-    assert segment_order(result) == segment_order(case["model"])
-
-
-@pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
-def test_outputs_mapping(case: OutputsCase) -> None:
-    """Verify adapter maps model outputs to device outputs."""
-    entry = ELEMENT_TYPES[ElementType.BATTERY]
-    result = entry.outputs(case["name"], case["model_outputs"], config=case["data"])
-    assert result == case["outputs"]

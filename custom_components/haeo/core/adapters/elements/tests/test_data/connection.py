@@ -1,15 +1,8 @@
-"""Tests for connection element model mapping."""
-
-from collections.abc import Mapping, Sequence
-from typing import TypedDict
+"""Adapter mapping cases for the connection element."""
 
 import numpy as np
-import pytest
 
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
-from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare, segment_order
-from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
-from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import connection as model_connection
@@ -18,25 +11,18 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
 
+from . import CreateCase, OutputsCase
 
-class CreateCase(TypedDict):
-    """Test case for model_elements."""
+MINIMAL = ConnectionConfigData(
+    element_type=ElementType.CONNECTION,
+    name="conn_min",
+    endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
+    power_limits={},
+    efficiency={},
+    pricing={},
+)
 
-    description: str
-    data: ConnectionConfigData
-    model: list[dict[str, object]]
-
-
-class OutputsCase(TypedDict):
-    """Test case for outputs mapping."""
-
-    description: str
-    name: str
-    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
-    outputs: Mapping[str, Mapping[str, OutputData]]
-
-
-CREATE_CASES: Sequence[CreateCase] = [
+CREATE_CASES: list[CreateCase] = [
     {
         "description": "Connection with all optional fields",
         "data": ConnectionConfigData(
@@ -69,14 +55,7 @@ CREATE_CASES: Sequence[CreateCase] = [
     },
     {
         "description": "Connection with minimal fields",
-        "data": ConnectionConfigData(
-            element_type=ElementType.CONNECTION,
-            name="conn_min",
-            endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
-            power_limits={},
-            efficiency={},
-            pricing={},
-        ),
+        "data": MINIMAL,
         "model": [
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -94,17 +73,18 @@ CREATE_CASES: Sequence[CreateCase] = [
 ]
 
 
-OUTPUTS_CASES: Sequence[OutputsCase] = [
+OUTPUTS_CASES: list[OutputsCase] = [
     {
         "description": "Connection outputs",
-        "name": "c1",
+        "data": MINIMAL,
         "model_outputs": {
-            "c1": {
+            "conn_min": {
                 model_connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
             },
         },
+        "periods": np.array([1.0]),
         "outputs": {
             CONNECTION_DEVICE_CONNECTION: {
                 CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
@@ -112,21 +92,3 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
     },
 ]
-
-
-@pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
-def test_model_elements(case: CreateCase) -> None:
-    """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES[ElementType.CONNECTION]
-    result = entry.model_elements(case["data"])
-    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
-    # Segment order sets which end of a connection the power limit applies to
-    assert segment_order(result) == segment_order(case["model"])
-
-
-@pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
-def test_outputs_mapping(case: OutputsCase) -> None:
-    """Verify adapter maps model outputs to device outputs."""
-    entry = ELEMENT_TYPES[ElementType.CONNECTION]
-    result = entry.outputs(case["name"], case["model_outputs"])
-    assert result == case["outputs"]

@@ -1,10 +1,9 @@
-"""Tests for the policy element adapter."""
+"""Tests for extracting policy rules from a loaded policy config."""
 
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters.elements.policy import POLICY_DEVICE_POLICY, adapter, extract_policy_rules
-from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_PRICE,
     CONF_SOURCE,
@@ -76,23 +75,3 @@ def test_extract_policy_rules(config: PolicyConfigData, expected: list[dict[str,
                 np.testing.assert_array_equal(gv, wv)
             else:
                 assert gv == wv
-
-
-def test_policy_adapter_model_elements_empty() -> None:
-    """Policy configs do not emit model elements directly."""
-    loaded: PolicyConfigData = {
-        "element_type": ElementType.POLICY,
-        "name": "Policies",
-        "rules": [],
-    }
-    assert adapter.model_elements(loaded) == []
-
-
-def test_policy_adapter_outputs_empty_mapping() -> None:
-    """Policy adapter exposes no model outputs on the policy device."""
-    out = adapter.outputs(
-        "Policies",
-        {},
-    )
-    assert out == {POLICY_DEVICE_POLICY: {}}
-    assert POLICY_DEVICE_POLICY == ElementType.POLICY
