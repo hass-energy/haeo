@@ -112,10 +112,12 @@ def fuse_window_edges_to_boundaries(
 def _outside_horizon(window: CalendarWindow, horizon_times: Sequence[datetime]) -> bool:
     """Return True when a window lies entirely outside the horizon.
 
+    A window ending exactly at the horizon start is over, so it is outside.
+
     Without this guard the clamping in the boundary-index helpers would map
     windows beyond the horizon end onto the final boundary.
     """
-    return window.start > horizon_times[-1] or window.end < horizon_times[0]
+    return window.start > horizon_times[-1] or window.end <= horizon_times[0]
 
 
 def _accumulate_value(values: list[float | None], index: int, amount: float) -> None:

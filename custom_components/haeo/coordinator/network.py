@@ -18,7 +18,7 @@ import numpy as np
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.adapters.policy_compilation import CompiledPolicyRule, compile_policies
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_RELAX_INFEASIBLE, HUB_SECTION_ADVANCED
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import ModelElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricing
@@ -223,7 +223,11 @@ async def create_network(
     """
     # Convert seconds to hours for model layer
     periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
-    net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
+    net = Network(
+        name=f"haeo_network_{entry.entry_id}",
+        periods=periods_hours,
+        relax_infeasible=entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_RELAX_INFEASIBLE, False),
+    )
 
     if not participants:
         _LOGGER.info("No participants configured for hub - returning empty network")

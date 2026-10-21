@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
-from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import SubentryFlowResult
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
@@ -46,6 +46,7 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
+from custom_components.haeo.flows.on_off_states import ElementSubentryFlow
 from custom_components.haeo.flows.surfaced_policy import (
     build_surfaced_defaults,
     build_surfaced_schema_entries,
@@ -62,7 +63,7 @@ from custom_components.haeo.sections import (
 SURFACED_POLICY_FIELDS: frozenset[str] = frozenset({CONF_CHARGE_COST, CONF_DISCHARGE_COST})
 
 
-class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+class BatterySubentryFlowHandler(ElementFlowMixin, ElementSubentryFlow):
     """Handle battery element configuration flows."""
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
@@ -114,7 +115,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors = self._validate_user_input(user_input, input_fields)
 
         if user_input is not None and not errors:
-            return self._finalize(self._build_config(user_input), user_input)
+            return await self._async_finalize(self._build_config(user_input), user_input)
 
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
@@ -241,7 +242,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             **config_dict,
         }
 
-    def _finalize(self, config: dict[str, object], user_input: Mapping[str, object]) -> SubentryFlowResult:
+    async def _async_finalize(self, config: dict[str, object], user_input: Mapping[str, object]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry and saving surfaced rules."""
         name = str(user_input[CONF_NAME])
 
@@ -261,9 +262,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             apply_defaults=is_new,
         )
 
-        if subentry is not None:
-            return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
-        return self.async_create_entry(title=name, data=config)
+        return await self._async_save_entry(name, config)
 
     def _surfaced_rule_translations(self, element_name: str) -> dict[str, str]:
         """Build translated rule names for surfaced policy rules."""

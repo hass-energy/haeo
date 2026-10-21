@@ -10,11 +10,14 @@ from custom_components.haeo.core.data.loader.calendar import (
     CALENDAR_EVENTS_ATTRIBUTE,
     CalendarEventData,
     CalendarEventDict,
+    EventValueText,
     capture_calendar_events,
-    event_quantity,
+    event_value_text,
     event_windows,
+    find_quantities,
     load_calendar_events,
-    parse_quantity,
+    open_window_start,
+    rejected_events,
 )
 from custom_components.haeo.core.data.util.calendar_fuser import (
     fuse_window_edges_to_boundaries,
@@ -22,27 +25,45 @@ from custom_components.haeo.core.data.util.calendar_fuser import (
 )
 from custom_components.haeo.core.model.const import OutputType
 
-# --- parse_quantity ---
+# --- find_quantities ---
 
 
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        pytest.param("50 km", (50.0, "km"), id="number_and_unit"),
-        pytest.param("5kW", (5.0, "kW"), id="no_space"),
-        pytest.param("  0.30 $/kWh  ", (0.30, "$/kWh"), id="price_with_whitespace"),
-        pytest.param("-2.5 kW", (-2.5, "kW"), id="negative"),
-        pytest.param("42", (42.0, None), id="bare_number"),
-        pytest.param("Office", None, id="no_number"),
-        pytest.param("", None, id="empty"),
+        pytest.param("50 km", [(50.0, "km")], id="number_and_unit"),
+        pytest.param("5kW", [(5.0, "kW")], id="no_space"),
+        pytest.param("  0.30 $/kWh  ", [(0.30, "$/kWh")], id="price_with_whitespace"),
+        pytest.param("-2.5 kW", [(-2.5, "kW")], id="negative"),
+        pytest.param(".5 kWh", [(0.5, "kWh")], id="leading_decimal_point"),
+        pytest.param("42", [(42.0, None)], id="bare_number"),
+        pytest.param("EV 8 kWh", [(8.0, "kWh")], id="word_before"),
+        pytest.param("Charge 8kWh tonight", [(8.0, "kWh")], id="words_around"),
+        pytest.param("Charge 8 kWh.", [(8.0, "kWh")], id="full_stop_after_unit"),
+        pytest.param("Charge 8 kWh, then rest", [(8.0, "kWh")], id="comma_after_unit"),
+        pytest.param("Peak (0.30 $/kWh)", [(0.30, "$/kWh")], id="in_parentheses"),
+        pytest.param("Charge 5 by noon", [(5.0, "by")], id="word_after_is_the_unit"),
+        pytest.param("EV2 8 kWh", [(8.0, "kWh")], id="digit_inside_word_is_not_a_number"),
+        pytest.param("Firmware v1.2", [], id="version_is_not_a_number"),
+        pytest.param("8 kWh or 10 kWh", [(8.0, "kWh"), (10.0, "kWh")], id="several"),
+        pytest.param("Tariff 2 at 0.30 $/kWh", [(2.0, "at"), (0.30, "$/kWh")], id="number_before_value"),
+        pytest.param("8-10 kWh", [(8.0, "-10 kWh")], id="range"),
+        pytest.param("8 - 10 kWh", [(8.0, "- 10 kWh")], id="spaced_range"),
+        pytest.param("8  to  10 kWh", [(8.0, "to  10 kWh")], id="worded_range"),
+        pytest.param("2026-10-22", [(2026.0, "-10")], id="date"),
+        pytest.param("1,500 Wh", [(1.0, None)], id="thousands_separator"),
+        pytest.param("1/2 kWh", [(1.0, None)], id="fraction"),
+        pytest.param("At 10:30", [(10.0, None)], id="time"),
+        pytest.param("Office", [], id="no_number"),
+        pytest.param("", [], id="empty"),
     ],
 )
-def test_parse_quantity(text: str, expected: tuple[float, str | None] | None) -> None:
-    """A number parses with the unit typed after it, if any."""
-    assert parse_quantity(text) == expected
+def test_find_quantities(text: str, expected: list[tuple[float, str | None]]) -> None:
+    """Every number standing as its own word is found, with the word typed after it as its unit."""
+    assert find_quantities(text) == expected
 
 
-# --- event_quantity ---
+# --- event_value_text ---
 
 
 def _dt(hour: int, minute: int = 0) -> datetime:
@@ -53,33 +74,106 @@ def _event(start_h: int, end_h: int, location: str | None = None) -> CalendarEve
     return CalendarEventData(start=_dt(start_h), end=_dt(end_h), location=location)
 
 
+def _text_event(
+    location: str | None = None, summary: str | None = None, description: str | None = None
+) -> CalendarEventData:
+    return CalendarEventData(start=_dt(9), end=_dt(10), location=location, summary=summary, description=description)
+
+
 @pytest.mark.parametrize(
-    ("event", "expected"),
+    ("event", "output_type", "expected"),
     [
-        pytest.param(CalendarEventData(start=_dt(9), end=_dt(10), location="50 km"), (50.0, "km"), id="location"),
         pytest.param(
-            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="50 km"),
-            (50.0, "km"),
-            id="summary_after_unparseable_location",
+            _text_event(location="5 kW"), OutputType.POWER, EventValueText("location", "5 kW", 5.0), id="location"
         ),
         pytest.param(
-            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="Commute", description="2 kW"),
-            (2.0, "kW"),
-            id="description_last",
+            _text_event(location="Office", summary="EV 8 kWh"),
+            OutputType.ENERGY,
+            EventValueText("summary", "EV 8 kWh", 8.0),
+            id="summary_after_location_without_number",
         ),
         pytest.param(
-            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="Commute"),
-            None,
-            id="no_field_parses",
+            _text_event(location="Office", summary="Commute", description="2000 W"),
+            OutputType.POWER,
+            EventValueText("description", "2000 W", 2.0),
+            id="description_last_converted",
         ),
-        pytest.param(CalendarEventData(start=_dt(9), end=_dt(10)), None, id="no_fields"),
+        pytest.param(
+            _text_event(summary="Tariff 2 at 0.30 $/kWh"),
+            OutputType.PRICE,
+            EventValueText("summary", "Tariff 2 at 0.30 $/kWh", 0.30),
+            id="other_numbers_passed_over",
+        ),
+        pytest.param(
+            _text_event(summary="Charger 7 kW, needs 8 kWh"),
+            OutputType.ENERGY,
+            EventValueText("summary", "Charger 7 kW, needs 8 kWh", 8.0),
+            id="number_in_another_quantity_passed_over",
+        ),
+        pytest.param(
+            _text_event(location="12 Main St", summary="EV 8 kWh"),
+            OutputType.ENERGY,
+            EventValueText("location", "12 Main St", None),
+            id="first_field_with_a_number_even_without_a_value",
+        ),
+        pytest.param(
+            _text_event(location="8", description="2 kWh"),
+            OutputType.ENERGY,
+            EventValueText("location", "8", None),
+            id="mistyped_field_not_replaced_by_a_later_one",
+        ),
+        pytest.param(
+            _text_event(summary="8 kWh or 10 kWh", description="8 kWh"),
+            OutputType.ENERGY,
+            EventValueText("summary", "8 kWh or 10 kWh", None),
+            id="several_usable_numbers_give_no_value",
+        ),
+        pytest.param(
+            _text_event(location="Bay 3"),
+            OutputType.AVAILABILITY,
+            EventValueText("location", "Bay 3", 3.0),
+            id="bare_number_for_unitless_input",
+        ),
+        pytest.param(_text_event(location="Office", summary="Commute"), OutputType.ENERGY, None, id="no_number"),
+        pytest.param(_text_event(), OutputType.ENERGY, None, id="no_fields"),
     ],
 )
-def test_event_quantity_uses_first_field_holding_a_number(
-    event: CalendarEventData, expected: tuple[float, str | None] | None
+def test_event_value_text_is_the_first_field_holding_a_number(
+    event: CalendarEventData, output_type: OutputType, expected: EventValueText | None
 ) -> None:
-    """The first of location, summary, and description holding a number gives the event's quantity."""
-    assert event_quantity(event) == expected
+    """The first of location, summary, and description holding a number gives the value, if it holds one usable."""
+    assert event_value_text(event, output_type) == expected
+
+
+@pytest.mark.parametrize(
+    ("summary", "output_type", "rejected"),
+    [
+        pytest.param("EV 8 kWh", OutputType.ENERGY, False, id="number_and_unit"),
+        pytest.param("Tariff 2 at 0.30 $/kWh", OutputType.PRICE, False, id="other_numbers_around"),
+        pytest.param("Pool pump", OutputType.ENERGY, False, id="no_number"),
+        pytest.param("EV 8", OutputType.ENERGY, True, id="no_unit"),
+        pytest.param("Charge 8 by noon", OutputType.ENERGY, True, id="unknown_unit"),
+        pytest.param("EV 8 kW", OutputType.ENERGY, True, id="unit_of_another_quantity"),
+        pytest.param("EV -8 kWh", OutputType.ENERGY, True, id="negative"),
+        pytest.param("EV 8 kWh then 2 kWh", OutputType.ENERGY, True, id="several_usable_numbers"),
+        pytest.param("8-10 kWh", OutputType.ENERGY, True, id="range"),
+        pytest.param("8 to 10 kWh", OutputType.ENERGY, True, id="worded_range"),
+        pytest.param("Peak 30c/kWh", OutputType.PRICE, False, id="cents_price"),
+        pytest.param("1,500 Wh", OutputType.ENERGY, True, id="thousands_separator"),
+        pytest.param("Rebate -0.10 $/kWh", OutputType.PRICE, False, id="negative_price"),
+    ],
+)
+def test_rejected_events_hold_numbers_the_input_cannot_read_a_value_from(
+    summary: str, output_type: OutputType, rejected: bool
+) -> None:
+    """An event holding numbers but no single value the input can use is rejected with its text."""
+    event = _text_event(summary=summary)
+
+    result = rejected_events([event], output_type)
+
+    assert [(rejected_event, value_text.text) for rejected_event, value_text in result] == (
+        [(event, summary)] if rejected else []
+    )
 
 
 # --- event_windows ---
@@ -135,7 +229,7 @@ def test_load_from_captured_events() -> None:
         ]
     )
 
-    events = load_calendar_events(state)
+    events = load_calendar_events(state, UTC)
     assert events is not None
     assert len(events) == 2
     assert events[0].summary == "Work"
@@ -165,7 +259,7 @@ def test_load_from_entity_state() -> None:
         }
     )
 
-    events = load_calendar_events(sm.get("calendar.ev"))
+    events = load_calendar_events(sm.get("calendar.ev"), UTC)
     assert events is not None
     assert len(events) == 1
     assert events[0].location == "30 km"
@@ -173,7 +267,7 @@ def test_load_from_entity_state() -> None:
 
 def test_load_missing_entity() -> None:
     """A missing calendar state has no events to load."""
-    assert load_calendar_events(None) is None
+    assert load_calendar_events(None, UTC) is None
 
 
 def test_load_no_haeo_events_attr() -> None:
@@ -187,7 +281,7 @@ def test_load_no_haeo_events_attr() -> None:
             ),
         }
     )
-    assert load_calendar_events(sm.get("calendar.plain")) is None
+    assert load_calendar_events(sm.get("calendar.plain"), UTC) is None
 
 
 # --- capture_calendar_events ---
@@ -205,7 +299,7 @@ def test_capture_roundtrip() -> None:
     assert captured[0]["summary"] == "Work"
 
     # Reload from captured data
-    reloaded = load_calendar_events(_calendar_state(captured))
+    reloaded = load_calendar_events(_calendar_state(captured), UTC)
     assert reloaded is not None
     assert len(reloaded) == 2
     assert reloaded[0].summary == "Work"
@@ -213,9 +307,9 @@ def test_capture_roundtrip() -> None:
     assert reloaded[1].start.hour == 17
 
 
-def test_load_naive_datetime_gets_default_tz() -> None:
-    """Naive ISO timestamps are normalized to the supplied default timezone."""
-    sydney = ZoneInfo("Australia/Sydney")
+def test_load_naive_datetime_reads_local_time() -> None:
+    """Naive ISO timestamps are read in the supplied local time zone, including half-hour offsets."""
+    adelaide = ZoneInfo("Australia/Adelaide")
     state = _calendar_state(
         [
             {
@@ -228,11 +322,12 @@ def test_load_naive_datetime_gets_default_tz() -> None:
         ]
     )
 
-    events = load_calendar_events(state, default_tz=sydney)
+    events = load_calendar_events(state, adelaide)
     assert events is not None
     assert len(events) == 1
-    assert events[0].start.tzinfo == sydney
-    assert events[0].end.tzinfo == sydney
+    # Adelaide is UTC+10:30 in January
+    assert events[0].start == datetime(2024, 12, 31, 22, 30, tzinfo=UTC)
+    assert events[0].end == datetime(2024, 12, 31, 23, 30, tzinfo=UTC)
 
 
 def test_load_offset_aware_datetime_preserved() -> None:
@@ -249,7 +344,7 @@ def test_load_offset_aware_datetime_preserved() -> None:
         ]
     )
 
-    events = load_calendar_events(state, default_tz=ZoneInfo("Australia/Sydney"))
+    events = load_calendar_events(state, ZoneInfo("Australia/Sydney"))
     assert events is not None
     assert events[0].start.tzinfo == UTC
 
@@ -268,7 +363,7 @@ def test_naive_and_aware_datetimes_fuse_without_error() -> None:
             },
         ]
     )
-    events = load_calendar_events(state, default_tz=sydney)
+    events = load_calendar_events(state, sydney)
     assert events is not None
     windows = event_windows(events, OutputType.ENERGY)
     boundaries = [datetime(2025, 1, 1, h, tzinfo=sydney) for h in (8, 9, 10, 11)]
@@ -311,7 +406,29 @@ def test_load_skips_invalid_event_dicts() -> None:
             },
         ]
     )
-    events = load_calendar_events(state)
+    events = load_calendar_events(state, UTC)
     assert events is not None
     assert len(events) == 1
     assert events[0].summary == "Valid"
+
+
+# --- open_window_start ---
+
+
+@pytest.mark.parametrize(
+    ("spans", "expected_hour"),
+    [
+        pytest.param([(8, 11)], 8, id="open_event"),
+        pytest.param([(7, 9), (8, 11)], 7, id="overlapping_events_chain"),
+        pytest.param([(7, 9), (9, 11)], 9, id="touching_events_stay_separate"),
+        pytest.param([(11, 12)], None, id="none_open"),
+        pytest.param([(10, 9)], None, id="ends_before_it_starts"),
+    ],
+)
+def test_open_window_start(spans: list[tuple[int, int]], expected_hour: int | None) -> None:
+    """The window open at a time began at its first event, chaining overlaps but not touching events."""
+    events = [_event(start, end) for start, end in spans]
+
+    opened = open_window_start(events, _dt(9, 30))
+
+    assert opened == (None if expected_hour is None else _dt(expected_hour).timestamp())

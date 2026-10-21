@@ -1,7 +1,7 @@
 """Forecast time generation utilities."""
 
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 from itertools import pairwise
 
 from custom_components.haeo.core.const import HORIZON_PRESET_DAYS
@@ -255,12 +255,13 @@ def preset_periods_seconds(preset: str, start_time: datetime | None = None) -> l
     return periods_seconds
 
 
-def forecast_boundaries(state: EntityState) -> tuple[float, ...]:
+def forecast_boundaries(state: EntityState, time_zone: tzinfo) -> tuple[float, ...]:
     """Return the period boundaries listed in an entity's ``forecast`` attribute.
 
     The attribute is a list of points whose ``time`` is a period boundary, so
     n + 1 points describe n periods. This is the forecast HAEO's own horizon
-    sensor publishes. Any other keys in a point are ignored.
+    sensor publishes. Any other keys in a point are ignored. Times without a
+    time zone are read in ``time_zone``.
 
     Raises:
         ValueError: If the entity has no forecast of times, or fewer than two
@@ -275,7 +276,7 @@ def forecast_boundaries(state: EntityState) -> tuple[float, ...]:
     ):
         msg = f"{state.entity_id} has no forecast of times"
         raise ValueError(msg)
-    boundaries = tuple(float(parse_datetime_to_timestamp(point["time"])) for point in forecast)
+    boundaries = tuple(float(parse_datetime_to_timestamp(point["time"], time_zone)) for point in forecast)
     if len(boundaries) < _MIN_BOUNDARIES or any(end <= start for start, end in pairwise(boundaries)):
         msg = f"{state.entity_id} forecast needs at least two increasing times"
         raise ValueError(msg)

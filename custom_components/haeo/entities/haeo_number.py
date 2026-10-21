@@ -17,13 +17,16 @@ from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.calendar_loader import is_calendar_driven
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
+from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.schema import as_constant_value
-from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
+from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
+from custom_components.haeo.elements import InputFieldPath, find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.unique_id import element_unique_id
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -72,7 +75,6 @@ class HaeoInputNumber(NumberEntity):
     ) -> None:
         """Initialize the input number entity."""
         self._config_entry: HaeoConfigEntry = config_entry
-        self._subentry = subentry
         self._field_info = field_info
         self._field_path = (
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
@@ -113,7 +115,7 @@ class HaeoInputNumber(NumberEntity):
             )
         ):
             unique_key = field_path_key
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
+        self._attr_unique_id = element_unique_id(config_entry.entry_id, subentry.subentry_id, unique_key)
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
@@ -148,6 +150,8 @@ class HaeoInputNumber(NumberEntity):
         }
         if self._store.source_entity_ids:
             self._base_extra_attrs["source_entities"] = self._store.source_entity_ids
+        if field_info.calendar is not None:
+            self._base_extra_attrs["calendar_projection"] = field_info.calendar.projection
         if field_info.direction:
             self._base_extra_attrs["direction"] = field_info.direction
 
@@ -163,11 +167,6 @@ class HaeoInputNumber(NumberEntity):
         self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
         self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
-
-    @property
-    def store(self) -> InputStore:
-        """Return the underlying InputStore."""
-        return self._store
 
     def _display_value(self, value: float | None) -> float | None:
         """Transform a stored value into the value surfaced by this entity."""
@@ -279,21 +278,19 @@ class HaeoInputNumber(NumberEntity):
 
     async def _async_load_sync_and_update(self) -> None:
         """Load data, sync attributes, and write state."""
-        if await self._async_load_and_sync():
-            self.async_write_ha_state()
+        await self._async_load_and_sync()
+        self.async_write_ha_state()
 
-    async def _async_load_and_sync(self) -> bool:
+    async def _async_load_and_sync(self) -> None:
         """Load data from store via HA state machine and sync entity attributes.
 
-        Returns True if loading succeeded and state was synced.
+        A failed load keeps the previous value, and the entity shows as
+        unavailable until a load succeeds.
         """
         sm = HomeAssistantStateMachine(self.hass)
         with self._suppress_self_notifications():
-            loaded = await self._store.async_load(sm)
-        if not loaded:
-            return False
+            await self._store.async_load(sm)
         self._sync_from_store()
-        return True
 
     def _sync_from_store(self) -> None:
         """Synchronize HA entity attributes from the store's current state."""
@@ -302,6 +299,8 @@ class HaeoInputNumber(NumberEntity):
         extra_attrs = dict(self._base_extra_attrs)
         if self._uses_forecast and self._store.native_value is not None:
             extra_attrs["forecast"] = self._build_forecast_attribute()
+            if not self._field_info.boundaries:
+                extra_attrs["interpolation_mode"] = InterpolationMode.PREVIOUS
         self._attr_extra_state_attributes = extra_attrs
 
     def _build_forecast_attribute(self) -> list[dict[str, datetime | float | None]]:
@@ -326,6 +325,11 @@ class HaeoInputNumber(NumberEntity):
             for ts, val in zip(timestamps, display_values, strict=True)
         ]
 
+    @property
+    def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
+        """Return whether the input holds a value the optimization can use."""
+        return self._store.available
+
     def is_ready(self) -> bool:
         """Return True if data has been loaded and entity is ready."""
         return self._store.is_ready()
@@ -333,16 +337,6 @@ class HaeoInputNumber(NumberEntity):
     async def wait_ready(self) -> None:
         """Wait for data to be ready."""
         await self._store.wait_ready()
-
-    @property
-    def entity_mode(self) -> InputMode:
-        """Return the entity's operating mode (EDITABLE or DRIVEN)."""
-        return self._store.mode
-
-    @property
-    def uses_forecast(self) -> bool:
-        """Return True if this entity produces time-series forecast data."""
-        return self._uses_forecast
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.

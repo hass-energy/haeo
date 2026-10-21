@@ -14,6 +14,7 @@ from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.loader import async_get_integration
 from homeassistant.setup import ATTR_COMPONENT
@@ -23,6 +24,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from conftest import add_participant
 from custom_components.haeo import (
     CARD_STATIC_DIR,
+    MIGRATION_MINOR_VERSION,
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
     _cleanup_buffer_participants,
@@ -39,6 +41,7 @@ from custom_components.haeo import (
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
     STATIC_CARD_BUNDLES,
     STATIC_CARD_STATIC_DIR,
@@ -543,12 +546,15 @@ async def test_element_flow_in_progress(
 
 
 @pytest.mark.parametrize(
-    ("input_error", "expected_translation_key"),
+    ("input_error", "expected_translation_key", "expected_issues"),
     [
-        pytest.param(None, "input_entities_not_ready", id="not_ready"),
+        pytest.param(
+            None, "input_unavailable", ["unavailable_input_{entry_id}_Test Element_section.field"], id="unavailable"
+        ),
         pytest.param(
             InputError(translation_key="negative_input_value", translation_placeholders={"value": "-4.5"}),
             "negative_input_value",
+            [],
             id="input_error",
         ),
     ],
@@ -559,17 +565,21 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     monkeypatch: pytest.MonkeyPatch,
     input_error: InputError | None,
     expected_translation_key: str,
+    expected_issues: list[str],
 ) -> None:
     """Setup raises ConfigEntryNotReady when input stores don't become ready in time.
 
-    Verifies that ConfigEntryNotReady is raised with descriptive translation key,
-    using the rejecting check's translation when a store rejected its source's value.
-    Cleanup is handled via async_on_unload callbacks registered during setup.
+    An input with no reading names its sensors in the error and in a repair
+    issue. A store that rejected its source's value reports that check's
+    translation instead. Cleanup is handled via async_on_unload callbacks
+    registered during setup.
     """
 
     # Create a mock input store that never becomes ready
     class NeverReadyStore:
-        source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
+        source_entity_ids: ClassVar[list[str]] = ["sensor.limit", "sensor.other"]
+        unavailable_sources = ("sensor.limit",)
+        available = False
 
         def __init__(self) -> None:
             self.error = input_error
@@ -627,6 +637,15 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 
     # Verify the exception has the correct translation key
     assert exc_info.value.translation_key == expected_translation_key
+    assert exc_info.value.translation_placeholders == {
+        "element": "Test Element",
+        "field": "section.field",
+        "entities": "sensor.limit, sensor.other" if input_error else "sensor.limit",
+        **({"value": "-4.5"} if input_error else {}),
+    }
+    assert [issue_id for _, issue_id in ir.async_get(hass).issues if issue_id.startswith("unavailable_input_")] == [
+        issue_id.format(entry_id=mock_hub_entry.entry_id) for issue_id in expected_issues
+    ]
 
     # Note: Platform cleanup is handled via async_on_unload callbacks.
     # When testing directly (not via hass.config_entries.async_setup), the HA
@@ -668,11 +687,16 @@ async def test_setup_reentry_after_timeout_failure(
 
     # Create a mock input store that fails first time, succeeds second time
     class ConditionalReadyStore:
-        source_entity_ids: ClassVar[list[str]] = []
+        source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
+        unavailable_sources = ("sensor.limit",)
         error = None
 
         def __init__(self) -> None:
             self._ready = False
+
+        @property
+        def available(self) -> bool:
+            return self._ready
 
         async def wait_settled(self) -> None:
             if attempt_count == 1:
@@ -730,7 +754,7 @@ async def test_setup_reentry_after_timeout_failure(
         await async_setup_entry(hass, mock_hub_entry)
 
     # Verify the exception has the correct translation key
-    assert exc_info.value.translation_key == "input_entities_not_ready"
+    assert exc_info.value.translation_key == "input_unavailable"
 
     # Restore normal timeout for second attempt
     monkeypatch.setattr("asyncio.timeout", original_timeout)
@@ -1141,3 +1165,45 @@ def test_cleanup_buffer_participants_removes_buffer_without_batteries(
     _cleanup_buffer_participants(hass, mock_hub_entry)
 
     assert subentry.subentry_id not in mock_hub_entry.subentries
+
+
+async def test_removing_an_element_removes_its_entities(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
+    """Every entity is linked to its element's subentry, so deleting the element removes its entities."""
+    hass.config_entries.async_update_entry(mock_hub_entry, minor_version=MIGRATION_MINOR_VERSION)
+    grid = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.GRID,
+                CONF_NAME: "Test Grid",
+                CONF_CONNECTION: as_connection_target("Switchboard"),
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.3),
+                    CONF_PRICE_TARGET_SOURCE: as_constant_value(0.1),
+                },
+                SECTION_POWER_LIMITS: {},
+            }
+        ),
+        subentry_type=ElementType.GRID,
+        title="Test Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_hub_entry, grid)
+    assert await hass.config_entries.async_setup(mock_hub_entry.entry_id)
+    await hass.async_block_till_done()
+
+    entity_registry = er.async_get(hass)
+    entities = er.async_entries_for_config_entry(entity_registry, mock_hub_entry.entry_id)
+    network = next(s for s in mock_hub_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)
+    linked = {entity.unique_id: entity.config_subentry_id for entity in entities}
+    assert linked[f"{mock_hub_entry.entry_id}_auto_optimize"] == network.subentry_id
+    assert linked[f"{mock_hub_entry.entry_id}_horizon"] == network.subentry_id
+    grid_prefix = f"{mock_hub_entry.entry_id}_{grid.subentry_id}_"
+    grid_entities = [entity for entity in entities if entity.unique_id.startswith(grid_prefix)]
+    assert {entity.domain for entity in grid_entities} == {"number", "sensor"}
+    assert {entity.config_subentry_id for entity in grid_entities} == {grid.subentry_id}
+
+    hass.config_entries.async_remove_subentry(mock_hub_entry, grid.subentry_id)
+    await hass.async_block_till_done()
+
+    remaining = er.async_entries_for_config_entry(entity_registry, mock_hub_entry.entry_id)
+    assert not [entity.unique_id for entity in remaining if entity.unique_id.startswith(grid_prefix)]

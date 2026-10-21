@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import UTC
 
 from homeassistant.util.json import JsonValueType
 import numpy as np
@@ -11,8 +12,7 @@ import pytest
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
-from custom_components.haeo.core.schema.elements import battery
-from custom_components.haeo.core.schema.elements.battery import is_battery_config_data
+from custom_components.haeo.core.schema.elements import ElementType, battery
 from custom_components.haeo.elements import is_element_config_schema
 from tools.diag import cli as diag
 
@@ -40,7 +40,7 @@ def _load_battery_config(
     """Load a battery fixture after schema and result discriminators are verified."""
     assert is_element_config_schema(config)
     loaded = load_element_config("Battery", config, provider, forecast_times)
-    assert is_battery_config_data(loaded)
+    assert loaded["element_type"] == ElementType.BATTERY
     return loaded
 
 
@@ -52,7 +52,7 @@ def test_load_element_config_unwraps_constant_wrappers() -> None:
         "initial_charge_percentage": {"type": "constant", "value": 50.0},
     }
 
-    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([], UTC), (0.0, 1800.0, 3600.0))
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.5, 13.5]))
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.5)
@@ -83,7 +83,7 @@ def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch:
         lambda *_args, **_kwargs: pytest.fail("fuse_sensor_payloads should not run for scalar fields"),
     )
 
-    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([], UTC), (0.0, 1800.0, 3600.0))
 
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.75)
 
@@ -112,7 +112,7 @@ def test_load_element_config_unwraps_entity_wrappers_for_time_series(monkeypatch
         lambda *_args, **_kwargs: [13.5, 13.4, 13.3],
     )
 
-    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([], UTC), (0.0, 1800.0, 3600.0))
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.4, 13.3]))
 
@@ -128,7 +128,7 @@ def test_load_element_config_drops_none_wrappers() -> None:
         "salvage_value": {"type": "none"},
     }
 
-    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([], UTC), (0.0, 1800.0, 3600.0))
 
     assert "salvage_value" not in loaded["pricing"]
 
@@ -320,11 +320,11 @@ def test_infer_interval_starts_from_outputs_prefers_interval_series() -> None:
         },
     }
 
-    starts = diag.infer_interval_starts_from_outputs(outputs, config)
+    starts = diag.infer_interval_starts_from_outputs(outputs, config, UTC)
 
     assert starts == [
-        diag.parse_datetime_to_timestamp("2026-01-01T00:00:00+00:00"),
-        diag.parse_datetime_to_timestamp("2026-01-01T00:05:00+00:00"),
+        diag.parse_datetime_to_timestamp("2026-01-01T00:00:00+00:00", UTC),
+        diag.parse_datetime_to_timestamp("2026-01-01T00:05:00+00:00", UTC),
     ]
 
 
@@ -344,9 +344,9 @@ def test_infer_interval_starts_from_outputs_supports_legacy_price_fields() -> No
         }
     }
 
-    starts = diag.infer_interval_starts_from_outputs(outputs, config)
+    starts = diag.infer_interval_starts_from_outputs(outputs, config, UTC)
 
     assert starts == [
-        diag.parse_datetime_to_timestamp("2026-01-01T00:00:00+00:00"),
-        diag.parse_datetime_to_timestamp("2026-01-01T01:00:00+00:00"),
+        diag.parse_datetime_to_timestamp("2026-01-01T00:00:00+00:00", UTC),
+        diag.parse_datetime_to_timestamp("2026-01-01T01:00:00+00:00", UTC),
     ]

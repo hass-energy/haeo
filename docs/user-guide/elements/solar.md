@@ -141,7 +141,7 @@ It indicates whether more solar generation would be beneficial or detrimental.
 
 ### Sensor Not Found
 
-**Problem**: Error "Sensors not found or unavailable"
+**Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
 
 **Solutions**:
 

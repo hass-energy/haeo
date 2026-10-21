@@ -23,8 +23,19 @@ from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.buffer import Buffer, BufferElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
+from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfig
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
+from .infeasibility import (
+    RELAXATION_TOLERANCE,
+    InfeasibleError,
+    Relaxation,
+    RowLabel,
+    conflicting_rows,
+    listing,
+    relaxed_rows,
+    row_labels,
+)
 from .linear import LinearArray, total
 from .solver import Solver
 from .util.solver_rows import RowIndices
@@ -112,12 +123,22 @@ class Network:
         periods: NDArray[np.float64],
         *,
         options: SolveOptions | None = None,
+        relax_infeasible: bool = False,
     ) -> None:
-        """Create a network with the given period durations and solver options."""
+        """Create a network with the given period durations and solver options.
+
+        With ``relax_infeasible``, a model whose constraints cannot all hold is
+        solved with the fewest of them relaxed, instead of raising.
+        """
         self.name = name
         self.periods = np.asarray(periods, dtype=float)
         self.elements: dict[str, Element[Any]] = {}
         self.options = options or SolveOptions()
+        self.relax_infeasible = relax_infeasible
+        # Rows that could not all hold in the last solve, empty unless it was infeasible
+        self.conflicts: tuple[RowLabel, ...] = ()
+        # Rows the last plan moved past their bounds, empty unless it was relaxed
+        self.relaxations: tuple[Relaxation, ...] = ()
         self._solver = Solver()
         # Weight the last blended solve settled on, where the next one starts
         self._blend_weight: float | None = None
@@ -167,6 +188,9 @@ class Network:
 
     @overload
     def add(self, element_config: BatteryElementConfig) -> Battery: ...
+
+    @overload
+    def add(self, element_config: DeferrableLoadElementConfig) -> DeferrableLoad: ...
 
     @overload
     def add(self, element_config: NodeElementConfig) -> Node: ...
@@ -235,13 +259,36 @@ class Network:
 
         return element_instance
 
-    def _network_element(self, buffer_name: str, element_name: str) -> NetworkElement[Any]:
-        """Return the network element a buffer names, raising when there is none."""
-        element = self.elements.get(element_name)
-        if not isinstance(element, NetworkElement):
-            msg = f"Buffer '{buffer_name}' references unknown element '{element_name}'"
+    def _device_elements(self, buffer_name: str, device: str) -> list[NetworkElement[Any]]:
+        """Return the network elements of a device a buffer names, raising when there are none.
+
+        A device's elements are the one named after it and those named with
+        its name as a prefix, such as an EV's ``EV:trip`` load.
+        """
+        elements = [
+            element
+            for name, element in self.elements.items()
+            if (name == device or name.startswith(f"{device}:")) and isinstance(element, NetworkElement)
+        ]
+        if not elements:
+            msg = f"Buffer '{buffer_name}' references unknown element '{device}'"
             raise TypeError(msg)
-        return element
+        return elements
+
+    def _buffer_role(
+        self, buffer_name: str, devices: list[str], *, source: bool, sink: bool
+    ) -> list[NetworkElement[Any]]:
+        """Return the elements of the named devices that only produce or only consume power.
+
+        A device takes part through whichever of its elements fit the role, so
+        an EV counts its trips as a load while its pack can hold the buffer.
+        """
+        return [
+            element
+            for device in devices
+            for element in self._device_elements(buffer_name, device)
+            if element.is_source == source and element.is_sink == sink
+        ]
 
     def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
         """Create a PolicyPricing element by resolving connection/tag references."""
@@ -278,15 +325,19 @@ class Network:
         so any element can take part in a buffer.
         """
         name = config["name"]
-        loads = [self._network_element(name, element_name) for element_name in config["loads"]]
-        generation = [self._network_element(name, element_name) for element_name in config["generation"]]
+        loads = self._buffer_role(name, config["loads"], source=False, sink=True)
+        generation = self._buffer_role(name, config["generation"], source=True, sink=False)
         storage: list[Battery] = []
-        for battery_name in config["storage"]:
-            battery = self.elements.get(battery_name)
-            if not isinstance(battery, Battery):
-                msg = f"Buffer '{name}' references '{battery_name}', which is not a battery"
+        for device in config["storage"]:
+            batteries = [
+                element
+                for element_name, element in self.elements.items()
+                if (element_name == device or element_name.startswith(f"{device}:")) and isinstance(element, Battery)
+            ]
+            if not batteries:
+                msg = f"Buffer '{name}' references '{device}', which is not a battery"
                 raise TypeError(msg)
-            storage.append(battery)
+            storage.extend(batteries)
 
         element = Buffer(
             name=name,
@@ -375,9 +426,47 @@ class Network:
         all_col_indices = np.arange(n_vars, dtype=np.int32)
         cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
 
+        self.conflicts = ()
+        self.relaxations = ()
+        try:
+            return self._solve(all_col_indices, cost_vectors)
+        except InfeasibleError:
+            balance_rows = {
+                row
+                for element in self.elements.values()
+                if isinstance(element, NetworkElement) and (rows := element.balance_rows()) is not None
+                for row in rows.tolist()
+            }
+            labels = row_labels(self.constraints(), self.n_periods, balance_rows)
+            self.conflicts = conflicting_rows(h, labels)
+            if not self.relax_infeasible or (relaxed := relaxed_rows(h, labels)) is None:
+                raise InfeasibleError(self.conflicts) from None
+
+        rows, values, lower, upper = relaxed
+        h.changeRowsBounds(len(rows), rows, np.minimum(lower, values), np.maximum(upper, values))
+        try:
+            cost = self._solve(all_col_indices, cost_vectors)
+            # Read the plan before the bounds return, since changing them discards the solution
+            h.column_values()
+            h.row_duals()
+        except InfeasibleError:
+            raise InfeasibleError(self.conflicts) from None
+        finally:
+            h.changeRowsBounds(len(rows), rows, lower, upper)
+        self.relaxations = tuple(
+            Relaxation(labels[row], amount)
+            for row, value, low, high in zip(
+                rows.tolist(), values.tolist(), lower.tolist(), upper.tolist(), strict=True
+            )
+            if abs(amount := value - min(max(value, low), high)) > RELAXATION_TOLERANCE
+        )
+        _LOGGER.debug("Relaxed constraints to find a plan: %s", listing(map(str, self.relaxations)))
+        return cost
+
+    def _solve(self, all_col_indices: NDArray[np.int32], cost_vectors: list[NDArray[np.float64]]) -> float:
+        """Solve the blended objective, calibrating its weight on the first solve."""
         if self._blend_weight is None:
             self._blend_weight = self._calibrate_blend_weight(all_col_indices, cost_vectors)
-
         return self._solve_blended(all_col_indices, cost_vectors, self._blend_weight)
 
     def _solve_blended(
@@ -427,13 +516,22 @@ class Network:
         a fixed basis are linear in the objective, so the secondary's are the blended
         ones minus the cost's, over the weight. The plan is in order when no move that
         leaves the cost unchanged lowers the secondary. Rows count as variables too,
-        with their activity as the value. A solve that fails counts as not
+        with their activity as the value. A solve that finds the model infeasible,
+        for the cost alone too, raises. Any other failure counts as not
         cost-optimal, so the weight is lowered.
         """
         h = self._solver
         _set_cost_vector(h, all_col_indices, cost_vectors[0] + weight * cost_vectors[1])
         h.run()
-        if h.getModelStatus() != HighsModelStatus.kOptimal:
+        status = h.getModelStatus()
+        if status == HighsModelStatus.kUnboundedOrInfeasible:
+            status = _status_without_presolve(h)
+        if status == HighsModelStatus.kInfeasible:
+            if _infeasible_for_cost(h, all_col_indices, cost_vectors[0]):
+                # Infeasibility does not depend on the objective, so no other weight can help
+                raise InfeasibleError
+            return math.nan, False, True
+        if status != HighsModelStatus.kOptimal:
             return math.nan, False, True
         plan_cost = float(cost_vectors[0] @ h.column_values())
         solution = h.getSolution()
@@ -605,6 +703,29 @@ class BlendWeightSearch:
         if self.too_large > self.too_small * _WEIGHT_RESOLUTION:
             return math.sqrt(self.too_small * self.too_large)
         return None
+
+
+def _infeasible_for_cost(solver: Highs, all_col_indices: NDArray[np.int32], cost_vector: NDArray[np.float64]) -> bool:
+    """Confirm an infeasible blended solve by solving for the cost alone.
+
+    A badly scaled blend can be reported infeasible when the model is not, and a
+    lower weight then finds the plan, so only a model infeasible for the cost too
+    is treated as impossible.
+    """
+    _set_cost_vector(solver, all_col_indices, cost_vector)
+    solver.run()
+    return solver.getModelStatus() == HighsModelStatus.kInfeasible
+
+
+def _status_without_presolve(solver: Highs) -> HighsModelStatus:
+    """Solve again without presolve, which can only tell that a model is unbounded or infeasible, to learn which."""
+    _, presolve = solver.getOptionValue("presolve")
+    solver.setOptionValue("presolve", "off")
+    try:
+        solver.run()
+    finally:
+        solver.setOptionValue("presolve", presolve)
+    return solver.getModelStatus()
 
 
 def _ensure_optimal(solver: Highs) -> float:

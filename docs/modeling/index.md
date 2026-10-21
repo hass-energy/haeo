@@ -53,8 +53,8 @@ It delivers a global optimum when a feasible solution exists and scales well as 
     HAEO optimizes with **pure linear programming (LP)** wherever possible—fast solves over the multi-resolution horizon, with power policies compiled into the LP.
 
     **Mixed-integer programming (MILP) is a tool of last resort**: we look for linear encodings first (penalties, slacks, forecast-shaped loads) and add integers only when LP cannot deliver the same outcome.
-    **Deferrable loads are planned** along those lines: keep the network LP, and introduce a minimal integer part only if a discrete **run-now** decision cannot be modeled linearly; future intervals stay on the continuous time grid.
-    Details are not fixed yet; until deferrable support ships, discrete loads are fixed or forecast consumption, or scheduled externally (for example via EMHASS) and passed in as inputs.
+    **Deferrable loads follow that approach**: a [deferrable load](model-layer/elements/deferrable_load.md) is pure LP, with each window's requirement settled at its end and any shortfall priced rather than enforced.
+    Loads that need a discrete **run-now** decision, such as fixed-power appliances that cannot modulate, are still fixed or forecast consumption, or scheduled externally (for example via EMHASS) and passed in as inputs.
 
 ## Mathematical Model Structure
 
@@ -105,6 +105,15 @@ At the default, tie-breaking differences can fall below the tolerance and leave 
 
 - **Optimal solution**: Satisfies all constraints with minimum total cost and deterministic tie-breaking
 - **Infeasible**: No solution exists that satisfies all constraints simultaneously
+
+Infeasibility does not depend on the objective, so the first infeasible solve ends the search for a blend weight.
+HiGHS then finds an irreducible infeasible subsystem: a smallest set of constraint rows that cannot all hold, which the error names by element, constraint, and period.
+
+When the hub relaxes impossible plans, HiGHS instead finds the smallest weighted violation of the constraint rows that makes the model feasible.
+Variable bounds never give way.
+A power balance row weighs 1 and every other row 1000, so a shortfall lands at a balance point, as energy no source could supply or nothing could absorb, unless only a limit can give way.
+The violated rows are widened to the values the relaxation found, the model is solved for cost as usual, and the rows are restored.
+The relaxation does not see the cost, so the violation is minimal but where it falls is not chosen by cost.
 
 ## Network Structure
 

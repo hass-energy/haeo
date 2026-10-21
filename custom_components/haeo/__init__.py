@@ -39,9 +39,15 @@ from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.input_stores import InputStoreMap, build_input_stores, input_error_placeholders
-from custom_components.haeo.repairs import dismiss_entry_issues
+from custom_components.haeo.input_stores import (
+    InputStoreMap,
+    build_input_stores,
+    input_error_placeholders,
+    unavailable_input_placeholders,
+)
+from custom_components.haeo.repairs import async_dismiss_entry_issues, sync_unavailable_input_issues
 from custom_components.haeo.services import async_setup_services
+from custom_components.haeo.unique_id import parse_element_unique_id
 
 from . import migrations as _migrations
 
@@ -462,14 +468,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
             await asyncio.gather(*[store.wait_settled() for store in runtime_data.input_stores.values()])
     except TimeoutError:
         _raise_for_rejected_inputs(runtime_data.input_stores)
-        not_ready = {key: store for key, store in runtime_data.input_stores.items() if not store.is_ready()}
+        not_ready = {
+            key: store.unavailable_sources or tuple(store.source_entity_ids)
+            for key, store in runtime_data.input_stores.items()
+            if not store.is_ready()
+        }
+        sync_unavailable_input_issues(hass, entry.entry_id, not_ready)
+        key, entities = next(iter(not_ready.items()))
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
-            translation_key="input_entities_not_ready",
-            translation_placeholders={
-                "not_ready": str(list(not_ready)),
-                "timeout": str(INPUT_ENTITY_READY_TIMEOUT),
-            },
+            translation_key="input_unavailable",
+            translation_placeholders=unavailable_input_placeholders(key, entities),
         ) from None
     _raise_for_rejected_inputs(runtime_data.input_stores)
     _LOGGER.debug("All input entities ready")
@@ -541,7 +550,7 @@ async def async_unload_entry(_hass: HomeAssistant, entry: HaeoConfigEntry) -> bo
 
 async def async_remove_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
     """Dismiss the repair issues raised for a removed config entry."""
-    dismiss_entry_issues(hass, entry.entry_id)
+    await async_dismiss_entry_issues(hass, entry.entry_id)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
@@ -564,42 +573,27 @@ async def async_remove_config_entry_device(
         # Device already removed or does not exist; nothing to clean up
         return False
 
-    # Get all current subentries (devices are keyed by subentry_id, not element name)
-    subentries_by_id = {subentry.subentry_id: subentry for subentry in config_entry.subentries.values()}
-
-    # Check if this device's identifier matches any current subentry
+    # Check if this device's identifier matches a device of a current subentry
     has_haeo_identifier = False
-    for identifier in device_entry.identifiers:
-        if identifier[0] == DOMAIN:
-            has_haeo_identifier = True
-            identifier_str = identifier[1]
+    for domain, identifier in device_entry.identifiers:
+        if domain != DOMAIN:
+            continue
+        has_haeo_identifier = True
 
-            # Hub device has identifier (DOMAIN, entry_id) without subentry suffix - always keep
-            if identifier_str == config_entry.entry_id:
-                return False
+        # Hub device has identifier (DOMAIN, entry_id) without subentry suffix - always keep
+        if identifier == config_entry.entry_id:
+            return False
 
-            if identifier_str.startswith(f"{config_entry.entry_id}_"):
-                # Extract suffix from identifier
-                # Pattern: {entry_id}_{subentry_id}_{device_name}
-                suffix = identifier_str.replace(f"{config_entry.entry_id}_", "", 1)
-
-                # Check if any current subentry_id is a prefix of the suffix
-                # The suffix is subentry_id_device_name, so we check for subentry_id_
-                for subentry_id, subentry in subentries_by_id.items():
-                    prefix = f"{subentry_id}_"
-                    if not suffix.startswith(prefix):
-                        continue
-
-                    device_name = suffix.removeprefix(prefix)
-                    allowed_device_names = ELEMENT_DEVICE_NAMES_BY_TYPE.get(subentry.subentry_type)
-                    if allowed_device_names is None:
-                        # Unknown subentry type - keep device to avoid accidental removal
-                        return False
-                    if device_name in allowed_device_names:
-                        # Device belongs to an existing subentry - keep it
-                        return False
-                    # Device name no longer created for this subentry
-                    break
+        element = parse_element_unique_id(config_entry.entry_id, identifier)
+        if element is None or element.subentry_id not in config_entry.subentries:
+            continue
+        allowed_device_names = ELEMENT_DEVICE_NAMES_BY_TYPE.get(
+            config_entry.subentries[element.subentry_id].subentry_type
+        )
+        # Keep devices of unknown subentry types to avoid accidental removal, and
+        # devices still created for their subentry
+        if allowed_device_names is None or element.key in allowed_device_names:
+            return False
 
     # If device has no HAEO identifiers, it's not managed by us - keep it
     if not has_haeo_identifier:

@@ -5,19 +5,16 @@ import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.entities import HaeoSensor
-from custom_components.haeo.entities.device import (
-    build_device_identifier,
-    get_or_create_element_device,
-    get_or_create_network_device,
-)
+from custom_components.haeo.entities.device import get_or_create_element_device, get_or_create_network_device
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
+from custom_components.haeo.unique_id import element_output_unique_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +25,7 @@ PARALLEL_UPDATES = 0
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up HAEO sensor entities."""
     # Runtime data must be set by __init__.py before platforms are set up
@@ -62,14 +59,17 @@ async def async_setup_entry(
         device_entry=network_device_entry,
         horizon_manager=horizon_manager,
     )
+    # Every entity is linked to its element's subentry so that removing the
+    # element removes its entities. Hub-level entities belong to the network.
+    async_add_entities([horizon_entity], config_subentry_id=network_subentry.subentry_id)
+
     # Output sensors are built from the coordinator's outputs. If the first optimization
     # after a load or reload failed there are none yet, so they are added on the first
     # successful update instead.
     if coordinator.data:
-        async_add_entities([horizon_entity, *_build_output_entities(hass, config_entry, coordinator)])
+        _add_output_entities(hass, config_entry, coordinator, async_add_entities)
         return
 
-    async_add_entities([horizon_entity])
     added = False
 
     @callback
@@ -79,30 +79,28 @@ async def async_setup_entry(
         if added or not coordinator.data or config_entry.state is not ConfigEntryState.LOADED:
             return
         added = True
-        async_add_entities(_build_output_entities(hass, config_entry, coordinator))
+        _add_output_entities(hass, config_entry, coordinator, async_add_entities)
 
     config_entry.async_on_unload(coordinator.async_add_listener(_add_when_ready))
 
 
-def _build_output_entities(
+def _add_output_entities(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
     coordinator: HaeoDataUpdateCoordinator,
-) -> list[SensorEntity]:
-    """Build one sensor per output of the coordinator's latest data, grouped by element."""
-    entities: list[SensorEntity] = []
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Add one sensor per output of the coordinator's latest data, linked to its element's subentry."""
     for subentry in config_entry.subentries.values():
         # Get all devices under this subentry (may be multiple, e.g., battery regions)
         subentry_devices = coordinator.data.outputs.get(subentry.title, {})
 
         translation_placeholders = build_translation_placeholders(subentry)
 
+        entities: list[SensorEntity] = []
         for device_name, device_outputs in subentry_devices.items():
             # Get or create the device using centralized device creation
             device_entry = get_or_create_element_device(hass, config_entry, subentry, device_name)
-
-            # Build unique ID using consistent identifier pattern
-            device_identifier = build_device_identifier(config_entry, subentry, device_name)
 
             entities.extend(
                 HaeoSensor(
@@ -114,13 +112,16 @@ def _build_output_entities(
                     element_type=subentry.subentry_type,
                     output_name=output_name,
                     output_data=output_data,
-                    unique_id=f"{device_identifier[1]}_{output_name}",
+                    unique_id=element_output_unique_id(
+                        config_entry.entry_id, subentry.subentry_id, device_name, output_name
+                    ),
                     translation_placeholders=translation_placeholders,
                 )
                 for output_name, output_data in device_outputs.items()
             )
 
-    return entities
+        if entities:
+            async_add_entities(entities, config_subentry_id=subentry.subentry_id)
 
 
 __all__ = ["async_setup_entry"]

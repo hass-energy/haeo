@@ -7,10 +7,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from datetime import UTC, tzinfo
 from importlib import import_module
 from logging import config as logging_config_module
 from types import MappingProxyType
 from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
+from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -64,9 +66,10 @@ class FakeEntityState:
 class FakeStateMachine:
     """State machine test double with deterministic lookups."""
 
-    def __init__(self, states: Mapping[str, FakeEntityState]) -> None:
-        """Initialize with preloaded states keyed by entity ID."""
+    def __init__(self, states: Mapping[str, FakeEntityState], time_zone: tzinfo = UTC) -> None:
+        """Initialize with preloaded states keyed by entity ID, read in a local time zone."""
         self._states = dict(states)
+        self.time_zone = time_zone
 
     def get(self, entity_id: str) -> FakeEntityState | None:
         """Return state for entity when present."""
@@ -129,6 +132,18 @@ def add_participant(
     )
     hass.config_entries.async_add_subentry(hub_entry, subentry)
     return subentry
+
+
+def added_entities(async_add_entities: Mock) -> list[Any]:
+    """Return every entity passed to a mocked add entities callback.
+
+    Every call must link its entities to a subentry, so they are removed along with it.
+    """
+    entities: list[Any] = []
+    for call in async_add_entities.call_args_list:
+        assert call.kwargs["config_subentry_id"] is not None
+        entities.extend(call.args[0])
+    return entities
 
 
 @pytest.fixture(scope="session")

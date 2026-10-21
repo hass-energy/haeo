@@ -12,10 +12,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 import itertools
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from homeassistant.util.json import JsonValueType
 import numpy as np
@@ -60,7 +61,8 @@ class _EntityState:
 class _ScenarioStateMachine:
     """StateMachine backed by a list of state dicts from inputs.json."""
 
-    def __init__(self, inputs: list[dict[str, JsonValueType]]) -> None:
+    def __init__(self, inputs: list[dict[str, JsonValueType]], time_zone: tzinfo) -> None:
+        self.time_zone = time_zone
         self._states: dict[str, _EntityState] = {}
         for entry in inputs:
             entity_id = entry["entity_id"]
@@ -86,7 +88,7 @@ class _ScenarioStateMachine:
 
 def _load_scenario(
     scenario_path: Path,
-) -> tuple[dict[str, JsonValueType], list[dict[str, JsonValueType]], str]:
+) -> tuple[dict[str, JsonValueType], list[dict[str, JsonValueType]], str, ZoneInfo]:
     """Load scenario files from disk."""
     with (scenario_path / "config.json").open() as f:
         config = json.load(f)
@@ -94,7 +96,7 @@ def _load_scenario(
         environment = json.load(f)
     with (scenario_path / "inputs.json").open() as f:
         inputs = json.load(f)
-    return config, inputs, environment["optimization_start_time"]
+    return config, inputs, environment["optimization_start_time"], ZoneInfo(environment["timezone"])
 
 
 def _participants_from_config(config: Mapping[str, JsonValueType]) -> dict[str, ElementConfigSchema]:
@@ -229,9 +231,9 @@ def _apply_marks[F: Callable[..., None]](fn: F) -> F:
 @_apply_marks
 def test_cold_start(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     """Build network from scratch and optimize."""
-    config, inputs, freeze_timestamp = _load_scenario(scenario_path)
+    config, inputs, freeze_timestamp, time_zone = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
-    sm = _ScenarioStateMachine(inputs)
+    sm = _ScenarioStateMachine(inputs, time_zone)
 
     def run() -> float:
         net, _ = _build_network(config, sm, frozen_dt)
@@ -244,9 +246,9 @@ def test_cold_start(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
 @_apply_marks
 def test_update_all(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     """Update all element parameters and re-optimize."""
-    config, inputs, freeze_timestamp = _load_scenario(scenario_path)
+    config, inputs, freeze_timestamp, time_zone = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
-    sm = _ScenarioStateMachine(inputs)
+    sm = _ScenarioStateMachine(inputs, time_zone)
 
     loaded_configs = _load_configs(config, sm, frozen_dt)
     network, updaters = _build_network(config, sm, frozen_dt)
@@ -270,9 +272,9 @@ def test_time_shift(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     Rounds alternate between the original and the shifted horizon, so every round
     changes the period widths and forecasts rather than re-solving unchanged inputs.
     """
-    config, inputs, freeze_timestamp = _load_scenario(scenario_path)
+    config, inputs, freeze_timestamp, time_zone = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
-    sm = _ScenarioStateMachine(inputs)
+    sm = _ScenarioStateMachine(inputs, time_zone)
 
     periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
     horizons = [
@@ -300,9 +302,9 @@ def test_time_shift(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
 @_apply_marks
 def test_warm_reentrant(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     """Re-optimize with no parameter changes (warm start)."""
-    config, inputs, freeze_timestamp = _load_scenario(scenario_path)
+    config, inputs, freeze_timestamp, time_zone = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
-    sm = _ScenarioStateMachine(inputs)
+    sm = _ScenarioStateMachine(inputs, time_zone)
 
     network, _ = _build_network(config, sm, frozen_dt)
     network.optimize()  # prime

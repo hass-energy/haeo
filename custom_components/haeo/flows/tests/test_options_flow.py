@@ -19,6 +19,7 @@ from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON,
     CONF_NAME,
+    CONF_RELAX_INFEASIBLE,
     DEFAULT_DEBOUNCE_SECONDS,
     HORIZON_PRESET_3_DAYS,
     HORIZON_PRESET_5_DAYS,
@@ -31,7 +32,12 @@ type FlowResultDict = dict[str, object]
 
 HORIZON_ENTITY_ID = "sensor.horizon_source"
 
-ADVANCED_INPUT = {CONF_DEBOUNCE_SECONDS: 5, CONF_ADVANCED_MODE: True, CONF_RECORD_FORECASTS: True}
+ADVANCED_INPUT = {
+    CONF_DEBOUNCE_SECONDS: 5,
+    CONF_ADVANCED_MODE: True,
+    CONF_RELAX_INFEASIBLE: True,
+    CONF_RECORD_FORECASTS: True,
+}
 
 
 def _hub_entry(hass: HomeAssistant, horizon: HorizonValue) -> MockConfigEntry:
@@ -130,7 +136,11 @@ async def test_options_flow_saves_horizon_and_advanced_settings(
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert entry.data[HUB_SECTION_COMMON] == {CONF_NAME: "Test Hub", CONF_HORIZON: expected}
-    assert entry.data[HUB_SECTION_ADVANCED] == {CONF_DEBOUNCE_SECONDS: 5, CONF_ADVANCED_MODE: True}
+    assert entry.data[HUB_SECTION_ADVANCED] == {
+        CONF_DEBOUNCE_SECONDS: 5,
+        CONF_ADVANCED_MODE: True,
+        CONF_RELAX_INFEASIBLE: True,
+    }
     assert entry.data[CONF_RECORD_FORECASTS] is True
 
 

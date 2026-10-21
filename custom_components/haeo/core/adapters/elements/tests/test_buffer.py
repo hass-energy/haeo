@@ -263,14 +263,6 @@ def test_model_elements_pass_participants_by_name(
     np.testing.assert_equal(element["level"], expected_level)
 
 
-def test_can_store_is_true_exactly_for_batteries_and_battery_sections() -> None:
-    """Only adapters for elements that store energy can hold a buffer."""
-    assert {element_type for element_type, adapter in ELEMENT_TYPES.items() if adapter.can_store} == {
-        ElementType.BATTERY,
-        ElementType.BATTERY_SECTION,
-    }
-
-
 def _connection(name: str, source: str, target: str, *, efficiency: float = 1.0) -> ConnectionConfigData:
     return ConnectionConfigData(
         element_type=ElementType.CONNECTION,

@@ -3,12 +3,12 @@
 from collections.abc import Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
-from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import SubentryFlowResult
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.core.schema.elements.solar import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT
+from custom_components.haeo.core.schema.elements.solar import CONF_CURTAILMENT, ELEMENT_TYPE
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FORECAST
 from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -24,17 +24,18 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import build_common_fields, forecast_section
+from custom_components.haeo.flows.on_off_states import ElementSubentryFlow
+from custom_components.haeo.sections import build_common_fields, curtailment_section, forecast_section
 
 
-class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+class SolarSubentryFlowHandler(ElementFlowMixin, ElementSubentryFlow):
     """Handle solar element configuration flows."""
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
         return (
             forecast_section((CONF_FORECAST,), collapsed=False),
-            SectionDefinition(key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT,), collapsed=True),
+            curtailment_section((CONF_CURTAILMENT,), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
@@ -66,7 +67,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         if user_input is not None and not errors:
             config = self._build_config(user_input)
-            return self._finalize(config, user_input)
+            return await self._async_finalize(config, user_input)
 
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
@@ -176,10 +177,6 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             **config_dict,
         }
 
-    def _finalize(self, config: dict[str, object], user_input: Mapping[str, object]) -> SubentryFlowResult:
+    async def _async_finalize(self, config: dict[str, object], user_input: Mapping[str, object]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
-        name = str(user_input[CONF_NAME])
-        subentry = self._get_subentry()
-        if subentry is not None:
-            return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
-        return self.async_create_entry(title=name, data=config)
+        return await self._async_save_entry(str(user_input[CONF_NAME]), config)

@@ -110,6 +110,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
                 if output_data.forecast:
                     attributes["forecast"] = self._scale_percentage_forecast(output_data.unit, output_data.forecast)
+                if output_data.interpolation_mode is not None:
+                    attributes["interpolation_mode"] = output_data.interpolation_mode
 
         if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS:
             # UTC keeps last_run stable across CI machines and HA time zones (snapshot tests).

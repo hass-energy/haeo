@@ -237,118 +237,97 @@ The `get_preferred_choice()` function examines field defaults and current config
 
 ### Entity Creation
 
-HAEO creates input entities (number/switch) for fields configured with "Constant".
-These entities allow runtime adjustment of constant values without reconfiguring the element.
-Fields linked to external entities use those entities directly without creating HAEO input entities.
+HAEO creates an input entity (number or switch) for every field configured with "Entity" or "Constant".
+A constant field's entity is editable, so its value can be adjusted at runtime without reconfiguring the element.
+An entity field's entity is driven by its source sensors and shows the value HAEO loaded from them.
+Fields configured with "None" get no input entity.
 
 ## Field Schema System
 
 HAEO uses a typed schema system to define element configuration fields.
-The schema system provides type safety, validation, and data loading from Home Assistant entities.
+The schema says what each field stores, how the config flow presents it, and how its value loads at runtime.
 
 ### ELEMENT_TYPES Registry
 
-All element types are registered in `custom_components/haeo/elements/__init__.py`:
+All element types are registered in [`core/adapters/registry.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/registry.py), mapping each `ElementType` to its adapter:
 
 ```python
-ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
-    "battery": ElementRegistryEntry(
-        schema=BatteryConfigSchema,  # TypedDict for UI configuration
-        data=BatteryConfigData,  # TypedDict for loaded values
-        defaults={...},  # Default field values
-        translation_key="battery",  # For UI localization
-        adapter=create_battery,  # Creates model elements
-        extract=extract_battery,  # Extracts optimization results
-    ),
+ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
+    ElementType.GRID: grid_adapter,
+    ElementType.BATTERY: battery_adapter,
     # ... other element types
 }
 ```
 
-The registry provides:
+Each adapter implements the `ElementAdapter` protocol:
 
-- **Schema/Data class pairs**: Dual TypedDict pattern for type safety
-- **Default values**: Pre-populated fields in the UI
-- **Adapter functions**: Convert loaded data to model elements
-- **Result extractors**: Convert optimization results to sensor data
+- **Attributes**: `element_type`, `advanced`, `connectivity`, `can_source`, `can_sink`, and `buffer_roles`
+- **`model_elements(config)`**: Turns a loaded config into model element parameters
+- **`outputs(name, model_outputs, ...)`**: Maps model outputs to the element's device outputs
+
+`elements/__init__.py` re-exports the registry and adds the lookups built from the schemas, such as `ELEMENT_CONFIG_DATA` and the input fields of each element type.
 
 ### Schema vs Data Mode
 
-Each element type has two TypedDict definitions:
+Each element type has two TypedDict definitions in `core/schema/elements/{type}.py`:
 
-**Schema mode** (`*ConfigSchema`): What the user enters in the UI
+**Schema mode** (`*ConfigSchema`): What the config flow stores in the subentry
 
-- Contains entity IDs as strings
-- Used during config flow form display and validation
+- Each input field holds a schema value: `{"type": "entity", "value": [entity IDs]}`, `{"type": "constant", "value": number or bool}`, or `{"type": "none"}`
+- Field hints attached with `Annotated` describe how each field loads
 
-**Data mode** (`*ConfigData`): What the optimizer uses
+**Data mode** (`*ConfigData`): What the adapters and optimizer use
 
-- Contains loaded numeric values
-- Produced by the `load()` function during coordinator updates
-
-```python
-# Schema mode: entity IDs with Annotated metadata
-class BatteryConfigSchema(TypedDict):
-    capacity: EnergySensorFieldSchema  # Annotated[str, EntitySelect(...), TimeSeries(...)]
-
-
-# Data mode: loaded values
-class BatteryConfigData(TypedDict):
-    capacity: EnergySensorFieldData  # Annotated[list[float], ...]
-```
-
-### Field Metadata with Annotated
-
-Fields use `Annotated` types with composable metadata markers:
+- Each input field holds its loaded value: a float, a bool, or a NumPy array over the horizon
+- A field configured as "None" takes its field's default, such as 100% efficiency, or is left out when it has none
 
 ```python
-from typing import Annotated
+class GridConfigSchema(ConnectedCommonConfig):
+    element_type: Literal[ElementType.GRID]
+    pricing: Annotated[
+        GridPricingConfig,
+        SectionHints(
+            {
+                CONF_PRICE_SOURCE_TARGET: FieldHint(output_type=OutputType.PRICE, direction="+", time_series=True),
+                CONF_PRICE_TARGET_SOURCE: FieldHint(output_type=OutputType.PRICE, direction="-", time_series=True),
+            }
+        ),
+    ]
 
-# Define field type with composed metadata
-EnergySensorFieldSchema = Annotated[
-    str,
-    EntitySelect(accepted_units=ENERGY_UNITS),
-    TimeSeries(accepted_units=ENERGY_UNITS),
-]
 
-
-class BatteryConfigSchema(TypedDict):
-    capacity: EnergySensorFieldSchema  # Entity ID with attached metadata
+class GridConfigData(ConnectedCommonData):
+    element_type: Literal[ElementType.GRID]
+    pricing: GridPricingData
 ```
 
-The composable metadata types are:
+### Field Hints
 
-- **Validator subclasses**: Define schema validation and UI selectors (e.g., `PositiveKW`, `Percentage`, `EntitySelect`)
-- **LoaderMeta subclasses**: Specify how values are loaded at runtime (e.g., `ConstantFloat`, `TimeSeries`)
-- **Default**: Provides default values for config flow UI forms
+Field hints in [`core/schema/field_hints.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/schema/field_hints.py) attach to schema fields through `Annotated` metadata:
 
-### Available Field Types
+- **`FieldHint`**: One input field.
+    `output_type` sets its unit, device class, and default limits.
+    `time_series` and `boundaries` choose between a scalar, a value per period, and a value per boundary.
+    `default_mode` and `default_value` choose what the config flow pre-selects.
+    `min_value`, `max_value`, `step`, `force_required`, and `calendar` refine it further.
+    `outputs` makes the field feed several inputs instead of being one, each loaded under its own name with its own hint and entity, such as one calendar feeding both a window and a due amount.
+- **`SectionHints`**: The field hints for the fields inside a section
+- **`ListFieldHints`**: The field hints for each item of a list field, such as policy rules
+- **`SurfacedPriceHint`**: A pricing field shown on an element's form but stored as a policy rule
 
-Field types are defined in `custom_components/haeo/core/schema/field_schema.py`:
-
-| Validator Class | Purpose                       | Base Type |
-| --------------- | ----------------------------- | --------- |
-| `PositiveKW`    | Positive power values in kW   | `float`   |
-| `AnyKW`         | Power flow (pos or neg) in kW | `float`   |
-| `PositiveKWH`   | Positive energy values in kWh | `float`   |
-| `Price`         | Price values in \$/kWh        | `float`   |
-| `Percentage`    | Percentage values (0-100)     | `float`   |
-| `BatterySOC`    | Battery SOC percentage        | `float`   |
-| `Boolean`       | Boolean flags                 | `bool`    |
-| `Name`          | Free-form text names          | `str`     |
-| `ElementName`   | References to other elements  | `str`     |
-| `EntitySelect`  | Entity sensor references      | `str`     |
+`elements/field_hints.py` turns these hints into the `InputFieldInfo` that the config flow and the input entities use.
+A new kind of field is usually a new `OutputType` or a new hint attribute rather than a new class.
 
 ### Data Loading Flow
 
 The schema system integrates with data loading:
 
-1. User enters entity IDs in config flow (Schema mode)
-2. Voluptuous validators ensure valid entity selection
-3. On coordinator update, `load()` converts Schema → Data mode
-4. LoaderMeta markers determine which loader extracts values from Home Assistant
-5. Adapter functions receive Data mode config to create model elements
+1. The user picks "Entity", "Constant", or "None" for each field, and the config flow stores the schema value (Schema mode)
+2. `validate_sectioned_choose_fields()` checks the input before it is stored
+3. At setup, each entity or constant field gets an input store, which resolves its value with `resolve_field` as its field hint directs
+4. The coordinator assembles each element's Data mode config from the stores' resolved values with `load_element_config_from_values`
+5. Adapters receive the Data mode config and create model elements
 
-For details on loaders, see [Data Loading](data-loading.md).
+For details on loading, see [Data Loading](data-loading.md).
 
 ## Options Flow
 

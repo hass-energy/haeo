@@ -66,6 +66,7 @@ def test_check_source_unit_rejects_units_that_do_not_fit(base_unit: str, output_
         pytest.param(90.0, "min", OutputType.DURATION, 1.5, id="minutes_to_hours"),
         pytest.param(150.0, "€/MWh", OutputType.PRICE, 0.15, id="price_per_mwh"),
         pytest.param(26.5, "c/kWh", OutputType.PRICE, 0.265, id="cents_per_kwh"),
+        pytest.param(10.0, "mi", OutputType.DISTANCE, 16.09344, id="miles_to_km"),
         pytest.param(1.0, None, OutputType.AVAILABILITY, 1.0, id="bare_number_without_field_unit"),
     ],
 )
@@ -86,6 +87,20 @@ def test_to_field_unit_converts(value: float, unit: str | None, output_type: Out
 def test_to_field_unit_rejects_values_it_cannot_convert(unit: str | None, output_type: OutputType) -> None:
     """A bare number is never taken to be in HAEO's units, and a unit must convert to the field's."""
     assert to_field_unit(5.0, unit, output_type) is None
+
+
+@pytest.mark.parametrize(
+    ("output_type", "expected"),
+    [
+        pytest.param(OutputType.ENERGY, None, id="energy_cannot_be_negative"),
+        pytest.param(OutputType.PRICE, -0.05, id="price_can_be_negative"),
+    ],
+)
+def test_to_field_unit_rejects_negative_quantities(output_type: OutputType, expected: float | None) -> None:
+    """A quantity that cannot be negative rejects a negative value; a price takes one."""
+    unit = "$/kWh" if output_type == OutputType.PRICE else "kWh"
+
+    assert to_field_unit(-0.05, unit, output_type) == expected
 
 
 def test_field_unit_label() -> None:

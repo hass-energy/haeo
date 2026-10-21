@@ -16,7 +16,7 @@ import argparse
 from collections.abc import Mapping, Sequence
 import contextlib
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 import json
 from pathlib import Path
 import sys
@@ -34,11 +34,13 @@ from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
     CONF_HORIZON,
     CONF_NAME,
+    CONF_RELAX_INFEASIBLE,
     HORIZON_PRESET_DAYS,
+    HUB_SECTION_ADVANCED,
     HUB_SECTION_COMMON,
 )
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
-from custom_components.haeo.core.data.loader.config_loader import load_element_config
+from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue, Network
 from custom_components.haeo.core.model.output_data import OutputData
@@ -49,7 +51,6 @@ from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_c
 from custom_components.haeo.core.schema.migrations.v1_4 import migrate_battery_config, migrate_hub_horizon
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
-from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 
 from .analysis import describe_analyses, run_analysis
 
@@ -150,8 +151,9 @@ class DiagnosticsData:
 class DiagnosticsStateProvider:
     """StateMachine implementation backed by diagnostics input data."""
 
-    def __init__(self, inputs: list[dict[str, JsonValueType]]) -> None:
-        """Initialize with inputs list from diagnostics."""
+    def __init__(self, inputs: list[dict[str, JsonValueType]], time_zone: tzinfo) -> None:
+        """Initialize with inputs list from diagnostics and the time zone it was captured in."""
+        self.time_zone = time_zone
         self._states: dict[str, DiagEntityState] = {}
         for entity_state in inputs:
             entity_id = entity_state.get("entity_id")
@@ -299,8 +301,13 @@ def find_output_entity(
     return None
 
 
-def _forecast_from_entity(entity: dict[str, JsonValueType] | None) -> dict[str, float]:
-    """Extract the time -> value forecast mapping from an output entity's attributes."""
+def get_forecast_by_field(
+    outputs: dict[str, JsonValueType],
+    element_name: str,
+    field_or_output_name: str,
+) -> dict[str, float]:
+    """Extract forecast values by element_name and field/output name, keyed by time string."""
+    entity = find_output_entity(outputs, element_name, field_or_output_name)
     if entity is None:
         return {}
     attributes = entity.get("attributes", {})
@@ -315,16 +322,6 @@ def _forecast_from_entity(entity: dict[str, JsonValueType] | None) -> dict[str, 
             if isinstance(time_value, str) and isinstance(value, int | float) and not isinstance(value, bool):
                 result[time_value] = value
     return result
-
-
-def get_forecast_by_field(
-    outputs: dict[str, JsonValueType],
-    element_name: str,
-    field_or_output_name: str,
-) -> dict[str, float]:
-    """Extract forecast values by element_name and field/output name, keyed by time string."""
-    entity = find_output_entity(outputs, element_name, field_or_output_name)
-    return _forecast_from_entity(entity)
 
 
 def get_forecast_by_fields(
@@ -351,6 +348,7 @@ def _find_element_name(participants: dict[str, JsonValueType], element_type: str
 def infer_interval_starts_from_outputs(
     outputs: dict[str, JsonValueType],
     config: dict[str, JsonValueType],
+    time_zone: tzinfo,
 ) -> list[float]:
     """Infer interval start timestamps from diagnostics outputs."""
     participants_raw = config.get("participants", {})
@@ -372,19 +370,10 @@ def infer_interval_starts_from_outputs(
     for series in candidates:
         if len(series) < MIN_INTERVAL_POINTS:
             continue
-        timestamps = sorted(parse_datetime_to_timestamp(time_str) for time_str in series)
+        timestamps = sorted(parse_datetime_to_timestamp(time_str, time_zone) for time_str in series)
         if len(timestamps) >= MIN_INTERVAL_POINTS:
             return [float(timestamp) for timestamp in timestamps]
     return []
-
-
-def get_forecast_values(outputs: dict[str, JsonValueType], entity_id: str) -> dict[str, float]:
-    """Extract forecast values from a diagnostics output entity by entity_id.
-
-    Falls back to exact entity_id match for backward compatibility.
-    """
-    entity = outputs.get(entity_id, {})
-    return _forecast_from_entity(entity if isinstance(entity, dict) else None)
 
 
 def format_output_table_from_diagnostics(
@@ -1021,9 +1010,10 @@ def run_diagnostics(
     optimization_start_str = optimization_start_raw if isinstance(optimization_start_raw, str) else ""
     timezone_raw = environment.get("timezone", "UTC")
     timezone_str = timezone_raw if isinstance(timezone_raw, str) else "UTC"
+    time_zone = ZoneInfo(timezone_str)
 
     start_time = (
-        parse_datetime_to_timestamp(optimization_start_str)
+        parse_datetime_to_timestamp(optimization_start_str, time_zone)
         if optimization_start_str
         else datetime.now(tz=UTC).timestamp()
     )
@@ -1088,7 +1078,7 @@ def run_diagnostics(
         print(f"Optimization periods: {len(periods_seconds)} intervals (from diagnostics)")
         print(f"Forecast horizon: {len(forecast_times)} boundaries (from diagnostics)")
     elif compare and diag.outputs:
-        interval_starts = infer_interval_starts_from_outputs(diag.outputs, config)
+        interval_starts = infer_interval_starts_from_outputs(diag.outputs, config, time_zone)
         if len(interval_starts) >= MIN_INTERVAL_POINTS:
             periods_seconds = [
                 round(interval_starts[i + 1] - interval_starts[i]) for i in range(len(interval_starts) - 1)
@@ -1120,26 +1110,22 @@ def run_diagnostics(
         element_config_obj: dict[str, object] = dict(element_config) if isinstance(element_config, dict) else {}
         normalized_participants[element_name] = normalize_participant_config_for_diag(element_config_obj)
 
-    state_provider = DiagnosticsStateProvider(diag.inputs)
+    state_provider = DiagnosticsStateProvider(diag.inputs, time_zone)
     normalized_participants = migrate_batteries_for_diag(normalized_participants)
 
-    negated_paths = negated_price_paths(normalized_participants)
-    loaded_participants: dict[str, ElementConfigData] = {}
+    participants: dict[str, ElementConfigSchema] = {}
     for element_name, element_config in normalized_participants.items():
-        try:
-            if not _is_element_config_schema(element_config):
-                msg = f"{element_name} is not a valid element config"
-                raise TypeError(msg)
-            loaded_participants[element_name] = load_element_config(
-                element_name,
-                element_config,
-                state_provider,
-                forecast_times,
-                negated_paths=negated_paths.get(element_name, frozenset()),
-            )
-            print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
-        except Exception as e:
-            print(f"  Warning: Failed to load {element_name}: {e}")
+        if not _is_element_config_schema(element_config):
+            print(f"Error: {element_name} is not a valid element config")
+            sys.exit(1)
+        participants[element_name] = element_config
+    try:
+        loaded_participants = load_element_configs(participants, state_provider, forecast_times)
+    except ValueError as e:
+        print(f"Error: Failed to load inputs: {e}")
+        sys.exit(1)
+    for element_name, element_config in participants.items():
+        print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
 
     if not loaded_participants:
         print("Error: No elements loaded")
@@ -1148,7 +1134,9 @@ def run_diagnostics(
     # Create network and run optimization
     print("\nCreating network...")
     periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
-    network = Network(name="diag", periods=periods_hours)
+    advanced = config.get(HUB_SECTION_ADVANCED)
+    relax_infeasible = isinstance(advanced, dict) and advanced.get(CONF_RELAX_INFEASIBLE) is True
+    network = Network(name="diag", periods=periods_hours, relax_infeasible=relax_infeasible)
     compiled = compile_policies(
         list(collect_model_elements(loaded_participants)),
         collect_policy_rules(loaded_participants),
@@ -1161,6 +1149,8 @@ def run_diagnostics(
     try:
         cost = network.optimize()
         print(f"Optimization complete. Total cost: ${cost:.2f}")
+        for relaxation in network.relaxations:
+            print(f"  Relaxed {relaxation}")
     except Exception as e:
         print(f"Optimization failed: {e}")
         sys.exit(1)

@@ -8,6 +8,7 @@ from .coordinator import (
     CoordinatorOutput,
     ForecastPoint,
     HaeoDataUpdateCoordinator,
+    SubentryDevices,
     _build_coordinator_output,  # pyright: ignore[reportPrivateUsage] (exported for testing)
     _build_optimization_context,  # pyright: ignore[reportPrivateUsage] (exported for testing)
     check_price_currencies,
@@ -24,6 +25,7 @@ __all__ = [
     "ForecastPoint",
     "HaeoDataUpdateCoordinator",
     "OptimizationContext",
+    "SubentryDevices",
     "_build_coordinator_output",
     "_build_optimization_context",
     "check_price_currencies",
