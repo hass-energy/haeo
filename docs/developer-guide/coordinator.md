@@ -131,11 +131,14 @@ When network optimization fails (infeasible constraints, solver not installed, n
 
 An infeasible model raises `InfeasibleError` carrying the conflicting constraint rows.
 The coordinator raises the `optimization_infeasible` repair issue naming the configured elements those rows belong to and the minutes from the start of the plan to the first of them, and fails the update with the same message.
-The wording lives in the translations; the coordinator passes only element names and numbers as placeholders.
+The wording lives in the translations; the coordinator passes only element names, numbers, and the plan's start time as placeholders.
 
 When the hub's `relax_infeasible` option is on, the network relaxes the model instead and records `Network.relaxations`.
 The coordinator raises the `optimization_relaxed` warning issue after the update succeeds, naming the conflicting elements, the elements where constraints were relaxed, and how many periods.
-A relaxed plan is still a failure, so the coordinator never dismisses that issue: it is persistent and fixable, and the user resolves it through the confirm flow `repairs.async_create_fix_flow` returns.
+
+An impossible or relaxed plan's cause can come and go between optimizations, so the coordinator never dismisses either issue.
+Both are persistent and fixable, and the user resolves them through the confirm flow `repairs.async_create_fix_flow` returns.
+Issues that change only when the configuration does, such as a disconnected network, clear themselves once fixed and are not fixable.
 
 ### Error propagation
 

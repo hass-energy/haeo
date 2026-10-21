@@ -20,8 +20,9 @@ async def async_create_fix_flow(
 ) -> RepairsFlow:
     """Return a flow that resolves a fixable issue once the user confirms it.
 
-    Only a relaxed plan's issue is fixable: the others clear themselves once their
-    cause is gone, while a relaxed plan stays a failure until the user resolves it.
+    Only the issues for impossible and relaxed plans are fixable. Their cause can
+    come and go between optimizations, so they stay until the user resolves them,
+    while the others clear themselves once their cause is gone.
     """
     return ConfirmRepairFlow()
 
@@ -194,22 +195,22 @@ def dismiss_optimization_failure_issue(
 def create_optimization_infeasible_issue(
     hass: HomeAssistant, entry_id: str, translation_key: str, placeholders: Mapping[str, str]
 ) -> None:
-    """Create a repair issue naming the elements whose constraints leave no feasible plan."""
+    """Create a repair issue naming the elements whose constraints leave no feasible plan.
+
+    The issue stays until the user marks it resolved, even once a later plan is
+    found, so an intermittent impossible forecast cannot raise and clear it before
+    anyone sees it.
+    """
     async_create_issue(
         hass,
         DOMAIN,
         f"optimization_infeasible_{entry_id}",
-        is_fixable=False,
-        is_persistent=False,
+        is_fixable=True,
+        is_persistent=True,
         severity=IssueSeverity.ERROR,
         translation_key=translation_key,
         translation_placeholders=dict(placeholders),
     )
-
-
-def dismiss_optimization_infeasible_issue(hass: HomeAssistant, entry_id: str) -> None:
-    """Dismiss the infeasible plan issue once a plan is found."""
-    async_delete_issue(hass, DOMAIN, f"optimization_infeasible_{entry_id}")
 
 
 def create_optimization_relaxed_issue(hass: HomeAssistant, entry_id: str, placeholders: Mapping[str, str]) -> None:

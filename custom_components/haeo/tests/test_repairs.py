@@ -1,14 +1,18 @@
 """Tests for the repairs module."""
 
+from collections.abc import Callable
+
 from homeassistant.components.repairs import ConfirmRepairFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.issue_registry import IssueSeverity, async_get
+import pytest
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.repairs import (
     async_create_fix_flow,
     create_disconnected_network_issue,
     create_node_replaced_by_junction_issue,
+    create_optimization_infeasible_issue,
     create_optimization_persistent_failure_issue,
     create_optimization_relaxed_issue,
     dismiss_disconnected_network_issue,
@@ -144,13 +148,37 @@ async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant)
     assert list(async_get(hass).issues) == [(DOMAIN, "node_replaced_by_junction_entry456_Switchboard")]
 
 
-async def test_relaxed_plan_issue_stays_until_the_user_resolves_it(hass: HomeAssistant) -> None:
-    """A relaxed plan raises a persistent warning that the user resolves through a confirm flow."""
-    create_optimization_relaxed_issue(hass, "entry", {"elements": "Load"})
+@pytest.mark.parametrize(
+    ("create", "issue_id", "severity"),
+    [
+        pytest.param(
+            lambda hass: create_optimization_infeasible_issue(
+                hass, "entry", "optimization_infeasible", {"elements": "Load"}
+            ),
+            "optimization_infeasible_entry",
+            IssueSeverity.ERROR,
+            id="infeasible",
+        ),
+        pytest.param(
+            lambda hass: create_optimization_relaxed_issue(hass, "entry", {"elements": "Load"}),
+            "optimization_relaxed_entry",
+            IssueSeverity.WARNING,
+            id="relaxed",
+        ),
+    ],
+)
+async def test_impossible_plan_issues_stay_until_the_user_resolves_them(
+    hass: HomeAssistant,
+    create: Callable[[HomeAssistant], None],
+    issue_id: str,
+    severity: IssueSeverity,
+) -> None:
+    """Impossible and relaxed plans raise persistent issues that the user resolves through a confirm flow."""
+    create(hass)
 
-    issue = async_get(hass).async_get_issue(DOMAIN, "optimization_relaxed_entry")
+    issue = async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert issue is not None
-    assert issue.severity == IssueSeverity.WARNING
+    assert issue.severity == severity
     assert issue.is_fixable
     assert issue.is_persistent
     assert isinstance(await async_create_fix_flow(hass, issue.issue_id, None), ConfirmRepairFlow)

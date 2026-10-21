@@ -54,7 +54,6 @@ from custom_components.haeo.repairs import (
     create_optimization_infeasible_issue,
     create_optimization_relaxed_issue,
     dismiss_optimization_failure_issue,
-    dismiss_optimization_infeasible_issue,
 )
 
 from . import network as network_module
@@ -789,7 +788,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         "elements": _element_names(error.conflicts, context.participants),
                         "minutes": _minutes_into_plan(error.conflicts, forecast_timestamps),
                     }
-                create_optimization_infeasible_issue(self.hass, entry_id, translation_key, placeholders)
+                create_optimization_infeasible_issue(
+                    self.hass,
+                    entry_id,
+                    translation_key,
+                    {**placeholders, "planned_at": _plan_start(forecast_timestamps)},
+                )
                 raise UpdateFailed(
                     translation_domain=DOMAIN,
                     translation_key=translation_key,
@@ -804,10 +808,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
             dismiss_optimization_failure_issue(self.hass, entry_id)
-            dismiss_optimization_infeasible_issue(self.hass, entry_id)
             if network.relaxations:
                 relaxed_rows = [relaxation.row for relaxation in network.relaxations]
-                plan_start = dt_util.as_local(dt_util.utc_from_timestamp(forecast_timestamps[0]))
                 conflicts = network.conflicts or relaxed_rows
                 create_optimization_relaxed_issue(
                     self.hass,
@@ -817,7 +819,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         "minutes": _minutes_into_plan(conflicts, forecast_timestamps),
                         "relaxed_elements": _element_names(relaxed_rows, context.participants),
                         "relaxed_periods": str(len({row.period for row in relaxed_rows if row.period is not None})),
-                        "planned_at": f"{plan_start:%Y-%m-%d %H:%M}",
+                        "planned_at": _plan_start(forecast_timestamps),
                     },
                 )
 
@@ -924,6 +926,11 @@ def _participant_name(model_element: str, participants: Collection[str]) -> str:
     """Return the configured element a model element belongs to, such as ``Grid`` for ``Grid:import``."""
     owners = [name for name in participants if model_element == name or model_element.startswith(f"{name}:")]
     return max(owners, key=len, default=model_element)
+
+
+def _plan_start(forecast_timestamps: Sequence[float]) -> str:
+    """Return the local time the plan starts, which places a repair issue read later."""
+    return f"{dt_util.as_local(dt_util.utc_from_timestamp(forecast_timestamps[0])):%Y-%m-%d %H:%M}"
 
 
 def _element_names(rows: Sequence[RowLabel], participants: Collection[str]) -> str:

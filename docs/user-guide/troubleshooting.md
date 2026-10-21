@@ -156,7 +156,12 @@ For a load spike, these are usually the load, the grid and batteries that cannot
 #### Check the forecasts and limits
 
 Check the forecasts of the elements named in the issue for values your system cannot meet, and the power limits on the path between them.
-The issue clears automatically once a plan is found.
+
+#### Resolve the issue
+
+The issue stays until you mark it resolved, even once a later plan is found, so a forecast that only sometimes asks for too much is not missed.
+It shows the latest plan that could not be found and when that plan was made.
+Once you have addressed the cause, open the issue and select **Submit** to resolve it; it is raised again if a later plan cannot be found.
 
 #### Relax impossible plans
 
@@ -165,9 +170,8 @@ HAEO then finds the smallest shortfall that makes a plan possible, places it at 
 Something still went wrong, so a repair issue titled "A plan had to relax constraints it cannot meet" names the elements that conflict, how many minutes into the plan, and where and in how many periods the plan relaxed constraints, such as at the switchboard.
 The log lists each relaxed constraint and by how much.
 
-That issue stays until you mark it resolved, even once later plans meet every constraint, so a forecast that only sometimes asks for too much is not missed.
+That issue stays until you resolve it in the same way, even once later plans meet every constraint.
 It shows the latest plan that had to relax constraints.
-Once you have addressed the cause, open the issue and select **Submit** to resolve it; it is raised again if a later plan has to relax constraints.
 
 The relaxed periods cannot happen as planned, so treat that issue as a sign to check the forecast.
 The shortfall is placed to be as small as possible rather than as cheap as possible, so the rest of the plan can cost a little more than it would with the shortfall placed by cost.

@@ -829,11 +829,27 @@
     },
     "optimization_infeasible": {
       "title": "No plan meets every constraint",
-      "description": "HAEO could not find a plan, because {elements} cannot all be met {minutes} minutes into the plan.\n\nTo fix this issue:\n1. Check the forecasts of these elements around that time for values your system cannot meet, such as a load spike above your grid import and battery discharge limits\n2. Check the power limits of these elements and of the connections between them\n3. To keep planning while a forecast asks for more than your system can do, turn on Relax impossible plans in the HAEO hub's advanced settings\n4. This issue clears automatically once a plan is found"
+      "description": "HAEO could not find the plan made at {planned_at}, because {elements} cannot all be met {minutes} minutes in.\n\nThis issue stays until you mark it resolved, even once a later plan is found, so a forecast that only sometimes asks for too much is not missed. It shows the latest plan that could not be found.\n\nTo fix this issue:\n1. Check the forecasts of these elements around that time for values your system cannot meet, such as a load spike above your grid import and battery discharge limits\n2. Check the power limits of these elements and of the connections between them\n3. To keep planning while a forecast asks for more than your system can do, turn on Relax impossible plans in the HAEO hub's advanced settings\n4. Once you have addressed the cause, select Submit to mark this issue resolved; it is raised again if a later plan cannot be found",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Mark the impossible plan resolved",
+            "description": "HAEO could not find the plan made at {planned_at}, because {elements} cannot all be met {minutes} minutes in.\n\nSubmit once you have addressed the cause. This issue is raised again if a later plan cannot be found."
+          }
+        }
+      }
     },
     "optimization_infeasible_unexplained": {
       "title": "No plan meets every constraint",
-      "description": "HAEO could not find a plan that meets every constraint, and the solver could not narrow down which elements conflict.\n\nTo fix this issue:\n1. Check your forecasts for values your system cannot meet, such as a load spike above your grid import and battery discharge limits\n2. Check the power limits of your elements and connections\n3. To keep planning while a forecast asks for more than your system can do, turn on Relax impossible plans in the HAEO hub's advanced settings\n4. This issue clears automatically once a plan is found"
+      "description": "HAEO could not find the plan made at {planned_at}, and the solver could not narrow down which elements conflict.\n\nThis issue stays until you mark it resolved, even once a later plan is found, so a forecast that only sometimes asks for too much is not missed. It shows the latest plan that could not be found.\n\nTo fix this issue:\n1. Check your forecasts for values your system cannot meet, such as a load spike above your grid import and battery discharge limits\n2. Check the power limits of your elements and connections\n3. To keep planning while a forecast asks for more than your system can do, turn on Relax impossible plans in the HAEO hub's advanced settings\n4. Once you have addressed the cause, select Submit to mark this issue resolved; it is raised again if a later plan cannot be found",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Mark the impossible plan resolved",
+            "description": "HAEO could not find the plan made at {planned_at}.\n\nSubmit once you have addressed the cause. This issue is raised again if a later plan cannot be found."
+          }
+        }
+      }
     },
     "optimization_relaxed": {
       "title": "A plan had to relax constraints it cannot meet",
