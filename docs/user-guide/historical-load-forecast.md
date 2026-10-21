@@ -199,3 +199,33 @@ Each entry contains:
 
     Run the script manually once after creating it to populate the forecast sensor immediately.
     Go to **Developer Tools** → **Services**, select `script.extract_load_forecast`, and click **Call Service**.
+
+## Next steps
+
+<div class="grid cards" markdown>
+
+- :material-home-lightning-bolt:{ .lg .middle } **Configure your load**
+
+    ---
+
+    Use the forecast sensor as the forecast of a load element.
+
+    [:material-arrow-right: Load configuration](elements/load.md)
+
+- :material-chart-line:{ .lg .middle } **Forecasts and sensors**
+
+    ---
+
+    Learn how HAEO reads forecast attributes and combines sensors.
+
+    [:material-arrow-right: Forecasts and sensors](forecasts-and-sensors.md)
+
+- :material-update:{ .lg .middle } **How data updates work**
+
+    ---
+
+    See when a new forecast prompts HAEO to optimize again.
+
+    [:material-arrow-right: Data updates](data-updates.md)
+
+</div>
