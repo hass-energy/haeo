@@ -90,8 +90,9 @@ _ENERGY_TO_KWH: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.GIGA_WATT_HOUR: 1_000_000.0,
 }
 
-# Currency symbols worth a hundredth of a main unit, with the main unit's symbol
-_MINOR_CURRENCIES: Final[dict[str, str]] = {"c": "$", "¢": "$", "p": "£"}
+# Currency symbols worth a hundredth of a main unit, with the main unit's symbol.
+# Cents written as c or ¢ are used by many currencies, so they name none.
+_MINOR_CURRENCIES: Final[dict[str, str | None]] = {"c": None, "¢": None, "ct": "€", "p": "£"}
 
 _DURATION_TO_HOURS: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.SECOND: 1 / 3600,
@@ -241,20 +242,47 @@ def _base_factor(unit: UnitOfMeasurement | None, device_class: DeviceClass | Non
     return _TO_BASE_UNIT[device_class].get(unit)
 
 
-def _price_conversion(unit: str | UnitOfMeasurement | None) -> tuple[float, str] | None:
-    """Return the factor and base unit for a price per energy unit, such as ``€/MWh`` to ``€/kWh``.
+def _price_parts(unit: object) -> tuple[str | None, float] | None:
+    """Return the currency of a price per energy unit and the factor to that currency per kWh.
 
-    A price in cents or pence, such as ``c/kWh``, converts to the main unit.
+    A price in cents or pence, such as ``c/kWh``, is stated in the main unit.
+    Cents written as ``c`` or ``¢`` name no currency, so the currency is None.
+    Returns None for a unit that is not a price per energy unit.
     """
     if not isinstance(unit, str):
         return None
-    currency, separator, energy = str(unit).rpartition("/")
+    currency, separator, energy = unit.rpartition("/")
     energy_unit = UnitOfMeasurement.of(energy)
     if not separator or not currency or energy_unit is None or energy_unit not in _ENERGY_TO_KWH:
         return None
-    main_currency = _MINOR_CURRENCIES.get(currency)
-    factor = 1.0 / _ENERGY_TO_KWH[energy_unit] * (0.01 if main_currency else 1.0)
-    return factor, f"{main_currency or currency}/{UnitOfMeasurement.KILO_WATT_HOUR}"
+    factor = 1.0 / _ENERGY_TO_KWH[energy_unit]
+    if currency in _MINOR_CURRENCIES:
+        return _MINOR_CURRENCIES[currency], factor * 0.01
+    return currency, factor
+
+
+def price_currency(unit: object) -> str | None:
+    """Return the currency a price per energy unit is stated in.
+
+    Returns None for any other unit, and for cents written as ``c`` or ``¢``,
+    which belong to whichever currency the other prices are in.
+    """
+    parts = _price_parts(unit)
+    return parts[0] if parts is not None else None
+
+
+def _price_conversion(unit: object) -> tuple[float, str] | None:
+    """Return the factor and base unit for a price per energy unit, such as ``€/MWh`` to ``€/kWh``.
+
+    Cents that name no currency convert to HAEO's ``$`` currency placeholder.
+    """
+    parts = _price_parts(unit)
+    if parts is None:
+        return None
+    currency, factor = parts
+    if currency is None:
+        return factor, UnitOfMeasurement.DOLLAR_PER_KWH.value
+    return factor, f"{currency}/{UnitOfMeasurement.KILO_WATT_HOUR}"
 
 
 def base_unit_conversion(

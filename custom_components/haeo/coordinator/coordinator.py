@@ -39,9 +39,8 @@ from custom_components.haeo.core.model import ModelOutputName, Network, OutputDa
 from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel, listing
 from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
-from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
-from custom_components.haeo.core.units import PRICE_UNIT_SPEC, currency_symbol, localize_currency
+from custom_components.haeo.core.units import currency_symbol, localize_currency, price_currency
 from custom_components.haeo.elements import (
     ElementDeviceName,
     ElementOutputName,
@@ -61,6 +60,7 @@ from custom_components.haeo.repairs import (
     dismiss_optimization_failure_issue,
     optimization_infeasible_issue_raised,
     optimization_relaxed_issue_raised,
+    sync_mixed_price_currencies_issue,
     sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_save_diagnostics
@@ -150,17 +150,28 @@ def detect_currency_symbol(
     """Detect the user's currency symbol from source entity units.
 
     Scans entity states for a price-like unit (e.g. ``£/kWh``) and returns the
-    currency prefix. Falls back to the configured currency when no price entity
-    is found, and then ``$`` if no configured currency is available.
+    currency prefix, or the main currency of a minor unit such as ``p/kWh``.
+    Cents written as ``c/kWh`` name no currency and are skipped. Falls back to
+    the configured currency when no price entity names one, and then ``$`` if
+    no configured currency is available.
     """
     for state in source_states.values():
-        unit = state.attributes.get("unit_of_measurement")
-        if isinstance(unit, str):
-            for spec in PRICE_UNIT_SPEC:
-                parts = extract_unit_parts(unit, spec)
-                if parts is not None:
-                    return parts[0]
+        if (currency := price_currency(state.attributes.get("unit_of_measurement"))) is not None:
+            return currency
     return fallback_currency or "$"
+
+
+def price_currency_sources(source_states: Mapping[str, "EntityState"]) -> dict[str, list[str]]:
+    """Group the source entities that report a price by the currency they report it in.
+
+    A currency code and its symbol, such as ``EUR`` and ``€``, group together.
+    Cents written as ``c/kWh`` name no currency and are left out.
+    """
+    sources: dict[str, list[str]] = {}
+    for entity_id, state in source_states.items():
+        if (currency := price_currency(state.attributes.get("unit_of_measurement"))) is not None:
+            sources.setdefault(currency_symbol(currency), []).append(entity_id)
+    return sources
 
 
 def forecast_datetimes(timestamps: Sequence[float]) -> tuple[datetime, ...] | None:
@@ -808,6 +819,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     translation_key="input_unavailable",
                     translation_placeholders=unavailable_input_placeholders(key, unavailable[key]),
                 )
+
+            sync_mixed_price_currencies_issue(
+                self.hass, self.config_entry.entry_id, price_currency_sources(context.source_states)
+            )
 
             # Load element configurations from input stores
             # All input stores are guaranteed to be fully loaded by the time we get here

@@ -13,6 +13,7 @@ from .coordinator import (
     _build_optimization_context,  # pyright: ignore[reportPrivateUsage] (exported for testing)
     detect_currency_symbol,
     forecast_datetimes,
+    price_currency_sources,
 )
 from .network import ElementUpdater, create_network, evaluate_network_connectivity
 
@@ -31,4 +32,5 @@ __all__ = [
     "detect_currency_symbol",
     "evaluate_network_connectivity",
     "forecast_datetimes",
+    "price_currency_sources",
 ]

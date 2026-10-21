@@ -106,7 +106,12 @@ You don't need to create template sensors for unit conversion.
 **Price conversions**:
 
 - A price per Wh or MWh → the same currency per kWh
-- A price in cents or pence (`c/kWh`, `¢/kWh`, or `p/kWh`) → the main currency unit, so 30 c/kWh is 0.30 \$/kWh
+- A price in cents or pence (`c/kWh`, `¢/kWh`, `ct/kWh`, or `p/kWh`) → the main currency unit, so 30 c/kWh is 0.30 \$/kWh
+
+HAEO cannot convert between currencies, so every price input should report the same currency.
+When price sensors report different currencies, HAEO keeps optimizing but raises a repair issue that lists each currency and its sensors.
+A currency code and its symbol, such as EUR and €, count as the same currency.
+Pence count as pounds and `ct` as euro cents, while cents written as `c` or `¢` count as cents of whichever currency your other prices use.
 
 **Example**: If your battery sensor reports power in watts (`sensor.battery_power` = 5000 W), HAEO automatically converts this to 5 kW for optimization.
 

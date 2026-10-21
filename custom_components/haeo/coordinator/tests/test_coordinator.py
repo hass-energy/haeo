@@ -41,6 +41,7 @@ from custom_components.haeo.coordinator import (
     _build_optimization_context,
     detect_currency_symbol,
     forecast_datetimes,
+    price_currency_sources,
 )
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
@@ -966,6 +967,37 @@ def test_detect_currency_symbol_uses_first_price_entity() -> None:
     }
     # The first price entity is s2, so the detected symbol should be £
     assert detect_currency_symbol(states) == "£"
+
+
+def test_detect_currency_symbol_reads_minor_currency_units() -> None:
+    """Pence show as pounds, while cents name no currency and fall back to the configured one."""
+    assert detect_currency_symbol({"s1": _make_source_state("p/kWh")}) == "£"
+    assert detect_currency_symbol({"s1": _make_source_state("ct/kWh")}) == "€"
+    assert detect_currency_symbol({"s1": _make_source_state("c/kWh")}, fallback_currency="€") == "€"
+    assert (
+        detect_currency_symbol(
+            {"s1": _make_source_state("c/kWh"), "s2": _make_source_state("£/kWh")}, fallback_currency="€"
+        )
+        == "£"
+    )
+
+
+@pytest.mark.parametrize(
+    ("units", "expected"),
+    [
+        pytest.param(("$/kWh", "$/MWh"), {"$": ["sensor.s0", "sensor.s1"]}, id="same_currency"),
+        pytest.param(("EUR/kWh", "€/kWh"), {"€": ["sensor.s0", "sensor.s1"]}, id="code_and_symbol"),
+        pytest.param(("€/kWh", "c/kWh", "¢/kWh"), {"€": ["sensor.s0"]}, id="cents_of_any_currency"),
+        pytest.param(("€/kWh", "ct/kWh"), {"€": ["sensor.s0", "sensor.s1"]}, id="euro_cents"),
+        pytest.param(("p/kWh", "€/kWh"), {"£": ["sensor.s0"], "€": ["sensor.s1"]}, id="pence_and_euros"),
+        pytest.param(("kW", "£/kWh"), {"£": ["sensor.s1"]}, id="non_price_unit"),
+    ],
+)
+def test_price_currency_sources(units: tuple[str, ...], expected: dict[str, list[str]]) -> None:
+    """Price sources group by currency, with codes joining their symbol and plain cents left out."""
+    states = {f"sensor.s{i}": _make_source_state(unit) for i, unit in enumerate(units)}
+
+    assert price_currency_sources(states) == expected
 
 
 def test_build_coordinator_output_localizes_shadow_price_currency() -> None:
@@ -2180,6 +2212,44 @@ async def test_async_update_data_raises_when_inputs_unavailable(
     assert issue is not None
     assert issue.translation_key == "unavailable_input"
     assert issue.translation_placeholders == placeholders
+
+
+async def test_async_update_data_warns_about_mixed_price_currencies(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Price sources in two currencies raise a repair issue without stopping the optimization."""
+    store = MagicMock()
+    store.available = True
+    store.captured_source_states = {
+        "sensor.import_price": _make_source_state("£/kWh"),
+        "sensor.export_price": _make_source_state("€/kWh"),
+    }
+    mock_runtime_data.input_stores[("Main Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = store
+    issue_id = f"mixed_price_currencies_{mock_hub_entry.entry_id}"
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, side_effect=UpdateFailed("solved")),
+        pytest.raises(UpdateFailed, match="solved"),
+    ):
+        await coordinator._async_update_data()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+    store.captured_source_states = {"sensor.import_price": _make_source_state("€/kWh")}
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, side_effect=UpdateFailed("solved")),
+        pytest.raises(UpdateFailed, match="solved"),
+    ):
+        await coordinator._async_update_data()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
 async def test_async_update_data_raises_translated_input_error(

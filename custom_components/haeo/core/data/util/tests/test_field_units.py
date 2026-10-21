@@ -65,6 +65,7 @@ def test_check_source_unit_rejects_units_that_do_not_fit(base_unit: str, output_
         pytest.param(40.0, "kWh", OutputType.ENERGY, 40.0, id="kwh"),
         pytest.param(90.0, "min", OutputType.DURATION, 1.5, id="minutes_to_hours"),
         pytest.param(150.0, "€/MWh", OutputType.PRICE, 0.15, id="price_per_mwh"),
+        pytest.param(26.5, "c/kWh", OutputType.PRICE, 0.265, id="cents_per_kwh"),
         pytest.param(10.0, "mi", OutputType.DISTANCE, 16.09344, id="miles_to_km"),
         pytest.param(1.0, None, OutputType.AVAILABILITY, 1.0, id="bare_number_without_field_unit"),
     ],
