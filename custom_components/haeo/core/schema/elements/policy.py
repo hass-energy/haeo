@@ -47,7 +47,7 @@ class PolicyRuleData(TypedDict):
     enabled: bool
     source: NotRequired[list[str]]
     target: NotRequired[list[str]]
-    price: NDArray[np.float64] | float | None
+    price: NDArray[np.float64] | float
 
 
 class PolicyConfigSchema(TypedDict):

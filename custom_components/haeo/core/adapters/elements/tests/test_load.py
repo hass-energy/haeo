@@ -1,4 +1,4 @@
-"""Tests for load element adapter availability and inputs."""
+"""Tests for load element adapter inputs."""
 
 from custom_components.haeo.core.schema import as_connection_target, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType

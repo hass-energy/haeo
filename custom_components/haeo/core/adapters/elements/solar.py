@@ -6,12 +6,16 @@ from typing import Final, Literal
 
 import numpy as np
 
-from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
+from custom_components.haeo.core.adapters.output_utils import (
+    connection_power,
+    expect_output_data,
+    power_limit_shadow_price,
+)
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
 from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
@@ -103,12 +107,7 @@ class SolarAdapter:
         }
 
         # Shadow price from power_limit segment (if present)
-        if (
-            connection is not None
-            and isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
-            and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
-            and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
-        ):
+        if (shadow := power_limit_shadow_price(connection)) is not None:
             solar_outputs[SOLAR_FORECAST_LIMIT] = shadow
 
         return {SOLAR_DEVICE_SOLAR: solar_outputs}
