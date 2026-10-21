@@ -6,7 +6,7 @@ from custom_components.haeo.core.schema.elements.solar import CONF_CURTAILMENT, 
 from custom_components.haeo.core.schema.sections import CONF_FORECAST
 from custom_components.haeo.flows.connected_flow import ConnectedElementSubentryFlow
 from custom_components.haeo.flows.field_schema import SectionDefinition
-from custom_components.haeo.sections import curtailment_section, forecast_section
+from custom_components.haeo.flows.sections import curtailment_section, forecast_section
 
 
 class SolarSubentryFlowHandler(ConnectedElementSubentryFlow):

@@ -16,7 +16,6 @@ from homeassistant.util import dt as dt_util
 import numpy as np
 import pytest
 
-from custom_components.haeo.calendar_loader import CalendarInputLoader
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
@@ -24,6 +23,7 @@ from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, calendar_input
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.inputs.calendar_loader import CalendarInputLoader
 
 _LOGGER = logging.getLogger(__name__)
 

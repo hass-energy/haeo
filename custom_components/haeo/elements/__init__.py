@@ -125,9 +125,9 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_elem
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
-from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
 from custom_components.haeo.core.schema.surfaced_policy import get_surfaced_price_hints
 from custom_components.haeo.elements.field_hints import build_input_fields, build_list_input_fields
+from custom_components.haeo.elements.input_fields import FieldSchemaInfo
 
 from .input_fields import AnyInputFieldInfo, InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
 

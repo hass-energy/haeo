@@ -27,7 +27,7 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import build_common_fields
+from custom_components.haeo.flows.sections import build_common_fields
 
 
 class BatterySectionSubentryFlowHandler(ElementSubentryFlow):

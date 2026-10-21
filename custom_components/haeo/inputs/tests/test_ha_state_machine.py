@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
+from custom_components.haeo.inputs.ha_state_machine import HomeAssistantStateMachine
 
 
 async def test_time_zone_is_home_assistant_time_zone(hass: HomeAssistant) -> None:

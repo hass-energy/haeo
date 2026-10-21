@@ -34,8 +34,8 @@ from custom_components.haeo.core.data.loader.calendar import (
 )
 from custom_components.haeo.core.data.util.field_units import field_unit_label
 from custom_components.haeo.core.state import StateMachine
-from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
-from custom_components.haeo.meter_history import MeterHistory
+from custom_components.haeo.inputs.ha_state_machine import HomeAssistantStateMachine
+from custom_components.haeo.inputs.meter_history import MeterHistory
 from custom_components.haeo.repairs import create_calendar_event_values_issue, dismiss_calendar_event_values_issue
 
 if TYPE_CHECKING:

@@ -21,7 +21,6 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.setup import async_when_setup
 
-from custom_components.haeo.calendar_loader import CalendarInputLoader
 from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -43,6 +42,7 @@ from custom_components.haeo.input_stores import (
     input_error_placeholders,
     unavailable_input_placeholders,
 )
+from custom_components.haeo.inputs.calendar_loader import CalendarInputLoader
 from custom_components.haeo.repairs import async_dismiss_entry_issues, sync_unavailable_input_issues
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id

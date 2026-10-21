@@ -11,7 +11,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements.junction import ELEMENT_TYPE
 from custom_components.haeo.flows.element_flow import ElementSubentryFlow
 from custom_components.haeo.flows.field_schema import as_str
-from custom_components.haeo.sections import build_common_fields
+from custom_components.haeo.flows.sections import build_common_fields
 
 
 class JunctionSubentryFlowHandler(ElementSubentryFlow):

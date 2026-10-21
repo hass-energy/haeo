@@ -38,7 +38,7 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import (
+from custom_components.haeo.flows.sections import (
     build_common_fields,
     efficiency_section,
     power_limits_section,

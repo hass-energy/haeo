@@ -21,7 +21,7 @@ from custom_components.haeo.core.schema.elements.battery import (
 from custom_components.haeo.core.schema.sections import CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE
 from custom_components.haeo.flows.connected_flow import ConnectedElementSubentryFlow
 from custom_components.haeo.flows.field_schema import SectionDefinition
-from custom_components.haeo.sections import efficiency_section, power_limits_section, pricing_section
+from custom_components.haeo.flows.sections import efficiency_section, power_limits_section, pricing_section
 
 
 class BatterySubentryFlowHandler(ConnectedElementSubentryFlow):

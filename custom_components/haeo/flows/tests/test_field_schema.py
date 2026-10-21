@@ -20,8 +20,12 @@ from custom_components.haeo.core.schema import (
     as_none_value,
 )
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
-from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
-from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.input_fields import (
+    AnyInputFieldInfo,
+    FieldSchemaInfo,
+    InputFieldDefaults,
+    InputFieldInfo,
+)
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,

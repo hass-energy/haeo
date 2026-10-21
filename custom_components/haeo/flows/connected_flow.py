@@ -38,12 +38,12 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
+from custom_components.haeo.flows.sections import build_common_fields
 from custom_components.haeo.flows.surfaced_policy import (
     build_surfaced_defaults,
     build_surfaced_schema_entries,
     save_surfaced_rules_from_input,
 )
-from custom_components.haeo.sections import build_common_fields
 
 
 def _stored_connection(subentry_data: Mapping[str, object] | None) -> str | None:

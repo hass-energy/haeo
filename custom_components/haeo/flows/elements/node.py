@@ -12,7 +12,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE
 from custom_components.haeo.flows.element_flow import ElementSubentryFlow
 from custom_components.haeo.flows.field_schema import SectionDefinition, as_mapping, as_str, build_section_schema
-from custom_components.haeo.sections import build_common_fields
+from custom_components.haeo.flows.sections import build_common_fields
 
 # Suggested values for first setup (pure junction: no source or sink)
 _SUGGESTED_DEFAULTS = {

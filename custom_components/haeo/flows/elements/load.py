@@ -7,7 +7,7 @@ from custom_components.haeo.core.schema.elements.load import CONF_CONSUMPTION_CO
 from custom_components.haeo.core.schema.sections import CONF_CURTAILMENT, CONF_FORECAST, SECTION_CURTAILMENT
 from custom_components.haeo.flows.connected_flow import ConnectedElementSubentryFlow
 from custom_components.haeo.flows.field_schema import SectionDefinition
-from custom_components.haeo.sections import forecast_section
+from custom_components.haeo.flows.sections import forecast_section
 
 
 class LoadSubentryFlowHandler(ConnectedElementSubentryFlow):

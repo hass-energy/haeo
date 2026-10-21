@@ -11,7 +11,7 @@ from custom_components.haeo.core.schema.sections import (
 )
 from custom_components.haeo.flows.connected_flow import ConnectedElementSubentryFlow
 from custom_components.haeo.flows.field_schema import SectionDefinition
-from custom_components.haeo.sections import power_limits_section, pricing_section
+from custom_components.haeo.flows.sections import power_limits_section, pricing_section
 
 
 class GridSubentryFlowHandler(ConnectedElementSubentryFlow):
