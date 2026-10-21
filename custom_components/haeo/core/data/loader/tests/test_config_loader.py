@@ -396,21 +396,6 @@ def test_unknown_element_type_raises() -> None:
         )
 
 
-def test_entity_percent_scalar_converts(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Entity-backed SOC scalar values are divided by 100."""
-
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
-        return {"sensor.soc": 80.0}
-
-    monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
-
-    config = _battery_config(initial_soc={"type": "entity", "value": ["sensor.soc"]})
-    result = _load_battery(config)
-
-    storage = _dict(result["storage"])
-    assert storage["initial_charge_percentage"] == pytest.approx(0.8)
-
-
 def test_entity_percent_time_series_converts(monkeypatch: pytest.MonkeyPatch) -> None:
     """Entity-backed SOC boundary values are divided by 100."""
 
@@ -459,10 +444,10 @@ def test_boolean_values_pass_through(role_input: dict[str, object]) -> None:
 def test_entity_non_percent_scalar_resolves(monkeypatch: pytest.MonkeyPatch) -> None:
     """Non-percent scalar entity values resolve without division."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
+    def fake_load_readings(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
         return {"sensor.salvage": 0.05}
 
-    monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
+    monkeypatch.setattr(cl, "load_readings", fake_load_readings)
 
     config = _battery_config()
     config["pricing"] = {"salvage_value": {"type": "entity", "value": ["sensor.salvage"]}}
@@ -816,6 +801,7 @@ def test_entity_values_respect_non_negative_output_types(
 ) -> None:
     """Fields that cannot be negative, by quantity or by minimum, clamp slightly negative readings to zero."""
     monkeypatch.setattr(cl, "load_sensors", lambda *_a, **_kw: {"sensor.x": sensor_value})
+    monkeypatch.setattr(cl, "load_readings", lambda *_a, **_kw: {"sensor.x": sensor_value})
 
     result = cl.resolve_field({"type": "entity", "value": ["sensor.x"]}, hint, FakeStateMachine({}), FORECAST_TIMES)
 
@@ -839,6 +825,7 @@ def test_entity_significantly_negative_value_raises(
 ) -> None:
     """A significantly negative value for a non-negative field is rejected with the value in sensor units."""
     monkeypatch.setattr(cl, "load_sensors", lambda *_a, **_kw: {"sensor.x": sensor_value})
+    monkeypatch.setattr(cl, "load_readings", lambda *_a, **_kw: {"sensor.x": sensor_value})
 
     with pytest.raises(InputError) as exc_info:
         cl.resolve_field({"type": "entity", "value": ["sensor.x"]}, hint, FakeStateMachine({}), FORECAST_TIMES)
@@ -1091,3 +1078,51 @@ def test_meter_field_rejects_a_meter_in_the_wrong_unit(monkeypatch: pytest.Monke
 
     with pytest.raises(InputError):
         load_element_config("Battery", config, FakeStateMachine(states), (5400.0, 9000.0))  # type: ignore[arg-type]  # fixtures use loose dicts
+
+
+_HAEO_FORECAST: list[dict[str, object]] = [
+    {"time": "1970-01-01T00:00:00+00:00", "value": 20.0},
+    {"time": "1970-01-01T01:00:00+00:00", "value": 30.0},
+]
+
+
+@pytest.mark.parametrize(
+    ("states", "expected"),
+    [
+        pytest.param({"sensor.soc": ("80", {"unit_of_measurement": "%"})}, 0.8, id="plain_sensor"),
+        pytest.param(
+            {"sensor.soc": ("80", {"unit_of_measurement": "%", "forecast": _HAEO_FORECAST})},
+            0.8,
+            id="forecast_sensor_reads_its_state",
+        ),
+        pytest.param(
+            {
+                "sensor.a": ("30", {"unit_of_measurement": "%", "forecast": _HAEO_FORECAST}),
+                "sensor.b": ("25", {"unit_of_measurement": "%"}),
+            },
+            0.55,
+            id="readings_sum",
+        ),
+    ],
+)
+def test_scalar_field_reads_each_sensors_state(
+    states: dict[str, tuple[str, dict[str, object]]], expected: float
+) -> None:
+    """A scalar field reads each sensor's state, its reading for now, even when the sensor carries a forecast."""
+    sm = FakeStateMachine({eid: FakeEntityState(eid, state, attrs) for eid, (state, attrs) in states.items()})
+
+    result = cl.resolve_field(as_entity_value(list(states)), _SOC_SCALAR_HINT, sm, FORECAST_TIMES)
+
+    assert result == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    "state", [pytest.param("unknown", id="unknown"), pytest.param("unavailable", id="unavailable")]
+)
+def test_scalar_field_of_a_forecast_sensor_without_a_reading_is_unavailable(state: str) -> None:
+    """A forecast sensor whose state is not a reading leaves a scalar field without data, not zero."""
+    sm = FakeStateMachine(
+        {"sensor.soc": FakeEntityState("sensor.soc", state, {"unit_of_measurement": "%", "forecast": _HAEO_FORECAST})}
+    )
+
+    assert cl.resolve_field(as_entity_value(["sensor.soc"]), _SOC_SCALAR_HINT, sm, FORECAST_TIMES) is None

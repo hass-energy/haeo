@@ -27,14 +27,11 @@ from custom_components.haeo.core.data.storage import Storage
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import EntityValue, is_entity_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
-from custom_components.haeo.core.state import EntityState, StateMachine
+from custom_components.haeo.core.state import NO_READING_STATES, EntityState, StateMachine
 
 type InputValue = bool | float | np.ndarray
 
 _LOGGER = logging.getLogger(__name__)
-
-# Home Assistant's states for an entity with no reading
-_NO_READING_STATES: frozenset[str] = frozenset({"unavailable", "unknown"})
 
 
 class InputMode(Enum):
@@ -302,7 +299,7 @@ class InputStore:
         unavailable_sources = tuple(
             eid
             for eid in self._source_entity_ids
-            if (state := self._captured_source_states.get(eid)) is None or state.state in _NO_READING_STATES
+            if (state := self._captured_source_states.get(eid)) is None or state.state in NO_READING_STATES
         )
 
         if self._sources is None or not self._source_entity_ids:

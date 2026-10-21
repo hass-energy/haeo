@@ -9,7 +9,9 @@ summed where events overlap, and zero outside events.
 The value is a number with its unit, such as "5 kW" or "0.30 $/kWh", read
 from the event's location, summary, or description, and converted to the
 input's unit like a sensor reading. A calendar without valued events is a
-forecast with no points, which adds nothing. An event whose value the input cannot
+forecast with no points, which adds nothing. A calendar whose state carries
+no injected events has no data: its state only says whether an event is on,
+which is not a value. An event whose value the input cannot
 use, such as a bare number, is ignored like an event without a number, so one
 mistyped event does not stop the rest of the calendar from loading.
 """
@@ -42,8 +44,8 @@ class Parser:
 
     @staticmethod
     def detect(state: EntityState) -> TypeGuard[EntityState]:
-        """Return True when the state carries injected calendar events."""
-        return isinstance(state.attributes.get(CALENDAR_EVENTS_ATTRIBUTE), list)
+        """Return True when the state is a calendar's, or carries injected calendar events."""
+        return state.entity_id.partition(".")[0] == DOMAIN or CALENDAR_EVENTS_ATTRIBUTE in state.attributes
 
     @staticmethod
     def extract(
@@ -55,15 +57,23 @@ class Parser:
         to convert further. Without the input's output type, event values
         cannot be read, so the calendar has no points.
 
+        Raises:
+            ValueError: If the state carries no injected events.
+
         Each change in the summed value gets a point at the old value and one at
         the new value at the same time, which the caller separates so the fuser
         does not interpolate between them. Zero points well before and after
         the events stop the series from repeating across the horizon.
+
         """
+        events = load_calendar_events(state, time_zone)
+        if events is None:
+            msg = f"Calendar {state.entity_id} carries no injected events"
+            raise ValueError(msg)
         if output_type is None:
             return [], None, None
         changes: dict[float, float] = {}
-        for window in event_windows(load_calendar_events(state, time_zone) or [], output_type):
+        for window in event_windows(events, output_type):
             if window.value:
                 start, end = window.start.timestamp(), window.end.timestamp()
                 changes[start] = changes.get(start, 0.0) + window.value
