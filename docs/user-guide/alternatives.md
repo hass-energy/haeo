@@ -175,19 +175,35 @@ For load forecasts built from your history, see [historical load forecast](histo
 EMHASS includes its own solar forecasting and a machine-learning load forecaster.
 It also has tools that check its forecasts against your own history, and it can plan against a cautious solar forecast (Solcast P10) instead of the most likely one.
 
+## When the plan is impossible
+
+Sometimes your forecasts ask for more than your system can do, such as a load spike bigger than the grid and batteries can supply together.
+Both projects avoid this where they can by treating goals as costs rather than rules.
+In HAEO, an appliance's energy, an EV trip, and a backup reserve can all fall short at a price you set instead of making the plan fail.
+EMHASS does the same for battery targets, heating comfort, and several of its battery options.
+
+When the plan is still impossible:
+
+- **HAEO** raises a repair issue that names the elements that conflict and how far into the plan, such as "Load, Grid, Battery, Switchboard cannot all be met 30 minutes into the plan".
+    It also saves a diagnostics file you can attach to a bug report.
+    If you turn on **Relax impossible plans**, HAEO plans for the smallest shortfall it can and keeps going, and the repair issue tells you where it fell short.
+    See [no plan meets every constraint](troubleshooting.md#no-plan-meets-every-constraint).
+- **EMHASS** retries once with its appliance on/off decisions relaxed.
+    If that also fails, its status sensor reports `Infeasible` and the log has the details, but it does not say which limits conflict.
+
 ## Setup and day-to-day use
 
-| What you care about  | HAEO                                                  | EMHASS                                           |
-| -------------------- | ----------------------------------------------------- | ------------------------------------------------ |
-| **Install**          | HACS, then add the integration                        | Add-on store, Docker, or standalone              |
-| **Where it runs**    | Inside Home Assistant                                 | A separate service, which can be another machine |
-| **Configuration**    | Home Assistant UI, with values you can change live    | EMHASS web UI and configuration file             |
-| **Driving devices**  | Automations read HAEO's sensors                       | Automations read EMHASS's sensors                |
-| **Seeing the plan**  | HAEO forecast and topology dashboard cards            | EMHASS web UI charts                             |
-| **Understanding it** | Sensors show what an extra kWh is worth at each point | Plan and cost results                            |
-| **Reporting issues** | Diagnostics capture the inputs from a past moment     | Logs and saved results                           |
-| **Learning curve**   | Wiring your system together takes some thought        | Many configuration parameters to understand      |
-| **Track record**     | Newer, smaller community                              | Mature, large community, extensive documentation |
+| What you care about  | HAEO                                                                             | EMHASS                                           |
+| -------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Install**          | HACS, then add the integration                                                   | Add-on store, Docker, or standalone              |
+| **Where it runs**    | Inside Home Assistant                                                            | A separate service, which can be another machine |
+| **Configuration**    | Home Assistant UI, with values you can change live                               | EMHASS web UI and configuration file             |
+| **Driving devices**  | Automations read HAEO's sensors                                                  | Automations read EMHASS's sensors                |
+| **Seeing the plan**  | HAEO forecast and topology dashboard cards                                       | EMHASS web UI charts                             |
+| **Understanding it** | Sensors show what an extra kWh is worth at each point                            | Plan and cost results                            |
+| **Reporting issues** | Diagnostics capture a past moment, and are saved automatically when a plan fails | Logs and saved results                           |
+| **Learning curve**   | Wiring your system together takes some thought                                   | Many configuration parameters to understand      |
+| **Track record**     | Newer, smaller community                                                         | Mature, large community, extensive documentation |
 
 ## What HAEO does not do yet
 
