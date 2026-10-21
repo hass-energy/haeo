@@ -111,16 +111,34 @@ def _text_event(
             id="number_in_another_quantity_passed_over",
         ),
         pytest.param(
-            _text_event(location="12 Main St", summary="EV 8 kWh"),
-            OutputType.ENERGY,
-            EventValueText("location", "12 Main St", None),
-            id="first_field_with_a_number_even_without_a_value",
+            _text_event(location="12 Main St", summary="Trip 40 km"),
+            OutputType.DISTANCE,
+            EventValueText("summary", "Trip 40 km", 40.0),
+            id="street_number_in_location_passed_over",
+        ),
+        pytest.param(
+            _text_event(location="40 km", summary="Visit 3 friends"),
+            OutputType.DISTANCE,
+            EventValueText("location", "40 km", 40.0),
+            id="usable_location_before_summary",
         ),
         pytest.param(
             _text_event(location="8", description="2 kWh"),
             OutputType.ENERGY,
-            EventValueText("location", "8", None),
-            id="mistyped_field_not_replaced_by_a_later_one",
+            EventValueText("description", "2 kWh", 2.0),
+            id="field_without_a_usable_number_passed_over",
+        ),
+        pytest.param(
+            _text_event(location="12 Main St", summary="EV 8"),
+            OutputType.ENERGY,
+            EventValueText("location", "12 Main St", None),
+            id="first_field_with_a_number_when_none_is_usable",
+        ),
+        pytest.param(
+            _text_event(location="12 Main St", summary="8 kWh or 10 kWh"),
+            OutputType.ENERGY,
+            EventValueText("summary", "8 kWh or 10 kWh", None),
+            id="several_usable_numbers_after_an_unusable_field_give_no_value",
         ),
         pytest.param(
             _text_event(summary="8 kWh or 10 kWh", description="8 kWh"),
@@ -138,10 +156,13 @@ def _text_event(
         pytest.param(_text_event(), OutputType.ENERGY, None, id="no_fields"),
     ],
 )
-def test_event_value_text_is_the_first_field_holding_a_number(
+def test_event_value_text_is_the_first_field_holding_a_usable_number(
     event: CalendarEventData, output_type: OutputType, expected: EventValueText | None
 ) -> None:
-    """The first of location, summary, and description holding a number gives the value, if it holds one usable."""
+    """The first of location, summary, and description holding a usable number gives the value.
+
+    With no usable number in any field, the first field holding a number is the one reported.
+    """
     assert event_value_text(event, output_type) == expected
 
 
@@ -419,14 +440,15 @@ def test_load_skips_invalid_event_dicts() -> None:
     ("spans", "expected_hour"),
     [
         pytest.param([(8, 11)], 8, id="open_event"),
-        pytest.param([(7, 9), (8, 11)], 7, id="overlapping_events_chain"),
+        pytest.param([(7, 10), (8, 11)], 7, id="earliest_open_event"),
+        pytest.param([(7, 9), (8, 11)], 8, id="events_ended_before_are_not_in_the_window"),
         pytest.param([(7, 9), (9, 11)], 9, id="touching_events_stay_separate"),
         pytest.param([(11, 12)], None, id="none_open"),
         pytest.param([(10, 9)], None, id="ends_before_it_starts"),
     ],
 )
 def test_open_window_start(spans: list[tuple[int, int]], expected_hour: int | None) -> None:
-    """The window open at a time began at its first event, chaining overlaps but not touching events."""
+    """The window open at a time began at the earliest of the events open then; ended events are not part of it."""
     events = [_event(start, end) for start, end in spans]
 
     opened = open_window_start(events, _dt(9, 30))
