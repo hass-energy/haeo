@@ -20,6 +20,7 @@ from custom_components.haeo.repairs import (
     create_optimization_relaxed_issue,
     dismiss_disconnected_network_issue,
     dismiss_optimization_failure_issue,
+    sync_mixed_price_currencies_issue,
     sync_unavailable_input_issues,
 )
 
@@ -259,3 +260,22 @@ async def test_sync_unavailable_input_issues_raises_and_dismisses(hass: HomeAssi
         "unavailable_input_entry123_Grid_pricing.price_source_target",
         "unavailable_input_entry456_Grid_pricing.price_source_target",
     ]
+
+
+async def test_sync_mixed_price_currencies_issue_raises_and_dismisses(hass: HomeAssistant) -> None:
+    """Two currencies raise a warning listing each currency's sensors, and one currency dismisses it."""
+    sync_mixed_price_currencies_issue(
+        hass, "entry123", {"€": ["sensor.export", "sensor.feed_in"], "£": ["sensor.import"]}
+    )
+
+    issue = async_get(hass).async_get_issue(DOMAIN, "mixed_price_currencies_entry123")
+    assert issue is not None
+    assert issue.severity == IssueSeverity.WARNING
+    assert issue.translation_key == "mixed_price_currencies"
+    assert issue.translation_placeholders == {
+        "currencies": "- £: sensor.import\n- €: sensor.export, sensor.feed_in",
+    }
+
+    sync_mixed_price_currencies_issue(hass, "entry123", {"€": ["sensor.export"]})
+
+    assert async_get(hass).async_get_issue(DOMAIN, "mixed_price_currencies_entry123") is None

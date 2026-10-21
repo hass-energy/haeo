@@ -39,9 +39,9 @@ from custom_components.haeo.coordinator import (
     OptimizationContext,
     _build_coordinator_output,
     _build_optimization_context,
-    check_price_currencies,
     detect_currency_symbol,
     forecast_datetimes,
+    price_currency_sources,
 )
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
@@ -969,51 +969,35 @@ def test_detect_currency_symbol_uses_first_price_entity() -> None:
     assert detect_currency_symbol(states) == "£"
 
 
-def test_detect_currency_symbol_reads_minor_currency_units_as_main_currency() -> None:
-    """A price in a minor currency unit shows in its main currency, matching the converted values."""
-    assert detect_currency_symbol({"s1": _make_source_state("c/kWh")}, fallback_currency="EUR") == "$"
+def test_detect_currency_symbol_reads_minor_currency_units() -> None:
+    """Pence show as pounds, while cents name no currency and fall back to the configured one."""
     assert detect_currency_symbol({"s1": _make_source_state("p/kWh")}) == "£"
+    assert detect_currency_symbol({"s1": _make_source_state("ct/kWh")}) == "€"
+    assert detect_currency_symbol({"s1": _make_source_state("c/kWh")}, fallback_currency="€") == "€"
+    assert (
+        detect_currency_symbol(
+            {"s1": _make_source_state("c/kWh"), "s2": _make_source_state("£/kWh")}, fallback_currency="€"
+        )
+        == "£"
+    )
 
 
 @pytest.mark.parametrize(
-    "units",
+    ("units", "expected"),
     [
-        pytest.param(("$/kWh", "$/MWh"), id="same_currency"),
-        pytest.param(("EUR/kWh", "€/kWh"), id="code_and_symbol"),
-        pytest.param(("$/kWh", "c/kWh"), id="major_and_minor_unit"),
-        pytest.param(("kW", "£/kWh"), id="non_price_unit"),
+        pytest.param(("$/kWh", "$/MWh"), {"$": ["sensor.s0", "sensor.s1"]}, id="same_currency"),
+        pytest.param(("EUR/kWh", "€/kWh"), {"€": ["sensor.s0", "sensor.s1"]}, id="code_and_symbol"),
+        pytest.param(("€/kWh", "c/kWh", "¢/kWh"), {"€": ["sensor.s0"]}, id="cents_of_any_currency"),
+        pytest.param(("€/kWh", "ct/kWh"), {"€": ["sensor.s0", "sensor.s1"]}, id="euro_cents"),
+        pytest.param(("p/kWh", "€/kWh"), {"£": ["sensor.s0"], "€": ["sensor.s1"]}, id="pence_and_euros"),
+        pytest.param(("kW", "£/kWh"), {"£": ["sensor.s1"]}, id="non_price_unit"),
     ],
 )
-def test_check_price_currencies_accepts_one_currency(units: tuple[str, ...]) -> None:
-    """Price inputs in one currency, or its minor unit, pass the check."""
-    check_price_currencies({f"sensor.s{i}": _make_source_state(unit) for i, unit in enumerate(units)})
+def test_price_currency_sources(units: tuple[str, ...], expected: dict[str, list[str]]) -> None:
+    """Price sources group by currency, with codes joining their symbol and plain cents left out."""
+    states = {f"sensor.s{i}": _make_source_state(unit) for i, unit in enumerate(units)}
 
-
-def test_check_price_currencies_rejects_minor_unit_of_another_currency() -> None:
-    """Pence are a hundredth of a pound, so they do not agree with euros."""
-    states = {"sensor.import": _make_source_state("p/kWh"), "sensor.export": _make_source_state("€/kWh")}
-
-    with pytest.raises(UpdateFailed) as err:
-        check_price_currencies(states)
-
-    assert err.value.translation_placeholders == {"currencies": "£ from sensor.import; € from sensor.export"}
-
-
-def test_check_price_currencies_rejects_mixed_currencies() -> None:
-    """Price inputs in two currencies fail with every currency and its sources named."""
-    states = {
-        "sensor.import": _make_source_state("£/kWh"),
-        "sensor.export": _make_source_state("€/kWh"),
-        "sensor.feed_in": _make_source_state("EUR/kWh"),
-    }
-
-    with pytest.raises(UpdateFailed) as err:
-        check_price_currencies(states)
-
-    assert err.value.translation_key == "price_currencies_mixed"
-    assert err.value.translation_placeholders == {
-        "currencies": "£ from sensor.import; € from sensor.export, sensor.feed_in",
-    }
+    assert price_currency_sources(states) == expected
 
 
 def test_build_coordinator_output_localizes_shadow_price_currency() -> None:
@@ -2228,6 +2212,44 @@ async def test_async_update_data_raises_when_inputs_unavailable(
     assert issue is not None
     assert issue.translation_key == "unavailable_input"
     assert issue.translation_placeholders == placeholders
+
+
+async def test_async_update_data_warns_about_mixed_price_currencies(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Price sources in two currencies raise a repair issue without stopping the optimization."""
+    store = MagicMock()
+    store.available = True
+    store.captured_source_states = {
+        "sensor.import_price": _make_source_state("£/kWh"),
+        "sensor.export_price": _make_source_state("€/kWh"),
+    }
+    mock_runtime_data.input_stores[("Main Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = store
+    issue_id = f"mixed_price_currencies_{mock_hub_entry.entry_id}"
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, side_effect=UpdateFailed("solved")),
+        pytest.raises(UpdateFailed, match="solved"),
+    ):
+        await coordinator._async_update_data()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+    store.captured_source_states = {"sensor.import_price": _make_source_state("€/kWh")}
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, side_effect=UpdateFailed("solved")),
+        pytest.raises(UpdateFailed, match="solved"),
+    ):
+        await coordinator._async_update_data()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
 async def test_async_update_data_raises_translated_input_error(

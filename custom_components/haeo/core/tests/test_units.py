@@ -225,7 +225,8 @@ def test_prices_convert_to_currency_per_kwh(unit: str, expected_value: float, ex
         pytest.param("£/kWh", "£", id="symbol"),
         pytest.param("EUR/MWh", "EUR", id="code"),
         pytest.param("A$/kWh", "A$", id="prefixed_symbol"),
-        pytest.param("c/kWh", "$", id="cents"),
+        pytest.param("c/kWh", None, id="cents"),
+        pytest.param("ct/kWh", "€", id="euro_cents"),
         pytest.param("p/MWh", "£", id="pence"),
         pytest.param("$/kWh/h", None, id="price_rate"),
         pytest.param("kWh", None, id="energy"),
@@ -233,5 +234,5 @@ def test_prices_convert_to_currency_per_kwh(unit: str, expected_value: float, ex
     ],
 )
 def test_price_currency(unit: str | None, expected: str | None) -> None:
-    """A price per energy unit names its currency, and a minor currency unit names its main currency."""
+    """A price names its currency, pence and euro cents name their main currency, and plain cents name none."""
     assert price_currency(unit) == expected

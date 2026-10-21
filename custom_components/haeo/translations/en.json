@@ -801,9 +801,6 @@
     "optimization_infeasible_unexplained": {
       "message": "No plan meets every constraint, and the solver could not narrow down which elements conflict."
     },
-    "price_currencies_mixed": {
-      "message": "Price inputs report different currencies: {currencies}. HAEO cannot convert between currencies, so every price input must use the same currency or its cents or pence, such as c/kWh for $/kWh."
-    },
     "setup_failed_permanent": {
       "message": "Setup failed due to configuration error: {error}. Please check your configuration."
     },
@@ -821,6 +818,10 @@
     "invalid_connection_endpoints": {
       "title": "Connections bypass an element's own limits and prices",
       "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the junction or inverter that its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
+    },
+    "mixed_price_currencies": {
+      "title": "Price inputs report different currencies",
+      "description": "HAEO cannot convert between currencies, so it optimizes these prices as if they were all in one currency, and the plan may favor the wrong times to import or export.\n\nCurrencies and the sensors that report them:\n{currencies}\n\nTo fix this issue:\n1. Check the unit of each sensor listed above in Developer tools > States\n2. If a sensor reports a different currency from the rest, replace it with a sensor that reports your currency, or convert it with a template sensor\n3. If the sensors are in the same currency written two ways, such as $ and A$, you can ignore this issue\n4. This issue clears automatically once every price sensor reports one currency"
     },
     "node_replaced_by_junction": {
       "title": "{element_name} is now a junction",

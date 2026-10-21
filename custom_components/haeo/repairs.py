@@ -331,6 +331,31 @@ def dismiss_calendar_event_values_issue(
     async_delete_issue(hass, DOMAIN, _calendar_event_values_issue_id(entry_id, element_name, field_path))
 
 
+def sync_mixed_price_currencies_issue(hass: HomeAssistant, entry_id: str, sources: Mapping[str, Sequence[str]]) -> None:
+    """Raise a repair issue when price sources report more than one currency, and dismiss it otherwise.
+
+    Keys are currencies and values are the source entities reporting prices in them.
+    """
+    issue_id = f"mixed_price_currencies_{entry_id}"
+    if len(sources) < 2:  # noqa: PLR2004 (one currency is consistent)
+        async_delete_issue(hass, DOMAIN, issue_id)
+        return
+    async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        is_persistent=False,
+        severity=IssueSeverity.WARNING,
+        translation_key="mixed_price_currencies",
+        translation_placeholders={
+            "currencies": "\n".join(
+                f"- {currency}: {', '.join(sorted(entities))}" for currency, entities in sorted(sources.items())
+            ),
+        },
+    )
+
+
 def _unavailable_input_issue_prefix(entry_id: str) -> str:
     return f"unavailable_input_{entry_id}_"
 

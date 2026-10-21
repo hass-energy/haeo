@@ -60,6 +60,7 @@ from custom_components.haeo.repairs import (
     dismiss_optimization_failure_issue,
     optimization_infeasible_issue_raised,
     optimization_relaxed_issue_raised,
+    sync_mixed_price_currencies_issue,
     sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_save_diagnostics
@@ -149,9 +150,10 @@ def detect_currency_symbol(
     """Detect the user's currency symbol from source entity units.
 
     Scans entity states for a price-like unit (e.g. ``£/kWh``) and returns the
-    currency prefix, or the main currency of a minor unit such as ``c/kWh``.
-    Falls back to the configured currency when no price entity is found, and
-    then ``$`` if no configured currency is available.
+    currency prefix, or the main currency of a minor unit such as ``p/kWh``.
+    Cents written as ``c/kWh`` name no currency and are skipped. Falls back to
+    the configured currency when no price entity names one, and then ``$`` if
+    no configured currency is available.
     """
     for state in source_states.values():
         if (currency := price_currency(state.attributes.get("unit_of_measurement"))) is not None:
@@ -159,33 +161,17 @@ def detect_currency_symbol(
     return fallback_currency or "$"
 
 
-def check_price_currencies(source_states: Mapping[str, "EntityState"]) -> None:
-    """Reject price inputs that are stated in different currencies.
+def price_currency_sources(source_states: Mapping[str, "EntityState"]) -> dict[str, list[str]]:
+    """Group the source entities that report a price by the currency they report it in.
 
-    HAEO cannot convert between currencies, so prices in two currencies would
-    be optimized as if they were one. Currency codes compare equal to their
-    symbol, so ``EUR/kWh`` and ``€/kWh`` agree, and a minor unit counts as its
-    main currency, so ``c/kWh`` and ``$/kWh`` agree.
-
-    Raises:
-        UpdateFailed: If price inputs report more than one currency.
-
+    A currency code and its symbol, such as ``EUR`` and ``€``, group together.
+    Cents written as ``c/kWh`` name no currency and are left out.
     """
-    entities_by_currency: dict[str, list[str]] = {}
+    sources: dict[str, list[str]] = {}
     for entity_id, state in source_states.items():
         if (currency := price_currency(state.attributes.get("unit_of_measurement"))) is not None:
-            entities_by_currency.setdefault(currency_symbol(currency), []).append(entity_id)
-    if len(entities_by_currency) > 1:
-        raise UpdateFailed(
-            translation_domain=DOMAIN,
-            translation_key="price_currencies_mixed",
-            translation_placeholders={
-                "currencies": "; ".join(
-                    f"{currency} from {', '.join(sorted(entity_ids))}"
-                    for currency, entity_ids in sorted(entities_by_currency.items())
-                )
-            },
-        )
+            sources.setdefault(currency_symbol(currency), []).append(entity_id)
+    return sources
 
 
 def forecast_datetimes(timestamps: Sequence[float]) -> tuple[datetime, ...] | None:
@@ -834,7 +820,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     translation_placeholders=unavailable_input_placeholders(key, unavailable[key]),
                 )
 
-            check_price_currencies(context.source_states)
+            sync_mixed_price_currencies_issue(
+                self.hass, self.config_entry.entry_id, price_currency_sources(context.source_states)
+            )
 
             # Load element configurations from input stores
             # All input stores are guaranteed to be fully loaded by the time we get here
