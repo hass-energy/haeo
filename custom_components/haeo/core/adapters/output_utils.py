@@ -49,15 +49,9 @@ def power_limit_shadow_price(
     connection_outputs: Mapping[ModelOutputName, ModelOutputValue] | None,
 ) -> OutputData | None:
     """Return the shadow price of a connection's power limit segment, or None when it has none."""
-    if connection_outputs is None:
-        return None
-    segments = connection_outputs.get(CONNECTION_SEGMENTS)
-    if not isinstance(segments, Mapping):
-        return None
-    power_limit = segments.get("power_limit")
-    if not isinstance(power_limit, Mapping):
-        return None
-    return expect_output_data(power_limit.get("power_limit"))
+    segments = connection_outputs.get(CONNECTION_SEGMENTS) if connection_outputs is not None else None
+    power_limit = segments.get("power_limit") if isinstance(segments, Mapping) else None
+    return expect_output_data(power_limit.get("power_limit")) if isinstance(power_limit, Mapping) else None
 
 
 __all__ = ["connection_power", "expect_output_data", "power_limit_shadow_price"]
