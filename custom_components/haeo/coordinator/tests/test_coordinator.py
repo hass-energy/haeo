@@ -1,10 +1,12 @@
 """Tests for the HAEO data update coordinator."""
 
+import asyncio
 from collections.abc import Awaitable, Callable, Generator
 from datetime import UTC, datetime, timedelta
 import json
 import logging
 from pathlib import Path
+import threading
 import time
 from types import MappingProxyType
 from typing import Any  # noqa: TID251  # Mock-typed test doubles (MagicMock spec=) and monkeypatched callback stand-ins
@@ -14,13 +16,14 @@ from freezegun import freeze_time
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant, State
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import EventStateChangedData
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 import numpy as np
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
@@ -1312,22 +1315,6 @@ async def test_async_update_data_solves_with_current_horizon_periods(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_signal_optimization_stale_marks_pending_when_in_progress(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """Trigger marks pending and exits if optimization already in progress."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._optimization_in_progress = True
-    coordinator._pending_refresh = False
-
-    coordinator.signal_optimization_stale()
-
-    assert coordinator._pending_refresh is True
-
-
-@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
 def test_signal_optimization_stale_schedules_timer_in_cooldown(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -1403,24 +1390,6 @@ def test_debounce_timer_callback_triggers_refresh_if_pending(
 
     mock_trigger.assert_called_once()
     assert coordinator._pending_refresh is False
-
-
-@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_maybe_trigger_refresh_skips_when_not_aligned(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """Coordinator skips refresh when inputs are not aligned."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-
-    with (
-        patch.object(coordinator, "_are_inputs_aligned", return_value=False),
-        patch.object(hass, "async_create_task") as mock_task,
-    ):
-        coordinator._maybe_trigger_refresh()
-
-    mock_task.assert_not_called()
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
@@ -1623,73 +1592,6 @@ def test_are_inputs_aligned_ignores_scalar_inputs(
     result = coordinator._are_inputs_aligned()
 
     assert result is True
-
-
-@pytest.mark.usefixtures("mock_battery_subentry")
-async def test_async_update_data_clears_flags_in_finally(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """Coordinator clears optimization flags even on exception."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-
-    with (
-        patch.object(coordinator, "_load_from_input_stores", side_effect=UpdateFailed("test")),
-        pytest.raises(UpdateFailed),
-    ):
-        await coordinator._async_update_data()
-
-    # Flags should be cleared by finally block
-    assert coordinator._optimization_in_progress is False
-    assert coordinator._pending_refresh is False
-
-
-@pytest.mark.usefixtures("mock_battery_subentry")
-async def test_inputs_changed_during_optimization_request_another(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """An input change while an optimization runs requests another once the debounce window passes."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-
-    def change_inputs_mid_solve() -> None:
-        coordinator.signal_optimization_stale()
-        msg = "test"
-        raise UpdateFailed(msg)
-
-    with (
-        patch.object(coordinator, "_load_from_input_stores", side_effect=change_inputs_mid_solve),
-        patch("custom_components.haeo.coordinator.coordinator.async_call_later") as call_later,
-        pytest.raises(UpdateFailed),
-    ):
-        await coordinator._async_update_data()
-
-    assert coordinator._pending_refresh is True
-    call_later.assert_called_once()
-    assert call_later.call_args.args[2] == coordinator._debounce_timer_callback
-
-
-@pytest.mark.usefixtures("mock_battery_subentry")
-async def test_requests_before_optimization_are_met_by_it(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """A request made before an optimization starts is met by it, so no further optimization follows."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._pending_refresh = True
-
-    with (
-        patch.object(coordinator, "_load_from_input_stores", side_effect=UpdateFailed("test")),
-        patch("custom_components.haeo.coordinator.coordinator.async_call_later") as call_later,
-        pytest.raises(UpdateFailed),
-    ):
-        await coordinator._async_update_data()
-
-    assert coordinator._pending_refresh is False
-    call_later.assert_not_called()
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
@@ -2007,10 +1909,6 @@ def test_signal_optimization_stale_skips_when_auto_optimize_disabled(
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # Set initial state - _optimization_in_progress False, no pending
-    coordinator._optimization_in_progress = False
-    coordinator._pending_refresh = False
-
     # Call signal_optimization_stale - should return early due to auto_optimize_enabled=False
     coordinator.signal_optimization_stale()
 
@@ -2061,42 +1959,6 @@ def test_apply_auto_optimize_state_no_op_without_runtime_data(
     # Should not raise - just return early
     coordinator._apply_auto_optimize_state(is_enabled=True)
     coordinator._apply_auto_optimize_state(is_enabled=False)
-
-
-def test_handle_auto_optimize_switch_change_on_enables(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """_handle_auto_optimize_switch_change resumes horizon and triggers optimization when turned on."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-
-    # Create mock event for switch turning ON
-    new_state = MagicMock(spec=State)
-    new_state.state = STATE_ON
-    event_data: EventStateChangedData = {
-        "entity_id": "switch.haeo_auto_optimize",
-        "old_state": None,
-        "new_state": new_state,
-    }
-    event = MagicMock()
-    event.data = event_data
-
-    # Patch async_create_task to capture the coroutine and prevent unawaited warning
-    created_tasks: list[Any] = []
-
-    def capture_task(coro: Any) -> None:
-        # Close the coroutine to avoid unawaited warning
-        coro.close()
-        created_tasks.append(coro)
-
-    with patch.object(hass, "async_create_task", side_effect=capture_task):
-        coordinator._handle_auto_optimize_switch_change(event)
-
-    # Should resume horizon manager
-    _get_mock_horizon(mock_runtime_data).resume.assert_called()
-    # Should have created a task for optimization
-    assert len(created_tasks) == 1
 
 
 def test_handle_auto_optimize_switch_change_off_pauses(
@@ -2167,25 +2029,6 @@ async def test_async_run_optimization_runs_when_inputs_aligned(
         await coordinator.async_run_optimization()
 
     refresh_mock.assert_called_once()
-
-
-@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry", "mock_runtime_data")
-async def test_async_run_optimization_skips_when_inputs_not_aligned(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-) -> None:
-    """async_run_optimization skips when inputs are not aligned."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-
-    # Mock _are_inputs_aligned to return False
-    with (
-        patch.object(coordinator, "_are_inputs_aligned", return_value=False),
-        patch.object(coordinator, "async_refresh", new_callable=AsyncMock) as refresh_mock,
-    ):
-        await coordinator.async_run_optimization()
-
-    # async_refresh should not be called
-    refresh_mock.assert_not_called()
 
 
 # --- OptimizationContext tests ---
@@ -2385,3 +2228,200 @@ async def test_async_update_data_raises_translated_input_error(
         "value": "-4.5",
     }
     assert not [issue_id for _, issue_id in ir.async_get(hass).issues if issue_id.startswith("unavailable_input_")]
+
+
+@pytest.fixture
+def live_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> HaeoRuntimeData:
+    """Create runtime data with a real horizon manager, which notifies its subscribers, and auto-optimize on."""
+    # Avoid circular import with entities and horizon modules
+    from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch  # noqa: PLC0415
+    from custom_components.haeo.horizon import HorizonManager  # noqa: PLC0415
+
+    switch: Any = MagicMock(spec=AutoOptimizeSwitch)
+    switch.is_on = True
+    switch.entity_id = "switch.haeo_auto_optimize"
+    runtime_data = HaeoRuntimeData(horizon_manager=HorizonManager(hass, mock_hub_entry), auto_optimize_switch=switch)
+    mock_hub_entry.runtime_data = runtime_data
+    return runtime_data
+
+
+class BlockingSolves:
+    """A network solve that blocks in the executor until released, recording how many solves overlap."""
+
+    def __init__(self) -> None:
+        """Start with the solve blocked."""
+        self.release = threading.Event()
+        self.calls = 0
+        self.peak = 0
+        self._running = 0
+        self._lock = threading.Lock()
+
+    def __call__(self) -> float:
+        """Solve once the solve is released."""
+        with self._lock:
+            self.calls += 1
+            self._running += 1
+            self.peak = max(self.peak, self._running)
+        self.release.wait(timeout=2)
+        with self._lock:
+            self._running -= 1
+        return 0.0
+
+
+@pytest.fixture
+def solves() -> BlockingSolves:
+    """Return the blocking solve of the network an initialized coordinator would build."""
+    return BlockingSolves()
+
+
+async def _initialized_coordinator(
+    hass: HomeAssistant, entry: MockConfigEntry, solves: BlockingSolves
+) -> HaeoDataUpdateCoordinator:
+    """Return a coordinator initialized with a network that solves through ``solves``."""
+    network = MagicMock()
+    network.optimize = solves
+    network.relaxations = ()
+    network.elements = {}
+    coordinator = HaeoDataUpdateCoordinator(hass, entry)
+    with patch(
+        "custom_components.haeo.coordinator.coordinator.network_module.create_network",
+        new_callable=AsyncMock,
+        return_value=(network, {}),
+    ):
+        await coordinator.async_initialize()
+    return coordinator
+
+
+async def _settle(hass: HomeAssistant, solves: BlockingSolves) -> None:
+    """Let the optimizations started so far reach their solve, then release them all and wait for them."""
+    await asyncio.sleep(0.1)
+    solves.release.set()
+    await hass.async_block_till_done()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_setup_runs_one_optimization(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """Initializing and then refreshing, as setup does, runs one optimization rather than two."""
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    refresh = hass.async_create_task(coordinator.async_refresh())
+    await _settle(hass, solves)
+    await refresh
+
+    assert (solves.calls, solves.peak) == (1, 1)
+    coordinator.cleanup()
+
+
+async def test_optimizations_requested_during_one_share_one_follow_up(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, live_runtime_data: HaeoRuntimeData, solves: BlockingSolves
+) -> None:
+    """Optimizations requested while one runs wait for it, then run once between them, never overlapping it."""
+    switch: Any = live_runtime_data.auto_optimize_switch
+    switch.is_on = False
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    hass.async_create_task(coordinator.async_refresh())
+    await asyncio.sleep(0.1)
+    requests = [hass.async_create_task(coordinator.async_run_optimization()) for _ in range(3)]
+    requests.append(hass.async_create_task(coordinator.async_request_refresh()))
+    await _settle(hass, solves)
+    await asyncio.gather(*requests)
+
+    assert (solves.calls, solves.peak) == (2, 1)
+    coordinator.cleanup()
+
+
+async def test_turning_auto_optimize_on_runs_one_optimization(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, live_runtime_data: HaeoRuntimeData, solves: BlockingSolves
+) -> None:
+    """Turning auto-optimize on catches up with one optimization."""
+    switch: Any = live_runtime_data.auto_optimize_switch
+    switch.is_on = False
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    switch.is_on = True
+    coordinator._handle_auto_optimize_switch_change(_switch_event(STATE_ON))
+    await _settle(hass, solves)
+
+    assert solves.calls == 1
+    coordinator.cleanup()
+
+
+async def test_turning_auto_optimize_off_cancels_a_waiting_optimization(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, live_runtime_data: HaeoRuntimeData, solves: BlockingSolves
+) -> None:
+    """An optimization waiting out the debounce window does not run once auto-optimize is turned off."""
+    switch: Any = live_runtime_data.auto_optimize_switch
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+    coordinator.signal_optimization_stale()
+    switch.is_on = False
+    coordinator._handle_auto_optimize_switch_change(_switch_event(STATE_OFF))
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=DEFAULT_DEBOUNCE_SECONDS + 1))
+    await hass.async_block_till_done()
+
+    assert solves.calls == 1
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_optimizations_wait_for_inputs_to_align(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """While forecast inputs load for a new horizon, refreshes skip and the optimize action says why."""
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    with patch.object(coordinator, "_are_inputs_aligned", return_value=False):
+        await coordinator.async_refresh()
+        await coordinator.async_request_refresh()
+        with pytest.raises(HomeAssistantError) as raised:
+            await coordinator.async_run_optimization()
+
+    assert raised.value.translation_key == "inputs_not_aligned"
+    assert solves.calls == 0
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_inputs_changed_during_an_optimization_optimize_again(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """An input change while an optimization runs optimizes again once the debounce window passes."""
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    hass.async_create_task(coordinator.async_refresh())
+    await asyncio.sleep(0.1)
+    coordinator.signal_optimization_stale()
+    await _settle(hass, solves)
+    assert solves.calls == 1
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=DEFAULT_DEBOUNCE_SECONDS + 1))
+    await hass.async_block_till_done()
+
+    assert solves.calls == 2
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_requests_before_an_optimization_are_met_by_it(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """A change waiting out the debounce window is met by an optimization that starts first."""
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+    coordinator.signal_optimization_stale()
+    await coordinator.async_run_optimization()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=DEFAULT_DEBOUNCE_SECONDS + 1))
+    await hass.async_block_till_done()
+
+    assert solves.calls == 2
+    coordinator.cleanup()
+
+
+def _switch_event(state: str) -> Any:
+    """Return a state change event for the auto-optimize switch."""
+    new_state = MagicMock(spec=State)
+    new_state.state = state
+    event = MagicMock()
+    event.data = {"entity_id": "switch.haeo_auto_optimize", "old_state": None, "new_state": new_state}
+    return event

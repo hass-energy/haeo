@@ -1,5 +1,6 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
+import asyncio
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -377,7 +378,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._last_optimization_time: float | None = None
         self._debounce_timer: CALLBACK_TYPE | None = None
         self._pending_refresh: bool = False
-        self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
+        # Held while an optimization runs, so optimizations never overlap
+        self._optimization_lock = asyncio.Lock()
+        # Whether an optimization was requested since the last one started
+        self._refresh_requested: bool = False
         self._failing_since: float | None = None
         self._failure_issue_raised = False
         self._pending_element_updates: dict[str, ElementConfigData] = {}
@@ -461,10 +465,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         if runtime_data is None:
             return
 
-        # Horizon changes require a full re-optimization. The new period durations
-        # are applied to the network when that optimization runs.
-        runtime_data.horizon_manager.subscribe(self.signal_optimization_stale)
-
         # Subscribe to auto-optimize switch state changes
         if runtime_data.auto_optimize_switch is not None:
             self._state_change_unsubs.append(
@@ -474,8 +474,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     self._handle_auto_optimize_switch_change,
                 )
             )
-            # Apply initial state from the switch (it may have been restored)
+            # Apply the switch's initial state, which may have been restored. This
+            # happens before subscribing to the horizon, so resuming it does not
+            # request the optimization that setup runs itself.
             self._apply_auto_optimize_state(is_enabled=runtime_data.auto_optimize_switch.is_on or False)
+
+        # Horizon changes require a full re-optimization. The new period durations
+        # are applied to the network when that optimization runs.
+        runtime_data.horizon_manager.subscribe(self.signal_optimization_stale)
 
         # Subscribe each store to update only its element when its value changes
         for (element_name, _field_path), store in runtime_data.input_stores.items():
@@ -514,19 +520,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _handle_auto_optimize_switch_change(self, event: Event[EventStateChangedData]) -> None:
         """Handle auto-optimize switch state change.
 
-        On turn-on: resume horizon manager and trigger optimization.
-        On turn-off: pause horizon manager.
+        Turning it on resumes the horizon, whose notification requests an
+        optimization that catches up on changes made while it was off.
+        Turning it off pauses the horizon.
         """
         new_state = event.data["new_state"]
         if new_state is None:
             return
 
-        is_enabled = new_state.state == STATE_ON
-        self._apply_auto_optimize_state(is_enabled=is_enabled)
-
-        # If turned on, trigger optimization to catch up on any changes while disabled
-        if is_enabled:
-            self.hass.async_create_task(self.async_run_optimization())
+        self._apply_auto_optimize_state(is_enabled=new_state.state == STATE_ON)
 
     def _apply_auto_optimize_state(self, *, is_enabled: bool) -> None:
         """Apply auto-optimize state to the horizon manager.
@@ -540,6 +542,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         if is_enabled:
             runtime_data.horizon_manager.resume()
         else:
+            self._cancel_debounce_timer()
             runtime_data.horizon_manager.pause()
 
     @property
@@ -555,11 +558,37 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         return runtime_data.auto_optimize_switch.is_on or False
 
     async def async_run_optimization(self) -> None:
-        """Manually trigger optimization, bypassing debouncing and auto-optimize check."""
-        if not self._are_inputs_aligned():
-            _LOGGER.debug("Inputs not aligned, skipping manual optimization")
-            return
+        """Optimize now, bypassing debouncing and the auto-optimize setting.
 
+        Raises:
+            HomeAssistantError: While forecast inputs are still loading for a new horizon.
+
+        """
+        if not self._are_inputs_aligned():
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="inputs_not_aligned")
+        await self.async_refresh()
+
+    async def async_refresh(self) -> None:
+        """Optimize with the current inputs, after any optimization already running.
+
+        Requests made while an optimization runs share one follow-up, since it reads
+        every input as it is when it starts. An optimization is skipped while forecast
+        inputs are still loading for a new horizon; they request another once loaded.
+        Inputs that changed while it ran request another through the debounce window.
+        """
+        self._refresh_requested = True
+        async with self._optimization_lock:
+            if self._refresh_requested and self._are_inputs_aligned():
+                self._refresh_requested = False
+                # This optimization reads every input as it is now, so earlier requests are met
+                self._pending_refresh = False
+                await super().async_refresh()
+        if self._pending_refresh:
+            self._pending_refresh = False
+            self.signal_optimization_stale()
+
+    async def async_request_refresh(self) -> None:
+        """Optimize now, as a refresh requested by an entity update does."""
         await self.async_refresh()
 
     @callback
@@ -574,7 +603,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return
 
         # If optimization is in progress, just mark pending
-        if self._optimization_in_progress:
+        if self._optimization_lock.locked():
             self._pending_refresh = True
             return
 
@@ -599,18 +628,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """Handle debounce timer expiration."""
         self._debounce_timer = None
 
-        if self._pending_refresh:
+        if self._pending_refresh and self.auto_optimize_enabled:
             self._pending_refresh = False
             self._maybe_trigger_refresh()
 
+    def _cancel_debounce_timer(self) -> None:
+        """Cancel the optimization waiting out the debounce window, if one is."""
+        if self._debounce_timer is not None:
+            self._debounce_timer()
+            self._debounce_timer = None
+        self._pending_refresh = False
+
     @callback
     def _maybe_trigger_refresh(self) -> None:
-        """Trigger a coordinator refresh if inputs are aligned."""
-        if not self._are_inputs_aligned():
-            _LOGGER.debug("Inputs not aligned, skipping optimization")
-            return
-
-        # Use create_task to run the async refresh
+        """Start an optimization, which runs once inputs are aligned."""
         self.hass.async_create_task(self.async_refresh())
 
     def _are_inputs_aligned(self) -> bool:
@@ -718,11 +749,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         for unsub in self._state_change_unsubs:
             unsub()
         self._state_change_unsubs.clear()
-
-        if self._debounce_timer is not None:
-            self._debounce_timer()
-            self._debounce_timer = None
-
+        self._cancel_debounce_timer()
         self._pending_element_updates.clear()
 
     async def _save_failure_diagnostics(
@@ -814,262 +841,242 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             )
 
     async def _async_update_data(self) -> CoordinatorData:
-        """Update data from input entities and run optimization.
-
-        Home Assistant runs one refresh at a time, so optimizations never overlap.
-        """
+        """Update data from input entities and run optimization."""
         start_time = time.time()
         started_at = dt_util.utc_from_timestamp(start_time).astimezone()
 
-        # Set flag to prevent concurrent optimization triggers from callbacks
-        # This is cleared in the finally block
-        self._optimization_in_progress = True
-        # This optimization reads every input as it is now, so earlier requests are met
-        self._pending_refresh = False
+        # Mark optimization start time immediately to prevent concurrent triggers
+        # This ensures debouncing works even if optimization takes a long time
+        self._last_optimization_time = start_time
 
-        try:
-            # Mark optimization start time immediately to prevent concurrent triggers
-            # This ensures debouncing works even if optimization takes a long time
-            self._last_optimization_time = start_time
+        # Get forecast timestamps from horizon manager
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            msg = "Runtime data not available"
+            raise UpdateFailed(msg)
 
-            # Get forecast timestamps from horizon manager
-            runtime_data = self._get_runtime_data()
-            if runtime_data is None:
-                msg = "Runtime data not available"
-                raise UpdateFailed(msg)
+        forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
 
-            forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+        # Build optimization context capturing all inputs for reproducibility
+        context = _build_optimization_context(
+            hub_config=self.config_entry.data,
+            participant_configs=self._get_participant_configs(),
+            input_stores=runtime_data.input_stores,
+            horizon_manager=runtime_data.horizon_manager,
+        )
 
-            # Build optimization context capturing all inputs for reproducibility
-            context = _build_optimization_context(
-                hub_config=self.config_entry.data,
-                participant_configs=self._get_participant_configs(),
-                input_stores=runtime_data.input_stores,
-                horizon_manager=runtime_data.horizon_manager,
-            )
-
-            # Verify all store-backed inputs are available before proceeding.
-            # When any input is unavailable the optimization is skipped, matching
-            # the behaviour during initial setup where the integration stays in
-            # the "not ready" state until every store can supply data. Inputs
-            # that have no reading get a repair issue naming their sensors;
-            # rejected values are reported through their own error.
-            unavailable = unavailable_input_sources(runtime_data.input_stores)
-            sync_unavailable_input_issues(self.hass, self.config_entry.entry_id, unavailable)
-            for key, store in runtime_data.input_stores.items():
-                if store.available:
-                    continue
-                if (error := store.error) is not None:
-                    raise UpdateFailed(
-                        translation_domain=DOMAIN,
-                        translation_key=error.translation_key,
-                        translation_placeholders=input_error_placeholders(key, error, store),
-                    )
-                raise ReportedUpdateFailed(
-                    translation_domain=DOMAIN,
-                    translation_key="input_unavailable",
-                    translation_placeholders=unavailable_input_placeholders(key, unavailable[key]),
-                )
-
-            sync_mixed_price_currencies_issue(
-                self.hass, self.config_entry.entry_id, price_currency_sources(context.source_states)
-            )
-
-            # Load element configurations from input stores
-            # All input stores are guaranteed to be fully loaded by the time we get here
-            loaded_configs = self._load_from_input_stores()
-
-            _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
-
-            # Network should have been created in async_initialize() or set manually in tests.
-            network = self.network
-
-            # Bring the network to the horizon the inputs were loaded for. This must
-            # happen here, before the solve is handed to the executor, so the network
-            # is never mutated while it is being solved.
-            network.update_periods(np.asarray(runtime_data.horizon_manager.periods_seconds, dtype=float) / 3600)
-
-            # Apply any pending element updates before optimization
-            self._apply_pending_element_updates()
-
-            # Perform the optimization
-            entry_id = self.config_entry.entry_id
-            try:
-                cost = await self.hass.async_add_executor_job(network.optimize)
-            except InfeasibleError as error:
-                translation_key = "optimization_infeasible_unexplained"
-                placeholders: dict[str, str] = {}
-                if error.conflicts:
-                    translation_key = "optimization_infeasible"
-                    placeholders = {
-                        "elements": _element_names(error.conflicts, context.participants),
-                        "minutes": _minutes_into_plan(error.conflicts, forecast_timestamps),
-                    }
-                if not optimization_infeasible_issue_raised(self.hass, entry_id) and (
-                    diagnostics := await self._save_failure_diagnostics(
-                        context,
-                        started_at,
-                        "infeasible",
-                        {"conflicts": [str(row) for row in error.conflicts]},
-                    )
-                ):
-                    create_optimization_infeasible_issue(
-                        self.hass,
-                        entry_id,
-                        translation_key,
-                        {**placeholders, "planned_at": _plan_start(forecast_timestamps)},
-                        diagnostics,
-                    )
-                # Without its diagnostics the issue is not raised, so the general one reports the failure
-                failure = (
-                    ReportedUpdateFailed if optimization_infeasible_issue_raised(self.hass, entry_id) else UpdateFailed
-                )
-                raise failure(
-                    translation_domain=DOMAIN,
-                    translation_key=translation_key,
-                    translation_placeholders=placeholders,
-                ) from error
-            except SolverError as error:
+        # Verify all store-backed inputs are available before proceeding.
+        # When any input is unavailable the optimization is skipped, matching
+        # the behaviour during initial setup where the integration stays in
+        # the "not ready" state until every store can supply data. Inputs
+        # that have no reading get a repair issue naming their sensors;
+        # rejected values are reported through their own error.
+        unavailable = unavailable_input_sources(runtime_data.input_stores)
+        sync_unavailable_input_issues(self.hass, self.config_entry.entry_id, unavailable)
+        for key, store in runtime_data.input_stores.items():
+            if store.available:
+                continue
+            if (error := store.error) is not None:
                 raise UpdateFailed(
                     translation_domain=DOMAIN,
-                    translation_key="optimization_solver_failed",
-                    translation_placeholders={"status": error.status},
-                ) from error
+                    translation_key=error.translation_key,
+                    translation_placeholders=input_error_placeholders(key, error, store),
+                )
+            raise ReportedUpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="input_unavailable",
+                translation_placeholders=unavailable_input_placeholders(key, unavailable[key]),
+            )
 
-            end_time = time.time()
-            optimization_duration = end_time - start_time
+        sync_mixed_price_currencies_issue(
+            self.hass, self.config_entry.entry_id, price_currency_sources(context.source_states)
+        )
 
-            # Record optimization time for debouncing
-            self._last_optimization_time = end_time
+        # Load element configurations from input stores
+        # All input stores are guaranteed to be fully loaded by the time we get here
+        loaded_configs = self._load_from_input_stores()
 
-            _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
-            if (
-                network.relaxations
-                and not optimization_relaxed_issue_raised(self.hass, entry_id)
-                and (
-                    diagnostics := await self._save_failure_diagnostics(
-                        context,
-                        started_at,
-                        "relaxed",
-                        {
-                            "conflicts": [str(row) for row in network.conflicts],
-                            "relaxations": [str(relaxation) for relaxation in network.relaxations],
-                        },
-                    )
+        _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
+
+        # Network should have been created in async_initialize() or set manually in tests.
+        network = self.network
+
+        # Bring the network to the horizon the inputs were loaded for. This must
+        # happen here, before the solve is handed to the executor, so the network
+        # is never mutated while it is being solved.
+        network.update_periods(np.asarray(runtime_data.horizon_manager.periods_seconds, dtype=float) / 3600)
+
+        # Apply any pending element updates before optimization
+        self._apply_pending_element_updates()
+
+        # Perform the optimization
+        entry_id = self.config_entry.entry_id
+        try:
+            cost = await self.hass.async_add_executor_job(network.optimize)
+        except InfeasibleError as error:
+            translation_key = "optimization_infeasible_unexplained"
+            placeholders: dict[str, str] = {}
+            if error.conflicts:
+                translation_key = "optimization_infeasible"
+                placeholders = {
+                    "elements": _element_names(error.conflicts, context.participants),
+                    "minutes": _minutes_into_plan(error.conflicts, forecast_timestamps),
+                }
+            if not optimization_infeasible_issue_raised(self.hass, entry_id) and (
+                diagnostics := await self._save_failure_diagnostics(
+                    context,
+                    started_at,
+                    "infeasible",
+                    {"conflicts": [str(row) for row in error.conflicts]},
                 )
             ):
-                _LOGGER.warning(
-                    "The plan relaxed constraints it cannot meet: %s", listing(map(str, network.relaxations))
-                )
-                relaxed_rows = [relaxation.row for relaxation in network.relaxations]
-                conflicts = network.conflicts or relaxed_rows
-                create_optimization_relaxed_issue(
+                create_optimization_infeasible_issue(
                     self.hass,
                     entry_id,
-                    {
-                        "elements": _element_names(conflicts, context.participants),
-                        "minutes": _minutes_into_plan(conflicts, forecast_timestamps),
-                        "relaxed_elements": _element_names(relaxed_rows, context.participants),
-                        "relaxed_periods": str(len({row.period for row in relaxed_rows if row.period is not None})),
-                        "planned_at": _plan_start(forecast_timestamps),
-                    },
+                    translation_key,
+                    {**placeholders, "planned_at": _plan_start(forecast_timestamps)},
                     diagnostics,
                 )
-
-            network_output_data: dict[NetworkOutputName, OutputData] = {
-                OUTPUT_NAME_OPTIMIZATION_COST: OutputData(type=OutputType.COST, unit="$", values=(cost,)),
-                OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
-                    type=OutputType.DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
-                ),
-            }
-
-            # Load the network subentry name from translations
-            translations = await async_get_translations(
-                self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
+            # Without its diagnostics the issue is not raised, so the general one reports the failure
+            failure = (
+                ReportedUpdateFailed if optimization_infeasible_issue_raised(self.hass, entry_id) else UpdateFailed
             )
-            network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
+            raise failure(
+                translation_domain=DOMAIN,
+                translation_key=translation_key,
+                translation_placeholders=placeholders,
+            ) from error
+        except SolverError as error:
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="optimization_solver_failed",
+                translation_placeholders={"status": error.status},
+            ) from error
 
-            currency_sym = detect_currency_symbol(
-                context.source_states,
-                fallback_currency=currency_symbol(self.hass.config.currency),
+        end_time = time.time()
+        optimization_duration = end_time - start_time
+
+        # Record optimization time for debouncing
+        self._last_optimization_time = end_time
+
+        _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
+        if (
+            network.relaxations
+            and not optimization_relaxed_issue_raised(self.hass, entry_id)
+            and (
+                diagnostics := await self._save_failure_diagnostics(
+                    context,
+                    started_at,
+                    "relaxed",
+                    {
+                        "conflicts": [str(row) for row in network.conflicts],
+                        "relaxations": [str(relaxation) for relaxation in network.relaxations],
+                    },
+                )
+            )
+        ):
+            _LOGGER.warning("The plan relaxed constraints it cannot meet: %s", listing(map(str, network.relaxations)))
+            relaxed_rows = [relaxation.row for relaxation in network.relaxations]
+            conflicts = network.conflicts or relaxed_rows
+            create_optimization_relaxed_issue(
+                self.hass,
+                entry_id,
+                {
+                    "elements": _element_names(conflicts, context.participants),
+                    "minutes": _minutes_into_plan(conflicts, forecast_timestamps),
+                    "relaxed_elements": _element_names(relaxed_rows, context.participants),
+                    "relaxed_periods": str(len({row.period for row in relaxed_rows if row.period is not None})),
+                    "planned_at": _plan_start(forecast_timestamps),
+                },
+                diagnostics,
             )
 
-            outputs: dict[str, SubentryDevices] = {
-                # HAEO outputs use network subentry name as key, network element type as device
-                network_subentry_name: {
-                    ELEMENT_TYPE_NETWORK: {
-                        name: _build_coordinator_output(name, output, forecast_times=None, currency_sym=currency_sym)
-                        for name, output in network_output_data.items()
-                    }
+        network_output_data: dict[NetworkOutputName, OutputData] = {
+            OUTPUT_NAME_OPTIMIZATION_COST: OutputData(type=OutputType.COST, unit="$", values=(cost,)),
+            OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
+                type=OutputType.DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
+            ),
+        }
+
+        # Load the network subentry name from translations
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
+        )
+        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
+
+        currency_sym = detect_currency_symbol(
+            context.source_states,
+            fallback_currency=currency_symbol(self.hass.config.currency),
+        )
+
+        outputs: dict[str, SubentryDevices] = {
+            # HAEO outputs use network subentry name as key, network element type as device
+            network_subentry_name: {
+                ELEMENT_TYPE_NETWORK: {
+                    name: _build_coordinator_output(name, output, forecast_times=None, currency_sym=currency_sym)
+                    for name, output in network_output_data.items()
                 }
             }
+        }
 
-            # Build nested outputs structure from all network model elements
-            model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
-                element_name: element.outputs() for element_name, element in network.elements.items()
-            }
+        # Build nested outputs structure from all network model elements
+        model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
+            element_name: element.outputs() for element_name, element in network.elements.items()
+        }
 
-            forecast_times = forecast_datetimes(forecast_timestamps)
+        forecast_times = forecast_datetimes(forecast_timestamps)
 
-            # Process each config element using its outputs function to transform model outputs into device outputs
-            for element_name, element_config in context.participants.items():
-                element_type = element_config[CONF_ELEMENT_TYPE]
-                outputs_fn = ELEMENT_TYPES[element_type].outputs
+        # Process each config element using its outputs function to transform model outputs into device outputs
+        for element_name, element_config in context.participants.items():
+            element_type = element_config[CONF_ELEMENT_TYPE]
+            outputs_fn = ELEMENT_TYPES[element_type].outputs
 
-                # outputs function returns {device_name: {output_name: OutputData}}
-                # May return multiple devices per config element (e.g., battery regions)
-                try:
-                    adapter_outputs: Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]] = outputs_fn(
-                        name=element_name,
-                        model_outputs=model_outputs,
-                        config=loaded_configs[element_name],
-                        periods=network.periods,
+            # outputs function returns {device_name: {output_name: OutputData}}
+            # May return multiple devices per config element (e.g., battery regions)
+            try:
+                adapter_outputs: Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]] = outputs_fn(
+                    name=element_name,
+                    model_outputs=model_outputs,
+                    config=loaded_configs[element_name],
+                    periods=network.periods,
+                )
+            except KeyError:
+                _LOGGER.exception(
+                    "Failed to get outputs for config element %r (type=%r): missing model element. "
+                    "Available model elements: %s",
+                    element_name,
+                    element_type,
+                    list(model_outputs.keys()),
+                )
+                raise
+
+            # Process each device's outputs, grouping under the subentry (element_name)
+            subentry_devices: SubentryDevices = {}
+            for device_name, device_outputs in adapter_outputs.items():
+                processed_outputs: dict[ElementOutputName, CoordinatorOutput] = {
+                    output_name: _build_coordinator_output(
+                        output_name,
+                        output_data,
+                        forecast_times=forecast_times,
+                        currency_sym=currency_sym,
                     )
-                except KeyError:
-                    _LOGGER.exception(
-                        "Failed to get outputs for config element %r (type=%r): missing model element. "
-                        "Available model elements: %s",
-                        element_name,
-                        element_type,
-                        list(model_outputs.keys()),
-                    )
-                    raise
+                    for output_name, output_data in device_outputs.items()
+                }
 
-                # Process each device's outputs, grouping under the subentry (element_name)
-                subentry_devices: SubentryDevices = {}
-                for device_name, device_outputs in adapter_outputs.items():
-                    processed_outputs: dict[ElementOutputName, CoordinatorOutput] = {
-                        output_name: _build_coordinator_output(
-                            output_name,
-                            output_data,
-                            forecast_times=forecast_times,
-                            currency_sym=currency_sym,
-                        )
-                        for output_name, output_data in device_outputs.items()
-                    }
+                if processed_outputs:
+                    subentry_devices[device_name] = processed_outputs
 
-                    if processed_outputs:
-                        subentry_devices[device_name] = processed_outputs
+            if subentry_devices:
+                outputs[element_name] = subentry_devices
 
-                if subentry_devices:
-                    outputs[element_name] = subentry_devices
+        completed_at = dt_util.utc_from_timestamp(end_time).astimezone()
 
-            completed_at = dt_util.utc_from_timestamp(end_time).astimezone()
-
-            return CoordinatorData(
-                context=context,
-                outputs=outputs,
-                started_at=started_at,
-                completed_at=completed_at,
-            )
-        finally:
-            # Always clear the in-progress flag
-            self._optimization_in_progress = False
-            # Inputs that changed while this optimization ran are not in its result,
-            # so request another, which the debounce window spaces out
-            if self._pending_refresh:
-                self._pending_refresh = False
-                self.signal_optimization_stale()
+        return CoordinatorData(
+            context=context,
+            outputs=outputs,
+            started_at=started_at,
+            completed_at=completed_at,
+        )
 
 
 def _participant_name(model_element: str, participants: Collection[str]) -> str:
