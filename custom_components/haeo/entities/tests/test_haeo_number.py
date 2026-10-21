@@ -535,14 +535,20 @@ async def test_editable_mode_set_native_value(
     hass.config_entries.async_update_subentry.assert_called_once()
 
 
-async def test_async_load_sync_and_update_writes_state_when_load_succeeds(
+@pytest.mark.parametrize(
+    ("reload_state", "available"),
+    [pytest.param("12.0", True, id="loads"), pytest.param("unavailable", False, id="fails")],
+)
+async def test_async_load_sync_and_update_writes_state(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
+    reload_state: str,
+    available: bool,
 ) -> None:
-    """A successful driven reload writes entity state to Home Assistant."""
+    """A driven reload writes entity state whether or not the load succeeds, so availability shows."""
     hass.states.async_set("sensor.power", "10.0")
     subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
     config_entry.runtime_data = None
@@ -552,9 +558,38 @@ async def test_async_load_sync_and_update_writes_state_when_load_succeeds(
     await _add_entity_to_hass(hass, entity)
     entity.async_write_ha_state.reset_mock()
 
+    hass.states.async_set("sensor.power", reload_state)
     await entity._async_load_sync_and_update()
 
     entity.async_write_ha_state.assert_called_once()
+    assert entity.available is available
+
+
+async def test_driven_entity_is_unavailable_while_its_source_has_no_reading(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """A driven input goes unavailable when its source does, and back once the source reports again."""
+    hass.states.async_set("sensor.capacity", "12.0")
+    subentry = _create_subentry("Test Battery", {"capacity": ["sensor.capacity"]})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager)
+    await _add_entity_to_hass(hass, entity)
+    assert entity.available is True
+
+    hass.states.async_set("sensor.capacity", "unavailable")
+    await entity._async_load_sync_and_update()
+    assert entity.available is False
+    assert entity.native_value == 12.0
+
+    hass.states.async_set("sensor.capacity", "13.0")
+    await entity._async_load_sync_and_update()
+    assert entity.available is True
+    assert entity.native_value == 13.0
 
 
 async def test_store_listener_syncs_when_store_mutates_externally(

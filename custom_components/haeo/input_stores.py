@@ -78,6 +78,26 @@ def input_error_placeholders(key: InputStoreKey, error: InputError, store: Input
     }
 
 
+def unavailable_input_sources(input_stores: InputStoreMap) -> dict[InputStoreKey, tuple[str, ...]]:
+    """Return the sources to name for each input that has no value.
+
+    Names the sources with no reading, or every source when they all have one
+    but the input still could not load. Inputs that rejected their source's
+    value report that error instead, so they are left out.
+    """
+    return {
+        key: store.unavailable_sources or tuple(store.source_entity_ids)
+        for key, store in input_stores.items()
+        if not store.available and store.error is None
+    }
+
+
+def unavailable_input_placeholders(key: InputStoreKey, entities: tuple[str, ...]) -> dict[str, str]:
+    """Return translation placeholders naming an unavailable input and its sources."""
+    element_name, field_path = key
+    return {"element": element_name, "field": ".".join(field_path), "entities": ", ".join(entities)}
+
+
 def build_input_stores(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
@@ -119,4 +139,12 @@ def build_input_stores(
     return stores
 
 
-__all__ = ["InputStoreKey", "InputStoreMap", "SubentryStorage", "build_input_stores", "input_error_placeholders"]
+__all__ = [
+    "InputStoreKey",
+    "InputStoreMap",
+    "SubentryStorage",
+    "build_input_stores",
+    "input_error_placeholders",
+    "unavailable_input_placeholders",
+    "unavailable_input_sources",
+]

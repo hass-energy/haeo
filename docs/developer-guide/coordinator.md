@@ -121,6 +121,13 @@ The coordinator implements comprehensive error handling using Home Assistant's [
 When configured sensors are not yet available, the coordinator returns `PENDING` status without logging an error (this is expected during startup).
 Sensors show "Unavailable" state in the UI, and the coordinator retries on the next input entity update or horizon boundary.
 
+**Inputs without a reading**
+
+A store that cannot load records the sources with no reading (`unavailable_sources`), and its input entity shows as unavailable.
+Before each solve the coordinator raises a repair issue per such input naming those sources, dismisses issues for inputs that have recovered, and fails the update with the `input_unavailable` translation.
+Setup does the same when its inputs do not settle in time, raising `ConfigEntryNotReady` instead.
+A store that rejected its source's value reports that error instead.
+
 **Data loading errors**
 
 When sensor data is available but loading fails (invalid format, missing forecast, type conversion failures), the coordinator raises `UpdateFailed` with a descriptive message.

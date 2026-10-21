@@ -33,6 +33,9 @@ type InputValue = bool | float | np.ndarray
 
 _LOGGER = logging.getLogger(__name__)
 
+# Home Assistant's states for an entity with no reading
+_NO_READING_STATES: frozenset[str] = frozenset({"unavailable", "unknown"})
+
 
 class InputMode(Enum):
     """Operating mode for an input store."""
@@ -89,6 +92,7 @@ class InputStore:
         self._value: InputValue | None = None
         self._available = False
         self._error: InputError | None = None
+        self._unavailable_sources: tuple[str, ...] = ()
         self._loaded_timestamps: tuple[float, ...] = ()
         self._captured_source_states: dict[str, EntityState] = {}
         self._data_ready = asyncio.Event()
@@ -151,6 +155,15 @@ class InputStore:
     def error(self) -> InputError | None:
         """Return why the source's last value was rejected, if it was."""
         return self._error
+
+    @property
+    def unavailable_sources(self) -> tuple[str, ...]:
+        """Return the source entities that had no reading when the store last failed to load.
+
+        Empty while the store is available, and when a load failed for another
+        reason, such as sources whose readings could not be combined.
+        """
+        return self._unavailable_sources
 
     @property
     def native_value(self) -> float | bool | None:
@@ -286,9 +299,14 @@ class InputStore:
         self._captured_source_states = {
             eid: state for eid in self._source_entity_ids if (state := sm.get(eid)) is not None
         }
+        unavailable_sources = tuple(
+            eid
+            for eid in self._source_entity_ids
+            if (state := self._captured_source_states.get(eid)) is None or state.state in _NO_READING_STATES
+        )
 
         if self._sources is None or not self._source_entity_ids:
-            return self._mark_unavailable()
+            return self._mark_unavailable(unavailable_sources)
 
         forecast_timestamps = self._get_forecast_timestamps()
         try:
@@ -303,6 +321,7 @@ class InputStore:
             changed = self._available or not _same_error(self._error, err)
             self._error = err
             self._available = False
+            self._unavailable_sources = ()
             self._settled.set()
             return changed
         except Exception:
@@ -311,7 +330,7 @@ class InputStore:
                 self._source_entity_ids,
                 exc_info=True,
             )
-            return self._mark_unavailable()
+            return self._mark_unavailable(unavailable_sources)
 
         if (
             resolved is None
@@ -322,7 +341,7 @@ class InputStore:
                 "Load returned no value from sources %s; keeping previous value",
                 self._source_entity_ids,
             )
-            return self._mark_unavailable()
+            return self._mark_unavailable(unavailable_sources)
 
         changed = self._commit(resolved, forecast_timestamps)
         self._data_ready.set()
@@ -332,7 +351,7 @@ class InputStore:
     def _resolve_from_constant(self, *, mark_ready: bool) -> None:
         """Resolve the stored constant into the optimization value."""
         if self._constant is None:
-            changed = self._mark_unavailable()
+            changed = self._mark_unavailable(())
             self._value = None
             self._loaded_timestamps = ()
         else:
@@ -359,14 +378,16 @@ class InputStore:
         self._value = value
         self._available = True
         self._error = None
+        self._unavailable_sources = ()
         self._loaded_timestamps = loaded_timestamps
         return changed
 
-    def _mark_unavailable(self) -> bool:
+    def _mark_unavailable(self, unavailable_sources: tuple[str, ...]) -> bool:
         """Mark the store unavailable, keeping its value, and return whether consumers should be told."""
-        changed = self._available or self._error is not None
+        changed = self._available or self._error is not None or unavailable_sources != self._unavailable_sources
         self._available = False
         self._error = None
+        self._unavailable_sources = unavailable_sources
         return changed
 
 

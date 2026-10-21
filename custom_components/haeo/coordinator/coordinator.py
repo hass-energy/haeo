@@ -50,13 +50,18 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.input_stores import input_error_placeholders
+from custom_components.haeo.input_stores import (
+    input_error_placeholders,
+    unavailable_input_placeholders,
+    unavailable_input_sources,
+)
 from custom_components.haeo.repairs import (
     create_optimization_infeasible_issue,
     create_optimization_relaxed_issue,
     dismiss_optimization_failure_issue,
     optimization_infeasible_issue_raised,
     optimization_relaxed_issue_raised,
+    sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_save_diagnostics
 
@@ -784,7 +789,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # Verify all store-backed inputs are available before proceeding.
             # When any input is unavailable the optimization is skipped, matching
             # the behaviour during initial setup where the integration stays in
-            # the "not ready" state until every store can supply data.
+            # the "not ready" state until every store can supply data. Inputs
+            # that have no reading get a repair issue naming their sensors;
+            # rejected values are reported through their own error.
+            unavailable = unavailable_input_sources(runtime_data.input_stores)
+            sync_unavailable_input_issues(self.hass, self.config_entry.entry_id, unavailable)
             for key, store in runtime_data.input_stores.items():
                 if store.available:
                     continue
@@ -794,8 +803,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         translation_key=error.translation_key,
                         translation_placeholders=input_error_placeholders(key, error, store),
                     )
-                msg = f"Element '{key[0]}' has unavailable inputs"
-                raise UpdateFailed(msg)
+                raise UpdateFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="input_unavailable",
+                    translation_placeholders=unavailable_input_placeholders(key, unavailable[key]),
+                )
 
             # Load element configurations from input stores
             # All input stores are guaranteed to be fully loaded by the time we get here

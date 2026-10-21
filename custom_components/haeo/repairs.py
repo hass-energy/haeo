@@ -4,7 +4,7 @@ from collections.abc import Collection, Mapping, Sequence
 from functools import partial
 import logging
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 from homeassistant import data_entry_flow
 from homeassistant.components.repairs import ConfirmRepairFlow, RepairsFlow
@@ -13,6 +13,9 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue, async_delete_issue
 
 from .const import DOMAIN
+
+if TYPE_CHECKING:
+    from .input_stores import InputStoreKey
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -326,3 +329,45 @@ def dismiss_calendar_event_values_issue(
 ) -> None:
     """Dismiss the repair issue for an input's calendar events, if raised."""
     async_delete_issue(hass, DOMAIN, _calendar_event_values_issue_id(entry_id, element_name, field_path))
+
+
+def _unavailable_input_issue_prefix(entry_id: str) -> str:
+    return f"unavailable_input_{entry_id}_"
+
+
+def sync_unavailable_input_issues(
+    hass: HomeAssistant,
+    entry_id: str,
+    unavailable: Mapping["InputStoreKey", Sequence[str]],
+) -> None:
+    """Raise a repair issue for each unavailable input and dismiss those that recovered.
+
+    Keys are (element name, field path) and values are the source entities
+    with no reading. An input whose sources all have readings but still
+    cannot load names every source it reads.
+    """
+    prefix = _unavailable_input_issue_prefix(entry_id)
+    wanted = {
+        f"{prefix}{element_name}_{'.'.join(field_path)}": (element_name, field_path, entities)
+        for (element_name, field_path), entities in unavailable.items()
+    }
+
+    for domain, issue_id in list(ir.async_get(hass).issues):
+        if domain == DOMAIN and issue_id.startswith(prefix) and issue_id not in wanted:
+            async_delete_issue(hass, DOMAIN, issue_id)
+
+    for issue_id, (element_name, field_path, entities) in wanted.items():
+        async_create_issue(
+            hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            is_persistent=False,
+            severity=IssueSeverity.ERROR,
+            translation_key="unavailable_input",
+            translation_placeholders={
+                "element": element_name,
+                "field": ".".join(field_path),
+                "entities": ", ".join(entities),
+            },
+        )
