@@ -215,58 +215,58 @@ show_topology_card(page, hass, step="Network topology")
 
 ## Verification
 
-Navigate to **Settings → Devices & Services → HAEO** and click on "Sigenergy System" to view the device page.
+Navigate to **Settings → Devices & Services → HAEO** and open the "Sigenergy System" hub to view its devices.
 
 ### Expected device hierarchy
 
 In the HAEO integration page, you should see:
 
-| Element          | Type     | Entities |
-| ---------------- | -------- | -------- |
-| Sigenergy System | Network  | Varies   |
-| Switchboard      | Junction | Varies   |
-| Inverter         | Inverter | Varies   |
-| Battery          | Battery  | Varies   |
-| Solar            | Solar    | Varies   |
-| Grid             | Grid     | Varies   |
-| House load       | Load     | Varies   |
+| Element     | Type     | Entities |
+| ----------- | -------- | -------- |
+| Optimizer   | Network  | Varies   |
+| Switchboard | Junction | Varies   |
+| Inverter    | Inverter | Varies   |
+| Battery     | Battery  | Varies   |
+| Solar       | Solar    | Varies   |
+| Grid        | Grid     | Varies   |
+| House load  | Load     | Varies   |
 
 ### Key sensors to monitor
 
-**Network-level**:
+**Optimizer**:
 
-- `sensor.sigenergy_system_optimization_cost` - Total forecasted cost (\$)
-- `sensor.sigenergy_system_optimization_status` - Should show "success"
-- `sensor.sigenergy_system_optimization_duration` - Solve time (seconds)
+- `sensor.optimizer_cost` - Total forecasted cost (\$)
+- `sensor.optimizer_status` - Should show "success"
+- `sensor.optimizer_duration` - Solve time (seconds)
 
 **Battery**:
 
-- `sensor.battery_power_charge` - Charging power (kW)
-- `sensor.battery_power_discharge` - Discharging power (kW)
+- `sensor.battery_charge_power` - Charging power (kW)
+- `sensor.battery_discharge_power` - Discharging power (kW)
 - `sensor.battery_energy_stored` - Current energy level (kWh)
 - `sensor.battery_state_of_charge` - SOC percentage (%)
 
 **Solar**:
 
 - `sensor.solar_power` - Optimal generation (kW)
-- `sensor.solar_forecast_limit` - Value of additional generation capacity (\$/kWh)
+- `sensor.solar_forecast_limit_shadow_price` - Value of additional generation capacity (\$/kWh)
 
 **Grid**:
 
-- `sensor.grid_power_import` - Import from grid (kW)
-- `sensor.grid_power_export` - Export to grid (kW)
-- `sensor.grid_cost_import` - Import cost (\$)
-- `sensor.grid_revenue_export` - Export revenue (\$)
+- `sensor.grid_import_power` - Import from grid (kW)
+- `sensor.grid_export_power` - Export to grid (kW)
+- `sensor.grid_import_cost` - Import cost (\$)
+- `sensor.grid_export_revenue` - Export revenue (\$)
 
 **Load**:
 
-- `sensor.load_power` - Load consumption (kW)
+- `sensor.house_load_power` - Load consumption (kW)
 
 **Inverter**:
 
-- `sensor.inverter_power_dc_to_ac` - DC→AC power flow (kW)
-- `sensor.inverter_power_ac_to_dc` - AC→DC power flow (kW)
-- `sensor.inverter_power_active` - Net AC power (kW)
+- `sensor.inverter_dc_to_ac_power` - DC→AC power flow (kW)
+- `sensor.inverter_ac_to_dc_power` - AC→DC power flow (kW)
+- `sensor.inverter_active_power` - Net AC power (kW)
 
 All sensors include a `forecast` attribute with future optimized values.
 

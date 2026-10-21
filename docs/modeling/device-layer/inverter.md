@@ -65,20 +65,7 @@ The adapter transforms user configuration into connection segments:
 
 ## Sensors created
 
-### Inverter device
-
-| Sensor                     | Unit   | Update    | Description                              |
-| -------------------------- | ------ | --------- | ---------------------------------------- |
-| `power_dc_to_ac`           | kW     | Real-time | AC power out of the inverter (inverting) |
-| `power_ac_to_dc`           | kW     | Real-time | AC power into the inverter (rectifying)  |
-| `power_active`             | kW     | Real-time | Net AC power (DC to AC - AC to DC)       |
-| `dc_bus_power_balance`     | \$/kWh | Real-time | DC bus power balance shadow price        |
-| `max_power_dc_to_ac_price` | \$/kWh | Real-time | Max DC to AC power shadow price          |
-| `max_power_ac_to_dc_price` | \$/kWh | Real-time | Max AC to DC power shadow price          |
-
-The `max_power_*_price` sensors are only created when the corresponding limit is configured.
-
-See [Inverter Configuration](../../user-guide/elements/inverter.md) for detailed sensor and configuration documentation.
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/inverter.md#sensors-created) on the Inverter page.
 
 ## Configuration examples
 

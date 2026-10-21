@@ -101,8 +101,9 @@ Then add a connection from "Generator" to your switchboard with a maximum power 
 
 ### Input entities
 
-Each configuration option creates a corresponding input entity in Home Assistant.
+Each option creates an input entity on the node's device.
 Input entities appear as Switch entities with the `config` entity category.
+Their IDs combine the node's name with the entity's name.
 Because they are entities, you can switch a node's role at runtime, for example from an automation.
 
 | Input                     | Description                              |
@@ -111,7 +112,7 @@ Because they are entities, you can switch a node's role at runtime, for example 
 | `switch.{name}_is_sink`   | Whether node can consume unlimited power |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
-See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+See [How data updates work](../data-updates.md) for how input entities receive their values.
 
 ## Sensors created
 
@@ -119,15 +120,15 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Node element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                       | Unit   | Description                     |
-| ------------------------------------------------------------ | ------ | ------------------------------- |
-| [`sensor.{name}_power_balance_shadow_price`](#power-balance) | \$/kWh | Local energy price at this node |
+| Sensor                                                                    | Unit   | Description                     |
+| ------------------------------------------------------------------------- | ------ | ------------------------------- |
+| [`sensor.{name}_power_balance_shadow_price`](#power-balance-shadow-price) | \$/kWh | Local energy price at this node |
 
-### Power balance
+### Power balance shadow price
 
 Displayed as "Power balance shadow price".
 The marginal cost or value of power at this node.
-It is interpreted the same way as the [junction power balance sensor](junction.md#power-balance).
+It is interpreted the same way as the [junction power balance sensor](junction.md#power-balance-shadow-price).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
 ---

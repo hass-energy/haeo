@@ -51,13 +51,7 @@ Without them, the optimizer can fabricate energy at a source node or discard it 
 
 ## Sensors created
 
-### Node device
-
-| Sensor          | Unit   | Update    | Description                        |
-| --------------- | ------ | --------- | ---------------------------------- |
-| `power_balance` | \$/kWh | Real-time | Shadow price of power at this node |
-
-See [Node Configuration](../../user-guide/elements/node.md) for detailed sensor and configuration documentation.
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/node.md#sensors-created) on the Node page.
 
 ## Physical interpretation
 

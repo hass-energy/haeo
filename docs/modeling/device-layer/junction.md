@@ -41,13 +41,7 @@ The [Node](node.md) device exposes the model-layer source and sink flags for whe
 
 ## Sensors created
 
-### Junction device
-
-| Sensor          | Unit   | Update    | Description                            |
-| --------------- | ------ | --------- | -------------------------------------- |
-| `power_balance` | \$/kWh | Real-time | Shadow price of power at this junction |
-
-See [Junction Configuration](../../user-guide/elements/junction.md) for detailed sensor and configuration documentation.
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/junction.md#sensors-created) on the Junction page.
 
 ## Configuration examples
 

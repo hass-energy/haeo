@@ -46,24 +46,7 @@ The adapter transforms user configuration into connection segments:
 
 ## Sensors created
 
-### Grid device
-
-| Sensor                   | Unit     | Update    | Description                        |
-| ------------------------ | -------- | --------- | ---------------------------------- |
-| `power_import`           | kW       | Real-time | Import power                       |
-| `power_export`           | kW       | Real-time | Export power                       |
-| `cost_import`            | \$       | Real-time | Cost of imports (when priced)      |
-| `cost_export`            | \$       | Real-time | Revenue from exports (when priced) |
-| `cost_net`               | \$       | Real-time | Net cost (when any price exists)   |
-| `power_max_import`       | kW       | Real-time | Max import power (when limited)    |
-| `power_max_export`       | kW       | Real-time | Max export power (when limited)    |
-| `power_max_import_price` | \\\$/kWh | Real-time | Max import power shadow price      |
-| `power_max_export_price` | \\\$/kWh | Real-time | Max export power shadow price      |
-
-The `power_max_*` sensors are only created when the corresponding limit is configured.
-The `cost_*` sensors are only created when the corresponding price is configured.
-
-See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor and configuration documentation.
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/grid.md#sensors-created) on the Grid page.
 
 ## Configuration examples
 

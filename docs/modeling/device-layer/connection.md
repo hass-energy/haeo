@@ -58,13 +58,7 @@ The reported connection power is the power entering the chain at the source, bef
 
 ## Sensors created
 
-### Connection device
-
-| Sensor             | Unit | Update    | Description                                        |
-| ------------------ | ---- | --------- | -------------------------------------------------- |
-| `connection_power` | kW   | Real-time | Power leaving the source, before efficiency losses |
-
-See [Connection Configuration](../../user-guide/elements/connection.md) for detailed sensor and configuration documentation.
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/connection.md#sensors-created) on the Connection page.
 
 ## Configuration examples
 

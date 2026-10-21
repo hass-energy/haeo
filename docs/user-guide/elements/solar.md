@@ -82,8 +82,9 @@ Combine multiple solar arrays or forecast sources:
 
 ### Input entities
 
-Each configuration field creates a corresponding input entity in Home Assistant.
+Each field you configure creates an input entity on the solar device.
 Input entities appear as Number or Switch entities with the `config` entity category.
+Their IDs combine the solar element's name with the entity's name, so an element named "Solar" has `number.solar_forecast`.
 
 | Input                       | Unit | Description                                    |
 | --------------------------- | ---- | ---------------------------------------------- |
@@ -91,7 +92,7 @@ Input entities appear as Number or Switch entities with the `config` entity cate
 | `switch.{name}_curtailment` | -    | Whether curtailment is permitted               |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
-See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+See [How data updates work](../data-updates.md) for how input entities receive their values.
 
 ## Sensors created
 
@@ -99,10 +100,10 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Solar element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                            | Unit   | Description                             |
-| ------------------------------------------------- | ------ | --------------------------------------- |
-| [`sensor.{name}_power`](#power)                   | kW     | Actual power generated                  |
-| [`sensor.{name}_forecast_limit`](#forecast-limit) | \$/kWh | Value of additional generation capacity |
+| Sensor                                                                      | Unit   | Description                             |
+| --------------------------------------------------------------------------- | ------ | --------------------------------------- |
+| [`sensor.{name}_power`](#power)                                             | kW     | Actual power generated                  |
+| [`sensor.{name}_forecast_limit_shadow_price`](#forecast-limit-shadow-price) | \$/kWh | Value of additional generation capacity |
 
 All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
@@ -116,7 +117,7 @@ When curtailment is enabled, this may be less than the forecast if the optimizer
 
 **Example**: A value of 4.2 kW means the solar array is producing 4.2 kW at this time period.
 
-### Forecast limit
+### Forecast limit shadow price
 
 The marginal value of additional generation capacity.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.

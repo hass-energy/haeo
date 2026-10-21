@@ -44,14 +44,7 @@ The adapter transforms user configuration into connection segments:
 
 ## Sensors created
 
-### Solar device
-
-| Sensor           | Unit   | Update    | Description                             |
-| ---------------- | ------ | --------- | --------------------------------------- |
-| `power`          | kW     | Real-time | Actual power generated                  |
-| `forecast_limit` | \$/kWh | Real-time | Value of additional generation capacity |
-
-See [Solar Configuration](../../user-guide/elements/solar.md) for detailed sensor and configuration documentation.
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/solar.md#sensors-created) on the Solar page.
 
 ## Configuration examples
 

@@ -37,7 +37,7 @@ $$
 Junctions are not physical devices.
 They represent electrical buses where power is shared between the elements connected to them.
 A junction cannot produce or consume power itself.
-Power enters and leaves the network only through elements that set a price and a limit on it, such as a [grid](grid.md), [solar](solar.md), [battery](battery.md), or [load](load.md).
+Power enters and leaves the network only through elements that set a price and a limit on it.
 
 If you need a point that produces or consumes unlimited power, use a [node](node.md) instead.
 
@@ -53,7 +53,6 @@ If you need a point that produces or consumes unlimited power, use a [node](node
 
     Junctions pass [power policy](../../modeling/tagged-power.md) provenance through unchanged.
     This is what lets a `Solar → Grid` policy price the whole chain through your switchboard and inverter.
-    Junctions are not offered as policy sources or destinations, because power never starts or ends at a junction.
     See [Node roles and policy scope](../../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
 
 !!! note "Upgrading from earlier versions"
@@ -116,11 +115,11 @@ Then connect elements to "Sub Panel" via connections.
 
 A Junction element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                       | Unit   | Description                         |
-| ------------------------------------------------------------ | ------ | ----------------------------------- |
-| [`sensor.{name}_power_balance_shadow_price`](#power-balance) | \$/kWh | Local energy price at this junction |
+| Sensor                                                                    | Unit   | Description                         |
+| ------------------------------------------------------------------------- | ------ | ----------------------------------- |
+| [`sensor.{name}_power_balance_shadow_price`](#power-balance-shadow-price) | \$/kWh | Local energy price at this junction |
 
-### Power balance
+### Power balance shadow price
 
 Displayed as "Power balance shadow price".
 The marginal cost or value of power at this point in the network.
@@ -154,7 +153,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 **Infeasible optimization**: Check all elements connected, sufficient sources exist, connection directions correct, limits not too restrictive.
 
-**Unexpected power flows**: Verify connection endpoints, review junction names unique, check connection min/max power limits.
+**Unexpected power flows**: Verify connection endpoints, review junction names unique, check connection max power limits.
 
 ## Multiple junctions
 

@@ -24,7 +24,7 @@ A battery in HAEO represents:
 Battery configuration uses a sectioned flow where you enter the name, connection, and configure each input field.
 For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
 
-Fields configured with "Constant" create input entities that you can adjust at runtime without reconfiguring.
+Each field you configure creates an input entity; those set to "Constant" can be adjusted at runtime without reconfiguring.
 Optional fields set to "None" are omitted from the optimization entirely.
 
 ## Configuration fields
@@ -169,28 +169,33 @@ HAEO then uses the outer 5% at each end only when the price difference outweighs
 
 ### Input entities
 
-Each configuration field creates a corresponding input entity in Home Assistant.
+Each field you configure creates an input entity on the battery's device.
 Input entities appear as Number entities with the `config` entity category.
+Their IDs combine the battery's name with the entity's name, so a battery named "Battery" has `number.battery_capacity`.
 
-| Input                                     | Unit     | Description                          |
-| ----------------------------------------- | -------- | ------------------------------------ |
-| `number.{name}_capacity`                  | kWh      | Battery storage capacity             |
-| `number.{name}_initial_charge_percentage` | %        | Current state of charge from sensor  |
-| `number.{name}_min_charge_percentage`     | %        | Minimum SOC                          |
-| `number.{name}_max_charge_percentage`     | %        | Maximum SOC                          |
-| `number.{name}_max_power_target_source`   | kW       | Maximum charging power               |
-| `number.{name}_max_power_source_target`   | kW       | Maximum discharging power            |
-| `number.{name}_efficiency_source_target`  | %        | Discharge efficiency (if configured) |
-| `number.{name}_efficiency_target_source`  | %        | Charge efficiency (if configured)    |
-| `number.{name}_charge_cost`               | \$/kWh   | Charge cost (if configured)          |
-| `number.{name}_discharge_cost`            | \$/kWh   | Discharge cost (if configured)       |
-| `number.{name}_charge_limit_cost`         | \$/kWh/h | Limit cost                           |
+| Input                                | Unit     | Description                          |
+| ------------------------------------ | -------- | ------------------------------------ |
+| `number.{name}_capacity`             | kWh      | Battery storage capacity             |
+| `number.{name}_initial_charge`       | %        | Current state of charge              |
+| `number.{name}_min_charge`           | %        | Min charge percentage                |
+| `number.{name}_max_charge`           | %        | Max charge percentage                |
+| `number.{name}_max_charge_power`     | kW       | Maximum charging power               |
+| `number.{name}_max_discharge_power`  | kW       | Maximum discharging power            |
+| `number.{name}_discharge_efficiency` | %        | Discharge efficiency (if configured) |
+| `number.{name}_charge_efficiency`    | %        | Charge efficiency (if configured)    |
+| `number.{name}_salvage_value`        | \$/kWh   | Salvage value (if configured)        |
+| `number.{name}_limit_cost`           | \$/kWh/h | Limit cost                           |
+| `number.{name}_charge_cost`          | \$/kWh   | Charge cost (if configured)          |
+| `number.{name}_discharge_cost`       | \$/kWh   | Discharge cost (if configured)       |
+
+A field set to "Constant" can be adjusted from its input entity at runtime.
+A field linked to sensors shows the values HAEO reads from them.
 
 The charge and discharge cost inputs are surfaced from the [policy](../../walkthroughs/power-policies.md) rules they create.
 They appear on both the battery device and the Policies device; editing either updates the same stored value.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
-See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+See [How data updates work](../data-updates.md) for how input entities receive their values.
 
 ## Sensors created
 
@@ -204,13 +209,24 @@ A Battery element creates a single device in Home Assistant:
 
 These sensors appear on the battery device:
 
-| Sensor                                                       | Unit   | Description                     |
-| ------------------------------------------------------------ | ------ | ------------------------------- |
-| [`sensor.{name}_power_charge`](#charge-power)                | kW     | Charging power                  |
-| [`sensor.{name}_power_discharge`](#discharge-power)          | kW     | Discharging power               |
-| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh    | Current energy level            |
-| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %      | State of charge percentage      |
-| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kWh | Marginal value of energy stored |
+| Sensor                                                                    | Unit   | Description                     |
+| ------------------------------------------------------------------------- | ------ | ------------------------------- |
+| [`sensor.{name}_charge_power`](#charge-power)                             | kW     | Charging power                  |
+| [`sensor.{name}_discharge_power`](#discharge-power)                       | kW     | Discharging power               |
+| [`sensor.{name}_active_power`](#active-power)                             | kW     | Net power (discharge − charge)  |
+| [`sensor.{name}_energy_stored`](#energy-stored)                           | kWh    | Current energy level            |
+| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)                | %      | State of charge percentage      |
+| [`sensor.{name}_power_balance_shadow_price`](#power-balance-shadow-price) | \$/kWh | Marginal value of energy stored |
+
+The battery also creates these diagnostic shadow price sensors.
+They are disabled by default; enable them from the entity settings if you want to inspect them.
+
+| Sensor                                       | Unit   | Description                                               |
+| -------------------------------------------- | ------ | --------------------------------------------------------- |
+| `sensor.{name}_soc_min_shadow_price`         | \$/kWh | Value of lowering the min charge                          |
+| `sensor.{name}_soc_max_shadow_price`         | \$/kWh | Value of raising the max charge                           |
+| `sensor.{name}_energy_in_flow_shadow_price`  | \$/kWh | Value of the rule that charged energy cannot be undone    |
+| `sensor.{name}_energy_out_flow_shadow_price` | \$/kWh | Value of the rule that discharged energy cannot be undone |
 
 ### Charge power
 
@@ -233,6 +249,12 @@ A value of 0 means the battery is not discharging.
 The energy stored falls by this power plus the discharge efficiency loss.
 
 **Example**: A value of 2.5 kW means the battery is discharging at an average rate of 2.5 kW during this period, providing power to loads or exporting to the grid.
+
+### Active power
+
+The net power of the battery at each time period, calculated as discharge power minus charge power.
+
+Positive values mean the battery is discharging; negative values mean it is charging.
 
 ### Energy stored
 

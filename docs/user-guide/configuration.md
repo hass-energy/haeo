@@ -144,8 +144,8 @@ Each input field provides a dropdown with these choices:
 
 !!! tip "Constant values are adjustable"
 
-    Fields configured with "Constant" create input entities in Home Assistant.
-    You can adjust these values at runtime without reconfiguring the element.
+    Every field you configure creates an input entity in Home Assistant.
+    For fields set to "Constant", you can adjust the value from that entity at runtime without reconfiguring the element.
 
 !!! note "Network entry"
 

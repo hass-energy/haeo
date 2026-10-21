@@ -137,21 +137,23 @@ For more examples and sensor configuration, see the [Forecasts and Sensors guide
 
 ### Input entities
 
-Each configured field creates a corresponding input entity in Home Assistant.
+Each field you configure creates an input entity on the grid's device.
 Input entities appear as Number entities with the `config` entity category.
+Their IDs combine the grid's name with the entity's name, so a grid named "Grid" has `number.grid_import_price`.
 
-| Input                                   | Unit   | Description                               |
-| --------------------------------------- | ------ | ----------------------------------------- |
-| `number.{name}_price_source_target`     | \$/kWh | Import price from configured value/sensor |
-| `number.{name}_price_target_source`     | \$/kWh | Export price from configured value/sensor |
-| `number.{name}_max_power_source_target` | kW     | Maximum import power (if configured)      |
-| `number.{name}_max_power_target_source` | kW     | Maximum export power (if configured)      |
+| Input                        | Unit   | Description                  |
+| ---------------------------- | ------ | ---------------------------- |
+| `number.{name}_import_price` | \$/kWh | Import price                 |
+| `number.{name}_export_price` | \$/kWh | Export price                 |
+| `number.{name}_import_limit` | kW     | Import limit (if configured) |
+| `number.{name}_export_limit` | kW     | Export limit (if configured) |
 
-Input entities are only created for fields you configure with "Constant".
-If you set an optional field to "None", no input entity is created for that field.
+A field set to "Constant" can be adjusted from its input entity at runtime.
+A field linked to sensors shows the values HAEO reads from them.
+If you set an optional field to "None", no input entity is created for it.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
-See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+See [How data updates work](../data-updates.md) for how input entities receive their values.
 
 ## Sensors created
 
@@ -159,20 +161,18 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Grid element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                                   | Unit   | Description                                 |
-| ------------------------------------------------------------------------ | ------ | ------------------------------------------- |
-| [`sensor.{name}_power_import`](#import-power)                            | kW     | Power imported from grid                    |
-| [`sensor.{name}_power_export`](#export-power)                            | kW     | Power exported to grid                      |
-| [`sensor.{name}_cost_import`](#import-cost)                              | \$     | Cost of importing electricity               |
-| [`sensor.{name}_cost_export`](#export-cost)                              | \$     | Revenue from exporting electricity          |
-| [`sensor.{name}_cost_net`](#net-cost)                                    | \$     | Net cost (import cost minus export revenue) |
-| [`sensor.{name}_power_max_import`](#max-import-power)                    | kW     | Maximum import power (when limited)         |
-| [`sensor.{name}_power_max_export`](#max-export-power)                    | kW     | Maximum export power (when limited)         |
-| [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kWh | Value of additional import capacity         |
-| [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kWh | Value of additional export capacity         |
+| Sensor                                                                          | Unit   | Description                                 |
+| ------------------------------------------------------------------------------- | ------ | ------------------------------------------- |
+| [`sensor.{name}_import_power`](#import-power)                                   | kW     | Power imported from grid                    |
+| [`sensor.{name}_export_power`](#export-power)                                   | kW     | Power exported to grid                      |
+| [`sensor.{name}_active_power`](#active-power)                                   | kW     | Net grid power (import minus export)        |
+| [`sensor.{name}_import_cost`](#import-cost)                                     | \$     | Cost of importing electricity               |
+| [`sensor.{name}_export_revenue`](#export-revenue)                               | \$     | Revenue from exporting electricity          |
+| [`sensor.{name}_net_cost`](#net-cost)                                           | \$     | Net cost (import cost minus export revenue) |
+| [`sensor.{name}_max_import_power_shadow_price`](#max-import-power-shadow-price) | \$/kWh | Value of additional import capacity         |
+| [`sensor.{name}_max_export_power_shadow_price`](#max-export-power-shadow-price) | \$/kWh | Value of additional export capacity         |
 
-The `power_max_*` sensors are only created when the corresponding limit is configured.
-The `cost_*` sensors are only created when the corresponding price is configured.
+The shadow price sensors are only created when the corresponding limit is configured.
 
 ### Import power
 
@@ -194,49 +194,41 @@ A value of 0 means no export is occurring (either self-consuming all generation 
 
 **Example**: A value of 2.1 kW means the optimization determined that exporting 2.1 kW to the grid at this time maximizes total system value (typically during high export prices or excess generation).
 
+### Active power
+
+The net power flowing through the grid connection at each time period.
+Calculated as import power minus export power.
+
+Positive values mean the site is importing; negative values mean it is exporting.
+
 ### Import cost
 
-The cost of electricity imported from the grid at each time period.
-Calculated as import price multiplied by import power multiplied by period duration.
+The cost of electricity imported from the grid over the forecast horizon.
+Each period adds import price multiplied by import power multiplied by period duration.
 
+The sensor state is the total for the whole horizon, and its `forecast` attribute shows the running total at each period.
 Values are always positive or zero, representing money you pay to the utility.
-Only created when an import price is configured.
 
-**Example**: A value of \$0.50 means you're paying \$0.50 to import electricity during this time period.
+**Example**: A value of \$4.50 means the plan spends \$4.50 on imports over the horizon.
 
-### Export cost
+### Export revenue
 
-The revenue from electricity exported to the grid at each time period.
-Calculated as export price multiplied by export power multiplied by period duration.
+The revenue from electricity exported to the grid over the forecast horizon.
+Each period adds export price multiplied by export power multiplied by period duration.
 
-Values are always negative or zero, representing money you earn from the utility (revenue is shown as negative cost).
-Only created when an export price is configured.
+The sensor state is the total for the whole horizon, and its `forecast` attribute shows the running total at each period.
+Values are positive when you earn money from exports, and negative when negative export prices mean you pay to export.
 
-**Example**: A value of -\$0.30 means you're earning \$0.30 from exporting electricity during this time period.
+**Example**: A value of \$1.30 means the plan earns \$1.30 from exports over the horizon.
 
 ### Net cost
 
-The net cost of grid usage at each time period.
-Calculated as import cost plus export cost.
+The net cost of grid usage over the forecast horizon.
+Calculated as import cost minus export revenue.
 
-When both import and export prices are configured, this shows your net spending or earnings.
 Positive values mean net spending; negative values mean net earnings.
 
-**Example**: If you import \$0.50 worth and export \$0.30 worth in a period, the net cost is \$0.20 (net spending).
-
-### Max import power
-
-The configured maximum import power limit.
-Only created when an import limit is configured.
-
-Shows the power limit used in the optimization.
-
-### Max export power
-
-The configured maximum export power limit.
-Only created when an export limit is configured.
-
-Shows the power limit used in the optimization.
+**Example**: If the plan imports \$4.50 worth and exports \$1.30 worth, the net cost is \$3.20 (net spending).
 
 ### Max import power shadow price
 

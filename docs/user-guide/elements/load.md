@@ -206,13 +206,14 @@ Combine multiple consumption sources:
 
 ### Input entities
 
-Each configuration field creates a corresponding input entity in Home Assistant.
+Each field you configure creates an input entity on the load's device.
 Input entities appear as Number or Switch entities with the `config` entity category.
+Their IDs combine the load's name with the entity's name, so a load named "Load" has `number.load_forecast`.
 
 | Input                            | Unit   | Description                                       |
 | -------------------------------- | ------ | ------------------------------------------------- |
 | `number.{name}_forecast`         | kW     | Load power forecast from configured sensor(s)     |
-| `switch.{name}_curtailment`      | -      | Whether shedding is permitted                     |
+| `switch.{name}_shedding`         | -      | Whether shedding is permitted                     |
 | `number.{name}_consumption_cost` | \$/kWh | Running value of serving the load (if configured) |
 
 The consumption cost surfaces the value of serving this load for shedding decisions.
@@ -220,7 +221,7 @@ It is entered as a positive running value and stored as the negative of a [polic
 This also applies when the value is driven by a sensor: a positive sensor reading is negated for the policy, and the entities continue to display the positive running value.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
-See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+See [How data updates work](../data-updates.md) for how input entities receive their values.
 
 ## Sensors created
 
@@ -228,10 +229,18 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Load element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                        | Unit   | Description                                     |
-| ------------------------------------------------------------- | ------ | ----------------------------------------------- |
-| [`sensor.{name}_power`](#power)                               | kW     | Power consumed by load                          |
-| [`sensor.{name}_forecast_limit_price`](#forecast-limit-price) | \$/kWh | Shadow price of the load power limit constraint |
+| Sensor                                                                             | Unit   | Description                                            |
+| ---------------------------------------------------------------------------------- | ------ | ------------------------------------------------------ |
+| [`sensor.{name}_power`](#power)                                                    | kW     | Power consumed by load                                 |
+| [`sensor.{name}_forecast_limit_shadow_price`](#forecast-limit-shadow-price)        | \$/kWh | Shadow price of the load power limit constraint        |
+| [`sensor.{name}_horizon_energy`](#energy-cost-and-runtime-totals)                  | kWh    | Energy the load uses over the horizon                  |
+| [`sensor.{name}_horizon_marginal_cost`](#energy-cost-and-runtime-totals)           | \$     | Marginal cost of serving the load over the horizon     |
+| [`sensor.{name}_horizon_average_marginal_price`](#energy-cost-and-runtime-totals)  | \$/kWh | Average marginal price over the horizon                |
+| [`sensor.{name}_horizon_runtime`](#energy-cost-and-runtime-totals)                 | h      | Time the load runs over the horizon                    |
+| [`sensor.{name}_next_24h_energy`](#energy-cost-and-runtime-totals)                 | kWh    | Energy the load uses in the next 24 hours              |
+| [`sensor.{name}_next_24h_marginal_cost`](#energy-cost-and-runtime-totals)          | \$     | Marginal cost of serving the load in the next 24 hours |
+| [`sensor.{name}_next_24h_average_marginal_price`](#energy-cost-and-runtime-totals) | \$/kWh | Average marginal price in the next 24 hours            |
+| [`sensor.{name}_next_24h_runtime`](#energy-cost-and-runtime-totals)                | h      | Time the load runs in the next 24 hours                |
 
 ### Power
 
@@ -255,7 +264,7 @@ When shedding is enabled, this may be lower than the forecast if the optimizer d
     - a load running at 100% for half the period.
         Interpret the reduced power in whatever way makes sense for the device you are controlling.
 
-### Forecast limit price
+### Forecast limit shadow price
 
 Shadow price of the load power limit constraint at each time period.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -271,6 +280,18 @@ When shedding is disabled (fixed forecast), it is commonly interpreted as the ma
 - **Magnitude**: Shows the economic pressure at this load point in the network
 
 **Example**: A value of 0.28 means it costs \$0.28 per kW to serve this load at this time period, reflecting the marginal cost of the power source.
+
+### Energy, cost, and runtime totals
+
+These sensors summarize the plan for this load, over the whole forecast horizon and over the next 24 hours.
+
+- **Energy** is the energy the load is planned to use.
+- **Marginal cost** prices that energy at the marginal price of power where the load is attached, the cost the rest of your system pays to serve it.
+- **Average marginal price** is the marginal cost divided by the energy.
+- **Runtime** is the time the load is planned to draw power.
+
+The sensor state is the total, and the `forecast` attribute shows each period's contribution.
+They are only created once the load's endpoint reports a marginal price.
 
 ---
 
