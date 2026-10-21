@@ -145,6 +145,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             type=OutputType.SHADOW_PRICE,
             unit=self.unit,
             values=values,
+            diagnostic=True,
         )
 
     def _call(self, obj: "ReactiveHost") -> R:

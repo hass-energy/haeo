@@ -476,4 +476,5 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             type=OutputType.SHADOW_PRICE,
             unit="$/kWh",
             values=tuple(duals.reshape(-1, self.n_periods).min(axis=0).tolist()),
+            diagnostic=True,
         )

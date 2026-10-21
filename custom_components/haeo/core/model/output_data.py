@@ -43,6 +43,8 @@ class OutputData:
             sensor entity. Use to override HAEO's smart-rounding default when a
             sensor has a natural display scale (e.g. dollars to 2 dp). None
             preserves the existing smart-rounding behaviour.
+        diagnostic: Whether the output describes how the optimization ran rather
+            than the plan, such as a shadow price or how long the solve took.
 
     """
 
@@ -56,6 +58,7 @@ class OutputData:
     priority: int | None = None
     fixed: bool = False
     display_precision: int | None = None
+    diagnostic: bool = False
 
     def __init__(
         self,
@@ -70,6 +73,7 @@ class OutputData:
         priority: int | None = None,
         fixed: bool = False,
         display_precision: int | None = None,
+        diagnostic: bool = False,
     ) -> None:
         """Initialize OutputData.
 
@@ -87,6 +91,7 @@ class OutputData:
             priority: The connection priority for this output, if applicable.
             fixed: Whether the output is constrained to equal its forecast (no curtailment).
             display_precision: Optional suggested decimal places for the sensor UI.
+            diagnostic: Whether the output describes how the optimization ran rather than the plan.
 
         """
         self.type = type
@@ -98,6 +103,7 @@ class OutputData:
         self.priority = priority
         self.fixed = fixed
         self.display_precision = display_precision
+        self.diagnostic = diagnostic
 
         # Normalize to a tuple
         if isinstance(values, np.ndarray):

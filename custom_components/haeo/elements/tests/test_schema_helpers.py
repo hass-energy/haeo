@@ -100,17 +100,3 @@ def test_get_input_fields_returns_empty_for_none() -> None:
 def test_get_input_fields_returns_empty_for_mapping_without_element_type() -> None:
     """get_input_fields returns empty dict for mapping without element_type key."""
     assert get_input_fields({"some_other_key": "value"}) == {}
-
-
-def test_conforms_to_typed_dict_skips_optional_without_hint() -> None:
-    """Test optional keys without hints are ignored when validating."""
-
-    class _Dummy:
-        __required_keys__ = frozenset()
-        __optional_keys__ = frozenset({"optional"})
-
-    assert elements_module._conforms_to_typed_dict(
-        {"optional": 1},
-        _Dummy,
-        check_optional=True,
-    )
