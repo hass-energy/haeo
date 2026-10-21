@@ -44,7 +44,6 @@ This focused approach means:
 - **[Element Configuration](https://haeo.io/latest/user-guide/elements/)** - Configure batteries, solar, grids, and loads
 - **[Mathematical Modeling](https://haeo.io/latest/modeling/)** - Understand the optimization
 - **[Developer Guide](https://haeo.io/latest/developer-guide/)** - Contribute to HAEO
-- **[API Reference](https://haeo.io/latest/api/)** - Auto-generated API docs
 
 ## ✨ Features
 
@@ -74,25 +73,14 @@ See the [configuration guide](https://haeo.io/latest/user-guide/configuration/) 
 4. **Cost Optimization**: Uses HiGHS to minimize total cost over the planning horizon
 5. **Result Publishing**: Updates Home Assistant sensors with current optimal power and forecast attributes
 
-### Supported Elements
+### Elements
 
-**Standard elements** (most setups):
+Elements are the devices you add to describe your energy system.
+They store energy (such as home batteries and electric vehicles), generate it (such as solar), consume it (fixed and flexible loads), or exchange it with the grid.
+Connections and junctions route power between elements, and inverters convert between AC and DC.
+[Power policies](https://haeo.io/latest/walkthroughs/power-policies/) price energy by where it comes from and where it goes, for example cheap solar to your loads but paid solar to export.
 
-- **Battery**: Energy storage with configurable capacity, charge/discharge rates, and efficiency
-- **Grid**: Bi-directional grid with import/export limits and pricing
-- **Solar**: Solar generation with optional curtailment
-- **Load**: Fixed or forecast-based consumption
-- **Inverter**: AC/DC conversion between elements
-
-**Expose raw model elements** (optional, for custom topologies):
-
-- **Junction**: Points where connections meet and power balances
-- **Node**: Points that produce or consume unlimited power behind a limiting, priced connection
-- **Connection**: Explicit power flow paths between elements
-- **Battery Section**: Direct model-layer battery access
-
-Pricing and economic incentives use [**power policies**](https://haeo.io/latest/walkthroughs/power-policies/)—rules that price energy by where it comes from and where it goes (for example, cheap solar→load vs paid solar→export).
-See the [elements documentation](https://haeo.io/latest/user-guide/elements/) for full details.
+See the [elements documentation](https://haeo.io/latest/user-guide/elements/) for every element and how to configure it.
 
 ## 📦 Installation
 
@@ -122,9 +110,11 @@ You can use the My Home Assistant link above to open HAEO directly in HACS, then
 4. Configure your hub:
     - **Name**: A unique name for your energy network
     - **Planning horizon**: Preset (2, 3, 5, or 7 days) or a forecast sensor whose forecast times set the periods
-    - **Advanced settings** (optional): Debounce window, Expose raw model elements, forecast recording
+    - **Advanced settings** (optional): Expose raw model elements
 
 See the [configuration guide](https://haeo.io/latest/user-guide/configuration/#planning-horizon) for how to choose a planning horizon.
+After setup, **Configure** on the hub entry also offers the debounce window, forecast recording, and **Relax impossible plans**, which keeps planning when your forecasts ask for more than your system can do.
+See [editing hub settings](https://haeo.io/latest/user-guide/configuration/#editing-hub-settings) for details.
 
 ### Adding Elements
 
@@ -134,60 +124,26 @@ After creating your hub, add elements from the hub integration card:
 2. Click the **menu button** (three vertical dots, top right) → **Add Entry**
 3. Choose an element type and complete the configuration flow
 
-#### Battery Configuration
-
-- **Name**: Unique identifier for the battery
-- **Capacity**: Total energy capacity in kWh
-- **Current Charge Sensor**: Entity ID of sensor providing current SOC (%)
-- **Min/Max Charge Level**: Operating range (%)
-- **Max Charge/Discharge Power**: Power limits in kW
-- **Efficiency**: Round-trip efficiency (0-1, e.g., 0.95 for 95%)
-- **Charge/Discharge Costs**: Optional additional costs per kWh
-
-#### Grid Configuration
-
-- **Name**: Identifier for grid
-- **Import/Export Limits**: Maximum power in kW (optional)
-- **Import/Export Prices**: Fixed prices OR forecast sensor entities
-    - Use live sensors for real-time pricing
-    - Use forecast sensors for time-of-use optimization
-
-#### Solar Configuration
-
-- **Name**: Identifier for solar system
-- **Forecast Sensors**: Entity IDs providing power forecast
-- **Curtailment**: Enable if you can curtail (reduce) solar output
-- **Production Price**: Value of generated electricity
-
-#### Load Configuration
-
-- **Name**: Identifier for the load
-- **Power**: Fixed value or forecast sensor entities for variable consumption
-
-#### Connections (raw model element)
-
-Define explicit power flow paths between elements:
-
-- **Source/Target**: Connect two elements
-- **Min/Max Power**: Optional flow limits
+Each element has its own page in the [elements documentation](https://haeo.io/latest/user-guide/elements/) describing its fields, for example the [battery](https://haeo.io/latest/user-guide/elements/battery/), [grid](https://haeo.io/latest/user-guide/elements/grid/), [solar](https://haeo.io/latest/user-guide/elements/solar/), and [load](https://haeo.io/latest/user-guide/elements/load/) pages.
 
 ## 📊 Sensors
 
-HAEO creates sensors for each device and the network:
+HAEO creates sensors for each element and for the optimizer itself.
 
-### Network Sensors
+### Optimizer sensors
 
-- **Optimization Cost**: Total optimized cost for the time horizon
-- **Optimization Status**: Success, failed, or pending
-- **Optimization Duration**: Time taken to solve (seconds)
+The **Optimizer** device reports on each optimization run:
 
-### Device Sensors
+- **Cost** (`sensor.optimizer_cost`): Total optimized cost over the planning horizon
+- **Status** (`sensor.optimizer_status`): Whether the last optimization succeeded
+- **Duration** (`sensor.optimizer_duration`): Time taken to solve, in seconds
 
-- **Power**: Current optimal power for each device (kW)
-- **Energy**: Current energy level (batteries, kWh)
-- **State of Charge**: Battery SOC (%)
+### Element sensors
 
+Each element reports its planned power, and storage elements also report stored energy and state of charge.
 Each sensor includes forecast attributes with timestamped future values.
+
+See [understanding optimization results](https://haeo.io/latest/user-guide/optimization/) for how to read these sensors.
 
 ## 🔧 Advanced Configuration
 

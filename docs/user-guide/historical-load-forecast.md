@@ -1,4 +1,4 @@
-# Historical Load Forecast
+# Historical load forecast
 
 HAEO doesn't generate load forecasts itself, but you can create forecasts based on historical consumption data.
 This approach works well for loads that follow predictable daily patterns.
@@ -15,7 +15,7 @@ HAFO is a companion integration designed specifically for this purpose:
 HAFO handles all the complexity automatically - fetching historical statistics, shifting them forward, and cycling patterns to fill any forecast horizon.
 See the [HAFO documentation](https://hafo.haeo.io) for installation and configuration details.
 
-## Manual Approach
+## Manual approach
 
 If you prefer not to install another integration, you can create forecasts manually using Home Assistant's python_script integration.
 The strategy is straightforward: fetch the same hour from 7 days ago, then use that pattern for the next 7 days.
@@ -31,7 +31,7 @@ python_script:
 
 Create the `python_scripts` directory in your config folder if it doesn't exist.
 
-### Step 1: Create the Forecast Sensor Script
+### Step 1: Create the forecast sensor script
 
 Create `config/python_scripts/set_forecast_sensor.py`:
 
@@ -70,7 +70,7 @@ else:
 This script creates a sensor with a `forecast` attribute that HAEO can read.
 It copies `unit_of_measurement`, `device_class`, `state_class`, and `icon` from the source sensor, and appends "Forecast" to the friendly name.
 
-### Step 2: Create the Extraction Script
+### Step 2: Create the extraction script
 
 Create a Home Assistant script that fetches historical data and publishes the forecast.
 Go to **Settings** → **Automations & Scenes** → **Scripts** → **Add Script** and use YAML mode:
@@ -140,7 +140,7 @@ sequence:
 The script fetches the last 7 days of hourly mean values and shifts them forward by 7 days.
 Units are copied from the source sensor automatically.
 
-### Step 3: Create Hourly Automation
+### Step 3: Create hourly automation
 
 Create an automation to run the extraction script every hour.
 Go to **Settings** → **Automations & Scenes** → **Create Automation**:
@@ -169,7 +169,7 @@ Configure your Load element to use the forecast sensor:
 
 HAEO reads the `forecast` attribute and uses the historical pattern for optimization.
 
-### Forecast Format
+### Forecast format
 
 The forecast attribute should be an array of time-value pairs:
 
@@ -199,3 +199,33 @@ Each entry contains:
 
     Run the script manually once after creating it to populate the forecast sensor immediately.
     Go to **Developer Tools** → **Services**, select `script.extract_load_forecast`, and click **Call Service**.
+
+## Next steps
+
+<div class="grid cards" markdown>
+
+- :material-home-lightning-bolt:{ .lg .middle } **Configure your load**
+
+    ---
+
+    Use the forecast sensor as the forecast of a load element.
+
+    [:material-arrow-right: Load configuration](elements/load.md)
+
+- :material-chart-line:{ .lg .middle } **Forecasts and sensors**
+
+    ---
+
+    Learn how HAEO reads forecast attributes and combines sensors.
+
+    [:material-arrow-right: Forecasts and sensors](forecasts-and-sensors.md)
+
+- :material-update:{ .lg .middle } **How data updates work**
+
+    ---
+
+    See when a new forecast prompts HAEO to optimize again.
+
+    [:material-arrow-right: Data updates](data-updates.md)
+
+</div>

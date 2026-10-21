@@ -12,7 +12,7 @@ HAEO configuration happens entirely through Home Assistant's UI. You'll:
 2. Add **Element Entries** (batteries, grids, solar, loads)
 3. Add **Connection Entries** (defining how energy flows between elements)
 
-## Creating Your First Hub
+## Creating your first hub
 
 ### Add the integration
 
@@ -107,7 +107,7 @@ See the [elements overview](elements/index.md) for the raw model elements it exp
 
 Click **Submit** to create your hub.
 
-## Adding Elements
+## Adding elements
 
 After creating your hub, add elements to represent your devices through the Home Assistant UI.
 
@@ -144,8 +144,8 @@ Each input field provides a dropdown with these choices:
 
 !!! tip "Constant values are adjustable"
 
-    Fields configured with "Constant" create input entities in Home Assistant.
-    You can adjust these values at runtime without reconfiguring the element.
+    Every field you configure creates an input entity in Home Assistant.
+    For fields set to "Constant", you can adjust the value from that entity at runtime without reconfiguring the element.
 
 !!! note "Network entry"
 
@@ -162,7 +162,7 @@ Some raw model elements provide direct access to model layer components and requ
 
 See the [elements overview](elements/index.md) for detailed configuration guides for each element type.
 
-## Defining Connections
+## Defining connections
 
 Connections define how energy flows between elements.
 Add them from the same hub page as elements by selecting **Connection** from the element type list.
@@ -181,9 +181,9 @@ This network requires connections between elements and the central node.
 Most elements create these connections automatically.
 You only need explicit Connection elements when you need custom power flow paths, efficiency losses, or transmission costs.
 
-See the [Connections guide](elements/connections.md) for detailed information and examples.
+See the [Connections guide](elements/connection.md) for detailed information and examples.
 
-## Viewing Configuration
+## Viewing configuration
 
 ### Integration page
 
@@ -196,7 +196,7 @@ On the HAEO integration page, you'll see:
 Each sensor includes forecast attributes with future timestamped values.
 See the [Understanding Results guide](optimization.md) for details on interpreting sensor values.
 
-## Modifying Configuration
+## Modifying configuration
 
 ### Editing elements and connections
 
@@ -221,7 +221,7 @@ Changes trigger immediate re-optimization with the new parameters.
 It is off by default, so an impossible plan fails and a repair issue names the constraints that conflict.
 See [no plan meets every constraint](troubleshooting.md#no-plan-meets-every-constraint) for what each setting does.
 
-## Best Practices
+## Best practices
 
 ### Start simple
 

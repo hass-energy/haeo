@@ -1,8 +1,8 @@
-# Grid Modeling
+# Grid modeling
 
 The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connections/connection.md) to model utility grid connections with time-varying import and export pricing.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -22,7 +22,7 @@ graph LR
 | [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=true, is_sink=true           |
 | [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit and pricing segment values |
 
-## Devices Created
+## Devices created
 
 Grid creates 1 device in Home Assistant:
 
@@ -44,30 +44,13 @@ The adapter transforms user configuration into connection segments:
 | —                         | Node              | `is_source=true`          | Grid can supply power                   |
 | —                         | Node              | `is_sink=true`            | Grid can absorb power                   |
 
-## Sensors Created
+## Sensors created
 
-### Grid Device
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/grid.md#sensors-created) on the Grid page.
 
-| Sensor                   | Unit     | Update    | Description                        |
-| ------------------------ | -------- | --------- | ---------------------------------- |
-| `power_import`           | kW       | Real-time | Import power                       |
-| `power_export`           | kW       | Real-time | Export power                       |
-| `cost_import`            | \$       | Real-time | Cost of imports (when priced)      |
-| `cost_export`            | \$       | Real-time | Revenue from exports (when priced) |
-| `cost_net`               | \$       | Real-time | Net cost (when any price exists)   |
-| `power_max_import`       | kW       | Real-time | Max import power (when limited)    |
-| `power_max_export`       | kW       | Real-time | Max export power (when limited)    |
-| `power_max_import_price` | \\\$/kWh | Real-time | Max import power shadow price      |
-| `power_max_export_price` | \\\$/kWh | Real-time | Max export power shadow price      |
+## Configuration examples
 
-The `power_max_*` sensors are only created when the corresponding limit is configured.
-The `cost_*` sensors are only created when the corresponding price is configured.
-
-See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor and configuration documentation.
-
-## Configuration Examples
-
-### Time-of-Use Pricing
+### Time-of-use pricing
 
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
@@ -76,7 +59,7 @@ See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor 
 | **Export Price** | sensor.electricity_export_price |
 | **Connection**   | Home Bus                        |
 
-### With Capacity Limits
+### With capacity limits
 
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
@@ -87,7 +70,7 @@ See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor 
 | **Export Limit** | 5.0                             |
 | **Connection**   | Home Bus                        |
 
-## Typical Use Cases
+## Typical use cases
 
 **Time-of-Use Optimization**:
 Grid with time-varying prices enables battery arbitrage—charge during low prices, discharge during high prices.
@@ -98,11 +81,11 @@ Configure export pricing to model solar export revenue and optimize when to expo
 **Demand-Limited Connections**:
 Use import/export limits to model connection capacity constraints and prevent exceeding utility limits.
 
-## Physical Interpretation
+## Physical interpretation
 
 Grid represents the utility connection that can supply power (import) when local generation is insufficient, or absorb excess power (export) from solar or battery discharge.
 
-### Configuration Guidelines
+### Configuration guidelines
 
 - **Import/Export Pricing**: Use [sensor](../../user-guide/forecasts-and-sensors.md) or [forecast](../../user-guide/forecasts-and-sensors.md) for time-varying prices. Ensure export prices are always less than import prices to prevent unrealistic arbitrage.
 - **Power Limits**: Configure limits to model connection capacity constraints. If omitted, grid has unlimited capacity.

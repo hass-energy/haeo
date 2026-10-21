@@ -1,4 +1,4 @@
-# Device Layer Elements
+# Device layer elements
 
 Device Layer elements are the user-configured components that represent physical devices in your energy system.
 Each Device Layer element composes one or more [Model Layer elements](../model-layer/index.md) to achieve its behavior.
@@ -9,23 +9,23 @@ Device Layer elements transform user configuration into Model Layer elements.
 Each element type composes one or more Model Layer elements to achieve its specific behavior.
 See individual element pages for composition details.
 
-## Composition Pattern
+## Composition pattern
 
 Device Layer elements use an adapter pattern to transform user configuration into Model Layer elements:
 
-**Configuration → Model** (`create_model_elements`): Transforms user configuration into Model Layer element specifications.
+**Configuration → Model** (`model_elements`): Transforms user configuration into Model Layer element specifications.
 Called during network construction before optimization.
 
 **Model → Devices** (`outputs`): Transforms optimization results into device-specific outputs with user-friendly names.
 Called after optimization to populate sensors.
 
-## Implicit Connections
+## Implicit connections
 
 Many Device Layer elements create implicit connections automatically as part of their model composition.
 These implicit connections simplify configuration—users specify their configuration needs, and the adapter handles connection creation with appropriate parameters.
 See individual element pages for details on which connections are created.
 
-## Sub-element Naming
+## Sub-element naming
 
 When adapters create multiple model elements or devices, they use a colon-separated naming convention:
 
@@ -92,7 +92,7 @@ This prevents naming collisions and groups related components visually in Home A
 
     Power consumption modeling.
 
-    [:material-arrow-right: Load modeling](loads.md)
+    [:material-arrow-right: Load modeling](load.md)
 
 - :material-shield-check:{ .lg .middle } **Buffer**
 
@@ -102,12 +102,36 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Buffer modeling](buffer.md)
 
-- :material-battery-charging:{ .lg .middle } **Battery Section**
+- :material-battery-charging:{ .lg .middle } **Battery section**
 
     ---
 
     Direct access to model layer Battery element.
 
-    [:material-arrow-right: Battery Section modeling](battery_section.md)
+    [:material-arrow-right: Battery section modeling](battery_section.md)
+
+- :material-source-branch:{ .lg .middle } **Junction**
+
+    ---
+
+    Electrical bus where connected power must balance.
+
+    [:material-arrow-right: Junction modeling](junction.md)
+
+- :material-circle-outline:{ .lg .middle } **Node**
+
+    ---
+
+    Point that can produce or consume unlimited power.
+
+    [:material-arrow-right: Node modeling](node.md)
+
+- :material-connection:{ .lg .middle } **Connection**
+
+    ---
+
+    Explicit one-way power flow path between two elements.
+
+    [:material-arrow-right: Connection modeling](connection.md)
 
 </div>

@@ -1,14 +1,14 @@
-# Understanding Optimization Results
+# Understanding optimization results
 
 This guide explains how to interpret HAEO's optimization results and use them effectively.
 
-## Optimization Sensors
+## Optimization sensors
 
-HAEO creates three main network sensors:
+HAEO creates three main sensors on the **Optimizer** device:
 
-### Optimization Cost
+### Cost
 
-**Entity ID**: `sensor.{network_name}_optimization_cost`
+**Entity ID**: `sensor.optimizer_cost`
 
 Total cost over the optimization horizon in dollars.
 
@@ -21,9 +21,9 @@ Total cost over the optimization horizon in dollars.
     When multiple schedules share the same primary cost, HAEO applies a secondary time-preference objective.
     This ordering favors earlier energy transfers without changing the reported optimization cost.
 
-### Optimization Status
+### Status
 
-**Entity ID**: `sensor.{network_name}_optimization_status`
+**Entity ID**: `sensor.optimizer_status`
 
 State of the latest optimization:
 
@@ -39,19 +39,19 @@ Some failures, such as an input with no reading or a plan that cannot meet every
 If optimizations keep failing for any other reason for five minutes, HAEO raises an "Optimization failed" repair issue with the error message.
 That issue clears on the next successful optimization.
 
-### Optimization Duration
+### Duration
 
-**Entity ID**: `sensor.{network_name}_optimization_duration`
+**Entity ID**: `sensor.optimizer_duration`
 
 Time taken to solve the optimization in seconds.
 If this value climbs higher than you expect, choose a shorter [planning horizon](configuration.md#planning-horizon) or simplify the network.
 
-## Element Sensors
+## Element sensors
 
 Each configured element creates optimization result sensors.
 The specific sensors depend on the element type—see each element's documentation for complete details on their outputs.
 
-### Sensor Structure
+### Sensor structure
 
 All HAEO sensors follow a consistent structure:
 
@@ -59,79 +59,79 @@ All HAEO sensors follow a consistent structure:
 
 **Forecast attributes**: Each sensor includes a `forecast` attribute containing future timestamped values across your optimization horizon.
 
-## Shadow Price Sensors
+## Shadow price sensors
 
 Shadow price sensors publish the marginal value of key constraints over the optimization horizon.
 They translate physical limits into dollar-per-kilowatt-hour signals that explain the optimizer's dispatch choices.
 
 Available sensors include:
 
-- **Junctions and nodes**: `sensor.{name}_power_balance` reports the local spot price for energy at each junction or node.
-- **Batteries**: `sensor.{battery_name}_power_balance`, `sensor.{battery_name}_soc_min`, `sensor.{battery_name}_soc_max`, `sensor.{battery_name}_energy_in_flow`, and `sensor.{battery_name}_energy_out_flow` quantify the value of stored energy, SOC bounds, and charge/discharge headroom.
-- **Grid**: `sensor.{grid_name}_power_max_import_price` and `sensor.{grid_name}_power_max_export_price` indicate when import or export limits restrict the optimization.
-- **Inverter**: `sensor.{inverter_name}_max_power_dc_to_ac_price` and `sensor.{inverter_name}_max_power_ac_to_dc_price` appear when the inverter's per-direction caps are binding.
-- **Load**: `sensor.{load_name}_forecast_limit_price` exposes the marginal value of serving this load.
-- **Solar**: `sensor.{pv_name}_forecast_limit` shows when extra solar output would reduce total cost.
+Their names end in "shadow price", so their entity IDs end in `_shadow_price`.
+For example, `sensor.{name}_power_balance_shadow_price` reports the local price of energy where power meets, and `sensor.{name}_max_import_power_shadow_price` on a grid shows when its import limit restricts the plan.
+Each element's page lists the shadow prices it creates.
 
 All shadow-price sensors are reported in `$/kWh` so they sit on the same axis as tariffs and other energy-priced quantities.
 
 Each shadow price sensor mirrors the standard forecast attribute layout so you can inspect future periods in dashboards and automations.
 Review [Shadow Prices](../modeling/shadow-prices.md) for detailed interpretation guidance.
 
-### Understanding Forecast Attributes
+### Understanding forecast attributes
 
 All sensors include forecast attributes with future values:
 
 ```yaml
 attributes:
   forecast:
-    '2025-10-11T12:00:00+00:00': 1.23
-    '2025-10-11T12:05:00+00:00': 1.17
-    '2025-10-11T12:10:00+00:00': 1.34
+    - time: '2025-10-11T12:00:00+00:00'
+      value: 1.23
+    - time: '2025-10-11T12:05:00+00:00'
+      value: 1.17
+    - time: '2025-10-11T12:10:00+00:00'
+      value: 1.34
     # ... more timestamped values
 ```
 
 Use these in automations or dashboards to visualize the optimal schedule.
 
-## Using Results in Automations
+## Using results in automations
 
-### Example: Control Battery Based on Optimization
+### Example: Control battery based on optimization
 
 ```yaml
 automation:
   - alias: Follow HAEO Battery Charge Schedule
     trigger:
       - platform: state
-        entity_id: sensor.main_battery_power_charge
+        entity_id: sensor.main_battery_charge_power
     condition:
       - condition: template
-        value_template: "{{ states('sensor.main_battery_power_charge') | float > 0
+        value_template: "{{ states('sensor.main_battery_charge_power') | float > 0
           }}"
     action:
       - service: battery.set_charge_power
         data:
-          power: "{{ states('sensor.main_battery_power_charge') | float }}"
+          power: "{{ states('sensor.main_battery_charge_power') | float }}"
 
   - alias: Follow HAEO Battery Discharge Schedule
     trigger:
       - platform: state
-        entity_id: sensor.main_battery_power_discharge
+        entity_id: sensor.main_battery_discharge_power
     condition:
       - condition: template
-        value_template: "{{ states('sensor.main_battery_power_discharge') | float
+        value_template: "{{ states('sensor.main_battery_discharge_power') | float
           > 0 }}"
     action:
       - service: battery.set_discharge_power
         data:
-          power: "{{ states('sensor.main_battery_power_discharge') | float }}"
+          power: "{{ states('sensor.main_battery_discharge_power') | float }}"
 ```
 
-**Note**: Battery elements create separate sensors for charging (`power_charge`) and discharging (`power_discharge`).
+**Note**: Battery elements create separate sensors for charging (`sensor.{name}_charge_power`) and discharging (`sensor.{name}_discharge_power`).
 See the [battery documentation](elements/battery.md) for complete details.
 
-## Performance Considerations
+## Performance considerations
 
-### Optimization Duration
+### Optimization duration
 
 Monitor the optimization duration sensor to keep solve times reasonable (typically under 10 seconds).
 
@@ -141,14 +141,14 @@ If optimization takes too long:
 2. **Simplify network**: Remove unnecessary elements or connections
 3. **Check configuration**: Verify all sensors are available and providing valid data
 
-### Update Frequency
+### Update frequency
 
 HAEO re-optimizes periodically. Balance:
 
 - **More frequent**: Better response to changes, higher CPU usage
 - **Less frequent**: Lower CPU usage, may miss price changes
 
-## Interpreting Cost
+## Interpreting cost
 
 The optimization cost represents the total forecasted cost over the full horizon, not just the immediate step.
 Track changes in this value when you adjust configuration parameters to confirm the optimiser is producing the expected behaviour.

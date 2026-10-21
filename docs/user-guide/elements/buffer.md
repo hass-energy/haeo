@@ -117,14 +117,28 @@ Set it high to treat the buffer as nearly untouchable.
 The cost stops at the end of the forecast horizon, so a shortfall that starts near the end costs little.
 Use the battery's [salvage value](battery.md#salvage-value) to value the energy left at the end of the horizon.
 
+## Input entities
+
+Each field you configure creates an input entity on the buffer's device.
+Input entities appear as Number entities with the `config` entity category.
+Their IDs combine the buffer's name with the entity's name, so a buffer named "Backup Reserve" has `number.backup_reserve_window`.
+
+| Input                          | Unit     | Description           |
+| ------------------------------ | -------- | --------------------- |
+| `number.{name}_window`         | h        | Window                |
+| `number.{name}_level`          | %        | Level (if configured) |
+| `number.{name}_shortfall_cost` | \$/kWh/h | Shortfall cost        |
+
+A field set to "Constant" can be adjusted from its input entity at runtime.
+
 ## Sensors created
 
-| Sensor                 | Unit | Description                                                                |
-| ---------------------- | ---- | -------------------------------------------------------------------------- |
-| Required energy        | kWh  | Energy the batteries should hold or keep free past the level at each point |
-| Available energy       | kWh  | Energy the batteries hold or keep free past the level at each point        |
-| Energy shortfall       | kWh  | How far the batteries fall short of the required energy                    |
-| Buffer state of charge | %    | The combined state of charge the batteries should stay above or below      |
+| Sensor                                 | Unit | Description                                                                |
+| -------------------------------------- | ---- | -------------------------------------------------------------------------- |
+| `sensor.{name}_required_energy`        | kWh  | Energy the batteries should hold or keep free past the level at each point |
+| `sensor.{name}_available_energy`       | kWh  | Energy the batteries hold or keep free past the level at each point        |
+| `sensor.{name}_energy_shortfall`       | kWh  | How far the batteries fall short of the required energy                    |
+| `sensor.{name}_buffer_state_of_charge` | %    | The combined state of charge the batteries should stay above or below      |
 
 The energy sensors measure energy stored in the batteries, so they compare directly with the batteries' own stored energy.
 The buffer state of charge adds the required energy to the level for a reserve, or takes it away for headroom, as a share of the batteries' combined capacity.

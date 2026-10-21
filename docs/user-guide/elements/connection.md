@@ -48,19 +48,19 @@ See [Where values are measured](../measurement-points.md) for the convention HAE
     **Segment-based behavior**: Connections compose internal segments for limits, efficiency, and pricing.
     You configure the fields above, and the model applies the corresponding segment behavior automatically.
 
-    **Using constant values**: All sensor fields require sensor entities.
+    **Constants or sensors**: Each optional field accepts a constant value, one or more sensors, or "None".
 
-Use [input number helpers](https://www.home-assistant.io/integrations/input_number/) to configure constant values.
+### Connection endpoint selection
 
-### Connection Endpoint Selection
+Elements attach to each other through endpoints: points in your network where power from several elements meets and is shared, such as a [Junction](junction.md).
+The **Connection** field of each element, and the **Source** and **Target** fields of a connection, list only endpoints.
 
-The **Source** and **Target** fields list the points in your network that power can flow through.
-Elements that apply their own prices, forecasts, and limits on their own connection are not listed, because a connection made directly to them would bypass those.
-Connect to the junction or inverter such an element is attached to instead.
+Elements that apply their own prices, forecasts, or limits on their own connection are not endpoints, because a connection made directly to them would bypass those.
+Connect to the endpoint such an element is attached to instead.
 
-If an existing configuration connects directly to one of these elements, HAEO raises a repair issue listing each affected connection.
+If an existing configuration connects directly to an element that is not an endpoint, HAEO raises a repair issue listing each affected connection.
 
-## Configuration Examples
+## Configuration examples
 
 ### One-way link between junctions
 
@@ -82,7 +82,7 @@ Create one connection for each direction when both paths need limits or differen
 
 Use separate **Efficiency** and **Price** values on each connection when the directions differ.
 
-## Physical Interpretation
+## Physical interpretation
 
 **Unidirectional flow:**
 Power optimized on this connection always travels from source to target.
@@ -96,7 +96,7 @@ Example: with 95% efficiency and a **Max power** of 10 kW, the connection report
 **Transmission costs:**
 Connection pricing models fees for using a power transfer path (wheeling charges, connection fees, peak demand charges).
 
-## Common Patterns
+## Common patterns
 
 ### Unlimited one-way connection
 
@@ -157,31 +157,37 @@ Then configure the connection:
 
 The optimizer will only schedule charging when the sensor value is non-zero.
 
-### Input Entities
+### Input entities
 
-Each optional configuration field creates a corresponding input entity in Home Assistant.
+Each field you configure creates an input entity on the connection's device.
 Input entities appear as Number entities with the `config` entity category.
+Their IDs combine the connection's name with the entity's name.
 
-| Input                                    | Unit   | Description                    |
-| ---------------------------------------- | ------ | ------------------------------ |
-| `number.{name}_max_power_source_target`  | kW     | Maximum power (if configured)  |
-| `number.{name}_efficiency_source_target` | %      | Efficiency (if configured)     |
-| `number.{name}_price_source_target`      | \$/kWh | Transfer price (if configured) |
+| Input                      | Unit   | Description                    |
+| -------------------------- | ------ | ------------------------------ |
+| `number.{name}_max_power`  | kW     | Maximum power (if configured)  |
+| `number.{name}_efficiency` | %      | Efficiency (if configured)     |
+| `number.{name}_price`      | \$/kWh | Transfer price (if configured) |
+
+A field set to "Constant" can be adjusted from its input entity at runtime.
+A field linked to sensors shows the values HAEO reads from them.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
-See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+See [How data updates work](../data-updates.md) for how input entities receive their values.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 A Connection element creates one device in Home Assistant.
 
 The power sensor display name uses the configured source and target element names (for example, `{source} to {target} power`).
 
-| Sensor                       | Unit | Description                                                  |
-| ---------------------------- | ---- | ------------------------------------------------------------ |
-| `{source} to {target} power` | kW   | Optimized power leaving the source, before efficiency losses |
+| Sensor                                     | Unit | Description                                                  |
+| ------------------------------------------ | ---- | ------------------------------------------------------------ |
+| `sensor.{name}_{source}_to_{target}_power` | kW   | Optimized power leaving the source, before efficiency losses |
+
+For example, a connection named "DC to AC" from "DC Bus" to "AC Bus" has `sensor.dc_to_ac_dc_bus_to_ac_bus_power`.
 
 Power values are zero or positive.
 A value of 0 means no power is flowing on this connection at that time period.
