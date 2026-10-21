@@ -25,13 +25,15 @@ import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
 from custom_components.haeo.core.adapters.network_builder import ElementUpdater, build_network, periods_in_hours
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, HUB_SECTION_ADVANCED
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import Network
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.schema.migrations.v1_4 import migrate_participants
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.elements import is_element_config_schema
-from tools.diag.cli import config_horizon_preset, migrate_batteries_for_diag
+from tools.diag.cli import config_horizon_preset
 
 # ---------------------------------------------------------------------------
 # Lightweight StateMachine backed by scenario inputs.json
@@ -96,7 +98,7 @@ def _load_scenario(
 
 
 def _participants_from_config(config: Mapping[str, JsonValueType]) -> dict[str, ElementConfigSchema]:
-    """Migrate a scenario config's batteries as v1.4 does and narrow its participants to ElementConfigSchema entries."""
+    """Migrate a scenario config's elements as v1.4 does and narrow its participants to ElementConfigSchema entries."""
     participants_raw = config["participants"]
     if not isinstance(participants_raw, dict):
         msg = "Scenario config participants must be an object"
@@ -108,7 +110,9 @@ def _participants_from_config(config: Mapping[str, JsonValueType]) -> dict[str, 
             raise TypeError(msg)
         raw_configs[name] = dict(participant_config)
     participants: dict[str, ElementConfigSchema] = {}
-    for name, participant_config in migrate_batteries_for_diag(raw_configs).items():
+    advanced = config.get(HUB_SECTION_ADVANCED)
+    advanced_mode = isinstance(advanced, dict) and advanced.get(CONF_ADVANCED_MODE) is True
+    for name, participant_config in migrate_participants(raw_configs, advanced_mode=advanced_mode).items():
         if not is_element_config_schema(participant_config):
             msg = f"Scenario participant {name!r} is not a valid element config"
             raise TypeError(msg)

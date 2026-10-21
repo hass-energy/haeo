@@ -59,6 +59,11 @@ _CONNECTION_SECTIONS: tuple[str, ...] = (SECTION_POWER_LIMITS, SECTION_PRICING, 
 
 _SEGMENT_ORDER = "segment_order"
 
+# The name the hub's Switchboard node was created with. English is the only
+# language HAEO has shipped translations for, and Home Assistant falls back to
+# it, so every Switchboard got this name whatever the language.
+SWITCHBOARD_NAME = "Switchboard"
+
 
 def _is_configured_value(value: object) -> bool:
     """Return True when a schema value represents an active configuration."""
@@ -181,6 +186,16 @@ def node_is_junction(data: Mapping[str, object]) -> bool:
     if not isinstance(role, Mapping):
         return True
     return not any(_role_enabled(role.get(field)) for field in (node.CONF_IS_SOURCE, node.CONF_IS_SINK))
+
+
+def node_becomes_junction(data: Mapping[str, object], *, advanced_mode: bool) -> bool:
+    """Return True when a node is replaced by a junction.
+
+    The Switchboard is always a junction. Outside advanced mode a node cannot be
+    configured, so every node becomes a junction. In advanced mode, other nodes
+    become junctions only when neither their source nor sink switch is on.
+    """
+    return node_is_junction(data) or not advanced_mode or data[CONF_NAME] == SWITCHBOARD_NAME
 
 
 def junction_config(data: Mapping[str, object]) -> dict[str, object]:
@@ -321,3 +336,38 @@ __all__ = [
     "node_is_junction",
     "uses_custom_horizon",
 ]
+
+
+def migrate_participants(
+    participants: Mapping[str, Mapping[str, object]], *, advanced_mode: bool
+) -> dict[str, dict[str, object]]:
+    """Apply the v1.4 element migrations to a set of element configs keyed by name.
+
+    The steps run in the order the config entry migration runs them: connections
+    become unidirectional, batteries move their partitions into buffers, and
+    nodes that only pass power through become junctions. Configs already in the
+    current format pass through unchanged.
+    """
+    existing_names = set(participants)
+    routes = {
+        connection_route(config)
+        for config in participants.values()
+        if config[CONF_ELEMENT_TYPE] == connection.ELEMENT_TYPE
+    }
+    migrated: dict[str, dict[str, object]] = {}
+    for name, config in participants.items():
+        match config[CONF_ELEMENT_TYPE]:
+            case connection.ELEMENT_TYPE:
+                forward, reverse = migrate_connection_config(config, existing_names=existing_names, routes=routes)
+                migrated[name] = forward
+                if reverse is not None:
+                    migrated[str(reverse[CONF_NAME])] = reverse
+            case battery.ELEMENT_TYPE:
+                migration = migrate_battery_config(config, existing_names=existing_names)
+                migrated[name] = migration.battery
+                migrated.update({str(buffer_config[CONF_NAME]): buffer_config for buffer_config in migration.buffers})
+            case node.ELEMENT_TYPE if node_becomes_junction(config, advanced_mode=advanced_mode):
+                migrated[name] = junction_config(config)
+            case _:
+                migrated[name] = dict(config)
+    return migrated

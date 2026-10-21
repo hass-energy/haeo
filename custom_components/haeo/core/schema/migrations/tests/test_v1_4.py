@@ -22,12 +22,14 @@ from custom_components.haeo.core.schema import (
     as_none_value,
     get_connection_target_name,
 )
-from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.elements import battery, buffer, connection, grid, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_4 import (
     junction_config,
     migrate_connection_config,
     migrate_hub_horizon,
+    migrate_participants,
+    node_becomes_junction,
     node_is_junction,
 )
 from custom_components.haeo.core.schema.sections import (
@@ -262,3 +264,66 @@ def test_migrate_hub_horizon_keeps_existing_horizon() -> None:
         HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: horizon},
         HUB_SECTION_ADVANCED: {},
     }
+
+
+@pytest.mark.parametrize(
+    ("name", "is_source", "advanced_mode", "expected"),
+    [
+        pytest.param("Bus", False, True, True, id="plain_node_in_advanced_mode"),
+        pytest.param("Bus", True, True, False, id="source_node_in_advanced_mode"),
+        pytest.param("Bus", True, False, True, id="source_node_outside_advanced_mode"),
+        pytest.param("Switchboard", True, True, True, id="switchboard_is_always_a_junction"),
+    ],
+)
+def test_node_becomes_junction(name: str, is_source: bool, advanced_mode: bool, expected: bool) -> None:
+    """A node is replaced by a junction unless advanced mode keeps a node that sources or sinks power."""
+    data = {
+        CONF_ELEMENT_TYPE: node.ELEMENT_TYPE,
+        CONF_NAME: name,
+        node.SECTION_ROLE: {"is_source": as_constant_value(is_source), "is_sink": as_constant_value(False)},
+    }
+
+    assert node_becomes_junction(data, advanced_mode=advanced_mode) is expected
+
+
+def test_migrate_participants_applies_every_element_step() -> None:
+    """Connections split, batteries gain buffers, nodes become junctions, and other elements pass through."""
+    link = _connection_config(**{SECTION_POWER_LIMITS: {CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0)}})
+    battery_config: dict[str, object] = {
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+        CONF_NAME: "Battery",
+        "connection": as_connection_target("DC Bus"),
+        "storage": {"capacity": as_constant_value(10.0)},
+        "limits": {"min_charge_percentage": as_constant_value(10.0)},
+        "undercharge": {"percentage": as_constant_value(5.0), "cost": as_constant_value(0.03)},
+    }
+    bus = {CONF_ELEMENT_TYPE: node.ELEMENT_TYPE, CONF_NAME: "DC Bus", node.SECTION_ROLE: {"is_source": False}}
+    grid_config: dict[str, object] = {CONF_ELEMENT_TYPE: grid.ELEMENT_TYPE, CONF_NAME: "Grid"}
+
+    migrated = migrate_participants(
+        {"Inverter link": link, "Battery": battery_config, "DC Bus": bus, "Grid": grid_config},
+        advanced_mode=False,
+    )
+
+    assert list(migrated) == [
+        "Inverter link",
+        "Inverter link (AC Bus to DC Bus)",
+        "Battery",
+        "Battery reserve",
+        "DC Bus",
+        "Grid",
+    ]
+    assert _section(migrated["Inverter link (AC Bus to DC Bus)"], SECTION_POWER_LIMITS) == {
+        CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0)
+    }
+    assert "undercharge" not in migrated["Battery"]
+    assert migrated["Battery reserve"][CONF_ELEMENT_TYPE] == buffer.ELEMENT_TYPE
+    assert migrated["DC Bus"] == {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: "DC Bus"}
+    assert migrated["Grid"] == grid_config
+
+
+def test_migrate_participants_leaves_current_configs_unchanged() -> None:
+    """Configs already in the current format migrate to themselves."""
+    current = migrate_participants({"Inverter link": _connection_config()}, advanced_mode=True)
+
+    assert migrate_participants(current, advanced_mode=True) == current

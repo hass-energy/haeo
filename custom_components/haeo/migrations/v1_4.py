@@ -38,6 +38,7 @@ from custom_components.haeo.core.schema.migrations.v1_4 import (
     migrate_battery_config,
     migrate_connection_config,
     migrate_hub_horizon,
+    node_becomes_junction,
     node_is_junction,
     uses_custom_horizon,
 )
@@ -47,11 +48,6 @@ from custom_components.haeo.unique_id import element_output_unique_id, element_u
 _LOGGER = logging.getLogger(__name__)
 
 MINOR_VERSION = 4
-
-# The name the hub's Switchboard node was created with. English is the only
-# language HAEO has shipped translations for, and Home Assistant falls back to
-# it, so every Switchboard got this name whatever the language.
-_SWITCHBOARD_NAME = "Switchboard"
 
 # Fields that elements no longer have, by the last part of the key their input
 # entities are identified by. Partition fields were keyed by their field name,
@@ -219,9 +215,8 @@ def _replace_nodes_with_junctions(
     advanced_mode = entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
     nodes = [s for s in entry.subentries.values() if s.subentry_type == node.ELEMENT_TYPE]
     for subentry in nodes:
-        is_junction = node_is_junction(subentry.data)
-        if is_junction or not advanced_mode or subentry.title == _SWITCHBOARD_NAME:
-            if not is_junction:
+        if node_becomes_junction(subentry.data, advanced_mode=advanced_mode):
+            if not node_is_junction(subentry.data):
                 _LOGGER.warning(
                     "Node %s had its source or sink switch turned on or driven by an entity; "
                     "it is now a junction that only passes power through",

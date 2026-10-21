@@ -14,7 +14,7 @@ import pytest
 
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
-from custom_components.haeo.core.schema import as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.schema.elements import ElementType, battery
 from custom_components.haeo.elements import is_element_config_schema
 from tools.diag import cli as diag
@@ -186,42 +186,6 @@ def test_normalize_participant_config_for_diag_migrates_mixed_config(monkeypatch
 
     assert normalized is migrated
     assert len(called) == 1
-
-
-def test_migrate_batteries_for_diag() -> None:
-    """Battery partitions become buffers named clear of every participant, and other elements pass through."""
-    first = _base_battery_config()
-    first["storage"] = {"capacity": as_constant_value(10.0)}
-    first["limits"] = {"min_charge_percentage": as_constant_value(10.0)}
-    first["undercharge"] = {"percentage": as_constant_value(5.0), "cost": as_constant_value(0.03)}
-    second = _base_battery_config()
-    second["name"] = "Second"
-    second["storage"] = {"capacity": as_constant_value(10.0)}
-    second["limits"] = {"max_charge_percentage": as_entity_value(["sensor.max"])}
-    second["overcharge"] = {"percentage": as_entity_value(["sensor.ceiling"]), "cost": as_constant_value(0.02)}
-    grid: dict[str, object] = {"element_type": "grid", "name": "Grid"}
-
-    replaced = diag.migrate_batteries_for_diag(
-        {"Battery": first, "Second": second, "Grid": grid, "Battery reserve": grid}
-    )
-
-    assert list(replaced) == ["Battery", "Battery reserve 2", "Second", "Second headroom", "Grid", "Battery reserve"]
-    assert replaced["Grid"] is grid
-    assert "undercharge" not in replaced["Battery"]
-    assert replaced["Battery"]["limits"] == {"min_charge_percentage": as_constant_value(5.0)}
-    assert replaced["Battery reserve 2"]["element_type"] == "buffer"
-    assert replaced["Battery reserve 2"]["kind"] == "reserve"
-    assert replaced["Battery reserve 2"]["requirement"] == {
-        "window": as_constant_value(1.0),
-        "level": as_constant_value(10.0),
-    }
-    assert "overcharge" not in replaced["Second"]
-    assert replaced["Second"]["limits"] == {"max_charge_percentage": as_entity_value(["sensor.ceiling"])}
-    assert replaced["Second headroom"]["kind"] == "headroom"
-    assert replaced["Second headroom"]["requirement"] == {
-        "window": as_constant_value(1.0),
-        "level": as_entity_value(["sensor.max"]),
-    }
 
 
 def test_get_forecast_by_fields_supports_legacy_grid_price_aliases() -> None:
