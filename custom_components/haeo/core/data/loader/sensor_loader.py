@@ -4,7 +4,6 @@ from collections.abc import Sequence
 
 from custom_components.haeo.core.data.util import SensorPayload
 from custom_components.haeo.core.data.util.field_units import check_source_unit
-from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.state import StateMachine
 from custom_components.haeo.core.units import UnitOfMeasurement
@@ -38,8 +37,6 @@ def load_sensor(sm: StateMachine, entity_id: str, *, output_type: OutputType | N
         return None
     try:
         extracted = extract(state, time_zone=sm.time_zone, output_type=output_type)
-    except InputError:
-        raise
     except ValueError:
         return None
     _check_unit(extracted.unit, output_type)
@@ -71,7 +68,7 @@ def load_reading(sm: StateMachine, entity_id: str, *, output_type: OutputType | 
     except ValueError:
         return None
     _check_unit(reading.unit, output_type)
-    return reading.value
+    return reading.data
 
 
 def _check_unit(unit: UnitOfMeasurement | str | None, output_type: OutputType | None) -> None:
