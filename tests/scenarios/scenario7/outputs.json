@@ -15052,7 +15052,9 @@
         { "time": "2026-10-25T16:30:00.000000+1100", "value": 1.0 },
         { "time": "2026-10-25T17:08:00.000000+1100", "value": 1.0 }
       ],
-      "friendly_name": "Policies EV discharge cost enabled"
+      "friendly_name": "Policies EV discharge cost enabled",
+      "source_role": "limit",
+      "time_series": false
     }
   },
   "switch.solar_curtailment": {
