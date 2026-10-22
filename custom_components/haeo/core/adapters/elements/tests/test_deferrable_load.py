@@ -1,7 +1,6 @@
 """Tests for deferrable load windows seeded by the energy meter and loaded from captured states."""
 
 import numpy as np
-from numpy.typing import NDArray
 import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
@@ -21,47 +20,28 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     DeferrableLoadConfigData,
     DeferrableLoadConfigSchema,
+    ScheduleData,
 )
 
 
-def _window(n_periods: int, start: int, end: int, energy: float) -> dict[str, NDArray[np.float64]]:
-    """Build the loaded window inputs for one event over periods ``start`` to ``end``, due ``energy``.
-
-    An event starting before the horizon is open at its start, so its window
-    does not start and it opens at boundary 0.
-    """
-    in_window = np.zeros(n_periods)
-    in_window[max(start, 0) : end] = 1.0
-    window_start = np.zeros(n_periods + 1)
-    if start > 0:
-        window_start[start] = 1.0
-    opened = np.zeros(n_periods + 1)
-    opened[max(start, 0)] = energy
-    due = np.zeros(n_periods + 1)
-    due[end] = energy
-    return {"in_window": in_window, "window_start": window_start, "opened": opened, "due": due}
-
-
-def _prices(deficit: float = 10.0, overage: float = 0.0) -> dict[str, NDArray[np.float64]]:
-    """Build loaded per-boundary prices over the four-period horizon."""
-    return {"deficit_price": np.full(5, deficit), "overage_price": np.full(5, overage)}
-
-
-def _config(**overrides: object) -> DeferrableLoadConfigData:
-    """Build a deferrable load config with a window in period 2."""
-    config: dict[str, object] = {
-        "element_type": ElementType.DEFERRABLE_LOAD,
-        "name": "pump",
-        "connection": as_connection_target("home"),
-        "schedule": {
-            **_window(4, 2, 3, 6.0),
-        },
-        "pricing": {
-            **_prices(),
-        },
+def _open_window_config(metered: float | None) -> DeferrableLoadConfigData:
+    """Build a pump whose 6 kWh window is already open at the horizon start and due at boundary 3."""
+    schedule: ScheduleData = {
+        "in_window": np.array([1.0, 1.0, 1.0, 0.0]),
+        "window_start": np.zeros(5),
+        "opened": np.array([6.0, 0.0, 0.0, 0.0, 0.0]),
+        "due": np.array([0.0, 0.0, 0.0, 6.0, 0.0]),
     }
-    config.update(overrides)
-    return config  # type: ignore[return-value]  # constructed to match DeferrableLoadConfigData
+    if metered is not None:
+        schedule["energy_meter"] = metered
+    return DeferrableLoadConfigData(
+        element_type=ElementType.DEFERRABLE_LOAD,
+        name="pump",
+        connection=as_connection_target("home"),
+        schedule=schedule,
+        pricing={"deficit_price": np.full(5, 10.0), "overage_price": np.zeros(5)},
+        power={"max_power": 10.0},
+    )
 
 
 def _load(config: DeferrableLoadConfigData) -> DeferrableLoadElementConfig:
@@ -98,14 +78,6 @@ def _solve(config: DeferrableLoadConfigData, grid_price: list[float]) -> Network
     return network
 
 
-def _open_window_config(**schedule: object) -> DeferrableLoadConfigData:
-    """Build a config whose 6 kWh window is already open at the horizon start."""
-    return _config(
-        power={"max_power": 10.0},
-        schedule={**_window(4, -1, 3, 6.0), **schedule},
-    )
-
-
 @pytest.mark.parametrize(
     ("metered", "expected_initial", "expected_new"),
     [
@@ -118,9 +90,7 @@ def test_energy_since_the_window_opened_seeds_it(
     metered: float | None, expected_initial: float, expected_new: float
 ) -> None:
     """Energy the meter counted since the open window started seeds it; only the remainder is planned."""
-    schedule = {} if metered is None else {"energy_meter": metered}
-    config = _open_window_config(**schedule)
-    network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+    network = _solve(_open_window_config(metered), grid_price=[0.1, 0.1, 0.1, 0.1])
 
     delivered = network.elements["pump"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values
     assert delivered[0] == pytest.approx(expected_initial)

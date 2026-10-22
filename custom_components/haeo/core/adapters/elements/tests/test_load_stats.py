@@ -157,7 +157,7 @@ def test_next_24h_sensors_clip_to_first_24_hours() -> None:
 
 
 @pytest.mark.parametrize(
-    ("power", "dual", "periods", "sheddable", "expected_states"),
+    ("power", "dual", "periods", "sheddable", "expected_states", "expected_values"),
     [
         pytest.param(
             (1.0,) * 60,
@@ -166,6 +166,7 @@ def test_next_24h_sensors_clip_to_first_24_hours() -> None:
             True,
             # 48 steps of 1 kW * 0.5 h; cost is energy-weighted: 48 * 0.5 kWh * 0.05
             {LOAD_NEXT_24H_ENERGY: 24.0, LOAD_NEXT_24H_MARGINAL_COST: 1.20, LOAD_NEXT_24H_RUNTIME: 24.0},
+            {},
             id="half_hour_periods_span_48_steps",
         ),
         pytest.param(
@@ -182,6 +183,7 @@ def test_next_24h_sensors_clip_to_first_24_hours() -> None:
                 LOAD_NEXT_24H_MARGINAL_COST: 0.85,
                 LOAD_NEXT_24H_RUNTIME: 3.0,
             },
+            {},
             id="short_horizon_uses_all_periods",
         ),
         pytest.param(
@@ -196,6 +198,8 @@ def test_next_24h_sensors_clip_to_first_24_hours() -> None:
                 LOAD_NEXT_24H_MARGINAL_COST: 2.40,
                 LOAD_NEXT_24H_AVERAGE_MARGINAL_PRICE: 0.10,
             },
+            # Per step: all of the first, 0.2 of the second, none of the third
+            {LOAD_NEXT_24H_ENERGY: (20.0, 4.0, 0.0), LOAD_NEXT_24H_RUNTIME: (20.0, 4.0, 0.0)},
             id="straddling_step_counts_its_in_window_fraction",
         ),
         pytest.param(
@@ -204,6 +208,7 @@ def test_next_24h_sensors_clip_to_first_24_hours() -> None:
             (1.0, 1.0),
             True,
             {LOAD_HORIZON_AVERAGE_MARGINAL_PRICE: 0.0, LOAD_NEXT_24H_AVERAGE_MARGINAL_PRICE: 0.0},
+            {LOAD_HORIZON_AVERAGE_MARGINAL_PRICE: (0.0, 0.0), LOAD_NEXT_24H_AVERAGE_MARGINAL_PRICE: (0.0, 0.0)},
             id="average_price_is_zero_without_energy",
         ),
         pytest.param(
@@ -213,6 +218,7 @@ def test_next_24h_sensors_clip_to_first_24_hours() -> None:
             True,
             # Runtime sums only the periods where the load draws power
             {LOAD_HORIZON_RUNTIME: 1.25},
+            {LOAD_HORIZON_RUNTIME: (0.25, 0.0, 1.0, 0.0)},
             id="runtime_excludes_shed_steps",
         ),
         pytest.param(
@@ -225,18 +231,20 @@ def test_next_24h_sensors_clip_to_first_24_hours() -> None:
                 LOAD_HORIZON_ENERGY: 3.0,
                 LOAD_HORIZON_AVERAGE_MARGINAL_PRICE: 0.50 / 3.0,
             },
+            {LOAD_HORIZON_AVERAGE_MARGINAL_PRICE: (0.10, 0.20)},
             id="fixed_load_also_emits_stats",
         ),
     ],
 )
-def test_stats_totals(
+def test_stats(
     power: tuple[float, ...],
     dual: tuple[float, ...],
     periods: tuple[float, ...],
     sheddable: bool,
     expected_states: Mapping[LoadOutputName, float],
+    expected_values: Mapping[LoadOutputName, tuple[float, ...]],
 ) -> None:
-    """Each statistics sensor's state is its total over the horizon or the next 24 hours."""
+    """Each statistics sensor carries its per-step values and its total over the horizon or the next 24 hours."""
     result = LoadAdapter().outputs(
         "load",
         _outputs_with_dual(power=power, dual=dual, periods=periods),
@@ -246,6 +254,7 @@ def test_stats_totals(
     load_outputs = result[LOAD_DEVICE_LOAD]
 
     assert {name: load_outputs[name].state for name in expected_states} == pytest.approx(expected_states)
+    assert {name: tuple(load_outputs[name].values) for name in expected_values} == pytest.approx(expected_values)
 
 
 def test_stats_omitted_when_source_node_has_no_dual() -> None:
