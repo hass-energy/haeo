@@ -9,8 +9,10 @@ The [testing guide](../../docs/developer-guide/testing.md#scenario-testing) expl
 2. Create a folder whose name starts with `scenario`, such as `tests/scenarios/scenario_evening_peak/`.
 3. Save the download in it as `scenario.json`.
 4. Run the scenario suite twice with `uv run pytest -m scenario`.
-    The first run splits `scenario.json` into the four files below and deletes it; the second runs the new scenario and writes `outputs.json`.
-5. Review the outputs, run `uv run check --fix` so Prettier formats the new files, and commit.
+    The first run splits `scenario.json` into the four files below, taking `outputs.json` from the outputs the diagnostics recorded, and deletes it.
+    The second run collects the new scenario and compares HAEO's results with those recorded outputs.
+5. To keep HAEO's current results instead, rerun with `--snapshot-update`.
+    Review `outputs.json`, run `uv run check --fix` so Prettier formats the new files, and commit.
 
 ## Files
 
@@ -23,7 +25,10 @@ scenario_name/
 └── visualizations/   # Network topology and optimization plan SVGs
 ```
 
-`config.json` holds the hub's sections, such as `common` with its `horizon_preset`, and each element's fields in the same sections its subentry stores.
+`config.json` holds the hub config entry's `version`, `minor_version`, and sections, and each element's fields in the same sections its subentry stores.
+The test sets the entry up at that version, so an older config migrates as a user's would; a config without `minor_version` is taken as current.
+In the current schema the horizon is `common.horizon`, such as `{"type": "preset", "value": "3_days"}`, at `version` 1 and `minor_version` 4.
+An older export, such as one with `common.horizon_preset`, must keep its older `minor_version` so it migrates.
 Copy an existing scenario's config rather than writing one from scratch.
 
 `environment.json`'s `optimization_start_time` is the time the test freezes to.

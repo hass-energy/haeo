@@ -92,7 +92,7 @@ All input entities expose extra state attributes for debugging and automation:
 | `direction`    | Power flow direction, when the field has one               |
 | `forecast`     | `{time, value}` points across the horizon, for time series |
 
-Driven entities also expose `source_entities`, listing the entity IDs that provide the data.
+Driven Number entities also expose `source_entities`, listing the entity IDs that provide the data, and driven Switch entities expose `source_entity`, the one entity they follow.
 
 ## Entity naming and category
 

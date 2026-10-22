@@ -104,9 +104,10 @@ Map code changes to specific documentation locations:
 
 ### Element changes
 
-Element pages are named after the type they document, so a change to one type maps to fixed paths:
+Element pages are usually named after the type they document, but not every type has every page, and a few live elsewhere.
+Find the existing pages in the `mkdocs.yml` nav, or by searching `docs/` for the type, before assuming a path:
 
-1. **User guide**: `docs/user-guide/elements/{element_type}.md`, where `{element_type}` is the type's `ElementType` value
+1. **User guide**: `docs/user-guide/elements/`, one page per element type a user configures, such as `{element_type}.md` for its `ElementType` value
 
     - Configuration fields
     - Examples
@@ -115,9 +116,8 @@ Element pages are named after the type they document, so a change to one type ma
 
 2. **Modeling docs**:
 
-    - `docs/modeling/device-layer/{element_type}.md` for how the element maps onto model elements
-    - `docs/modeling/model-layer/elements/{model_element_type}.md` for each model element type registered in `ELEMENTS` (`core/model/elements/__init__.py`)
-    - `docs/modeling/model-layer/segments/` for connection segments
+    - `docs/modeling/device-layer/` for how an element type maps onto model elements
+    - `docs/modeling/model-layer/` for the model element types registered in `ELEMENTS` (`core/model/elements/__init__.py`): network and flow-reading elements under `elements/`, the connection under `connections/`, and its segments under `segments/`
 
 3. **Developer guide**: `docs/developer-guide/` (if architecture or extension points change)
 

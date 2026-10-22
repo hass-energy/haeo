@@ -31,14 +31,22 @@ No registration is needed, but a folder whose name does not start with `scenario
 
 ### config.json
 
-The hub config entry's data with its element subentries under `participants`, keyed by element name.
-The horizon is a preset in the `common` section, and each element's fields sit in the same sections as its stored subentry:
+The hub config entry's data with its element subentries under `participants`, keyed by element name, plus the entry's `version` and `minor_version`.
+The test sets the entry up at that version, so Home Assistant migrates an older config to the current schema exactly as it would a user's.
+A config without `minor_version` is taken as current and is not migrated.
+
+A config in the current schema looks like this, with each element's fields in the same sections as its stored subentry:
 
 ```json
 {
+  "version": 1,
+  "minor_version": 4,
   "common": {
     "name": "Test Hub",
-    "horizon_preset": "3_days"
+    "horizon": {
+      "type": "preset",
+      "value": "3_days"
+    }
   },
   "advanced": {},
   "participants": {
@@ -62,7 +70,8 @@ The horizon is a preset in the `common` section, and each element's fields sit i
 }
 ```
 
-Copy an existing scenario's `config.json` rather than writing one from scratch.
+Copy an existing scenario's `config.json` rather than writing one from scratch, and keep the `version` and `minor_version` it carries.
+A config from an older export, such as one with `common.horizon_preset`, must keep its older `minor_version` so it migrates.
 
 ### environment.json
 
@@ -148,9 +157,9 @@ The usual path is a user's diagnostics download, which becomes a regression test
 
 1. Ask the user for Settings → Devices & Services → HAEO → Download Diagnostics
 2. Create `tests/scenarios/scenario_<name>/` and save the download as `scenario_<name>/scenario.json`
-3. Run the scenario suite once — a session fixture splits the unified file into the four files and deletes the original
-4. Run it again: the split happens after collection, so the new scenario is only picked up on the second run
-5. Review the generated `outputs.json`, run `uv run check --fix` so prettier formats the split files, and commit
+3. Run the scenario suite once — a session fixture splits the unified file into the four files, taking `outputs.json` from the outputs the diagnostics recorded, and deletes the original
+4. Run it again: the split happens after collection, so the new scenario is only picked up on the second run, which compares HAEO's results with the recorded outputs
+5. If the results should replace the recorded outputs, rerun with `--snapshot-update`; review `outputs.json`, run `uv run check --fix` so prettier formats the split files, and commit
 
 Name the folder `scenario_<behavior>` for the behavior under test rather than the next number in sequence.
 The `scenario` prefix is required for discovery.

@@ -18,11 +18,11 @@ Use it to build a custom endpoint when no other element fits, and put the limits
 
 ## Configuration
 
-| Field                       | Type    | Required | Default | Description                              |
-| --------------------------- | ------- | -------- | ------- | ---------------------------------------- |
-| **[Name](#name)**           | String  | Yes      | -       | Unique identifier for this node          |
-| **[Is source](#is-source)** | Boolean | No       | false   | Whether node can produce unlimited power |
-| **[Is sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume unlimited power |
+| Field                                                  | Type    | Required | Default | Description                              |
+| ------------------------------------------------------ | ------- | -------- | ------- | ---------------------------------------- |
+| **[Name](#name)**                                      | String  | Yes      | -       | Unique identifier for this node          |
+| **[Can produce unlimited power (source)](#is-source)** | Boolean | No       | false   | Whether node can produce unlimited power |
+| **[Can consume unlimited power (sink)](#is-sink)**     | Boolean | No       | false   | Whether node can consume unlimited power |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -86,11 +86,11 @@ The combination of `is_source` and `is_sink` determines the node's behavior:
 
 A backup generator modeled as a source node:
 
-| Field         | Value     |
-| ------------- | --------- |
-| **Name**      | Generator |
-| **Is source** | On        |
-| **Is sink**   | Off       |
+| Field                                    | Value     |
+| ---------------------------------------- | --------- |
+| **Name**                                 | Generator |
+| **Can produce unlimited power (source)** | On        |
+| **Can consume unlimited power (sink)**   | Off       |
 
 Then add a connection from "Generator" to your switchboard with a maximum power matching the generator rating and a price matching its fuel cost per kWh.
 

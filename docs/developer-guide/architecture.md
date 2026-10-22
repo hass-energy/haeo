@@ -105,7 +105,8 @@ The network minimizes cost and, among equally cheap plans, a time-preference sec
 Model parameters are `TrackedParam` descriptors, so changing an input invalidates only the constraints that read it, and the next solve warm starts from the previous basis.
 
 When no plan satisfies every constraint, the network raises `InfeasibleError` naming the conflicting rows.
-With the hub's `relax_infeasible` option on, it instead finds a plan with the fewest constraints relaxed and records them in `Network.relaxations`.
+With the hub's `relax_infeasible` option on, HiGHS instead finds the smallest weighted violation of the constraint rows that makes the model feasible, with power balances giving way before limits and variable bounds never giving way.
+The network solves for cost with those rows widened and records them in `Network.relaxations`; [Solution outcomes](../modeling/index.md#solution-outcomes) gives the weights.
 The coordinator turns both outcomes into repair issues; see [Error handling](coordinator.md#error-handling).
 
 Every failed optimization shows on the optimization status sensor, which stays available while the output sensors do not.

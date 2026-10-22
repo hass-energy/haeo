@@ -43,7 +43,10 @@ See the [local simulation guide](local-sim.md) for options including accelerated
 ## Running tests
 
 ```bash
-# All tests
+# Unit tests, as the test gate runs them
+uv run check test
+
+# Everything, including scenario, guide, and benchmark tests
 uv run pytest
 
 # Model element tests

@@ -64,7 +64,8 @@ uv run pytest "tests/scenarios/test_scenarios.py::test_scenarios[scenario1]" -m 
 uv run pytest -m scenario --snapshot-update
 ```
 
-Scenario tests are excluded from the default `-m "not scenario"` selection but run as their own gate in `uv run check` and their own job in CI.
+pytest's configuration selects no markers, so a plain `uv run pytest` runs scenario, guide, and benchmark tests too.
+The `test` gate in `tools/check.py` deselects them with `-m "not guide and not scenario and not benchmark"`, and scenarios run as their own gate in `uv run check` and their own job in CI.
 
 ### Test behavior
 
@@ -183,7 +184,7 @@ uv run pytest -m guide -n 8 --timeout=300
 uv run python -m tools.guide_runner docs/walkthroughs/sigenergy-system.md
 ```
 
-Guide tests are selected via the `-m guide` pytest marker and are not included in default test runs.
+Guide tests carry the `guide` marker; the `test` gate deselects them and `uv run check` runs them only when asked, with `uv run check guide`.
 They need a live Home Assistant instance (started automatically by the test fixtures) and Playwright Firefox.
 
 ### CI integration
