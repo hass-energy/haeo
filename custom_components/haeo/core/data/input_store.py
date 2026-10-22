@@ -19,6 +19,7 @@ import asyncio
 from collections.abc import Callable
 from enum import Enum
 import logging
+from numbers import Real
 
 import numpy as np
 
@@ -27,14 +28,11 @@ from custom_components.haeo.core.data.storage import Storage
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import EntityValue, is_entity_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
-from custom_components.haeo.core.state import EntityState, StateMachine
+from custom_components.haeo.core.state import NO_READING_STATES, EntityState, StateMachine
 
 type InputValue = bool | float | np.ndarray
 
 _LOGGER = logging.getLogger(__name__)
-
-# Home Assistant's states for an entity with no reading
-_NO_READING_STATES: frozenset[str] = frozenset({"unavailable", "unknown"})
 
 
 class InputMode(Enum):
@@ -92,6 +90,8 @@ class InputStore:
         self._value: InputValue | None = None
         self._available = False
         self._error: InputError | None = None
+        # The last unexpected load error logged, so a repeating one is logged once
+        self._logged_failure: str | None = None
         self._unavailable_sources: tuple[str, ...] = ()
         self._loaded_timestamps: tuple[float, ...] = ()
         self._captured_source_states: dict[str, EntityState] = {}
@@ -302,7 +302,7 @@ class InputStore:
         unavailable_sources = tuple(
             eid
             for eid in self._source_entity_ids
-            if (state := self._captured_source_states.get(eid)) is None or state.state in _NO_READING_STATES
+            if (state := self._captured_source_states.get(eid)) is None or state.state in NO_READING_STATES
         )
 
         if self._sources is None or not self._source_entity_ids:
@@ -324,12 +324,19 @@ class InputStore:
             self._unavailable_sources = ()
             self._settled.set()
             return changed
-        except Exception:
-            _LOGGER.debug(
-                "Load failed from sources %s; keeping previous value",
-                self._source_entity_ids,
-                exc_info=True,
-            )
+        except Exception as err:
+            # Loading runs in state change callbacks, where an exception would
+            # stop every other input updating too. The expected failures return
+            # None or raise InputError, so anything else is a bug: report it with
+            # its traceback, once until it changes or a load succeeds, and mark
+            # only this input unavailable.
+            if (failure := repr(err)) != self._logged_failure:
+                self._logged_failure = failure
+                _LOGGER.warning(
+                    "Unexpected error loading from sources %s; marking the input unavailable",
+                    self._source_entity_ids,
+                    exc_info=True,
+                )
             return self._mark_unavailable(unavailable_sources)
 
         if (
@@ -378,6 +385,7 @@ class InputStore:
         self._value = value
         self._available = True
         self._error = None
+        self._logged_failure = None
         self._unavailable_sources = ()
         self._loaded_timestamps = loaded_timestamps
         return changed
@@ -430,58 +438,32 @@ def create_input_store(
     Constant values are already stored negated, so the flag only changes the
     driven path.
     """
+    mode = InputMode.EDITABLE
+    sources: EntityValue | None = None
+    initial_value: float | bool | None = None
     match value:
         case {"type": "entity"} if is_entity_value(value):
-            return InputStore(
-                mode=InputMode.DRIVEN,
-                sources=value,
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                negate=negate,
-            )
-        case {"type": "constant", "value": constant}:
-            return InputStore(
-                mode=InputMode.EDITABLE,
-                sources=None,
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                initial_value=constant if isinstance(constant, bool) else float(constant),
-                negate=negate,
-            )
+            mode = InputMode.DRIVEN
+            sources = value
+        case {"type": "constant", "value": bool() as constant} | (bool() as constant):
+            initial_value = constant
+        case {"type": "constant", "value": Real() as constant} | (Real() as constant):
+            initial_value = float(constant)
         case {"type": "none"} | None:
-            return InputStore(
-                mode=InputMode.EDITABLE,
-                sources=None,
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                negate=negate,
-            )
-        case bool() as constant:
-            return InputStore(
-                mode=InputMode.EDITABLE,
-                sources=None,
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                initial_value=constant,
-                negate=negate,
-            )
-        case int() | float() as constant:
-            return InputStore(
-                mode=InputMode.EDITABLE,
-                sources=None,
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                initial_value=float(constant),
-                negate=negate,
-            )
+            pass
         case _:
             msg = f"Invalid config value: {value}"
             raise RuntimeError(msg)
+
+    return InputStore(
+        mode=mode,
+        sources=sources,
+        hint=hint,
+        get_forecast_timestamps=get_forecast_timestamps,
+        storage=storage,
+        initial_value=initial_value,
+        negate=negate,
+    )
 
 
 __all__ = ["InputMode", "InputStore", "InputValue", "create_input_store"]

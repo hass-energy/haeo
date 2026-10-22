@@ -35,7 +35,7 @@ from custom_components.haeo.core.state import StateMachine
 from .calendar_resolver import resolve_calendar
 from .meter import resolve_meter
 from .on_off_states import OnOffStateMachine, lists_on_off_states
-from .sensor_loader import load_sensors
+from .sensor_loader import load_readings, load_sensors
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
 
@@ -429,17 +429,24 @@ def _resolve_entities(
     *,
     is_percent: bool,
 ) -> float | np.ndarray | None:
-    """Load entity data from state machine and fuse to horizon."""
-    payloads = load_sensors(sm, entity_ids, output_type=hint.output_type)
-    if payloads is None:
-        return None
+    """Load entity data from the state machine, as one value for now or a series fused to the horizon.
 
-    present_value, forecast_series = split_sensor_payloads(payloads)
-
-    if not hint.time_series:
-        raw = [present_value if present_value is not None else 0.0]
-    else:
+    A scalar field reads each sensor's reading for now, its state, and sums
+    them, whatever forecast a sensor also carries. A time series field reads
+    each sensor's forecast, or its state when it has none, and fuses them.
+    """
+    raw: list[float]
+    if hint.time_series:
+        payloads = load_sensors(sm, entity_ids, output_type=hint.output_type)
+        if payloads is None:
+            return None
+        present_value, forecast_series = split_sensor_payloads(payloads)
         raw = fuse_sensor_payloads(present_value, forecast_series, list(forecast_times), boundaries=hint.boundaries)
+    else:
+        readings = load_readings(sm, entity_ids, output_type=hint.output_type)
+        if readings is None:
+            return None
+        raw = [sum(readings.values())]
 
     values = np.array(raw, dtype=np.float64)
     if _is_non_negative_field(hint):
