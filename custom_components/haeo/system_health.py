@@ -6,14 +6,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 from homeassistant.util.json import JsonValueType
 
+from custom_components.haeo.util import network_subentry
+
 from . import HaeoConfigEntry
-from .const import (
-    DOMAIN,
-    ELEMENT_TYPE_NETWORK,
-    NETWORK_DEVICE_NETWORK,
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-)
+from .const import DOMAIN, NETWORK_DEVICE_NETWORK, OUTPUT_NAME_OPTIMIZATION_COST, OUTPUT_NAME_OPTIMIZATION_DURATION
 
 
 @callback
@@ -53,9 +49,7 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, JsonValueTy
         health_info[f"{prefix}status"] = "ok" if coordinator.last_update_success else "update_failed"
 
         # Network outputs live under the network subentry's title, on the network device
-        network_subentry_title = next(
-            s.title for s in entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK
-        )
+        network_subentry_title = network_subentry(entry).title
         outputs = coordinator.data.outputs if coordinator.data else {}
         network_outputs = outputs.get(network_subentry_title, {}).get(NETWORK_DEVICE_NETWORK, {})
 

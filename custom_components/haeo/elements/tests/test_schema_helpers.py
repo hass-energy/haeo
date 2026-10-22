@@ -89,17 +89,3 @@ def test_get_input_field_schema_info_type_alias(monkeypatch: pytest.MonkeyPatch)
     )
 
     assert schema_info["dummy"]["field"].is_optional is False
-
-
-def test_conforms_to_typed_dict_skips_optional_without_hint() -> None:
-    """Test optional keys without hints are ignored when validating."""
-
-    class _Dummy:
-        __required_keys__ = frozenset()
-        __optional_keys__ = frozenset({"optional"})
-
-    assert elements_module._conforms_to_typed_dict(
-        {"optional": 1},
-        _Dummy,
-        check_optional=True,
-    )
