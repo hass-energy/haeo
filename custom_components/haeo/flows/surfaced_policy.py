@@ -18,6 +18,7 @@ from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES, PolicyRuleConfig
@@ -27,7 +28,6 @@ from custom_components.haeo.core.schema.surfaced_policy import find_surfaced_rul
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, localize_input_field
 from custom_components.haeo.flows.element_flow import build_inclusion_map
-from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
@@ -240,6 +240,7 @@ def build_surfaced_schema_entries(
     element_name: str | None,
     surfaced_hints: Mapping[str, SurfacedPriceHint],
     surfaced_fields: Mapping[str, AnyInputFieldInfo],
+    entity_metadata: list[EntityMetadata],
 ) -> dict[str, tuple[vol.Marker, NormalizingChooseSelector]]:
     """Build vol.Schema entries for surfaced pricing fields.
 
@@ -248,7 +249,6 @@ def build_surfaced_schema_entries(
     field hint defaults (new elements) or the existing rule value
     (reconfigure), so fields without a default surface as "none".
     """
-    entity_metadata = extract_entity_metadata(hass, hub_entry)
     inclusion_map = build_inclusion_map(dict(surfaced_fields), entity_metadata)
     entries: dict[str, tuple[vol.Marker, NormalizingChooseSelector]] = {}
     currency = currency_symbol(hass.config.currency)

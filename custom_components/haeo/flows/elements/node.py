@@ -2,6 +2,7 @@
 
 from typing import (
     Any,  # noqa: TID251  # HA flow signatures upstream; voluptuous schema value types are heterogeneous by design
+    ClassVar,
 )
 
 from homeassistant.config_entries import SubentryFlowResult
@@ -24,17 +25,22 @@ _SUGGESTED_DEFAULTS = {
 
 
 class NodeSubentryFlowHandler(ElementSubentryFlow):
-    """Handle node element configuration flows."""
+    """Handle node element configuration flows.
+
+    A node's role flags are plain switches rather than inputs that can read an
+    entity, so its form has no choose selectors and it does not use the
+    sectioned flow.
+    """
 
     element_type = ELEMENT_TYPE
 
-    def _get_sections(self) -> tuple[SectionDefinition, ...]:
-        """Return sections for the configuration step."""
-        return (SectionDefinition(key=SECTION_ROLE, fields=(CONF_IS_SOURCE, CONF_IS_SINK), collapsed=True),)
+    sections: ClassVar[tuple[SectionDefinition, ...]] = (
+        SectionDefinition(key=SECTION_ROLE, fields=(CONF_IS_SOURCE, CONF_IS_SINK), collapsed=True),
+    )
 
     def _build_schema(self) -> vol.Schema:
         """Build the voluptuous schema for node configuration."""
-        sections = self._get_sections()
+        sections = self.sections
         field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
             SECTION_ROLE: {
                 CONF_IS_SOURCE: (
