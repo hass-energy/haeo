@@ -71,7 +71,7 @@ The Home Assistant side of reading inputs lives in [`inputs/`](https://github.co
 
 - `ha_state_machine.py` adapts Home Assistant's state machine to the `StateMachine` protocol the core loaders read through.
 - `calendar_loader.py` loads stores that read calendars, since a calendar's state carries only its current event.
-    It fetches events over the horizon and hands them to the core loader as a state attribute.
+    It fetches events from the horizon's start to a day past its end in the background, and hands them to the core loader as a state attribute, so horizon rolls resolve from events already fetched.
 - `meter_history.py` keeps the running totals of meter fields through resets, from recorder statistics and later state changes.
     When the statistics cannot be read, the calendar loader retries in the background after its next load, without holding loads up.
 
