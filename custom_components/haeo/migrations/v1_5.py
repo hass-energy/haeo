@@ -13,7 +13,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.elements import get_input_fields, iter_input_field_paths
@@ -25,9 +24,6 @@ MINOR_VERSION: Final = 5
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Remove the number entities of inputs that are now switches."""
-    if entry.minor_version >= MINOR_VERSION:
-        return True
-
     # An input's entity is keyed by its field name, or by its section and field
     # name when another section reuses the name, so both are matched
     switch_keys = {
@@ -43,7 +39,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     registry = er.async_get(hass)
     for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if entity_entry.domain != "number" or entity_entry.platform != DOMAIN:
+        # The switch replacing a number shares its unique ID
+        if entity_entry.domain != "number":
             continue
         parsed = parse_element_unique_id(entry.entry_id, entity_entry.unique_id)
         if parsed is not None and parsed.key in switch_keys.get(parsed.subentry_id, ()):
