@@ -48,6 +48,9 @@ from custom_components.haeo.core.schema.sections import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# The config entry minor version these migrations bring an entry to
+MINOR_VERSION = 4
+
 # Each reverse-direction connection field, with its section and the field
 # that holds the same setting on a connection running the other way
 REVERSE_FIELDS: Mapping[str, tuple[str, str]] = {
@@ -59,6 +62,11 @@ REVERSE_FIELDS: Mapping[str, tuple[str, str]] = {
 _CONNECTION_SECTIONS: tuple[str, ...] = (SECTION_POWER_LIMITS, SECTION_PRICING, SECTION_EFFICIENCY)
 
 _SEGMENT_ORDER = "segment_order"
+
+# The name the hub's Switchboard node was created with. English is the only
+# language HAEO has shipped translations for, and Home Assistant falls back to
+# it, so every Switchboard got this name whatever the language.
+SWITCHBOARD_NAME = "Switchboard"
 
 
 def _is_configured_value(value: object) -> bool:
@@ -182,6 +190,16 @@ def node_is_junction(data: Mapping[str, object]) -> bool:
     if not isinstance(role, Mapping):
         return True
     return not any(_role_enabled(role.get(field)) for field in (node.CONF_IS_SOURCE, node.CONF_IS_SINK))
+
+
+def node_becomes_junction(name: str, data: Mapping[str, object], *, advanced_mode: bool) -> bool:
+    """Return True when the node called ``name`` is replaced by a junction.
+
+    The Switchboard is always a junction. Outside advanced mode a node cannot be
+    configured, so every node becomes a junction. In advanced mode, other nodes
+    become junctions only when neither their source nor sink switch is on.
+    """
+    return node_is_junction(data) or not advanced_mode or name == SWITCHBOARD_NAME
 
 
 def junction_config(data: Mapping[str, object]) -> dict[str, object]:
@@ -318,16 +336,91 @@ def migrate_battery_config(data: Mapping[str, object], *, existing_names: set[st
     return BatteryMigration(migrated, tuple(buffers))
 
 
+@dataclass(frozen=True)
+class ParticipantMigration:
+    """Element configs after the v1.4 element migrations.
+
+    Attributes:
+        participants: Every element's config by name. Elements the migration
+            created follow the elements they came from.
+        created_from: The name of the element each created element came from.
+        junctions: The names of nodes replaced by junctions.
+
+    """
+
+    participants: dict[str, dict[str, object]]
+    created_from: dict[str, str]
+    junctions: tuple[str, ...]
+
+
+def migrate_participants(
+    participants: Mapping[str, Mapping[str, object]], *, advanced_mode: bool
+) -> ParticipantMigration:
+    """Apply the v1.4 element migrations to element configs keyed by name.
+
+    Every connection becomes unidirectional first, then every battery moves its
+    partitions into buffers, then nodes that only pass power through become
+    junctions. Each step runs over every element before the next starts, so
+    created elements are named in the same order whoever applies the result.
+    The steps are for configs older than v1.4: a current node that sources or
+    sinks power becomes a junction outside advanced mode.
+    """
+    existing_names = set(participants)
+    routes = {
+        connection_route(config)
+        for config in participants.values()
+        if config[CONF_ELEMENT_TYPE] == connection.ELEMENT_TYPE
+    }
+    created_from: dict[str, str] = {}
+    added: dict[str, list[tuple[str, dict[str, object]]]] = {name: [] for name in participants}
+    migrated = {name: dict(config) for name, config in participants.items()}
+
+    for name, config in participants.items():
+        if config[CONF_ELEMENT_TYPE] == connection.ELEMENT_TYPE:
+            forward, reverse = migrate_connection_config(config, existing_names=existing_names, routes=routes)
+            migrated[name] = forward
+            if reverse is not None:
+                added[name].append((str(reverse[CONF_NAME]), reverse))
+
+    for name, config in participants.items():
+        if config[CONF_ELEMENT_TYPE] == battery.ELEMENT_TYPE:
+            migration = migrate_battery_config(config, existing_names=existing_names)
+            migrated[name] = migration.battery
+            added[name].extend((str(buffer_config[CONF_NAME]), buffer_config) for buffer_config in migration.buffers)
+
+    junctions = tuple(
+        name
+        for name, config in participants.items()
+        if config[CONF_ELEMENT_TYPE] == node.ELEMENT_TYPE
+        and node_becomes_junction(name, config, advanced_mode=advanced_mode)
+    )
+    for name in junctions:
+        migrated[name] = junction_config(participants[name])
+
+    ordered: dict[str, dict[str, object]] = {}
+    for name, config in migrated.items():
+        ordered[name] = config
+        for created_name, created_config in added[name]:
+            ordered[created_name] = created_config
+            created_from[created_name] = name
+    return ParticipantMigration(ordered, created_from, junctions)
+
+
 __all__ = [
     "LEGACY_CHARGE_LIMIT_COST",
+    "MINOR_VERSION",
     "PARTITION_BUFFER_WINDOW",
     "REVERSE_FIELDS",
+    "SWITCHBOARD_NAME",
     "BatteryMigration",
     "HubHorizonMigration",
+    "ParticipantMigration",
     "connection_route",
     "junction_config",
     "migrate_battery_config",
     "migrate_connection_config",
     "migrate_hub_horizon",
+    "migrate_participants",
+    "node_becomes_junction",
     "node_is_junction",
 ]

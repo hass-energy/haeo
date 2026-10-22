@@ -22,16 +22,21 @@ from homeassistant.helpers import entity_registry as er
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.adapters.elements.junction import JUNCTION_DEVICE_JUNCTION, JUNCTION_POWER_BALANCE
 from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE, NODE_POWER_BALANCE
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_NAME, HORIZON_PRESET_DAYS, HUB_SECTION_ADVANCED
-from custom_components.haeo.core.schema.elements import battery, buffer, connection, junction, node
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
+from custom_components.haeo.core.const import (
+    CONF_ADVANCED_MODE,
+    CONF_ELEMENT_TYPE,
+    HORIZON_PRESET_DAYS,
+    HUB_SECTION_ADVANCED,
+)
+from custom_components.haeo.core.schema.elements import battery, connection, junction
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.migrations.v1_4 import (
+    MINOR_VERSION,
     REVERSE_FIELDS,
-    connection_route,
     junction_config,
-    migrate_battery_config,
-    migrate_connection_config,
     migrate_hub_horizon,
+    migrate_participants,
     node_is_junction,
 )
 from custom_components.haeo.repairs import create_horizon_tiers_replaced_issue, create_node_replaced_by_junction_issue
@@ -39,12 +44,6 @@ from custom_components.haeo.unique_id import element_output_unique_id, element_u
 
 _LOGGER = logging.getLogger(__name__)
 
-MINOR_VERSION = 4
-
-# The name the hub's Switchboard node was created with. English is the only
-# language HAEO has shipped translations for, and Home Assistant falls back to
-# it, so every Switchboard got this name whatever the language.
-_SWITCHBOARD_NAME = "Switchboard"
 
 # Fields that elements no longer have, by the last part of the key their input
 # entities are identified by. Partition fields were keyed by their field name,
@@ -72,29 +71,6 @@ def _element_entities(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, list
         if element is not None:
             entities[element.subentry_id].append(_ElementEntity(entity_entry, element.key))
     return entities
-
-
-def _split_connections(hass: HomeAssistant, entry: ConfigEntry, existing_names: set[str]) -> None:
-    """Make each connection unidirectional, creating a reverse connection where reverse flow was intended."""
-    connections = [s for s in entry.subentries.values() if s.subentry_type == connection.ELEMENT_TYPE]
-    routes = {connection_route(subentry.data) for subentry in connections}
-    for subentry in connections:
-        forward_data, reverse_data = migrate_connection_config(
-            subentry.data, existing_names=existing_names, routes=routes
-        )
-        hass.config_entries.async_update_subentry(entry, subentry, data=forward_data)
-        if reverse_data is not None:
-            reverse_title = str(reverse_data[CONF_NAME])
-            hass.config_entries.async_add_subentry(
-                entry,
-                ConfigSubentry(
-                    data=MappingProxyType(reverse_data),
-                    subentry_type=connection.ELEMENT_TYPE,
-                    title=reverse_title,
-                    unique_id=None,
-                ),
-            )
-            _LOGGER.info("Created reverse connection %s from %s", reverse_title, subentry.title)
 
 
 def _remove_removed_field_entities(
@@ -198,51 +174,58 @@ def _swap_node_for_junction(
         )
 
 
-def _replace_nodes_with_junctions(
-    hass: HomeAssistant, entry: ConfigEntry, entities: dict[str, list[_ElementEntity]]
-) -> None:
-    """Replace nodes with junctions where they should only pass power through.
+def _migrate_elements(hass: HomeAssistant, entry: ConfigEntry, *, advanced_mode: bool) -> tuple[str, ...]:
+    """Apply the v1.4 element migrations to the element subentries.
 
-    The Switchboard is always a junction. Outside advanced mode a node cannot be
-    configured, so every node becomes a junction. In advanced mode, other nodes
-    become junctions only when neither their source nor sink switch is on. A
-    junction has no switches to turn on, and a node whose switch was on gets a
+    Changed configs are saved and created elements are added as subentries.
+    Nodes are replaced afterwards, since their device and sensor move with them.
+
+    Returns:
+        The titles of the nodes to replace with junctions.
+
+    """
+    subentries = {
+        subentry.title: subentry for subentry in entry.subentries.values() if subentry.subentry_type in ELEMENT_TYPES
+    }
+    migration = migrate_participants(
+        {title: {CONF_ELEMENT_TYPE: subentry.subentry_type, **subentry.data} for title, subentry in subentries.items()},
+        advanced_mode=advanced_mode,
+    )
+    for title, subentry in subentries.items():
+        config = migration.participants[title]
+        if title not in migration.junctions and config != {CONF_ELEMENT_TYPE: subentry.subentry_type, **subentry.data}:
+            hass.config_entries.async_update_subentry(entry, subentry, data=config)
+    for title, source in migration.created_from.items():
+        config = migration.participants[title]
+        element_type = str(config[CONF_ELEMENT_TYPE])
+        hass.config_entries.async_add_subentry(
+            entry,
+            ConfigSubentry(data=MappingProxyType(config), subentry_type=element_type, title=title, unique_id=None),
+        )
+        _LOGGER.info("Created %s %s from %s", element_type, title, source)
+    return migration.junctions
+
+
+def _replace_nodes_with_junctions(
+    hass: HomeAssistant, entry: ConfigEntry, titles: tuple[str, ...], entities: dict[str, list[_ElementEntity]]
+) -> None:
+    """Replace the nodes with these titles by junctions.
+
+    A junction has no switches to turn on, so a node whose switch was on gets a
     repair issue saying it no longer produces or consumes power.
     """
-    advanced_mode = entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
-    nodes = [s for s in entry.subentries.values() if s.subentry_type == node.ELEMENT_TYPE]
-    for subentry in nodes:
-        is_junction = node_is_junction(subentry.data)
-        if is_junction or not advanced_mode or subentry.title == _SWITCHBOARD_NAME:
-            if not is_junction:
-                _LOGGER.warning(
-                    "Node %s had its source or sink switch turned on or driven by an entity; "
-                    "it is now a junction that only passes power through",
-                    subentry.title,
-                )
-                create_node_replaced_by_junction_issue(hass, entry.entry_id, subentry.title)
-            _swap_node_for_junction(hass, entry, subentry, entities.pop(subentry.subentry_id, []))
-            _LOGGER.info("Replaced node %s with a junction", subentry.title)
-
-
-def _migrate_batteries(hass: HomeAssistant, entry: ConfigEntry, existing_names: set[str]) -> None:
-    """Move each battery's partitions into buffers for the battery and add the cost of its charge limits."""
-    batteries = [s for s in entry.subentries.values() if s.subentry_type == battery.ELEMENT_TYPE]
-    for subentry in batteries:
-        migration = migrate_battery_config(subentry.data, existing_names=existing_names)
-        hass.config_entries.async_update_subentry(entry, subentry, data=migration.battery)
-        for buffer_config in migration.buffers:
-            title = str(buffer_config[CONF_NAME])
-            hass.config_entries.async_add_subentry(
-                entry,
-                ConfigSubentry(
-                    data=MappingProxyType(buffer_config),
-                    subentry_type=buffer.ELEMENT_TYPE,
-                    title=title,
-                    unique_id=None,
-                ),
+    subentries = {subentry.title: subentry for subentry in entry.subentries.values()}
+    for title in titles:
+        subentry = subentries[title]
+        if not node_is_junction(subentry.data):
+            _LOGGER.warning(
+                "Node %s had its source or sink switch turned on or driven by an entity; "
+                "it is now a junction that only passes power through",
+                title,
             )
-            _LOGGER.info("Created buffer %s from the partitions of battery %s", title, subentry.title)
+            create_node_replaced_by_junction_issue(hass, entry.entry_id, title)
+        _swap_node_for_junction(hass, entry, subentry, entities.pop(subentry.subentry_id, []))
+        _LOGGER.info("Replaced node %s with a junction", title)
 
 
 def _link_entities_to_subentries(
@@ -278,13 +261,12 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         MINOR_VERSION,
     )
 
-    existing_names = {subentry.title for subentry in entry.subentries.values()}
-    _split_connections(hass, entry, existing_names)
-    _migrate_batteries(hass, entry, existing_names)
+    advanced_mode = entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
+    junctions = _migrate_elements(hass, entry, advanced_mode=advanced_mode)
 
     entities = _element_entities(hass, entry)
     _remove_removed_field_entities(hass, entry, entities)
-    _replace_nodes_with_junctions(hass, entry, entities)
+    _replace_nodes_with_junctions(hass, entry, junctions, entities)
     _link_entities_to_subentries(hass, entry, entities)
 
     horizon = migrate_hub_horizon(entry.data)

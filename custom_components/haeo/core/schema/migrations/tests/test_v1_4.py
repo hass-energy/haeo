@@ -22,13 +22,15 @@ from custom_components.haeo.core.schema import (
     as_none_value,
     get_connection_target_name,
 )
-from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.elements import battery, buffer, connection, grid, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_4 import (
     HubHorizonMigration,
     junction_config,
     migrate_connection_config,
     migrate_hub_horizon,
+    migrate_participants,
+    node_becomes_junction,
     node_is_junction,
 )
 from custom_components.haeo.core.schema.sections import (
@@ -306,3 +308,91 @@ def test_migrate_hub_horizon_keeps_existing_horizon() -> None:
         {HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: horizon}, HUB_SECTION_ADVANCED: {}},
         None,
     )
+
+
+def _node(name: str, *, is_source: bool) -> dict[str, object]:
+    return {
+        CONF_ELEMENT_TYPE: node.ELEMENT_TYPE,
+        CONF_NAME: name,
+        node.SECTION_ROLE: {"is_source": as_constant_value(is_source), "is_sink": as_constant_value(False)},
+    }
+
+
+@pytest.mark.parametrize(
+    ("name", "is_source", "advanced_mode", "expected"),
+    [
+        pytest.param("Bus", False, True, True, id="plain_node_in_advanced_mode"),
+        pytest.param("Bus", True, True, False, id="source_node_in_advanced_mode"),
+        pytest.param("Bus", True, False, True, id="source_node_outside_advanced_mode"),
+        pytest.param("Switchboard", True, True, True, id="switchboard_is_always_a_junction"),
+    ],
+)
+def test_node_becomes_junction(name: str, is_source: bool, advanced_mode: bool, expected: bool) -> None:
+    """A node is replaced by a junction unless advanced mode keeps a node that sources or sinks power."""
+    assert node_becomes_junction(name, _node(name, is_source=is_source), advanced_mode=advanced_mode) is expected
+
+
+def test_migrate_participants_applies_every_element_step() -> None:
+    """Connections split, batteries gain buffers, nodes become junctions, and other elements pass through."""
+    link = _connection_config(**{SECTION_POWER_LIMITS: {CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0)}})
+    battery_config: dict[str, object] = {
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+        CONF_NAME: "Battery",
+        "connection": as_connection_target("DC Bus"),
+        "storage": {"capacity": as_constant_value(10.0)},
+        "limits": {"min_charge_percentage": as_constant_value(10.0)},
+        "undercharge": {"percentage": as_constant_value(5.0), "cost": as_constant_value(0.03)},
+    }
+    grid_config: dict[str, object] = {CONF_ELEMENT_TYPE: grid.ELEMENT_TYPE, CONF_NAME: "Grid"}
+
+    migration = migrate_participants(
+        {
+            "Battery": battery_config,
+            "Inverter link": link,
+            "DC Bus": _node("DC Bus", is_source=False),
+            "Grid": grid_config,
+        },
+        advanced_mode=False,
+    )
+
+    assert list(migration.participants) == [
+        "Battery",
+        "Battery reserve",
+        "Inverter link",
+        "Inverter link (AC Bus to DC Bus)",
+        "DC Bus",
+        "Grid",
+    ]
+    assert migration.created_from == {
+        "Inverter link (AC Bus to DC Bus)": "Inverter link",
+        "Battery reserve": "Battery",
+    }
+    assert migration.junctions == ("DC Bus",)
+    assert _section(migration.participants["Inverter link (AC Bus to DC Bus)"], SECTION_POWER_LIMITS) == {
+        CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0)
+    }
+    assert "undercharge" not in migration.participants["Battery"]
+    assert migration.participants["Battery reserve"][CONF_ELEMENT_TYPE] == buffer.ELEMENT_TYPE
+    assert migration.participants["DC Bus"] == {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: "DC Bus"}
+    assert migration.participants["Grid"] == grid_config
+
+
+@pytest.mark.parametrize(
+    ("advanced_mode", "junctions"),
+    [
+        pytest.param(True, ("Switchboard",), id="advanced_mode_keeps_source_nodes"),
+        pytest.param(False, ("Switchboard", "Generator bus"), id="every_node_outside_advanced_mode"),
+    ],
+)
+def test_migrate_participants_replaces_nodes_by_mode(advanced_mode: bool, junctions: tuple[str, ...]) -> None:
+    """Advanced mode keeps nodes that source or sink power, except the Switchboard."""
+    migration = migrate_participants(
+        {
+            "Switchboard": _node("Switchboard", is_source=True),
+            "Generator bus": _node("Generator bus", is_source=True),
+        },
+        advanced_mode=advanced_mode,
+    )
+
+    assert migration.junctions == junctions
+    assert migration.created_from == {}
