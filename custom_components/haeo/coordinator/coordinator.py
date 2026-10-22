@@ -440,6 +440,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
 
+        network = self._build_network(loaded_configs)
+
+        # Build topology for frontend card
+        element_types = {name: str(config[CONF_ELEMENT_TYPE]) for name, config in loaded_configs.items()}
+        self.topology = serialize_topology(network, element_types=element_types)
+        evaluate_network_connectivity(self.hass, self.config_entry, participants=loaded_configs)
+
+        self._subscribe_to_input_stores()
+
+    def _build_network(self, loaded_configs: dict[str, ElementConfigData]) -> Network:
+        """Build the network over the current horizon's periods from the loaded element configs."""
         self._network = build_network(
             f"haeo_network_{self.config_entry.entry_id}",
             loaded_configs,
@@ -447,13 +458,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             relax_infeasible=self._relax_infeasible,
         )
         self._element_updaters = build_element_updaters(self._network, loaded_configs)
-
-        # Build topology for frontend card
-        element_types = {name: str(config[CONF_ELEMENT_TYPE]) for name, config in loaded_configs.items()}
-        self.topology = serialize_topology(self._network, element_types=element_types)
-        evaluate_network_connectivity(self.hass, self.config_entry, participants=loaded_configs)
-
-        self._subscribe_to_input_stores()
+        return self._network
 
     def _subscribe_to_input_stores(self) -> None:
         """Subscribe to value changes from input stores.
@@ -769,9 +774,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # inputs that changed, before the solve is handed to the executor, so the
         # network is never mutated while it is being solved
         network = self.network
-        network.update_periods(periods_in_hours(horizon_manager.periods_seconds))
-        for element_name in self._stale_elements:
-            self._element_updaters[element_name](loaded_configs[element_name])
+        if network.n_periods == len(horizon_manager.periods_seconds):
+            network.update_periods(periods_in_hours(horizon_manager.periods_seconds))
+            for element_name in self._stale_elements:
+                self._element_updaters[element_name](loaded_configs[element_name])
+        else:
+            # An entity horizon can change how many periods it has, and the network's
+            # variables are sized for the count it was built with
+            _LOGGER.debug("Rebuilding the network for %d periods", len(horizon_manager.periods_seconds))
+            network = self._build_network(loaded_configs)
         self._stale_elements.clear()
 
         cost = await self._solve(network, context, started_at, forecast_timestamps)

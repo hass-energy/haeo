@@ -14,6 +14,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, ELEMENT_TYPE_NETWORK, INTEGRATION_TYPE_HUB
+from custom_components.haeo.coordinator.tests.helpers import MOCK_PERIODS_SECONDS
 from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
@@ -207,6 +208,7 @@ def mock_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> H
     # Create mock horizon manager (typed as HorizonManager but is MagicMock at runtime)
     mock_horizon: Any = MagicMock(spec=HorizonManager)
     mock_horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
+    mock_horizon.periods_seconds = list(MOCK_PERIODS_SECONDS)
     mock_horizon.current_start_time = datetime.fromtimestamp(1000.0, tz=UTC)
     mock_horizon.subscribe.return_value = MagicMock()  # Unsubscribe function
 

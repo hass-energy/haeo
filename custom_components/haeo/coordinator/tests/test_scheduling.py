@@ -5,7 +5,7 @@ from datetime import timedelta
 import threading
 import time
 from typing import Any  # noqa: TID251  # Mock-typed test doubles (MagicMock spec=) and monkeypatched callback stand-ins
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON
@@ -18,6 +18,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator.tests.helpers import network_double
 from custom_components.haeo.core.const import DEFAULT_DEBOUNCE_SECONDS
 
 from .helpers import mock_horizon
@@ -31,7 +32,7 @@ def test_horizon_change_triggers_optimization(
 ) -> None:
     """Horizon manager changes trigger optimization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    network = Mock()
+    network = network_double()
     coordinator._network = network
 
     with patch.object(coordinator, "signal_optimization_stale") as trigger_mock:
@@ -341,6 +342,7 @@ async def _initialized_coordinator(
     network.optimize = solves
     network.relaxations = ()
     network.elements = {}
+    network.n_periods = len(entry.runtime_data.horizon_manager.periods_seconds)
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     with patch(
         "custom_components.haeo.coordinator.coordinator.build_network",

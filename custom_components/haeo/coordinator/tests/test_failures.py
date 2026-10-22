@@ -16,6 +16,7 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.coordinator.coordinator import FAILURE_SECONDS_BEFORE_REPAIR_ISSUE, ReportedUpdateFailed
+from custom_components.haeo.coordinator.tests.helpers import network_double
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import SolverError
 from custom_components.haeo.core.model.infeasibility import InfeasibleError, Relaxation, RowLabel
@@ -99,7 +100,7 @@ async def test_infeasible_plans_raise_the_general_issue_only_without_their_own(
         (tmp_path / "haeo").mkdir()
         (tmp_path / "haeo" / "diagnostics").write_text("")
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    network = MagicMock()
+    network = network_double()
     coordinator._network = network
     network.optimize.side_effect = InfeasibleError((RowLabel("Test Grid:import", "power_limit", 1),))
 
@@ -125,7 +126,7 @@ async def test_unavailable_inputs_raise_only_their_own_issue(
     unavailable_store.captured_source_states = {}
     mock_runtime_data.input_stores[("Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = unavailable_store
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._network = MagicMock()
+    coordinator._network = network_double()
 
     await _keep_failing_past_the_repair_delay(coordinator)
 
@@ -232,7 +233,7 @@ async def test_async_update_data_reports_an_infeasible_plan(
     """An infeasible plan fails the update with a repair issue naming the elements and how far into the plan."""
     hass.config.config_dir = str(tmp_path)
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    network = MagicMock()
+    network = network_double()
     coordinator._network = network
     network.optimize.side_effect = InfeasibleError(conflicts)
     create_optimization_relaxed_issue(hass, mock_hub_entry.entry_id, EARLIER_ISSUE, EARLIER_DIAGNOSTICS)
@@ -284,7 +285,7 @@ async def test_async_update_data_reports_an_infeasible_plan_whose_diagnostics_ca
             "custom_components.haeo.diagnostics.diagnostics_from_context", AsyncMock(side_effect=KeyError("Grid"))
         )
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    network = MagicMock()
+    network = network_double()
     coordinator._network = network
     network.optimize.side_effect = InfeasibleError((RowLabel("Test Grid:import", "power_limit", 1),))
 
@@ -306,7 +307,7 @@ async def test_async_update_data_reports_a_solver_failure(
 ) -> None:
     """A solve that stops for a reason other than infeasibility fails the update with the solver status."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    network = MagicMock()
+    network = network_double()
     coordinator._network = network
     network.optimize.side_effect = SolverError("Unbounded")
 
@@ -329,7 +330,7 @@ async def test_async_update_data_keeps_an_unresolved_infeasible_issue_and_its_di
     """Another impossible plan leaves the issue the user has not resolved, and saves no more diagnostics."""
     hass.config.config_dir = str(tmp_path)
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    network = MagicMock()
+    network = network_double()
     coordinator._network = network
     network.optimize.side_effect = InfeasibleError((RowLabel("Switchboard", "element_power_balance", 0),))
     create_optimization_infeasible_issue(
@@ -360,7 +361,7 @@ async def test_every_relaxed_plan_is_logged(
     monkeypatch.setattr(logging.getLogger("custom_components.haeo"), "propagate", True)
     create_optimization_relaxed_issue(hass, mock_hub_entry.entry_id, EARLIER_ISSUE, EARLIER_DIAGNOSTICS)
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    network = MagicMock()
+    network = network_double()
     coordinator._network = network
     network.optimize.return_value = 1.0
     network.elements = {}
@@ -389,7 +390,7 @@ async def test_async_update_data_raises_when_inputs_unavailable(
     )
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._network = MagicMock()
+    coordinator._network = network_double()
 
     with pytest.raises(UpdateFailed) as exc_info:
         await coordinator._async_update_data()
@@ -426,7 +427,7 @@ async def test_async_update_data_raises_translated_input_error(
     mock_runtime_data.input_stores[("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET))] = rejected_store
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._network = MagicMock()
+    coordinator._network = network_double()
 
     with pytest.raises(UpdateFailed) as exc_info:
         await coordinator._async_update_data()

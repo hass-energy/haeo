@@ -34,6 +34,7 @@ from custom_components.haeo.coordinator import (
     forecast_datetimes,
     price_currency_sources,
 )
+from custom_components.haeo.coordinator.tests.helpers import network_double
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
 from custom_components.haeo.core.adapters.elements.solar import SOLAR_POWER
@@ -99,7 +100,7 @@ async def test_async_update_data_returns_outputs(
         BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0))
     }
 
-    fake_network = MagicMock()
+    fake_network = network_double()
     fake_network.conflicts = conflicts
     fake_network.relaxations = relaxations
     if relaxed_issue is None:
@@ -444,7 +445,7 @@ async def test_async_update_data_warns_about_mixed_price_currencies(
     issue_id = f"mixed_price_currencies_{mock_hub_entry.entry_id}"
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._network = MagicMock()
+    coordinator._network = network_double()
 
     with (
         patch.object(coordinator, "_load_from_input_stores", return_value={}),
