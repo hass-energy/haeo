@@ -206,6 +206,7 @@ def create_setup_failed_issue(hass: HomeAssistant, entry_id: str, error: str) ->
         severity=IssueSeverity.ERROR,
         translation_key="setup_failed",
         translation_placeholders={"error": error},
+        learn_more_url=ISSUE_TRACKER_URL,
     )
 
 

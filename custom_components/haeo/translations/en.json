@@ -799,7 +799,7 @@
     },
     "setup_failed": {
       "title": "HAEO could not start",
-      "description": "HAEO hit an unexpected error while starting, so there is no plan. Home Assistant keeps retrying in the background. The error was: {error}\n\nTo fix this issue:\n1. Check the Home Assistant logs for the full error\n2. Check that every sensor your elements read is available in Developer tools > States\n3. If the error persists, report it at https://github.com/hass-energy/haeo/issues with the log and your diagnostics\n4. This issue clears automatically once HAEO starts"
+      "description": "HAEO hit an unexpected error while starting, so there is no plan. Home Assistant keeps retrying in the background. The error was: {error}\n\nTo fix this issue:\n1. Check the Home Assistant logs for the full error\n2. Check that every sensor your elements read is available in Developer tools > States\n3. If the error persists, report this issue with the log and your diagnostics\n4. This issue clears automatically once HAEO starts"
     },
     "unavailable_input": {
       "title": "{element} has no reading for {field}",
