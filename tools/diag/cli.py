@@ -224,7 +224,7 @@ def config_horizon_preset(config: Mapping[str, JsonValueType]) -> str:
     common = config.get(HUB_SECTION_COMMON)
     horizon = common.get(CONF_HORIZON) if isinstance(common, Mapping) else None
     if horizon is None:
-        migrated_common = migrate_hub_horizon(config)[HUB_SECTION_COMMON]
+        migrated_common = migrate_hub_horizon(config).hub[HUB_SECTION_COMMON]
         horizon = migrated_common[CONF_HORIZON] if isinstance(migrated_common, Mapping) else None
     if not is_horizon_preset_value(horizon):
         print("Error: The diagnostics use a horizon entity but include no forecast timestamps")

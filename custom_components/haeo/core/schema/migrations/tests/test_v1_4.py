@@ -25,6 +25,7 @@ from custom_components.haeo.core.schema import (
 from custom_components.haeo.core.schema.elements import connection, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_4 import (
+    HubHorizonMigration,
     junction_config,
     migrate_connection_config,
     migrate_hub_horizon,
@@ -165,8 +166,8 @@ def test_migrate_splits_reverse_fields() -> None:
     assert get_connection_target_name(reverse_endpoints[connection.CONF_TARGET]) == "DC Bus"
 
 
-def test_migrate_reverse_records_name_and_route() -> None:
-    """Reverse connection names avoid existing subentry titles, and the new name and route are recorded."""
+def test_migrate_reverse_records_name() -> None:
+    """Reverse connection names avoid existing subentry titles, and the new name is recorded."""
     data = _connection_config(
         power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0)},
         pricing={},
@@ -180,7 +181,7 @@ def test_migrate_reverse_records_name_and_route() -> None:
     assert reverse is not None
     assert reverse[CONF_NAME] == "Inverter link (AC Bus to DC Bus) 2"
     assert existing_names == {"Inverter link", "Inverter link (AC Bus to DC Bus)", "Inverter link (AC Bus to DC Bus) 2"}
-    assert routes == {("DC Bus", "AC Bus"), ("AC Bus", "DC Bus")}
+    assert routes == {("DC Bus", "AC Bus")}
 
 
 def test_migrate_creates_no_reverse_where_another_connection_carries_it() -> None:
@@ -200,6 +201,44 @@ def test_migrate_creates_no_reverse_where_another_connection_carries_it() -> Non
     assert _section(forward, SECTION_PRICING) == {}
     assert existing_names == {"Inverter link", "Charger"}
     assert routes == {("DC Bus", "AC Bus"), ("AC Bus", "DC Bus")}
+
+
+def test_migrate_gives_parallel_connections_their_own_reverse() -> None:
+    """Reverse connections the migration creates do not count as connections already carrying power the other way."""
+    data = _connection_config(
+        power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0)},
+        pricing={},
+        efficiency={},
+    )
+    existing_names = {"Inverter link", "Inverter link 2"}
+    routes = {("DC Bus", "AC Bus")}
+
+    _, first = migrate_connection_config(data, existing_names=existing_names, routes=routes)
+    _, second = migrate_connection_config(
+        {**data, CONF_NAME: "Inverter link 2"}, existing_names=existing_names, routes=routes
+    )
+
+    assert first is not None
+    assert second is not None
+    assert first[CONF_NAME] == "Inverter link (AC Bus to DC Bus)"
+    assert second[CONF_NAME] == "Inverter link 2 (AC Bus to DC Bus)"
+
+
+def test_migrate_self_loop_is_not_its_own_reverse() -> None:
+    """A connection from an element to itself does not count as already carrying its own reverse flow."""
+    data = _connection_config(
+        power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0)},
+        pricing={},
+        efficiency={},
+    )
+    data[connection.SECTION_ENDPOINTS] = {
+        connection.CONF_SOURCE: as_connection_target("AC Bus"),
+        connection.CONF_TARGET: as_connection_target("AC Bus"),
+    }
+
+    _, reverse = migrate_connection_config(data, existing_names={"Inverter link"}, routes={("AC Bus", "AC Bus")})
+
+    assert reverse is not None
 
 
 @pytest.mark.parametrize(
@@ -230,24 +269,29 @@ def test_junction_config_keeps_only_the_name() -> None:
 
 
 @pytest.mark.parametrize(
-    ("stored_preset", "expected_preset"),
+    ("stored_preset", "expected_preset", "tiers_replaced_by"),
     [
-        pytest.param(HORIZON_PRESET_3_DAYS, HORIZON_PRESET_3_DAYS, id="preset_kept"),
-        pytest.param("custom", HORIZON_PRESET_5_DAYS, id="custom_tiers_use_default"),
-        pytest.param(None, HORIZON_PRESET_5_DAYS, id="no_preset_uses_default"),
+        pytest.param(HORIZON_PRESET_3_DAYS, HORIZON_PRESET_3_DAYS, None, id="preset_kept"),
+        pytest.param("custom", HORIZON_PRESET_5_DAYS, HORIZON_PRESET_5_DAYS, id="custom_tiers_use_default"),
+        pytest.param(None, HORIZON_PRESET_5_DAYS, None, id="no_preset_uses_default"),
     ],
 )
-def test_migrate_hub_horizon_from_preset(stored_preset: str | None, expected_preset: str) -> None:
-    """The horizon preset becomes a horizon choice, and custom tiers are dropped for the default preset."""
+def test_migrate_hub_horizon_from_preset(
+    stored_preset: str | None, expected_preset: str, tiers_replaced_by: str | None
+) -> None:
+    """The horizon preset becomes a horizon choice, and custom tiers are reported replaced by the default preset."""
     common: dict[str, object] = {CONF_NAME: "Hub"}
     if stored_preset is not None:
         common[CONF_HORIZON_PRESET] = stored_preset
     data = {HUB_SECTION_COMMON: common, HUB_SECTION_TIERS: {"tier_1_count": 5}, HUB_SECTION_ADVANCED: {}}
 
-    assert migrate_hub_horizon(data) == {
-        HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: as_horizon_preset_value(expected_preset)},
-        HUB_SECTION_ADVANCED: {},
-    }
+    assert migrate_hub_horizon(data) == HubHorizonMigration(
+        {
+            HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: as_horizon_preset_value(expected_preset)},
+            HUB_SECTION_ADVANCED: {},
+        },
+        tiers_replaced_by,
+    )
 
 
 def test_migrate_hub_horizon_keeps_existing_horizon() -> None:
@@ -258,7 +302,7 @@ def test_migrate_hub_horizon_keeps_existing_horizon() -> None:
         HUB_SECTION_ADVANCED: {},
     }
 
-    assert migrate_hub_horizon(data) == {
-        HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: horizon},
-        HUB_SECTION_ADVANCED: {},
-    }
+    assert migrate_hub_horizon(data) == HubHorizonMigration(
+        {HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: horizon}, HUB_SECTION_ADVANCED: {}},
+        None,
+    )
