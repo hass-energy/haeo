@@ -3,6 +3,7 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
@@ -24,12 +25,14 @@ from custom_components.haeo.core.const import (
     CONF_NAME,
     CONF_RELAX_INFEASIBLE,
     DEFAULT_DEBOUNCE_SECONDS,
+    HORIZON_PRESET_2_DAYS,
     HORIZON_PRESET_3_DAYS,
     HORIZON_PRESET_5_DAYS,
 )
 from custom_components.haeo.core.schema.entity_value import as_entity_value
 from custom_components.haeo.core.schema.horizon_value import HorizonValue, as_horizon_preset_value
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
+from custom_components.haeo.migrations import MIGRATION_MINOR_VERSION
 
 type FlowResultDict = dict[str, object]
 
@@ -53,6 +56,8 @@ def _hub_entry(hass: HomeAssistant, horizon: HorizonValue) -> MockConfigEntry:
         },
     )
     entry.add_to_hass(hass)
+    # Marked loaded so saving the settings leaves reloading to the (absent) update listener
+    entry.mock_state(hass, ConfigEntryState.LOADED)
     return entry
 
 
@@ -110,17 +115,11 @@ async def _configure_reconfigure(hass: HomeAssistant, flow_id: str, user_input: 
     return await hass.config_entries.flow.async_configure(flow_id, user_input=user_input)  # type: ignore[return-value]  # HA returns ConfigFlowResult; tests index as dict[str, object]
 
 
-@pytest.fixture(
-    params=[
-        pytest.param(
-            HubSettingsFlow(_start_options, _configure_options, "init", FlowResultType.CREATE_ENTRY), id="options"
-        ),
-        pytest.param(
-            HubSettingsFlow(_start_reconfigure, _configure_reconfigure, "reconfigure", FlowResultType.ABORT),
-            id="reconfigure",
-        ),
-    ]
-)
+OPTIONS_FLOW = HubSettingsFlow(_start_options, _configure_options, "init", FlowResultType.CREATE_ENTRY)
+RECONFIGURE_FLOW = HubSettingsFlow(_start_reconfigure, _configure_reconfigure, "reconfigure", FlowResultType.ABORT)
+
+
+@pytest.fixture(params=[OPTIONS_FLOW, RECONFIGURE_FLOW], ids=["options", "reconfigure"])
 def settings_flow(request: pytest.FixtureRequest) -> HubSettingsFlow:
     """Each flow that edits the hub settings."""
     flow: HubSettingsFlow = request.param
@@ -244,8 +243,53 @@ async def test_hub_settings_accept_another_hubs_horizon_sensor(
 async def test_reconfigure_flow_finishes_with_reconfigure_successful(hass: HomeAssistant) -> None:
     """The reconfigure flow aborts with the reconfigure_successful reason once the settings are saved."""
     entry = _hub_entry(hass, as_horizon_preset_value(HORIZON_PRESET_5_DAYS))
-    flow = HubSettingsFlow(_start_reconfigure, _configure_reconfigure, "reconfigure", FlowResultType.ABORT)
-
-    result = await _submit(hass, flow, entry, {"active_choice": "preset", "preset": HORIZON_PRESET_3_DAYS})
+    result = await _submit(hass, RECONFIGURE_FLOW, entry, {"active_choice": "preset", "preset": HORIZON_PRESET_3_DAYS})
 
     assert result["reason"] == "reconfigure_successful"
+
+
+@pytest.mark.parametrize(
+    ("initial_horizon", "initial_state"),
+    [
+        pytest.param(as_horizon_preset_value(HORIZON_PRESET_2_DAYS), ConfigEntryState.LOADED, id="loaded"),
+        pytest.param(as_entity_value([HORIZON_ENTITY_ID]), ConfigEntryState.SETUP_RETRY, id="setup_failed"),
+    ],
+)
+async def test_reconfigure_reloads_the_hub_once_with_the_new_settings(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    initial_horizon: HorizonValue,
+    initial_state: ConfigEntryState,
+) -> None:
+    """Reconfiguring reloads the hub exactly once, whether or not it had set up, and the new horizon is live."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        minor_version=MIGRATION_MINOR_VERSION,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub", CONF_HORIZON: initial_horizon},
+            HUB_SECTION_ADVANCED: {},
+        },
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is initial_state
+
+    reloads: list[str] = []
+    reload = hass.config_entries.async_reload
+
+    async def counting_reload(entry_id: str) -> bool:
+        reloads.append(entry_id)
+        return await reload(entry_id)
+
+    monkeypatch.setattr(hass.config_entries, "async_reload", counting_reload)
+
+    result = await _submit(hass, RECONFIGURE_FLOW, entry, {"active_choice": "preset", "preset": HORIZON_PRESET_3_DAYS})
+    await hass.async_block_till_done()
+
+    assert result["reason"] == "reconfigure_successful"
+    assert reloads == [entry.entry_id]
+    assert entry.state is ConfigEntryState.LOADED
+    timestamps = entry.runtime_data.horizon_manager.get_forecast_timestamps()
+    assert timestamps[-1] - timestamps[0] > 2 * 24 * 3600
