@@ -9,6 +9,8 @@ from custom_components.haeo.core.schema.elements.buffer import (
 )
 from custom_components.haeo.core.schema.elements.buffer import ELEMENT_TYPE as BUFFER_TYPE
 from custom_components.haeo.core.schema.elements.buffer import SECTION_PRICING as BUFFER_SECTION_PRICING
+from custom_components.haeo.core.schema.elements.ev import CONF_CONNECTED, SECTION_CHARGING
+from custom_components.haeo.core.schema.elements.ev import ELEMENT_TYPE as EV_TYPE
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.elements.input_fields import (
@@ -46,3 +48,11 @@ def test_localize_input_fields_shows_prices_per_kwh() -> None:
         price = localized[SECTION_PRICING][field_name]
         assert is_number_field_info(price)
         assert price.entity_description.native_unit_of_measurement == "£/kWh"
+
+
+def test_ev_plugged_in_is_a_switch() -> None:
+    """Whether an EV is plugged in is an on/off reading for now, so it shows as a switch."""
+    connected = get_input_fields(EV_TYPE)[SECTION_CHARGING][CONF_CONNECTED]
+
+    assert is_switch_field_info(connected)
+    assert not connected.time_series

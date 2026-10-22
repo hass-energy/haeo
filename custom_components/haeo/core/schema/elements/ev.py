@@ -92,7 +92,7 @@ class ChargingData(TypedDict):
 
     max_charge_rate: NDArray[np.float64] | float
     max_discharge_rate: NotRequired[NDArray[np.float64] | float]
-    connected: NDArray[np.float64]
+    connected: bool
 
 
 # --- Trip section ---
@@ -203,8 +203,8 @@ class EvConfigSchema(ConnectedCommonConfig):
                     step=0.1,
                 ),
                 CONF_CONNECTED: FieldHint(
-                    output_type=OutputType.AVAILABILITY,
-                    time_series=True,
+                    output_type=OutputType.STATUS,
+                    time_series=False,
                 ),
             }
         ),
