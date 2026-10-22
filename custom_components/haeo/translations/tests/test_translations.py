@@ -336,7 +336,13 @@ async def _reconfigure_flow(hass: HomeAssistant, hub_entry: MockConfigEntry, pre
 
 
 async def _reconfigure_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath) -> FlowResult:
-    return await (await _reconfigure_flow(hass, hub_entry, prefix)).async_step_reconfigure(None)
+    """Show the reconfigure form of the hub, or of an element saved from its test data."""
+    if issubclass(_flow_classes()[prefix], ConfigSubentryFlow):
+        flow = await _reconfigure_flow(hass, hub_entry, prefix)
+    else:
+        flow = _create_flow(hass, hub_entry, prefix, SOURCE_RECONFIGURE)
+        flow.context["entry_id"] = hub_entry.entry_id
+    return await flow.async_step_reconfigure(None)
 
 
 async def _edit_rule_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath) -> FlowResult:
