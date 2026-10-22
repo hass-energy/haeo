@@ -13,6 +13,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator.tests.helpers import network_double
+from custom_components.haeo.core.adapters.network_builder import build_network
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.schema.elements import ElementType
@@ -121,7 +123,7 @@ async def test_async_update_data_propagates_errors(
 ) -> None:
     """Coordinator surfaces optimization errors to callers."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._network = MagicMock()
+    coordinator._network = network_double()
 
     with (
         patch.object(coordinator, "_load_from_input_stores", return_value={}),
@@ -207,6 +209,40 @@ async def test_async_update_data_solves_with_current_horizon_periods(
     np.testing.assert_allclose(periods_at_solve[0], [1 / 60, 1 / 60, 5 / 60])
 
 
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
+async def test_async_update_data_rebuilds_the_network_when_the_period_count_changes(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """An entity horizon that gains a period gets a network built for the new count, rather than failing every solve."""
+    horizon = mock_horizon(mock_runtime_data)
+    horizon.periods_seconds = [60, 60, 300, 300]
+    horizon.get_forecast_timestamps.return_value = (0.0, 60.0, 120.0, 420.0, 720.0)
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator._network = Network(name="test", periods=np.array([1 / 60, 1 / 60, 5 / 60]))
+
+    periods_at_solve: list[np.ndarray] = []
+
+    def capture_periods(_job: Any) -> float:
+        periods_at_solve.append(coordinator.network.periods.copy())
+        msg = "stop after capturing the solve inputs"
+        raise RuntimeError(msg)
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(hass, "async_add_executor_job", side_effect=capture_periods),
+        patch("custom_components.haeo.coordinator.coordinator.build_network", wraps=build_network) as rebuild,
+        pytest.raises(RuntimeError, match="stop after capturing"),
+    ):
+        await coordinator._async_update_data()
+
+    rebuild.assert_called_once()
+    assert rebuild.call_args.args[2] == [60, 60, 300, 300]
+    np.testing.assert_allclose(periods_at_solve[0], [1 / 60, 1 / 60, 5 / 60, 5 / 60])
+
+
 @pytest.mark.usefixtures("mock_battery_subentry")
 def test_load_from_input_stores_delegates_to_config_loader(
     hass: HomeAssistant,
@@ -275,7 +311,7 @@ async def test_changed_inputs_reach_the_network_at_the_next_optimization(
 ) -> None:
     """An element whose inputs change is updated from the configs the next optimization loads, and only then."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._network = MagicMock()
+    coordinator._network = network_double()
     updater = MagicMock()
     coordinator._element_updaters = {"Test Battery": updater}
     loaded = {"Test Battery": MagicMock()}

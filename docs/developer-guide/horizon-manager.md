@@ -81,7 +81,7 @@ The subscription returns an unsubscribe callable that entities register for auto
 ### Subscription lifecycle
 
 1. **Subscribe**: Entity calls `subscribe()` during `async_added_to_hass()`
-2. **Receive updates**: Manager calls subscriber callbacks whenever the horizon updates
+2. **Receive updates**: Manager calls subscriber callbacks whenever the horizon updates; a callback that raises is logged, and the rest are still called and the next update still scheduled
 3. **Unsubscribe**: Cleanup function called during entity removal
 
 ## Update scheduling
@@ -106,6 +106,7 @@ It calculates the next period boundary from current time, reschedules after each
 
 An entity horizon has no timer.
 Instead, the manager subscribes to the sensor with `async_track_state_change_event()`, recomputes the horizon on each state change, and notifies subscribers.
+The sensor can change how many periods the horizon has, and the coordinator then rebuilds the network for the new count before its next solve.
 Pausing and stopping the manager remove this listener in the same way they cancel the preset timer.
 
 ## Horizon sensor
