@@ -1,8 +1,8 @@
-# Complete example: Sigenergy system with hybrid inverter
+# Complete Example: Sigenergy System with Hybrid Inverter
 
 This guide demonstrates configuring a Sigenergy system with hybrid inverter architecture, multiple solar arrays, and grid connection.
 
-## System overview
+## System Overview
 
 This example uses the test system configuration:
 
@@ -30,22 +30,22 @@ graph LR
 
 Before starting this configuration, ensure you have:
 
-### Required integrations
+### Required Integrations
 
 - **HAEO**: Installed via HACS (see [Installation guide](../user-guide/installation.md))
 - **Sigenergy**: Provides battery capacity and SOC sensors
 - **Solar Forecast**: [Open-Meteo Solar Forecast](https://www.home-assistant.io/integrations/open_meteo_solar_forecast/) integration
 - **Electricity Pricing**: Any integration providing import/export price forecasts
 
-### Configuration requirements
+### Configuration Requirements
 
 - Multiple solar array orientations configured in forecast integration
 - Battery SOC sensor available from Sigenergy integration
 - Baseline house load determined (see [Load configuration](../user-guide/elements/load.md#determining-your-baseline))
 
-## Configuration steps
+## Configuration Steps
 
-### Step 1: Log in and add HAEO
+### Step 1: Log In and Add HAEO
 
 Log in to your Home Assistant instance, navigate to **Settings → Devices & services**, and add the HAEO integration.
 Enter a name for your energy network — this example uses "Sigenergy System".
@@ -62,7 +62,7 @@ add_integration(
 After submitting, you should see a Switchboard junction already exists.
 This is the AC power balance point where grid and loads connect.
 
-### Step 2: Add inverter
+### Step 2: Add Inverter
 
 The Inverter element models your hybrid inverter with its built-in DC bus.
 Battery and solar will connect to this element.
@@ -82,7 +82,7 @@ add_inverter(
     In the entity picker, search for "max active power" to find the sensor.
     HAEO entity pickers search by **friendly name**, not entity ID.
 
-### Step 3: Add battery
+### Step 3: Add Battery
 
 Configure the Sigenergy battery, connecting to the Inverter's DC side.
 
@@ -109,7 +109,7 @@ add_battery(
     - "charging" for max charge power
     - "discharging" for max discharge power
 
-### Step 4: Add solar
+### Step 4: Add Solar
 
 Configure solar arrays with forecast sensors for each orientation, connecting to the Inverter's DC side.
 
@@ -132,7 +132,7 @@ add_solar(
     For fields that accept multiple sensors, an "Add entity" button appears after selecting the first sensor.
     Click it to add additional sensors one at a time.
 
-### Step 5: Add grid connection
+### Step 5: Add Grid Connection
 
 Configure grid with pricing and limits, connecting to the Switchboard.
 
@@ -160,7 +160,7 @@ add_grid(
     Your integration may use different naming.
     Look for sensors with price forecast attributes.
 
-### Step 6: Add load
+### Step 6: Add Load
 
 Configure the house's consumption, connecting to the Switchboard.
 This guide uses a steady 1 kW, but a load forecast sensor lets HAEO plan around when you actually use power.
@@ -182,7 +182,7 @@ add_load(
     2. Create Helper → Number
     3. Name: "House Load Power", Unit: kW, Value: 1.0
 
-### Step 7: Verify setup
+### Step 7: Verify Setup
 
 After completing configuration, verify that all elements were created successfully.
 
@@ -215,58 +215,58 @@ show_topology_card(page, hass, step="Network topology")
 
 ## Verification
 
-Navigate to **Settings → Devices & Services → HAEO** and open the "Sigenergy System" hub to view its devices.
+Navigate to **Settings → Devices & Services → HAEO** and click on "Sigenergy System" to view the device page.
 
-### Expected device hierarchy
+### Expected Device Hierarchy
 
 In the HAEO integration page, you should see:
 
-| Element     | Type     | Entities |
-| ----------- | -------- | -------- |
-| Optimizer   | Network  | Varies   |
-| Switchboard | Junction | Varies   |
-| Inverter    | Inverter | Varies   |
-| Battery     | Battery  | Varies   |
-| Solar       | Solar    | Varies   |
-| Grid        | Grid     | Varies   |
-| House load  | Load     | Varies   |
+| Element          | Type     | Entities |
+| ---------------- | -------- | -------- |
+| Sigenergy System | Network  | Varies   |
+| Switchboard      | Junction | Varies   |
+| Inverter         | Inverter | Varies   |
+| Battery          | Battery  | Varies   |
+| Solar            | Solar    | Varies   |
+| Grid             | Grid     | Varies   |
+| House load       | Load     | Varies   |
 
-### Key sensors to monitor
+### Key Sensors to Monitor
 
-**Optimizer**:
+**Network-level**:
 
-- `sensor.optimizer_cost` - Total forecasted cost (\$)
-- `sensor.optimizer_status` - Should show "success"
-- `sensor.optimizer_duration` - Solve time (seconds)
+- `sensor.sigenergy_system_optimization_cost` - Total forecasted cost (\$)
+- `sensor.sigenergy_system_optimization_status` - Should show "success"
+- `sensor.sigenergy_system_optimization_duration` - Solve time (seconds)
 
 **Battery**:
 
-- `sensor.battery_charge_power` - Charging power (kW)
-- `sensor.battery_discharge_power` - Discharging power (kW)
+- `sensor.battery_power_charge` - Charging power (kW)
+- `sensor.battery_power_discharge` - Discharging power (kW)
 - `sensor.battery_energy_stored` - Current energy level (kWh)
 - `sensor.battery_state_of_charge` - SOC percentage (%)
 
 **Solar**:
 
 - `sensor.solar_power` - Optimal generation (kW)
-- `sensor.solar_forecast_limit_shadow_price` - Value of additional generation capacity (\$/kWh)
+- `sensor.solar_forecast_limit` - Value of additional generation capacity (\$/kWh)
 
 **Grid**:
 
-- `sensor.grid_import_power` - Import from grid (kW)
-- `sensor.grid_export_power` - Export to grid (kW)
-- `sensor.grid_import_cost` - Import cost (\$)
-- `sensor.grid_export_revenue` - Export revenue (\$)
+- `sensor.grid_power_import` - Import from grid (kW)
+- `sensor.grid_power_export` - Export to grid (kW)
+- `sensor.grid_cost_import` - Import cost (\$)
+- `sensor.grid_revenue_export` - Export revenue (\$)
 
 **Load**:
 
-- `sensor.house_load_power` - Load consumption (kW)
+- `sensor.load_power` - Load consumption (kW)
 
 **Inverter**:
 
-- `sensor.inverter_dc_to_ac_power` - DC→AC power flow (kW)
-- `sensor.inverter_ac_to_dc_power` - AC→DC power flow (kW)
-- `sensor.inverter_active_power` - Net AC power (kW)
+- `sensor.inverter_power_dc_to_ac` - DC→AC power flow (kW)
+- `sensor.inverter_power_ac_to_dc` - AC→DC power flow (kW)
+- `sensor.inverter_power_active` - Net AC power (kW)
 
 All sensors include a `forecast` attribute with future optimized values.
 
@@ -281,7 +281,7 @@ All sensors include a `forecast` attribute with future optimized values.
 
     This is helpful for understanding what data each element provides and troubleshooting configuration issues.
 
-## Architecture notes
+## Architecture Notes
 
 This hybrid inverter configuration uses the Inverter element which provides:
 

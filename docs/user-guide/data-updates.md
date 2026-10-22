@@ -6,7 +6,7 @@ Use it to understand where the data comes from, what prompts an optimization, an
 ## How HAEO receives data
 
 HAEO uses an intermediate input entity layer to receive data from external sensors.
-Each configuration field you set, whether to a constant or to sensors, creates a corresponding input entity (Number or Switch) in Home Assistant.
+Each configuration field that accepts sensor data creates a corresponding input entity (Number or Switch) in Home Assistant.
 These input entities load values from external sensors you select, transform them as needed, and make them available with a `forecast` attribute containing time-series data.
 
 Input entities operate in one of two modes:
@@ -15,7 +15,7 @@ Input entities operate in one of two modes:
 - **Driven**: Value loaded from an external sensor or forecast (e.g., electricity prices)
 
 You can find input entities in Home Assistant's entity list with the `config` entity category.
-Their entity IDs combine the element's name with the field's display name, so the capacity of a battery named "Battery" is `number.battery_capacity`.
+They appear with names like `number.{element}_{field}` (for example, `number.battery_capacity`).
 
 ## What triggers an optimization
 
@@ -95,7 +95,7 @@ automation:
   - alias: HAEO persistent failure alert
     trigger:
       - platform: state
-        entity_id: sensor.optimizer_status
+        entity_id: sensor.{network_name}_optimization_status
         to: failed
         for:
           minutes: 15
@@ -163,7 +163,7 @@ To inspect input data:
 2. Search for your element names (e.g., `number.battery_` or `switch.solar_`)
 3. Expand the `forecast` attribute to see the time-series data
 
-See [How HAEO receives data](#how-haeo-receives-data) above for the two modes input entities work in.
+See the [Input Entities guide](../developer-guide/inputs.md) for more details on how input entities work.
 
 ### Do I need to restart Home Assistant after configuration changes?
 

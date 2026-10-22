@@ -37,78 +37,42 @@ from custom_components.haeo.const import (
     NetworkOutputName,
 )
 from custom_components.haeo.core.adapters.elements.battery import (
-    BATTERY_DEVICE_NAMES,
     BATTERY_OUTPUT_NAMES,
     BatteryDeviceName,
     BatteryOutputName,
 )
 from custom_components.haeo.core.adapters.elements.battery_section import (
-    BATTERY_SECTION_DEVICE_NAMES,
     BATTERY_SECTION_OUTPUT_NAMES,
     BatterySectionDeviceName,
     BatterySectionOutputName,
 )
-from custom_components.haeo.core.adapters.elements.buffer import (
-    BUFFER_DEVICE_NAMES,
-    BUFFER_OUTPUT_NAMES,
-    BufferDeviceName,
-    BufferOutputName,
-)
+from custom_components.haeo.core.adapters.elements.buffer import BUFFER_OUTPUT_NAMES, BufferDeviceName, BufferOutputName
 from custom_components.haeo.core.adapters.elements.connection import (
-    CONNECTION_DEVICE_NAMES,
     CONNECTION_OUTPUT_NAMES,
     ConnectionDeviceName,
     ConnectionOutputName,
 )
 from custom_components.haeo.core.adapters.elements.deferrable_load import (
-    DEFERRABLE_LOAD_DEVICE_NAMES,
     DEFERRABLE_LOAD_ELEMENT_OUTPUT_NAMES,
     DeferrableLoadDeviceName,
     DeferrableLoadElementOutputName,
 )
-from custom_components.haeo.core.adapters.elements.ev import (
-    EV_DEVICE_NAMES,
-    EV_OUTPUT_NAMES,
-    EvDeviceName,
-    EvOutputName,
-)
-from custom_components.haeo.core.adapters.elements.grid import (
-    GRID_DEVICE_NAMES,
-    GRID_OUTPUT_NAMES,
-    GridDeviceName,
-    GridOutputName,
-)
+from custom_components.haeo.core.adapters.elements.ev import EV_OUTPUT_NAMES, EvDeviceName, EvOutputName
+from custom_components.haeo.core.adapters.elements.grid import GRID_OUTPUT_NAMES, GridDeviceName, GridOutputName
 from custom_components.haeo.core.adapters.elements.inverter import (
-    INVERTER_DEVICE_NAMES,
     INVERTER_OUTPUT_NAMES,
     InverterDeviceName,
     InverterOutputName,
 )
 from custom_components.haeo.core.adapters.elements.junction import (
-    JUNCTION_DEVICE_NAMES,
     JUNCTION_OUTPUT_NAMES,
     JunctionDeviceName,
     JunctionOutputName,
 )
-from custom_components.haeo.core.adapters.elements.load import (
-    LOAD_DEVICE_NAMES,
-    LOAD_OUTPUT_NAMES,
-    LoadDeviceName,
-    LoadOutputName,
-)
-from custom_components.haeo.core.adapters.elements.node import (
-    NODE_DEVICE_NAMES,
-    NODE_OUTPUT_NAMES,
-    NodeDeviceName,
-    NodeOutputName,
-)
-from custom_components.haeo.core.adapters.elements.policy import POLICY_DEVICE_NAMES, PolicyDeviceName
-from custom_components.haeo.core.adapters.elements.solar import (
-    SOLAR_DEVICE_NAMES,
-    SOLAR_OUTPUT_NAMES,
-    SolarDeviceName,
-    SolarOutputName,
-)
+from custom_components.haeo.core.adapters.elements.load import LOAD_OUTPUT_NAMES, LoadDeviceName, LoadOutputName
+from custom_components.haeo.core.adapters.elements.node import NODE_OUTPUT_NAMES, NodeDeviceName, NodeOutputName
+from custom_components.haeo.core.adapters.elements.policy import PolicyDeviceName
+from custom_components.haeo.core.adapters.elements.solar import SOLAR_OUTPUT_NAMES, SolarDeviceName, SolarOutputName
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigSchema, ElementType
@@ -173,27 +137,12 @@ type ElementDeviceName = (
 )
 
 
-ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
-    INVERTER_DEVICE_NAMES
-    | BATTERY_DEVICE_NAMES
-    | BATTERY_SECTION_DEVICE_NAMES
-    | CONNECTION_DEVICE_NAMES
-    | DEFERRABLE_LOAD_DEVICE_NAMES
-    | EV_DEVICE_NAMES
-    | GRID_DEVICE_NAMES
-    | LOAD_DEVICE_NAMES
-    | NODE_DEVICE_NAMES
-    | JUNCTION_DEVICE_NAMES
-    | SOLAR_DEVICE_NAMES
-    | POLICY_DEVICE_NAMES
-    | BUFFER_DEVICE_NAMES
-    | NETWORK_DEVICE_NAMES
-)
-
 ELEMENT_DEVICE_NAMES_BY_TYPE: Final[Mapping[str, frozenset[str]]] = {
     **{element_type: adapter.device_names for element_type, adapter in ELEMENT_TYPES.items()},
     ELEMENT_TYPE_NETWORK: NETWORK_DEVICE_NAMES,
 }
+
+ELEMENT_DEVICE_NAMES: Final[frozenset[str]] = frozenset().union(*ELEMENT_DEVICE_NAMES_BY_TYPE.values())
 
 
 class ValidatedElementSubentry(NamedTuple):
@@ -476,7 +425,6 @@ __all__ = [
     "get_list_input_fields",
     "get_nested_config_value",
     "get_surfaced_input_fields",
-    "is_element_config_schema",
     "iter_input_field_paths",
     "set_nested_config_value",
     "set_nested_config_value_by_path",

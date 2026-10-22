@@ -2,7 +2,7 @@
 
 Common issues and their solutions.
 
-## Forecasts are not long enough
+## Forecasts Are Not Long Enough
 
 ### Problem
 
@@ -16,14 +16,14 @@ Optimization fails or warnings about insufficient forecast data.
 
 ### Solutions
 
-#### Check forecast length
+#### Check Forecast Length
 
 Ensure your forecast sensors provide data for the entire optimization horizon.
 
 **Example**: If horizon is 48 hours, forecasts must cover at least 48 hours.
 See the [planning horizon](configuration.md#planning-horizon) options before changing the horizon.
 
-#### Verify forecast sensors
+#### Verify Forecast Sensors
 
 Check sensor attributes in Developer Tools:
 
@@ -31,7 +31,7 @@ Check sensor attributes in Developer Tools:
 2. Find your forecast sensor
 3. Check `forecast` attribute has enough timestamped values
 
-#### Reduce horizon
+#### Reduce Horizon
 
 If you can't get longer forecasts, reduce the horizon:
 
@@ -40,7 +40,7 @@ If you can't get longer forecasts, reduce the horizon:
 3. Save and wait for optimization
     Shorter horizons limit planning depth, so review the [planning horizon](configuration.md#planning-horizon) options when you make this change.
 
-#### Use multiple forecast sensors
+#### Use Multiple Forecast Sensors
 
 Some integrations split forecasts (today/tomorrow):
 
@@ -52,7 +52,7 @@ Forecast:
 
 HAEO combines them automatically.
 
-#### Common integrations
+#### Common Integrations
 
 | Integration               | Forecast Length |
 | ------------------------- | --------------- |
@@ -61,7 +61,7 @@ HAEO combines them automatically.
 | Amber Electric            | 48 hours        |
 | Custom Sensors            | Varies          |
 
-## Graph isn't connected properly
+## Graph Isn't Connected Properly
 
 ### Problem
 
@@ -75,7 +75,7 @@ Optimization fails because the network graph is disconnected.
 
 ### Solutions
 
-#### Visualize your network
+#### Visualize Your Network
 
 Draw your network on paper:
 
@@ -89,7 +89,7 @@ graph LR
 
 Each element should have at least one connection.
 
-#### Check all elements have connections
+#### Check All Elements Have Connections
 
 In HAEO configuration, verify:
 
@@ -98,7 +98,7 @@ In HAEO configuration, verify:
 3. **Solar**: Connected to net or battery
 4. **Loads**: Connected to net or battery
 
-#### Add missing connections
+#### Add Missing Connections
 
 If an element is isolated, add connection entries to link it to the network:
 
@@ -109,7 +109,7 @@ If an element is isolated, add connection entries to link it to the network:
 5. Connect it to another element in your network
 6. Submit the connection
 
-#### Use junctions
+#### Use Junctions
 
 For complex topologies, use [junctions](elements/junction.md) as connection hubs:
 
@@ -123,7 +123,7 @@ graph LR
 
 This ensures all elements connect to a common point.
 
-#### Verify connection direction
+#### Verify Connection Direction
 
 Some connections are unidirectional:
 
@@ -133,7 +133,7 @@ Some connections are unidirectional:
 
 Ensure directions match physical capabilities.
 
-## No plan meets every constraint
+## No Plan Meets Every Constraint
 
 ### Problem
 
@@ -183,7 +183,7 @@ It describes the first plan that had to relax constraints since you last resolve
 The relaxed periods cannot happen as planned, so treat that issue as a sign to check the forecast.
 The shortfall is placed to be as small as possible rather than as cheap as possible, so the rest of the plan can cost a little more than it would with the shortfall placed by cost.
 
-## Optimization takes too long
+## Optimization Takes Too Long
 
 ### Problem
 
@@ -196,7 +196,7 @@ If optimization takes too long:
 1. **Shorten the horizon**: Choose a shorter [planning horizon](configuration.md#planning-horizon) preset, or a forecast sensor with fewer periods
 2. **Simplify network**: Remove unnecessary elements
 
-## Battery not charging/discharging
+## Battery Not Charging/Discharging
 
 ### Problem
 
@@ -209,7 +209,7 @@ Battery remains idle despite price variation.
 3. **Check power limits**: May be too restrictive
 4. **Review connections**: Battery must be connected
 
-## Sensors showing unknown
+## Sensors Showing Unknown
 
 ### Problem
 
@@ -218,11 +218,11 @@ Element sensors display `unknown` values.
 ### Solutions
 
 1. **Wait for optimization**: First run takes time
-2. **Check optimization status**: Must be `success`; when it is `failed`, its `error` attribute explains why
+2. **Check optimization status**: Must be **Succeeded**; when it is **Failed**, its `error` attribute explains why
 3. **Verify configuration**: All required fields filled
 4. **Review logs**: Check for error messages
 
-## Price forecasts not working
+## Price Forecasts Not Working
 
 ### Problem
 
@@ -235,7 +235,7 @@ HAEO doesn't respond to price changes.
 3. **Ensure forecast length**: Must cover horizon
 4. **Check sensor updates**: Must update regularly
 
-## Getting help
+## Getting Help
 
 If these solutions don't help:
 

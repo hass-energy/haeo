@@ -19,6 +19,7 @@ import asyncio
 from collections.abc import Callable
 from enum import Enum
 import logging
+from numbers import Real
 
 import numpy as np
 
@@ -89,6 +90,8 @@ class InputStore:
         self._value: InputValue | None = None
         self._available = False
         self._error: InputError | None = None
+        # The last unexpected load error logged, so a repeating one is logged once
+        self._logged_failure: str | None = None
         self._unavailable_sources: tuple[str, ...] = ()
         self._loaded_timestamps: tuple[float, ...] = ()
         self._captured_source_states: dict[str, EntityState] = {}
@@ -321,16 +324,19 @@ class InputStore:
             self._unavailable_sources = ()
             self._settled.set()
             return changed
-        except Exception:
+        except Exception as err:
             # Loading runs in state change callbacks, where an exception would
             # stop every other input updating too. The expected failures return
             # None or raise InputError, so anything else is a bug: report it with
-            # its traceback and mark only this input unavailable.
-            _LOGGER.warning(
-                "Unexpected error loading from sources %s; marking the input unavailable",
-                self._source_entity_ids,
-                exc_info=True,
-            )
+            # its traceback, once until it changes or a load succeeds, and mark
+            # only this input unavailable.
+            if (failure := repr(err)) != self._logged_failure:
+                self._logged_failure = failure
+                _LOGGER.warning(
+                    "Unexpected error loading from sources %s; marking the input unavailable",
+                    self._source_entity_ids,
+                    exc_info=True,
+                )
             return self._mark_unavailable(unavailable_sources)
 
         if (
@@ -379,6 +385,7 @@ class InputStore:
         self._value = value
         self._available = True
         self._error = None
+        self._logged_failure = None
         self._unavailable_sources = ()
         self._loaded_timestamps = loaded_timestamps
         return changed
@@ -438,10 +445,10 @@ def create_input_store(
         case {"type": "entity"} if is_entity_value(value):
             mode = InputMode.DRIVEN
             sources = value
-        case {"type": "constant", "value": bool() | int() | float() as constant} | (
-            bool() | int() | float() as constant
-        ):
-            initial_value = constant if isinstance(constant, bool) else float(constant)
+        case {"type": "constant", "value": bool() as constant} | (bool() as constant):
+            initial_value = constant
+        case {"type": "constant", "value": Real() as constant} | (Real() as constant):
+            initial_value = float(constant)
         case {"type": "none"} | None:
             pass
         case _:

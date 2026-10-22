@@ -203,7 +203,7 @@ def config_horizon_preset(config: Mapping[str, JsonValueType]) -> str:
     common = config.get(HUB_SECTION_COMMON)
     horizon = common.get(CONF_HORIZON) if isinstance(common, Mapping) else None
     if horizon is None:
-        migrated_common = migrate_hub_horizon(config)[HUB_SECTION_COMMON]
+        migrated_common = migrate_hub_horizon(config).hub[HUB_SECTION_COMMON]
         horizon = migrated_common[CONF_HORIZON] if isinstance(migrated_common, Mapping) else None
     if not is_horizon_preset_value(horizon):
         print("Error: The diagnostics use a horizon entity but include no forecast timestamps")
@@ -1105,7 +1105,7 @@ def run_diagnostics(
     # Create network and run optimization
     print("\nCreating network...")
     relax_infeasible = isinstance(advanced, dict) and advanced.get(CONF_RELAX_INFEASIBLE) is True
-    network, _updaters = build_network("diag", loaded_participants, periods_seconds, relax_infeasible=relax_infeasible)
+    network = build_network("diag", loaded_participants, periods_seconds, relax_infeasible=relax_infeasible)
     print(f"Network elements: {list(network.elements.keys())}")
 
     print("\nRunning optimization...")

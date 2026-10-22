@@ -1,4 +1,4 @@
-# Model layer
+# Model Layer
 
 The Model Layer provides mathematical building blocks for HAEO's linear programming formulation.
 Elements at this layer define decision variables, constraints, and cost contributions that the optimizer uses to find optimal energy schedules.

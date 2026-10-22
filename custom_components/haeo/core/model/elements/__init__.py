@@ -3,9 +3,9 @@
 This module re-exports all element classes for convenient imports.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Final, TypeGuard
+from typing import Final, Generic, Never, Protocol, TypeGuard, TypeVar
 
 from custom_components.haeo.core.model.element import NetworkElement
 
@@ -87,21 +87,30 @@ type NetworkElementConfig = BatteryElementConfig | NodeElementConfig | Deferrabl
 type SourceElementConfig = BatteryElementConfig | NodeElementConfig
 
 
-def config_arguments(config: Mapping[str, object], _elements: Mapping[str, object]) -> dict[str, object]:
+class ElementArguments[ConfigT_contra](Protocol):
+    """Builds an element's constructor arguments from its config and the elements already in the network."""
+
+    def __call__(self, config: ConfigT_contra, elements: Mapping[str, object], /) -> dict[str, object]:
+        """Return the constructor arguments, resolving any elements the config refers to by name."""
+        ...
+
+
+def config_arguments(config: Mapping[str, object], _elements: Mapping[str, object], /) -> dict[str, object]:
     """Return a config's fields other than its type and name, as an element's constructor arguments."""
     return {key: value for key, value in config.items() if key not in ("element_type", "name")}
 
 
+# The config type a spec accepts; a spec for any config can stand in for one with a narrower config
+ConfigT_contra = TypeVar("ConfigT_contra", contravariant=True)
+
+
 @dataclass(frozen=True, slots=True)
-class ElementSpec:
+class ElementSpec(Generic[ConfigT_contra]):  # noqa: UP046 (a dataclass field cannot carry variance a type parameter infers)
     """Specification for a model element type.
 
     Attributes:
         factory: The element class.
         output_names: The outputs the element reports.
-        add_order: When the element is added to a network. Elements that produce
-            or consume power come first, then the connections that join them,
-            then the elements that read their flows.
         arguments: Builds the constructor arguments from a config and the
             elements already in the network, resolving any it refers to by name.
 
@@ -109,27 +118,41 @@ class ElementSpec:
 
     factory: type
     output_names: frozenset[str]
-    add_order: int
-    arguments: Callable[..., dict[str, object]] = config_arguments
+    arguments: ElementArguments[ConfigT_contra]
+
+    @property
+    def add_order(self) -> int:
+        """Return when the element is added to a network, following what it joins or reads.
+
+        Elements that produce or consume power come first, then the connections
+        that join them, then the elements that read their flows.
+        """
+        if issubclass(self.factory, NetworkElement):
+            return 0
+        return 1 if issubclass(self.factory, Connection) else 2
 
 
-# Registry of all model element types.
-# Keys are element type strings used by Network.add().
-ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
-    MODEL_ELEMENT_TYPE_BATTERY: ElementSpec(factory=Battery, output_names=BATTERY_OUTPUT_NAMES, add_order=0),
-    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD: ElementSpec(
-        factory=DeferrableLoad, output_names=DEFERRABLE_LOAD_OUTPUT_NAMES, add_order=0
+# Registry of all model element types, keyed by the element type strings used by Network.add().
+# Each spec is checked against its own config type where it is built; the registry holds
+# them together, so its value type admits no config and Network.add passes the one it has.
+ELEMENTS: Final[dict[ModelElementType, ElementSpec[Never]]] = {
+    MODEL_ELEMENT_TYPE_BATTERY: ElementSpec[BatteryElementConfig](
+        factory=Battery, output_names=BATTERY_OUTPUT_NAMES, arguments=config_arguments
     ),
-    MODEL_ELEMENT_TYPE_NODE: ElementSpec(factory=Node, output_names=NODE_OUTPUT_NAMES, add_order=0),
-    MODEL_ELEMENT_TYPE_CONNECTION: ElementSpec(factory=Connection, output_names=CONNECTION_OUTPUT_NAMES, add_order=1),
-    MODEL_ELEMENT_TYPE_BUFFER: ElementSpec(
-        factory=Buffer, output_names=BUFFER_OUTPUT_NAMES, add_order=2, arguments=buffer_arguments
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD: ElementSpec[DeferrableLoadElementConfig](
+        factory=DeferrableLoad, output_names=DEFERRABLE_LOAD_OUTPUT_NAMES, arguments=config_arguments
     ),
-    MODEL_ELEMENT_TYPE_POLICY_PRICING: ElementSpec(
-        factory=PolicyPricing,
-        output_names=POLICY_PRICING_OUTPUT_NAMES,
-        add_order=2,
-        arguments=policy_pricing_arguments,
+    MODEL_ELEMENT_TYPE_NODE: ElementSpec[NodeElementConfig](
+        factory=Node, output_names=NODE_OUTPUT_NAMES, arguments=config_arguments
+    ),
+    MODEL_ELEMENT_TYPE_CONNECTION: ElementSpec[ConnectionElementConfig](
+        factory=Connection, output_names=CONNECTION_OUTPUT_NAMES, arguments=config_arguments
+    ),
+    MODEL_ELEMENT_TYPE_BUFFER: ElementSpec[BufferElementConfig](
+        factory=Buffer, output_names=BUFFER_OUTPUT_NAMES, arguments=buffer_arguments
+    ),
+    MODEL_ELEMENT_TYPE_POLICY_PRICING: ElementSpec[PolicyPricingElementConfig](
+        factory=PolicyPricing, output_names=POLICY_PRICING_OUTPUT_NAMES, arguments=policy_pricing_arguments
     ),
 }
 
@@ -174,6 +197,7 @@ __all__ = [
     "DeferrableLoadElementConfig",
     "DeferrableLoadOutputName",
     "EfficiencySegment",
+    "ElementArguments",
     "ElementSpec",
     "ModelElementConfig",
     "ModelElementType",

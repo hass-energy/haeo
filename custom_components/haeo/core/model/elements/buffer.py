@@ -142,7 +142,7 @@ def _device_elements(elements: Mapping[str, object], device: str) -> list[object
     return [element for name, element in elements.items() if name == device or name.startswith(f"{device}:")]
 
 
-def buffer_arguments(config: BufferElementConfig, elements: Mapping[str, object]) -> dict[str, object]:
+def buffer_arguments(config: BufferElementConfig, elements: Mapping[str, object], /) -> dict[str, object]:
     """Return a buffer's constructor arguments, with its loads, generation, and storage resolved by name.
 
     A device takes part through whichever of its elements fit the role, so an

@@ -141,7 +141,7 @@ class GridAdapter:
         # Active grid power (export - import)
         grid_outputs[GRID_POWER_ACTIVE] = replace(
             power_export,
-            values=[i - e for i, e in zip(power_import.values, power_export.values, strict=True)],
+            values=tuple(i - e for i, e in zip(power_import.values, power_export.values, strict=True)),
             direction=None,
             type=OutputType.POWER,
         )

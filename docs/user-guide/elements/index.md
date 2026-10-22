@@ -3,7 +3,7 @@
 Elements are the building blocks of your HAEO energy network.
 Each element represents a physical device or logical component in your energy system.
 
-## Elements and devices
+## Elements and Devices
 
 When you configure an element, HAEO may create multiple devices in Home Assistant.
 Elements can create one or more devices depending on their configuration.
@@ -24,7 +24,7 @@ See individual element pages for which devices and sensors each element creates.
 
 For the mathematical details of how elements are modeled, see the [Modeling Documentation](../../modeling/index.md).
 
-## How elements work together
+## How Elements Work Together
 
 Elements work together once you connect them to match your real-world wiring.
 HAEO balances available energy, expected consumption, and any limits you set so the total system stays within bounds.
@@ -43,7 +43,7 @@ graph TD
 This layout lets HAEO decide when to store solar, rely on the grid, or draw from a battery while keeping every connection within the limits you configured.
 See the [modeling documentation](../../modeling/index.md) for the underlying mathematics.
 
-## Configuration approach
+## Configuration Approach
 
 When configuring elements:
 
@@ -52,19 +52,22 @@ When configuring elements:
 3. **Verify each step**: Check that optimization produces reasonable results
 4. **Use realistic values**: Base constraints on actual device specifications
 
-## Pricing power flows
-
-Power policies price energy by where it comes from and where it goes, for example cheap solar to your loads but paid solar to export.
-See the [power policies walkthrough](../../walkthroughs/power-policies.md) for how to set them up.
-
 ## Raw model elements
 
-The hub's **Expose raw model elements** setting adds lower-level element types to the list when you add an element.
-They are low-level building blocks you connect manually, for deliberately building the optimization model yourself.
-Most users should leave this setting off and use the standard elements, which connect themselves.
-Each element's page says whether it needs the setting.
+Some elements are only available when **Expose raw model elements** is enabled on your hub.
+These elements provide direct access to low-level model building blocks for building the optimization model yourself.
 
-See the [configuration guide](../configuration.md#expose-raw-model-elements) for details on enabling the setting.
+Raw model elements include:
+
+- **Connection**: Explicit power flow paths between elements
+- **Junction**: Points where connections meet and power balances (such as separate AC and DC buses)
+- **Node**: Points that produce or consume unlimited power behind a limiting, priced connection
+- **Battery Section**: Direct access to model layer Battery element
+
+Most users should use the standard elements which provide automatic connections and optimized behavior.
+Raw model elements require manual connection configuration and are intended for users who understand the underlying model layer.
+
+See the [Configuration guide](../configuration.md#expose-raw-model-elements) for details on enabling the setting.
 
 ## Next steps
 
@@ -108,46 +111,34 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Load guide](load.md)
 
-- :material-sine-wave:{ .lg .middle } __Inverter configuration__
-
-    Conversion between a DC bus for batteries and solar and your AC network.
-
-    [:material-arrow-right: Inverter guide](inverter.md)
-
 - :material-shield-check:{ .lg .middle } __Buffer configuration__
 
     Energy kept in your batteries for a grid outage, or empty space for the generation that is coming.
 
     [:material-arrow-right: Buffer guide](buffer.md)
 
-- :material-source-branch:{ .lg .middle } __Junction configuration__
+- :material-source-branch:{ .lg .middle } __Junction configuration__ (Advanced)
 
     Points where connections meet and power balances.
 
     [:material-arrow-right: Junction guide](junction.md)
 
-- :material-source-branch:{ .lg .middle } __Node configuration__
+- :material-source-branch:{ .lg .middle } __Node configuration__ (Advanced)
 
     Points that produce or consume unlimited power.
 
     [:material-arrow-right: Node guide](node.md)
 
-- :material-battery-charging:{ .lg .middle } __Battery section configuration__
+- :material-battery-charging:{ .lg .middle } __Battery Section configuration__ (Advanced)
 
-    A single battery range you configure and connect yourself.
+    Direct access to model layer Battery element.
 
-    [:material-arrow-right: Battery section guide](battery_section.md)
+    [:material-arrow-right: Battery Section guide](battery_section.md)
 
-- :material-connection:{ .lg .middle } __Connection configuration__
+- :material-connection:{ .lg .middle } __Connection configuration__ (Advanced)
 
     Explicit power flow paths between elements.
 
-    [:material-arrow-right: Connection guide](connection.md)
-
-- :material-cash-multiple:{ .lg .middle } __Power policies__
-
-    Price energy by where it comes from and where it goes.
-
-    [:material-arrow-right: Power policies walkthrough](../../walkthroughs/power-policies.md)
+    [:material-arrow-right: Connections guide](connections.md)
 
 </div>

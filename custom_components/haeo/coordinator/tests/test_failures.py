@@ -439,3 +439,27 @@ async def test_async_update_data_raises_translated_input_error(
         "value": "-4.5",
     }
     assert not [issue_id for _, issue_id in ir.async_get(hass).issues if issue_id.startswith("unavailable_input_")]
+
+
+async def test_a_cause_with_its_own_issue_dismisses_the_general_one(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Once failures switch to a cause with its own issue, the general issue goes, so the user sees one."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    issue_id = f"optimization_failure_{mock_hub_entry.entry_id}"
+    errors = [ValueError("x"), ValueError("x"), ReportedUpdateFailed("Input unavailable")]
+
+    with (
+        freeze_time("2025-01-01 12:00:00") as frozen,
+        patch.object(coordinator, "_async_update_data", AsyncMock(side_effect=errors)),
+    ):
+        await coordinator.async_refresh()
+        frozen.tick(FAILURE_SECONDS_BEFORE_REPAIR_ISSUE)
+        await coordinator.async_refresh()
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+        frozen.tick(1)
+        await coordinator.async_refresh()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None

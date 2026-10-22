@@ -94,6 +94,19 @@ class ElementAdapter(Protocol):
         ...
 
 
+@runtime_checkable
+class ConfiguredRolesAdapter(Protocol):
+    """An adapter whose elements each choose in their config whether they produce or consume power.
+
+    Such an element sources or sinks power only when its config says so, so
+    can_source and can_sink only say what it may do.
+    """
+
+    def roles(self, config: Mapping[str, object]) -> tuple[bool, bool]:
+        """Return whether the configured element can source and can sink power."""
+        ...
+
+
 ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     ElementType.GRID: grid_adapter,
     ElementType.LOAD: load_adapter,
@@ -136,6 +149,7 @@ def collect_model_elements(
 
 __all__ = [
     "ELEMENT_TYPES",
+    "ConfiguredRolesAdapter",
     "ElementAdapter",
     "collect_model_elements",
     "is_element_type",

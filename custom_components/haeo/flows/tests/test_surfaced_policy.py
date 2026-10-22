@@ -63,6 +63,7 @@ from custom_components.haeo.core.schema.entity_value import EntityValue
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_surfaced_input_fields
 from custom_components.haeo.flows.conftest import create_flow
+from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
 from custom_components.haeo.flows.surfaced_policy import (
     POLICIES_TITLE,
@@ -682,6 +683,7 @@ def test_build_surfaced_schema_entries_uses_existing_rule_price(
         "Test Load",
         LOAD_SURFACED_PRICE_HINTS,
         surfaced_fields,
+        extract_entity_metadata(hass, hub_entry),
     )
 
     assert CONF_CONSUMPTION_COST in entries
@@ -936,7 +938,12 @@ def test_build_surfaced_schema_entries_includes_compatible_price_entities(
 
     surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
     _, selector = build_surfaced_schema_entries(
-        hass, hub_entry, "Test Load", LOAD_SURFACED_PRICE_HINTS, surfaced_fields
+        hass,
+        hub_entry,
+        "Test Load",
+        LOAD_SURFACED_PRICE_HINTS,
+        surfaced_fields,
+        extract_entity_metadata(hass, hub_entry),
     )[CONF_CONSUMPTION_COST]
 
     entity_choice = selector.config["choices"][CHOICE_ENTITY]

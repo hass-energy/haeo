@@ -1,27 +1,12 @@
 """Tests for HAEO sensor_utils module."""
 
-from types import MappingProxyType
-
-from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import (
-    CONF_INTEGRATION_TYPE,
-    DOMAIN,
-    ELEMENT_TYPE_NETWORK,
-    INTEGRATION_TYPE_HUB,
-    OUTPUT_NAME_HORIZON,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-)
+from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
 from custom_components.haeo.core.const import CONF_NAME
-from custom_components.haeo.entities.device import build_device_identifier
-from custom_components.haeo.sensor_utils import (
-    get_duration_sensor_entity_id,
-    get_horizon_sensor_entity_id,
-    get_output_sensors,
-)
+from custom_components.haeo.sensor_utils import get_output_sensors
 
 
 async def test_get_output_sensors_filters_and_handles_forecasts(hass: HomeAssistant) -> None:
@@ -354,56 +339,3 @@ async def test_rounding_handles_mixed_magnitudes_same_unit(hass: HomeAssistant) 
     assert output_sensors[big.entity_id]["state"] == "55.4"
     # max=0.004321 -> pass 1: 0.00432, pass 2 (magnitude=-3, dp=5): 0.00432
     assert output_sensors[small.entity_id]["state"] == "0.00432"
-
-
-def test_get_duration_sensor_entity_id_found(hass: HomeAssistant) -> None:
-    """The duration sensor is found by the unique ID it has on the network device."""
-    entry = _build_hub_entry()
-    entry.add_to_hass(hass)
-    network_subentry = ConfigSubentry(
-        data=MappingProxyType({}),
-        subentry_type=ELEMENT_TYPE_NETWORK,
-        title="Network",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(entry, network_subentry)
-    network = next(s for s in entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)
-    device_id = build_device_identifier(entry, network, ELEMENT_TYPE_NETWORK)[1]
-    registered = er.async_get(hass).async_get_or_create(
-        domain="sensor",
-        platform=DOMAIN,
-        unique_id=f"{device_id}_{OUTPUT_NAME_OPTIMIZATION_DURATION}",
-        config_entry=entry,
-    )
-
-    assert get_duration_sensor_entity_id(hass, entry) == registered.entity_id
-
-
-def test_get_duration_sensor_entity_id_no_network_subentry(hass: HomeAssistant) -> None:
-    """Without a network subentry there is no duration sensor."""
-    entry = _build_hub_entry()
-    entry.add_to_hass(hass)
-
-    assert get_duration_sensor_entity_id(hass, entry) is None
-
-
-def test_get_horizon_sensor_entity_id_found(hass: HomeAssistant) -> None:
-    """The horizon sensor is found by the unique ID it has on the hub."""
-    entry = _build_hub_entry()
-    entry.add_to_hass(hass)
-    registered = er.async_get(hass).async_get_or_create(
-        domain="sensor",
-        platform=DOMAIN,
-        unique_id=f"{entry.entry_id}_{OUTPUT_NAME_HORIZON}",
-        config_entry=entry,
-    )
-
-    assert get_horizon_sensor_entity_id(hass, entry) == registered.entity_id
-
-
-def test_get_horizon_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
-    """Without a registered horizon sensor there is none to find."""
-    entry = _build_hub_entry()
-    entry.add_to_hass(hass)
-
-    assert get_horizon_sensor_entity_id(hass, entry) is None

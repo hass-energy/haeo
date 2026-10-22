@@ -166,20 +166,6 @@ def test_load_sensors_is_unavailable_without_entity_ids() -> None:
     assert load_sensors(FakeStateMachine({}), []) is None
 
 
-def test_load_sensor_reports_a_rejected_value() -> None:
-    """A value the extractor rejects with a reason is reported, not read as missing data."""
-    sm = FakeStateMachine({"sensor.x": FakeEntityState(entity_id="sensor.x", state="1", attributes={})})
-    rejection = InputError(translation_key="negative_input_value", translation_placeholders={"value": "-1"})
-
-    with (
-        patch("custom_components.haeo.core.data.loader.sensor_loader.extract", side_effect=rejection),
-        pytest.raises(InputError) as exc_info,
-    ):
-        load_sensor(sm, "sensor.x")
-
-    assert exc_info.value is rejection
-
-
 def test_load_readings_reads_each_state_in_base_units() -> None:
     """Readings are the sensors' states converted to base units, even for a sensor carrying a forecast."""
     forecast = [{"time": "2025-07-01T12:00:00+00:00", "value": 9000.0}]
@@ -204,6 +190,8 @@ def test_load_readings_reads_each_state_in_base_units() -> None:
         pytest.param(["sensor.a", "sensor.missing"], id="missing_sensor"),
         pytest.param(["sensor.a", "sensor.unknown"], id="sensor_without_a_reading"),
         pytest.param(["calendar.trips"], id="calendar"),
+        pytest.param(["sensor.nan"], id="nan"),
+        pytest.param(["sensor.inf"], id="infinity"),
     ],
 )
 def test_load_readings_is_unavailable_without_every_reading(entity_ids: list[str]) -> None:
@@ -213,6 +201,8 @@ def test_load_readings_is_unavailable_without_every_reading(entity_ids: list[str
             "sensor.a": FakeEntityState(entity_id="sensor.a", state="1", attributes={}),
             "sensor.unknown": FakeEntityState(entity_id="sensor.unknown", state="unknown", attributes={}),
             "calendar.trips": FakeEntityState(entity_id="calendar.trips", state="on", attributes={}),
+            "sensor.nan": FakeEntityState(entity_id="sensor.nan", state="nan", attributes={}),
+            "sensor.inf": FakeEntityState(entity_id="sensor.inf", state="-Infinity", attributes={}),
         }
     )
 

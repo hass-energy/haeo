@@ -1,6 +1,10 @@
-"""Adapter mapping cases for the inverter element."""
+"""Tests for inverter element model mapping."""
+
+from collections.abc import Mapping, Sequence
+from typing import TypedDict
 
 import numpy as np
+import pytest
 
 from custom_components.haeo.core.adapters.elements.inverter import (
     INVERTER_DC_BUS_POWER_BALANCE,
@@ -11,6 +15,9 @@ from custom_components.haeo.core.adapters.elements.inverter import (
     INVERTER_POWER_ACTIVE,
     INVERTER_POWER_DC_TO_AC,
 )
+from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare, segment_order
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
+from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
@@ -23,26 +30,40 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
 
-from . import CreateCase, OutputsCase
 
-MAIN = InverterConfigData(
-    element_type=ElementType.INVERTER,
-    name="inverter_main",
-    connection=as_connection_target("network"),
-    power_limits={
-        "max_power_source_target": np.array([10.0]),
-        "max_power_target_source": np.array([8.0]),
-    },
-    efficiency={
-        "efficiency_source_target": np.array(1.0),
-        "efficiency_target_source": np.array(1.0),
-    },
-)
+class CreateCase(TypedDict):
+    """Test case for model_elements."""
 
-CREATE_CASES: list[CreateCase] = [
+    description: str
+    data: InverterConfigData
+    model: list[dict[str, object]]
+
+
+class OutputsCase(TypedDict):
+    """Test case for outputs mapping."""
+
+    description: str
+    name: str
+    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
+    outputs: Mapping[str, Mapping[str, OutputData]]
+
+
+CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Inverter with efficiency",
-        "data": MAIN,
+        "data": InverterConfigData(
+            element_type=ElementType.INVERTER,
+            name="inverter_main",
+            connection=as_connection_target("network"),
+            power_limits={
+                "max_power_source_target": np.array([10.0]),
+                "max_power_target_source": np.array([8.0]),
+            },
+            efficiency={
+                "efficiency_source_target": np.array(1.0),
+                "efficiency_target_source": np.array(1.0),
+            },
+        ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "inverter_main", "is_source": False, "is_sink": False},
             {
@@ -109,10 +130,10 @@ CREATE_CASES: list[CreateCase] = [
 ]
 
 
-OUTPUTS_CASES: list[OutputsCase] = [
+OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
         "description": "Inverter with all outputs",
-        "data": MAIN,
+        "name": "inverter_main",
         "model_outputs": {
             "inverter_main": {
                 NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
@@ -138,7 +159,6 @@ OUTPUTS_CASES: list[OutputsCase] = [
                 },
             },
         },
-        "periods": np.array([1.0]),
         "outputs": {
             INVERTER_DEVICE_INVERTER: {
                 INVERTER_DC_BUS_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
@@ -160,7 +180,7 @@ OUTPUTS_CASES: list[OutputsCase] = [
     },
     {
         "description": "Inverter AC-to-DC connection pruned - rectifier carries no flow",
-        "data": MAIN,
+        "name": "inverter_main",
         "model_outputs": {
             "inverter_main": {
                 NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
@@ -176,7 +196,6 @@ OUTPUTS_CASES: list[OutputsCase] = [
                 },
             },
         },
-        "periods": np.array([1.0]),
         "outputs": {
             INVERTER_DEVICE_INVERTER: {
                 INVERTER_DC_BUS_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
@@ -194,3 +213,21 @@ OUTPUTS_CASES: list[OutputsCase] = [
         },
     },
 ]
+
+
+@pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
+def test_model_elements(case: CreateCase) -> None:
+    """Verify adapter transforms ConfigData into expected model elements."""
+    entry = ELEMENT_TYPES[ElementType.INVERTER]
+    result = entry.model_elements(case["data"])
+    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
+    # Segment order sets which end of a connection the power limit applies to
+    assert segment_order(result) == segment_order(case["model"])
+
+
+@pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
+def test_outputs_mapping(case: OutputsCase) -> None:
+    """Verify adapter maps model outputs to device outputs."""
+    entry = ELEMENT_TYPES[ElementType.INVERTER]
+    result = entry.outputs(case["name"], case["model_outputs"])
+    assert result == case["outputs"]

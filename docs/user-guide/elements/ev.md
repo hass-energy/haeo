@@ -32,27 +32,27 @@ The choices offered depend on the field:
 - **Trip calendar** accepts a calendar entity or "None".
 - The remaining numeric fields accept "Entity" to link to a sensor or "Constant" to enter a fixed value, and optional ones also accept "None".
 
-Each field you configure creates an [input entity](#input-entities); those set to "Constant" can be adjusted at runtime without reconfiguring.
+Fields configured with "Constant" create input entities that you can adjust at runtime without reconfiguring.
 
 ## Configuration fields
 
-| Field                                                    | Type       | Required | Default      | Description                                                                        |
-| -------------------------------------------------------- | ---------- | -------- | ------------ | ---------------------------------------------------------------------------------- |
-| **[Name](#name)**                                        | String     | Yes      | -            | Unique identifier (e.g., "Tesla Model 3")                                          |
-| **[Connection](#connection)**                            | Select     | Yes      | -            | [endpoint](connection.md#connection-endpoint-selection) the charger is attached to |
-| **[Trip calendar](#trip-calendar)**                      | Entity     | No       | -            | Calendar entity with trip events                                                   |
-| **[Plugged in](#plugged-in)**                            | Entity     | Yes      | -            | Binary sensor reporting when plugged in                                            |
-| **[Odometer](#odometer)**                                | Entity     | No       | -            | Sensor reporting the car's odometer                                                |
-| **[Battery capacity](#battery-capacity)**                | Energy     | Yes      | -            | Total usable battery capacity                                                      |
-| **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -            | Energy consumption rate (e.g. kWh/km)                                              |
-| **[Current state of charge](#current-state-of-charge)**  | Percentage | Yes      | -            | Sensor reporting current SOC (0–100%)                                              |
-| **[Min charge level](#min-charge-level)**                | Percentage | No       | -            | Charge the battery is kept above                                                   |
-| **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -            | Maximum home charging power                                                        |
-| **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -            | Maximum V2G discharge power                                                        |
-| **[Public charging price](#public-charging-price)**      | Price      | No       | \$10/kWh     | Cost per kWh for public charging                                                   |
-| **[Charge efficiency](#efficiency)**                     | Percentage | No       | 95%          | Efficiency when charging                                                           |
-| **[Discharge efficiency](#efficiency)**                  | Percentage | No       | 95%          | Efficiency when discharging                                                        |
-| **[Limit cost](#limit-cost)**                            | Price      | No       | 100 \$/kWh/h | Holding cost per kWh below the min charge                                          |
+| Field                                                    | Type       | Required | Default      | Description                                     |
+| -------------------------------------------------------- | ---------- | -------- | ------------ | ----------------------------------------------- |
+| **[Name](#name)**                                        | String     | Yes      | -            | Unique identifier (e.g., "Tesla Model 3")       |
+| **[Connection](#connection)**                            | Select     | Yes      | -            | Junction or inverter the charger is attached to |
+| **[Trip calendar](#trip-calendar)**                      | Entity     | No       | -            | Calendar entity with trip events                |
+| **[Plugged in](#plugged-in)**                            | Entity     | Yes      | -            | Binary sensor reporting when plugged in         |
+| **[Odometer](#odometer)**                                | Entity     | No       | -            | Sensor reporting the car's odometer             |
+| **[Battery capacity](#battery-capacity)**                | Energy     | Yes      | -            | Total usable battery capacity                   |
+| **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -            | Energy consumption rate (e.g. kWh/km)           |
+| **[Current state of charge](#current-state-of-charge)**  | Percentage | Yes      | -            | Sensor reporting current SOC (0–100%)           |
+| **[Min charge level](#min-charge-level)**                | Percentage | No       | -            | Charge the battery is kept above                |
+| **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -            | Maximum home charging power                     |
+| **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -            | Maximum V2G discharge power                     |
+| **[Public charging price](#public-charging-price)**      | Price      | No       | \$10/kWh     | Cost per kWh for public charging                |
+| **[Charge efficiency](#efficiency)**                     | Percentage | No       | 95%          | Efficiency when charging                        |
+| **[Discharge efficiency](#efficiency)**                  | Percentage | No       | 95%          | Efficiency when discharging                     |
+| **[Limit cost](#limit-cost)**                            | Price      | No       | 100 \$/kWh/h | Holding cost per kWh below the min charge       |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -63,8 +63,8 @@ Home Assistant uses it for sensor names, so avoid symbols or abbreviations you w
 
 ### Connection
 
-Select the [endpoint](connection.md#connection-endpoint-selection) the EV charger is attached to.
-This is typically your main switchboard, or the DC side of an inverter for a DC charger.
+Select the junction or inverter the EV charger is attached to.
+This is typically your main switchboard junction, or an inverter for a DC charger.
 
 ### Trip calendar
 
@@ -188,60 +188,33 @@ Keep it far above anything you could pay to charge away from home or earn from t
 Enter charge and discharge efficiencies as percentages (0–100%).
 These apply to the home charging connection and account for conversion losses.
 
-## Input entities
-
-Each field you configure creates an input entity on the EV's device.
-Input entities appear as Number entities with the `config` entity category.
-Their IDs combine the EV's name with the entity's name, so an EV named "Atto 2" has `number.atto_2_battery_capacity`.
-
-| Input                                       | Unit     | Description                                              |
-| ------------------------------------------- | -------- | -------------------------------------------------------- |
-| `number.{name}_battery_capacity`            | kWh      | Battery capacity                                         |
-| `number.{name}_current_state_of_charge`     | %        | Current state of charge                                  |
-| `number.{name}_min_charge_level`            | %        | Min charge level (if configured)                         |
-| `number.{name}_energy_per_distance`         | kWh/km   | Energy per distance                                      |
-| `number.{name}_max_charge_rate`             | kW       | Max charge rate                                          |
-| `number.{name}_max_discharge_rate`          | kW       | Max discharge rate (if configured)                       |
-| `number.{name}_plugged_in`                  | -        | Whether the EV is plugged in                             |
-| `number.{name}_away`                        | -        | Whether each period is inside a trip                     |
-| `number.{name}_trip_start`                  | -        | Where each trip of overlapping events begins             |
-| `number.{name}_trip_distance_opening`       | km       | Distance of the trip events starting at each time        |
-| `number.{name}_trip_distance_due`           | km       | Distance of the trip events ending at each time          |
-| `number.{name}_distance_since_trip_started` | km       | Distance driven on the open trip (if an odometer is set) |
-| `number.{name}_public_charging_price`       | \$/kWh   | Public charging price (if configured)                    |
-| `number.{name}_charge_efficiency`           | %        | Charge efficiency (if configured)                        |
-| `number.{name}_discharge_efficiency`        | %        | Discharge efficiency (if configured)                     |
-| `number.{name}_limit_cost`                  | \$/kWh/h | Limit cost                                               |
-
-The away, trip start, and trip distance inputs show what HAEO reads from the trip calendar, and are created only when one is set.
-
 ## Sensors created
 
 The EV element creates one device with the following sensors:
 
 ### Power sensors
 
-| Sensor                          | Unit | Description                    |
-| ------------------------------- | ---- | ------------------------------ |
-| `sensor.{name}_charge_power`    | kW   | Current charging power         |
-| `sensor.{name}_discharge_power` | kW   | Current discharging power      |
-| `sensor.{name}_active_power`    | kW   | Net power (discharge − charge) |
+| Sensor          | Unit | Description                    |
+| --------------- | ---- | ------------------------------ |
+| Charge power    | kW   | Current charging power         |
+| Discharge power | kW   | Current discharging power      |
+| Active power    | kW   | Net power (discharge − charge) |
 
 ### Energy sensors
 
-| Sensor                                | Unit | Description                                                    |
-| ------------------------------------- | ---- | -------------------------------------------------------------- |
-| `sensor.{name}_energy_stored`         | kWh  | Total energy in the EV battery                                 |
-| `sensor.{name}_state_of_charge`       | %    | Battery percentage                                             |
-| `sensor.{name}_trip_energy_delivered` | kWh  | Energy used by the current trip, reset at each trip start      |
-| `sensor.{name}_trip_energy_shortfall` | kWh  | Expected public top-up energy for each trip, at the trip's end |
+| Sensor                | Unit | Description                                                    |
+| --------------------- | ---- | -------------------------------------------------------------- |
+| Energy stored         | kWh  | Total energy in the EV battery                                 |
+| State of charge       | %    | Battery percentage                                             |
+| Trip energy delivered | kWh  | Energy used by the current trip, reset at each trip start      |
+| Trip energy shortfall | kWh  | Expected public top-up energy for each trip, at the trip's end |
 
 ### Shadow price sensors
 
-| Sensor                                           | Unit   | Description                                |
-| ------------------------------------------------ | ------ | ------------------------------------------ |
-| `sensor.{name}_max_charge_power_shadow_price`    | \$/kWh | Marginal value of relaxing charge limit    |
-| `sensor.{name}_max_discharge_power_shadow_price` | \$/kWh | Marginal value of relaxing discharge limit |
+| Sensor                           | Unit   | Description                                |
+| -------------------------------- | ------ | ------------------------------------------ |
+| Max charge power shadow price    | \$/kWh | Marginal value of relaxing charge limit    |
+| Max discharge power shadow price | \$/kWh | Marginal value of relaxing discharge limit |
 
 ## Next steps
 

@@ -1,4 +1,4 @@
-# Battery model
+# Battery Model
 
 This page explains how HAEO models battery storage systems using linear programming.
 
@@ -16,14 +16,14 @@ A battery in HAEO's model layer is a single-section energy storage device with:
     Requirements that span batteries, such as holding back energy for an outage, are [Buffer](../../device-layer/buffer.md) elements measured from a level or the min and max charge.
     For explicit multi-section modeling, compose [Battery Section](../../device-layer/battery_section.md) elements with Connection elements.
 
-## Model formulation
+## Model Formulation
 
 The battery model follows the [fence post pattern](../../index.md#power-and-energy-discretization) used throughout HAEO's optimization.
 Power variables (charge/discharge rates) represent average power over each period and have $T$ values indexed as $t \in \{0, 1, \ldots, T-1\}$.
 Energy variables (stored energy) represent instantaneous values at time boundaries and have $T+1$ values indexed as $t \in \{0, 1, \ldots, T\}$.
 Power is calculated from the change in energy between consecutive boundaries divided by the period duration.
 
-### Decision variables
+### Decision Variables
 
 For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for energy state):
 
@@ -57,7 +57,7 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 
 ### Constraints
 
-#### 1. Energy flow constraints
+#### 1. Energy Flow Constraints
 
 Cumulative energy variables can only increase over time (prevents energy flowing backward):
 
@@ -72,7 +72,7 @@ This ensures energy flows are unidirectional (charging increases $E_{\text{in}}$
 
 **Shadow prices**: The `energy_in_flow` and `energy_out_flow` shadow prices represent the marginal value of relaxing these constraints. Non-zero values are rare in practice since batteries naturally flow energy in one direction at a time.
 
-#### 2. State of charge constraints
+#### 2. State of Charge Constraints
 
 Net energy must stay within capacity:
 
@@ -94,7 +94,7 @@ The slack exists so that a battery reported outside its limits, for example belo
 - `soc_max`: Marginal value of a higher max charge. Negative values indicate the battery is held at its max charge and more room would reduce costs.
 - `soc_min`: Marginal value of a lower min charge. Positive values indicate the battery is held at its min charge and the ability to extract more energy would reduce costs.
 
-#### 3. Power balance constraint
+#### 3. Power Balance Constraint
 
 Net battery power equals the power from network connections:
 
@@ -110,13 +110,13 @@ Where:
 
 **Shadow price**: The `power_balance` shadow price represents the marginal value of energy at the battery element, which is the stored-energy side of any connection efficiency.
 
-#### 4. Tag balance
+#### 4. Tag Balance
 
 The Element base class creates per-tag power balance constraints for all elements with tagged connections.
 Discharge power is placed on `outbound_tags`; charge power draws from `inbound_tags`.
 See the [tagged power formulation](../../tagged-power.md#per-tag-balance) for details.
 
-### Cost contribution
+### Cost Contribution
 
 Energy outside the min and max charge costs the limit cost for each hour it stays there:
 
@@ -133,9 +133,9 @@ $$
 
 Other costs (efficiency losses, degradation penalties) are applied through [Connection](../connections/index.md) elements in the device adapter layer.
 
-## Physical interpretation
+## Physical Interpretation
 
-### Cumulative energy tracking
+### Cumulative Energy Tracking
 
 The model tracks cumulative energy flows rather than absolute stored energy:
 
@@ -147,7 +147,7 @@ This approach:
 - Uses only linear constraints (no binary variables required)
 - Enables efficient LP solving
 
-### Power calculation
+### Power Calculation
 
 Power is derived from energy changes:
 
@@ -158,7 +158,7 @@ P_{\text{discharge}}(t) &= \frac{E_{\text{out}}(t+1) - E_{\text{out}}(t)}{\Delta
 \end{align}
 $$
 
-### Energy flow example
+### Energy Flow Example
 
 Consider a 10 kWh battery section with initial charge of 4 kWh:
 
@@ -182,7 +182,7 @@ Consider a 10 kWh battery section with initial charge of 4 kWh:
 - Net energy = 3.0 kWh
 - $P_{\text{discharge}}(1) = (3.0 - 0.0) / 1.0 = 3.0$ kW
 
-### Power balance integration
+### Power Balance Integration
 
 The battery participates in network power balance through the connection power:
 
@@ -198,7 +198,7 @@ Where:
 The battery exposes separate produced (discharge) and consumed (charge) power for per-tag decomposition.
 See [Tagged Power](../../tagged-power.md) for how production and consumption are routed to specific tags.
 
-## Numerical considerations
+## Numerical Considerations
 
 ### Units
 
@@ -216,7 +216,7 @@ This keeps variables in similar numerical ranges (0.001 to 1000) which:
 
 See the [units documentation](../../../developer-guide/units.md) for detailed explanation.
 
-## Device layer integration
+## Device Layer Integration
 
 The single-section battery model is a building block for more complex battery behavior:
 

@@ -22,13 +22,7 @@ from homeassistant.helpers import entity_registry as er
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.adapters.elements.junction import JUNCTION_DEVICE_JUNCTION, JUNCTION_POWER_BALANCE
 from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE, NODE_POWER_BALANCE
-from custom_components.haeo.core.const import (
-    CONF_ADVANCED_MODE,
-    CONF_NAME,
-    HORIZON_PRESET_5_DAYS,
-    HORIZON_PRESET_DAYS,
-    HUB_SECTION_ADVANCED,
-)
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_NAME, HORIZON_PRESET_DAYS, HUB_SECTION_ADVANCED
 from custom_components.haeo.core.schema.elements import battery, buffer, connection, junction, node
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.migrations.v1_4 import (
@@ -40,7 +34,6 @@ from custom_components.haeo.core.schema.migrations.v1_4 import (
     migrate_hub_horizon,
     node_becomes_junction,
     node_is_junction,
-    uses_custom_horizon,
 )
 from custom_components.haeo.repairs import create_horizon_tiers_replaced_issue, create_node_replaced_by_junction_issue
 from custom_components.haeo.unique_id import element_output_unique_id, element_unique_id, parse_element_unique_id
@@ -289,13 +282,15 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _replace_nodes_with_junctions(hass, entry, entities)
     _link_entities_to_subentries(hass, entry, entities)
 
-    if uses_custom_horizon(entry.data):
+    horizon = migrate_hub_horizon(entry.data)
+    if horizon.tiers_replaced_by is not None:
+        days = HORIZON_PRESET_DAYS[horizon.tiers_replaced_by]
         _LOGGER.warning(
             "Hub %s planned over custom horizon tiers, which are no longer supported; it now plans %s days ahead",
             entry.title,
-            HORIZON_PRESET_DAYS[HORIZON_PRESET_5_DAYS],
+            days,
         )
-        create_horizon_tiers_replaced_issue(hass, entry.entry_id, entry.title)
-    hass.config_entries.async_update_entry(entry, data=migrate_hub_horizon(entry.data), minor_version=MINOR_VERSION)
+        create_horizon_tiers_replaced_issue(hass, entry.entry_id, entry.title, days)
+    hass.config_entries.async_update_entry(entry, data=horizon.hub, minor_version=MINOR_VERSION)
     _LOGGER.info("Migration complete for %s entry %s", DOMAIN, entry.entry_id)
     return True

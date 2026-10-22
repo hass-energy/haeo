@@ -14,10 +14,6 @@ You can create automations that:
 - Notify you when optimization outputs change significantly
 - Stage safe hand-offs between optimization and manual control
 
-The examples use elements named "Battery" and "Solar".
-An element's entity IDs start with its name, so replace `battery` or `solar` in each entity ID with the name of your element.
-The optimization status sensor is on the **Optimizer** device, so its ID is `sensor.optimizer_status` whatever your hub is called.
-
 ## Example 1: Notification on optimization failure
 
 This automation sends a notification when the optimization fails, helping you quickly identify and resolve issues.
@@ -28,7 +24,7 @@ automation:
     description: Send notification when energy optimization fails
     trigger:
       - platform: state
-        entity_id: sensor.optimizer_status
+        entity_id: sensor.{network_name}_optimization_status
         to: failed
     action:
       - service: notify.persistent_notification
@@ -61,7 +57,7 @@ automation:
     description: Set battery charge power from HAEO recommendation
     trigger:
       - platform: state
-        entity_id: sensor.battery_charge_power
+        entity_id: sensor.{battery_name}_power_charge
     condition:
       - condition: template
         value_template: >
@@ -80,7 +76,7 @@ automation:
     description: Set battery discharge power from HAEO recommendation
     trigger:
       - platform: state
-        entity_id: sensor.battery_discharge_power
+        entity_id: sensor.{battery_name}_power_discharge
     condition:
       - condition: template
         value_template: >
@@ -119,7 +115,7 @@ automation:
     description: Limit inverter output when HAEO recommends curtailment
     trigger:
       - platform: state
-        entity_id: sensor.solar_power
+        entity_id: sensor.{solar_name}_power
     condition:
       - condition: template
         value_template: >
@@ -164,7 +160,7 @@ automation:
 ### Protect real hardware
 
 - Enforce min and max limits using dedicated `number` entities exposed by your inverter or charger.
-- Add a final verification step that confirms the actuator accepted the change (for example, compare `sensor.battery_charge_power` after a short delay).
+- Add a final verification step that confirms the actuator accepted the change (for example, compare `sensor.{battery_name}_power_charge` after a short delay).
 - Log every applied recommendation to the Logbook so you can audit changes if the device misbehaves.
 - During commissioning, keep automations in "monitor only" mode by replacing actuator calls with notifications until you are confident in the behavior.
 
@@ -184,10 +180,10 @@ automation:
 Use Developer Tools → States to inspect sensor values:
 
 ```
-sensor.optimizer_status: "success"
-sensor.battery_charge_power: 3.2
-sensor.battery_discharge_power: 0.0
-sensor.solar_power: 4.5
+sensor.{network_name}_optimization_status: "success"
+sensor.{battery_name}_power_charge: 3.2
+sensor.{battery_name}_power_discharge: 0.0
+sensor.{solar_name}_power: 4.5
 ```
 
 ### Debugging with traces

@@ -103,25 +103,18 @@ def event_value_text(event: CalendarEventData, output_type: OutputType) -> Event
     """Return the text field an event's value is read from, or None when no field holds a number.
 
     Fields are tried in order: location, summary, description. The first
-    holding a number typed with a unit the input can use is the value's
-    field, so a number the input cannot use, such as a street number in the
-    location, does not hide the value in a later field. The value is the
-    field's one usable number, so other numbers around it, as in "Tariff 2
-    at 0.30 $/kWh", are passed over. A field holding several usable numbers
-    gives no value, rather than a guess or a later field's. When no field
-    holds a usable number, the first holding any number is returned without
-    a value, so the event is reported as one whose value cannot be read.
+    holding any number is the value's field, even when none of its numbers
+    can be used, so a later field never silently stands in for a mistyped
+    one. The value is the field's one number typed with a unit the input can
+    use, so other numbers around it, as in "Tariff 2 at 0.30 $/kWh", are
+    passed over. A field holding several such numbers gives no value.
     """
-    first_with_number: EventValueText | None = None
     for field in _TEXT_FIELDS:
         text = getattr(event, field)
-        quantities = find_quantities(text) if text else []
-        values = [value for quantity in quantities if (value := to_field_unit(*quantity, output_type)) is not None]
-        if values:
+        if text and (quantities := find_quantities(text)):
+            values = [value for quantity in quantities if (value := to_field_unit(*quantity, output_type)) is not None]
             return EventValueText(field, text, values[0] if len(values) == 1 else None)
-        if quantities and first_with_number is None:
-            first_with_number = EventValueText(field, text, None)
-    return first_with_number
+    return None
 
 
 def event_value(event: CalendarEventData, output_type: OutputType) -> float | None:

@@ -1,8 +1,8 @@
-# Inverter modeling
+# Inverter Modeling
 
 The Inverter device composes a [Node](../model-layer/elements/node.md) (as a DC bus junction) with two [Connections](../model-layer/connections/connection.md), one per direction, to model bidirectional DC/AC power conversion with separate efficiency and power limits per direction.
 
-## Model elements created
+## Model Elements Created
 
 ```mermaid
 graph LR
@@ -41,7 +41,7 @@ Each connection therefore places its efficiency segment next to the DC bus and i
 The DC to AC, AC to DC, and active power sensors all report AC-side power.
 The DC bus supplies the DC to AC power plus the inverting loss, and receives the AC to DC power less the rectifying loss.
 
-## Devices created
+## Devices Created
 
 Inverter creates 1 device in Home Assistant:
 
@@ -63,13 +63,26 @@ The adapter transforms user configuration into connection segments:
 | —                          | Node              | `is_source=false`          | DC bus is not a power source          |
 | —                          | Node              | `is_sink=false`            | DC bus is not a power sink            |
 
-## Sensors created
+## Sensors Created
 
-The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/inverter.md#sensors-created) on the Inverter page.
+### Inverter Device
 
-## Configuration examples
+| Sensor                     | Unit   | Update    | Description                              |
+| -------------------------- | ------ | --------- | ---------------------------------------- |
+| `power_dc_to_ac`           | kW     | Real-time | AC power out of the inverter (inverting) |
+| `power_ac_to_dc`           | kW     | Real-time | AC power into the inverter (rectifying)  |
+| `power_active`             | kW     | Real-time | Net AC power (DC to AC - AC to DC)       |
+| `dc_bus_power_balance`     | \$/kWh | Real-time | DC bus power balance shadow price        |
+| `max_power_dc_to_ac_price` | \$/kWh | Real-time | Max DC to AC power shadow price          |
+| `max_power_ac_to_dc_price` | \$/kWh | Real-time | Max AC to DC power shadow price          |
 
-### Basic hybrid inverter
+The `max_power_*_price` sensors are only created when the corresponding limit is configured.
+
+See [Inverter Configuration](../../user-guide/elements/inverter.md) for detailed sensor and configuration documentation.
+
+## Configuration Examples
+
+### Basic Hybrid Inverter
 
 | Field                   | Value         |
 | ----------------------- | ------------- |
@@ -78,7 +91,7 @@ The sensors this element creates, with their entity IDs, are listed under [Senso
 | **DC to AC Efficiency** | 97.0          |
 | **AC to DC Efficiency** | 97.0          |
 
-### With power limits
+### With Power Limits
 
 | Field                   | Value           |
 | ----------------------- | --------------- |
@@ -89,7 +102,7 @@ The sensors this element creates, with their entity IDs, are listed under [Senso
 | **Max DC to AC Power**  | 5.0             |
 | **Max AC to DC Power**  | 5.0             |
 
-## Typical use cases
+## Typical Use Cases
 
 **Hybrid Inverter Systems**:
 Connect batteries and solar panels to the inverter's DC bus, with the AC side connecting to the home bus where loads and grid are attached.
@@ -102,13 +115,13 @@ This models systems where solar feeds the battery directly on the DC side.
 Some inverters have different power ratings for inverting vs. rectifying.
 Configure separate `max_power_source_target` and `max_power_target_source` to model this.
 
-## Physical interpretation
+## Physical Interpretation
 
 The Inverter represents a power electronics device that converts between DC and AC power.
 The DC bus acts as a junction point where DC devices (batteries, solar panels with DC output) connect,
 while the AC side connects to your home's AC network.
 
-### Configuration guidelines
+### Configuration Guidelines
 
 - **Efficiency Values**: Typical modern inverters achieve 95-98% efficiency.
     Set slightly lower values to account for real-world losses.

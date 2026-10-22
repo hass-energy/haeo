@@ -59,7 +59,7 @@ If you want to remove historical sensor data from the database:
 
 1. Navigate to **Settings** → **System** → **Repairs**
 2. Look for any HAEO-related issues and resolve them
-3. To completely purge historical data for HAEO entities, use the **Developer Tools** → **Services** with `recorder.purge_entities`, specifying your element names (e.g., `sensor.main_battery_*`, `sensor.grid_*`, `sensor.optimizer_*`)
+3. To completely purge historical data for HAEO entities, use the **Developer Tools** → **Services** with `recorder.purge_entities`, specifying your element names (e.g., `sensor.main_battery_*`, `sensor.grid_*`)
 
 **Warning**: Purging historical data is permanent and cannot be undone.
 
@@ -115,25 +115,3 @@ If you continue to experience issues removing HAEO:
     - Description of the removal issue
     - Relevant error logs
     - Steps you've already tried
-
-## Next steps
-
-<div class="grid cards" markdown>
-
-- :material-download:{ .lg .middle } **Reinstall HAEO**
-
-    ---
-
-    Install HAEO again through HACS or manually.
-
-    [:material-arrow-right: Installation guide](installation.md)
-
-- :material-help-circle:{ .lg .middle } **Troubleshooting**
-
-    ---
-
-    Fix common problems instead of removing the integration.
-
-    [:material-arrow-right: Troubleshooting guide](troubleshooting.md)
-
-</div>

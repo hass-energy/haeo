@@ -9,6 +9,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, tzinfo
 from importlib import import_module
+import logging
 from logging import config as logging_config_module
 from types import MappingProxyType
 from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
@@ -209,6 +210,14 @@ def configure_logging() -> None:
 
     # Apply the logging configuration
     logging_config_module.dictConfig(logging_config)
+
+
+@pytest.fixture
+def haeo_caplog(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> pytest.LogCaptureFixture:
+    """Return caplog with HAEO's info logs, which otherwise go to the console only."""
+    monkeypatch.setattr(logging.getLogger("custom_components.haeo"), "propagate", True)
+    caplog.set_level(logging.INFO, logger="custom_components.haeo")
+    return caplog
 
 
 @pytest.fixture(autouse=True)

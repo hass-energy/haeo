@@ -1,4 +1,4 @@
-# Shadow prices
+# Shadow Prices
 
 Shadow prices are dual values from the linear programming optimization.
 They quantify how much the total objective would improve if a constraint were relaxed by one unit.

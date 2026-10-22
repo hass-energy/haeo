@@ -57,46 +57,6 @@ This separation keeps the Model Layer focused on optimization mathematics while 
 
 <div class="grid cards" markdown>
 
-- :material-battery-charging:{ .lg .middle } **Battery**
-
-    ---
-
-    Energy storage with SOC dynamics.
-
-    [:material-arrow-right: Battery model](battery.md)
-
-- :material-timer-outline:{ .lg .middle } **Deferrable load**
-
-    ---
-
-    Energy delivered within scheduled events.
-
-    [:material-arrow-right: Deferrable load model](deferrable_load.md)
-
-- :material-source-branch:{ .lg .middle } **Node**
-
-    ---
-
-    Sources, sinks, and junction points.
-
-    [:material-arrow-right: Node model](node.md)
-
-- :material-shield-check:{ .lg .middle } **Buffer**
-
-    ---
-
-    Energy or empty space batteries keep over a window.
-
-    [:material-arrow-right: Buffer model](buffer.md)
-
-- :material-cash-multiple:{ .lg .middle } **Policy pricing**
-
-    ---
-
-    Policy prices applied to tagged power flows.
-
-    [:material-arrow-right: Policy pricing model](policy_pricing.md)
-
 - :material-connection:{ .lg .middle } **Connections**
 
     ---

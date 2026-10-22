@@ -143,14 +143,14 @@ class InverterAdapter:
         # Active inverter power (DC to AC - AC to DC)
         inverter_outputs[INVERTER_POWER_ACTIVE] = replace(
             power_forward,
-            values=[
+            values=tuple(
                 dc_to_ac - ac_to_dc
                 for dc_to_ac, ac_to_dc in zip(
                     power_forward.values,
                     power_reverse.values,
                     strict=True,
                 )
-            ],
+            ),
             direction=None,
             type=OutputType.POWER_FLOW,
         )

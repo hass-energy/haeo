@@ -8,7 +8,7 @@ Welcome to the HAEO documentation!
 HAEO is a Home Assistant custom integration that optimizes your home's energy usage in real-time using linear programming.
 It helps you minimize energy costs by intelligently managing energy system elements based on electricity prices, forecasts, and system constraints.
 
-## Quick links
+## Quick Links
 
 <div class="grid cards" markdown>
 
@@ -43,7 +43,7 @@ It helps you minimize energy costs by intelligently managing energy system eleme
 HAEO continuously evaluates forecasts, device limits, and prices to produce an optimal plan for your configured elements.
 It works alongside other Home Assistant integrations that provide sensor data, and exposes its results as sensors you can reference in automations or dashboards.
 
-## Key features
+## Key Features
 
 ### Optimization that follows your data
 
@@ -65,9 +65,9 @@ Learn about [available element types](user-guide/elements/index.md) in the user 
 
 The modeling documentation explains how HAEO formulates the linear program, and the developer guide shows how to extend it when new element types are needed.
 
-## Documentation structure
+## Documentation Structure
 
-### :material-account: User guide
+### :material-account: User Guide
 
 Perfect for **end users** who want to install and configure HAEO:
 
@@ -77,7 +77,7 @@ Perfect for **end users** who want to install and configure HAEO:
 - [Walkthroughs](walkthroughs/index.md) - Step-by-step system configuration guides
 - [Troubleshooting](user-guide/troubleshooting.md) - Common issues and solutions
 
-### :material-function: Mathematical modeling
+### :material-function: Mathematical Modeling
 
 For those interested in **how the optimization works**:
 
@@ -85,7 +85,7 @@ For those interested in **how the optimization works**:
 - [Model Layer Elements](modeling/model-layer/index.md) - Mathematical building blocks forming the linear programming problem
 - [Device Layer Elements](modeling/device-layer/index.md) - How user-configured elements compose models
 
-### :material-code-braces: Developer guide
+### :material-code-braces: Developer Guide
 
 For **contributors and developers**:
 
@@ -95,13 +95,13 @@ For **contributors and developers**:
 - [Testing](developer-guide/testing.md) - Running and writing tests
 - [Contributing](developer-guide/contributing.md) - Contribution guidelines
 
-## Getting help
+## Getting Help
 
 - **Issues**: Report bugs on [GitHub Issues](https://github.com/hass-energy/haeo/issues)
 - **Discussions**: Ask questions in [GitHub Discussions](https://github.com/hass-energy/haeo/discussions)
 - **Contributing**: See our [contribution guidelines](developer-guide/contributing.md)
 
-## Support the project
+## Support the Project
 
 If HAEO has helped you save on your energy bills, consider buying us a coffee!
 

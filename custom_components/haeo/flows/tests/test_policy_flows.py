@@ -34,17 +34,16 @@ from custom_components.haeo.core.schema.elements.policy import (
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_ELEMENT_TYPE
 from custom_components.haeo.core.schema.entity_value import as_entity_value
-from custom_components.haeo.flows.elements import policy as policy_flow
 from custom_components.haeo.flows.elements.policy import (
     ACTION_DELETE,
     ACTION_EDIT,
     CHOICE_ELEMENTS,
     CONF_ACTION,
     CONF_RULE,
-    POLICIES_TITLE,
     PolicySubentryFlowHandler,
 )
 from custom_components.haeo.flows.field_schema import CHOICE_ENTITY, CHOICE_NONE
+from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE, find_policy_subentry
 
 
 @pytest.fixture
@@ -250,6 +249,26 @@ async def test_user_step_appends_to_existing_subentry(
     assert len(update_data[CONF_RULES]) == 2
     assert update_data[CONF_RULES][0]["name"] == "Solar Export"
     assert update_data[CONF_RULES][1]["name"] == "Grid Charge"
+
+
+async def test_user_step_saves_a_new_rule_into_the_existing_subentry(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Adding a rule through the shared save path updates the one policy subentry rather than adding another."""
+    existing = _make_policy_subentry(
+        [{"name": "Solar Export", "enabled": True, "source": ["Solar"], "price": as_constant_value(0.02)}]
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing)
+
+    result = await _create_flow(hass, hub_entry).async_step_user(
+        user_input={CONF_RULE_NAME: "Grid Charge", CONF_ENABLED: True, CONF_SOURCE: ["Grid"], CONF_PRICE: 0.05}
+    )
+
+    assert result.get("type") == FlowResultType.ABORT
+    policies = [s for s in hub_entry.subentries.values() if s.subentry_type == POLICY_ELEMENT_TYPE]
+    assert policies == [find_policy_subentry(hub_entry)]
+    assert [rule["name"] for rule in policies[0].data[CONF_RULES]] == ["Solar Export", "Grid Charge"]
 
 
 async def test_user_step_any_defaults(
@@ -893,29 +912,6 @@ def test_get_participant_options_skips_invalid_element_type_values(
     flow = _create_flow(hass, hub_entry)
     options = flow._get_participant_options()
     assert "Broken" not in options
-
-
-def test_get_participant_options_skips_subentries_without_registered_adapter(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Subentries with missing adapter registrations are ignored."""
-    subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: SOLAR_ELEMENT_TYPE, CONF_NAME: "SolarNoAdapter"}),
-        subentry_type=SOLAR_ELEMENT_TYPE,
-        title="SolarNoAdapter",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    patched = dict(policy_flow.ELEMENT_TYPES)
-    patched.pop(SOLAR_ELEMENT_TYPE, None)
-    monkeypatch.setattr(policy_flow, "ELEMENT_TYPES", patched)
-
-    flow = _create_flow(hass, hub_entry)
-    options = flow._get_participant_options(can_source=True)
-    assert "SolarNoAdapter" not in options
 
 
 def test_get_participant_options_filters_source_capability(

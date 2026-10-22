@@ -1,4 +1,4 @@
-# Battery section
+# Battery Section
 
 Battery Section is a raw model element that provides direct access to the model layer Battery element.
 Unlike the standard Battery element which creates multiple sections and an internal node,
@@ -37,7 +37,7 @@ Unlike the standard Battery element, Battery Section does not create:
 You must manually create Connection elements to connect the Battery Section to your network: one for each direction power should flow.
 Put the charge and discharge efficiencies and power limits on those connections, since the section itself has none.
 
-## Configuration fields
+## Configuration Fields
 
 | Field                                 | Type                                  | Required | Default | Description                                   |
 | ------------------------------------- | ------------------------------------- | -------- | ------- | --------------------------------------------- |
@@ -59,7 +59,7 @@ The sensor can provide a constant value or a forecast with time-varying capacity
 
 The optimizer uses this value to enforce state of charge constraints.
 
-### Initial charge
+### Initial Charge
 
 Select a Home Assistant sensor that reports the initial energy stored in the battery in kWh.
 This represents the battery's state of charge at the start of the optimization window.
@@ -67,7 +67,7 @@ This represents the battery's state of charge at the start of the optimization w
 HAEO reads the sensor's current value.
 Forecast attributes are ignored, because only the energy at the start of the window is used.
 
-## Configuration example
+## Configuration Example
 
 Basic battery section configuration:
 
@@ -77,44 +77,30 @@ Basic battery section configuration:
 | **Capacity**       | sensor.battery_capacity |
 | **Initial Charge** | sensor.battery_energy   |
 
-After creating the Battery Section element, create two Connection elements between it and an [endpoint](connection.md#connection-endpoint-selection):
+After creating the Battery Section element, create two Connection elements between it and a junction or inverter:
 
 | Connection                    | Source            | Target            | Purpose     |
 | ----------------------------- | ----------------- | ----------------- | ----------- |
 | **Battery Section charge**    | Switchboard       | Battery Section 1 | Charging    |
 | **Battery Section discharge** | Battery Section 1 | Switchboard       | Discharging |
 
-## Input entities
-
-Each field creates an input entity on the battery section's device.
-Input entities appear as Number entities with the `config` entity category.
-Their IDs combine the section's name with the entity's name.
-
-| Input                          | Unit | Description           |
-| ------------------------------ | ---- | --------------------- |
-| `number.{name}_capacity`       | kWh  | Section capacity      |
-| `number.{name}_initial_charge` | kWh  | Initial energy stored |
-
-Input entities include a `forecast` attribute showing values for each optimization period.
-See [How data updates work](../data-updates.md) for how input entities receive their values.
-
-## Sensors created
+## Sensors Created
 
 A Battery Section element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                                        | Unit   | Description                                 |
-| ----------------------------------------------------------------------------- | ------ | ------------------------------------------- |
-| [`sensor.{name}_charge_power`](#charge-power)                                 | kW     | Power being charged into the battery        |
-| [`sensor.{name}_discharge_power`](#discharge-power)                           | kW     | Power being discharged from the battery     |
-| [`sensor.{name}_active_power`](#active-power)                                 | kW     | Net active power (discharge - charge)       |
-| [`sensor.{name}_energy_stored`](#energy-stored)                               | kWh    | Current energy stored in the battery        |
-| [`sensor.{name}_power_balance_shadow_price`](#power-balance-shadow-price)     | \$/kWh | Shadow price of energy at the section       |
-| [`sensor.{name}_energy_in_flow_shadow_price`](#energy-in-flow-shadow-price)   | \$/kWh | Shadow price of charging constraint         |
-| [`sensor.{name}_energy_out_flow_shadow_price`](#energy-out-flow-shadow-price) | \$/kWh | Shadow price of discharging constraint      |
-| [`sensor.{name}_soc_max_shadow_price`](#soc-max-shadow-price)                 | \$/kWh | Shadow price of maximum capacity constraint |
-| [`sensor.{name}_soc_min_shadow_price`](#soc-min-shadow-price)                 | \$/kWh | Shadow price of minimum capacity constraint |
+| Sensor                                                              | Unit   | Description                                 |
+| ------------------------------------------------------------------- | ------ | ------------------------------------------- |
+| [`sensor.{name}_battery_section_power_charge`](#power-charge)       | kW     | Power being charged into the battery        |
+| [`sensor.{name}_battery_section_power_discharge`](#power-discharge) | kW     | Power being discharged from the battery     |
+| [`sensor.{name}_battery_section_power_active`](#power-active)       | kW     | Net active power (discharge - charge)       |
+| [`sensor.{name}_battery_section_energy_stored`](#energy-stored)     | kWh    | Current energy stored in the battery        |
+| [`sensor.{name}_battery_section_power_balance`](#power-balance)     | \$/kWh | Shadow price of energy at the section       |
+| [`sensor.{name}_battery_section_energy_in_flow`](#energy-in-flow)   | \$/kWh | Shadow price of charging constraint         |
+| [`sensor.{name}_battery_section_energy_out_flow`](#energy-out-flow) | \$/kWh | Shadow price of discharging constraint      |
+| [`sensor.{name}_battery_section_soc_max`](#soc-max)                 | \$/kWh | Shadow price of maximum capacity constraint |
+| [`sensor.{name}_battery_section_soc_min`](#soc-min)                 | \$/kWh | Shadow price of minimum capacity constraint |
 
-### Charge power
+### Power Charge
 
 The optimal power being charged into the battery at each time period.
 Values are always positive or zero.
@@ -122,7 +108,7 @@ This is the rate the stored energy rises, after any efficiency on the connection
 
 **Example**: A value of 3.5 kW means the battery is charging at 3.5 kW at this time period.
 
-### Discharge power
+### Power Discharge
 
 The optimal power being discharged from the battery at each time period.
 Values are always positive or zero.
@@ -130,21 +116,21 @@ This is the rate the stored energy falls, before any efficiency on the connectio
 
 **Example**: A value of 2.0 kW means the battery is discharging at 2.0 kW at this time period.
 
-### Active power
+### Power Active
 
 The net active power (discharge - charge) at each time period.
 Positive values indicate net discharge, negative values indicate net charge.
 
 **Example**: A value of -1.5 kW means the battery is charging at 1.5 kW net (discharge is less than charge).
 
-### Energy stored
+### Energy Stored
 
 The current energy stored in the battery at each time boundary.
 Values range from 0 to the configured capacity.
 
 **Example**: A value of 7.5 kWh means the battery currently stores 7.5 kWh of energy.
 
-### Power balance shadow price
+### Power Balance
 
 The marginal value of energy at the battery section, on the storage side of any connection efficiency.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -159,7 +145,7 @@ It shows how much the total system cost would change if one more kWh were held i
 
 **Example**: A value of 0.15 means one more kWh held in the section at that time would save \$0.15.
 
-### Energy in flow shadow price
+### Energy In Flow
 
 The marginal value of relaxing the charging constraint.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -173,7 +159,7 @@ This shadow price shows how much the total system cost would change if the batte
 
 **Example**: A value of 0.05 means that if the battery could charge 1 kWh more, the total system cost would decrease by \$0.05 at this time period.
 
-### Energy out flow shadow price
+### Energy Out Flow
 
 The marginal value of relaxing the discharging constraint.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -187,7 +173,7 @@ This shadow price shows how much the total system cost would change if the batte
 
 **Example**: A value of 0.08 means that if the battery could discharge 1 kWh more, the total system cost would decrease by \$0.08 at this time period.
 
-### SOC max shadow price
+### SOC Max
 
 The marginal value of additional storage capacity.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -202,7 +188,7 @@ This shadow price shows how much the total system cost would decrease if the bat
 
 **Example**: A value of -0.12 means that if the battery had 1 kWh more capacity, the total system cost would decrease by \$0.12 at this time period.
 
-### SOC min shadow price
+### SOC Min
 
 The marginal value of deeper discharge capability.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -223,22 +209,22 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 ## Troubleshooting
 
-### Battery section not visible
+### Battery Section Not Visible
 
 **Problem**: The Battery Section element type does not appear in the element selection list.
 
 **Solution**: Enable **Expose raw model elements** in your hub configuration.
 Battery Section is only available when that setting is enabled.
 
-### No power flow
+### No Power Flow
 
 **Problem**: Battery Section shows zero power even when connected.
 
-**Solution**: Verify that Connection elements connect the Battery Section to an [endpoint](connection.md#connection-endpoint-selection) in both directions.
+**Solution**: Verify that Connection elements connect the Battery Section to a junction or inverter in both directions.
 Battery Section does not create implicit connections like the standard Battery element.
 If the section only charges or only discharges, the connection for the other direction is missing.
 
-### Connection errors
+### Connection Errors
 
 **Problem**: Cannot create connections to or from the Battery Section.
 
@@ -255,7 +241,7 @@ Check that the Battery Section element exists before creating connections.
 
     Learn how to connect Battery Section to other elements using Connection elements.
 
-    [:material-arrow-right: Connections guide](connection.md)
+    [:material-arrow-right: Connections guide](connections.md)
 
 - :material-battery-charging:{ .lg .middle } **Standard Battery element**
 

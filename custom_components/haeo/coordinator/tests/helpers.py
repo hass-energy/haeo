@@ -11,7 +11,13 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo import HaeoRuntimeData
 
 # Placeholders of an issue raised by an earlier optimization
-EARLIER_ISSUE = {"elements": "Earlier Load", "minutes": "45"}
+EARLIER_ISSUE = {
+    "elements": "Earlier Load",
+    "minutes": "45",
+    "planned_at": "08:00",
+    "relaxed_elements": "Earlier Load",
+    "relaxed_periods": "1",
+}
 EARLIER_DIAGNOSTICS = "/config/haeo/diagnostics/earlier.json"
 
 

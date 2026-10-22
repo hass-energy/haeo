@@ -1,19 +1,32 @@
-"""Tests for deferrable load windows seeded by the energy meter and loaded from captured states."""
+"""Tests for deferrable load element model mapping and optimization behavior."""
 
 import numpy as np
 from numpy.typing import NDArray
 import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
-from custom_components.haeo.core.adapters.elements.deferrable_load import adapter
+from custom_components.haeo.core.adapters.elements.deferrable_load import (
+    DEFERRABLE_ENERGY_DELIVERED,
+    DEFERRABLE_ENERGY_OVERAGE,
+    DEFERRABLE_ENERGY_SHORTFALL,
+    DEFERRABLE_LOAD_DEVICE,
+    DEFERRABLE_POWER,
+    adapter,
+)
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 from custom_components.haeo.core.model import Network
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+    MODEL_ELEMENT_TYPE_NODE,
+    ConnectionElementConfig,
+)
 from custom_components.haeo.core.model.elements.deferrable_load import (
     DEFERRABLE_LOAD_ENERGY_DELIVERED,
     DEFERRABLE_LOAD_ENERGY_SHORTFALL,
+    DEFERRABLE_LOAD_POWER,
     DeferrableLoadElementConfig,
 )
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
@@ -71,6 +84,45 @@ def _load(config: DeferrableLoadConfigData) -> DeferrableLoadElementConfig:
     return load
 
 
+def _connection(config: DeferrableLoadConfigData) -> ConnectionElementConfig:
+    """Return the connection model element the adapter builds."""
+    _load, connection = adapter.model_elements(config)
+    assert connection["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION
+    return connection
+
+
+def test_model_elements_structure() -> None:
+    """The adapter creates the load and its connection."""
+    config = _config(power={"max_power": 1.5})
+
+    assert [element["name"] for element in adapter.model_elements(config)] == ["pump", "pump:connection"]
+    load = _load(config)
+    np.testing.assert_allclose(load["in_window"], [0.0, 0.0, 1.0, 0.0])
+    np.testing.assert_allclose(load["window_start"], [0.0, 0.0, 1.0, 0.0, 0.0])
+    np.testing.assert_allclose(load["opened"], [0.0, 0.0, 6.0, 0.0, 0.0])
+    np.testing.assert_allclose(load["due"], [0.0, 0.0, 0.0, 6.0, 0.0])
+    np.testing.assert_allclose(load["deficit_price"], 10.0)
+    np.testing.assert_allclose(load["overage_price"], 0.0)
+
+    connection = _connection(config)
+    assert connection["source"] == "home"
+    assert connection["target"] == "pump"
+    assert connection.get("segments") == {"power_limit": {"segment_type": "power_limit", "max_power": 1.5}}
+
+
+def test_no_power_limit_when_unconfigured() -> None:
+    """Without a max power the connection has no limit; the load gates itself to its windows."""
+    assert _connection(_config()).get("segments") == {}
+
+
+def test_overage_price_reaches_the_model() -> None:
+    """A configured overage price reaches the model as its per-boundary series."""
+    overage = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+    config = _config(pricing={"deficit_price": np.full(5, 10.0), "overage_price": overage})
+
+    np.testing.assert_allclose(_load(config)["overage_price"], overage)
+
+
 def _solve(config: DeferrableLoadConfigData, grid_price: list[float]) -> Network:
     """Build and solve a grid + deferrable load network."""
     n = len(grid_price)
@@ -96,6 +148,62 @@ def _solve(config: DeferrableLoadConfigData, grid_price: list[float]) -> Network
         network.add(element)
     network.optimize()
     return network
+
+
+def test_window_energy_delivered_within_window() -> None:
+    """The load receives its window energy inside the window."""
+    network = _solve(_config(power={"max_power": 10.0}), grid_price=[0.1, 0.1, 0.1, 0.1])
+
+    load_outputs = network.elements["pump"].outputs()
+    np.testing.assert_allclose(load_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values, [0.0, 0.0, 0.0, 6.0, 0.0])
+    assert load_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values[3] == pytest.approx(0.0)
+
+
+def test_power_stays_inside_windows_without_a_limit() -> None:
+    """Without a power limit, cheap energy outside the window is still not used."""
+    network = _solve(_config(), grid_price=[0.01, 0.01, 0.1, 0.01])
+
+    np.testing.assert_allclose(
+        network.elements["pump"].outputs()[DEFERRABLE_LOAD_POWER].values, [0.0, 0.0, 6.0, 0.0], atol=1e-9
+    )
+
+
+def test_too_small_window_prices_the_shortfall() -> None:
+    """When the device cannot deliver enough in the window, the shortfall is priced."""
+    config = _config(power={"max_power": 2.0}, pricing=_prices(deficit=5.0))
+    network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+
+    load_outputs = network.elements["pump"].outputs()
+    assert load_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[3] == pytest.approx(2.0)
+    assert load_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values[3] == pytest.approx(4.0)
+
+
+def test_outputs_mapping() -> None:
+    """Adapter outputs expose power, delivered energy, shortfall and overage."""
+    config = _config(power={"max_power": 10.0})
+    network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+    model_outputs = {name: element.outputs() for name, element in network.elements.items()}
+
+    outputs = adapter.outputs("pump", model_outputs, config=config)[DEFERRABLE_LOAD_DEVICE]
+
+    assert set(outputs) == {
+        DEFERRABLE_POWER,
+        DEFERRABLE_ENERGY_DELIVERED,
+        DEFERRABLE_ENERGY_SHORTFALL,
+        DEFERRABLE_ENERGY_OVERAGE,
+    }
+    assert outputs[DEFERRABLE_ENERGY_DELIVERED].values[3] == pytest.approx(6.0)
+    assert outputs[DEFERRABLE_ENERGY_SHORTFALL].values[3] == pytest.approx(0.0)
+    assert outputs[DEFERRABLE_ENERGY_OVERAGE].values[3] == pytest.approx(0.0)
+    np.testing.assert_allclose(outputs[DEFERRABLE_POWER].values, [0.0, 0.0, 6.0, 0.0])
+
+
+def test_overage_above_the_energy_reward_stops_at_the_requirement() -> None:
+    """An overage price above what the energy pays keeps the window at its requirement, even when paid to take more."""
+    config = _config(power={"max_power": 10.0}, pricing=_prices(overage=1.0))
+    network = _solve(config, grid_price=[-0.1, -0.1, -0.1, -0.1])
+
+    assert network.elements["pump"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[3] == pytest.approx(6.0)
 
 
 def _open_window_config(**schedule: object) -> DeferrableLoadConfigData:

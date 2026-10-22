@@ -137,6 +137,11 @@ class Objectives:
     cost: Objective
     secondary: Objective
 
+    @classmethod
+    def of(cls, cost: LinearArray, secondary: LinearArray, n_columns: int) -> "Objectives":
+        """Return the dense objectives of the cost and secondary expressions."""
+        return cls(Objective.of(cost, n_columns), Objective.of(secondary, n_columns))
+
     def blend(self, weight: float) -> Objective:
         """Return the cost plus ``weight`` times the secondary."""
         return Objective(
@@ -257,9 +262,9 @@ class Network:
         """
         name = element_config["name"]
         spec = ELEMENTS[element_config["element_type"]]
-        element_instance: Element[Any] = spec.factory(
-            name=name, periods=self.periods, solver=self._solver, **spec.arguments(element_config, self.elements)
-        )
+        # The spec registered for a config's element type is the one built for that config
+        arguments = spec.arguments(element_config, self.elements)  # type: ignore[arg-type]  # (spec matches config type)
+        element_instance: Element[Any] = spec.factory(name=name, periods=self.periods, solver=self._solver, **arguments)
         self.elements[name] = element_instance
 
         # Register connections immediately when adding Connection elements
@@ -282,12 +287,10 @@ class Network:
 
         return element_instance
 
-    def cost(self) -> tuple[LinearArray | None, LinearArray | None] | None:
-        """Aggregate the (primary, secondary) costs of all elements, or None when there are neither."""
+    def cost(self) -> tuple[LinearArray | None, LinearArray | None]:
+        """Aggregate the (primary, secondary) costs of all elements, each None when no element has one."""
         primary = total(element.cost() for element in self.elements.values())
         secondary = total(element.secondary_cost() for element in self.elements.values())
-        if primary is None and secondary is None:
-            return None
         return (primary, secondary)
 
     def optimize(self) -> float:
@@ -315,12 +318,7 @@ class Network:
                 msg = f"Failed to apply constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        costs = self.cost()
-        if costs is None:
-            msg = "Network has no cost objectives — add connections with pricing segments"
-            raise ValueError(msg)
-
-        primary, secondary = costs
+        primary, secondary = self.cost()
         if primary is None:
             msg = "Network has no primary cost — add pricing to connections or nodes"
             raise ValueError(msg)
@@ -330,7 +328,7 @@ class Network:
 
         n_vars = h.numVariables
         all_col_indices = np.arange(n_vars, dtype=np.int32)
-        objectives = _build_objectives(primary, secondary, n_vars)
+        objectives = Objectives.of(primary, secondary, n_vars)
 
         self.conflicts = ()
         self.relaxations = ()
@@ -518,11 +516,6 @@ def _bisect_boundary(
     return lo
 
 
-def _build_objectives(primary: LinearArray, secondary: LinearArray, n_columns: int) -> Objectives:
-    """Convert the cost and secondary expressions to dense objectives."""
-    return Objectives(Objective.of(primary, n_columns), Objective.of(secondary, n_columns))
-
-
 def _set_objective(solver: Highs, col_indices: NDArray[np.int32], objective: Objective) -> None:
     """Set the full objective, its costs in a single C call and its offset.
 
@@ -580,7 +573,7 @@ class BlendWeightSearch:
 def _bounds(solver: Highs, n_cols: int, entries: NDArray[np.intp]) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Return the lower and upper bounds of sorted columns and rows, with rows numbered after the columns.
 
-    Only the entries asked for are read, rather than copying the whole LP.
+    Each column and row is read from HiGHS by index, so the cost follows the number of entries asked for.
     """
     cols = entries[entries < n_cols].astype(np.int32)
     rows = (entries[entries >= n_cols] - n_cols).astype(np.int32)

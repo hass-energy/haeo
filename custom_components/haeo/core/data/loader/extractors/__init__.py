@@ -3,6 +3,7 @@
 from collections.abc import Callable, Sequence
 from datetime import tzinfo
 from enum import StrEnum
+import math
 from typing import Final, NamedTuple, TypeGuard
 
 import numpy as np
@@ -68,33 +69,25 @@ PARSERS: Final[tuple[Parse, ...]] = (
 )
 
 
-class ExtractedData(NamedTuple):
+class ExtractedData[T: Sequence[tuple[float, float]] | float = Sequence[tuple[float, float]] | float](NamedTuple):
     """Container for extracted data and metadata."""
 
-    data: Sequence[tuple[float, float]] | float
+    data: T
     """Extracted forecast data, either a sequence of (timestamp, value) tuples or a single float value."""
     unit: UnitOfMeasurement | str | None
     """Unit of measurement after conversion to base units. (None if unknown)"""
 
 
-class Reading(NamedTuple):
-    """A state's value now, with its unit."""
-
-    value: float
-    """The value in base units."""
-    unit: UnitOfMeasurement | str | None
-    """Unit of measurement after conversion to base units. (None if unknown)"""
-
-
-def extract_reading(state: EntityState) -> Reading:
+def extract_reading(state: EntityState) -> ExtractedData[float]:
     """Read a state's value now, converted to base units, whatever forecast it carries.
 
     Binary states read as 1 for on and 0 for off, so availability-style
     sources, such as an EV charger's "connected" binary sensor, load as 1/0.
 
     Raises:
-        ValueError: If the state is not a reading, such as ``unknown``, or is
-            a calendar's, whose state only says whether an event is on.
+        ValueError: If the state is not a reading, such as ``unknown`` or a
+            value that is not finite, or is a calendar's, whose state only
+            says whether an event is on.
 
     """
     if calendar_events.Parser.detect(state):
@@ -102,11 +95,14 @@ def extract_reading(state: EntityState) -> Reading:
         raise ValueError(msg)
     raw = state.state.strip().lower()
     value = ON_OFF_STATE_VALUES[raw] if raw in ON_OFF_STATE_VALUES else float(raw)
+    if not math.isfinite(value):
+        msg = f"{state.entity_id} reads {state.state}, which is not a finite number"
+        raise ValueError(msg)
     unit = state.attributes.get("unit_of_measurement")
     converted, base_unit, _ = convert_to_base_unit(
         value, unit if isinstance(unit, str) else None, DeviceClass.of(state.attributes.get("device_class"))
     )
-    return Reading(converted, base_unit)
+    return ExtractedData(converted, base_unit)
 
 
 def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | None = None) -> ExtractedData:
@@ -126,7 +122,8 @@ def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | 
     """
     parsed = next((found for parse in PARSERS if (found := parse(state, time_zone, output_type)) is not None), None)
     if parsed is None:
-        return ExtractedData(*extract_reading(state))
+        reading = extract_reading(state)
+        return ExtractedData(reading.data, reading.unit)
     data, unit, device_class = parsed
 
     # Normalize unit to string (handle enum values with .value attribute)
@@ -151,7 +148,6 @@ __all__ = [
     "EntityMetadata",
     "ExtractedData",
     "Parse",
-    "Reading",
     "extract",
     "extract_reading",
 ]

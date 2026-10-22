@@ -1,4 +1,4 @@
-"""Tests for where an inverter's power limits bind in the optimization."""
+"""Tests for inverter adapter power limits."""
 
 from collections.abc import Mapping
 

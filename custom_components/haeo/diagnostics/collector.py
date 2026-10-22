@@ -29,9 +29,9 @@ from custom_components.haeo.core.data.loader.config_loader import configured_val
 from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE, totals_since
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
-from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.inputs.calendar_loader import async_fetch_calendar_events
 from custom_components.haeo.inputs.meter_history import async_meter_totals_at
 from custom_components.haeo.sensor_utils import (

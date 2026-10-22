@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.elements.node import Node
 from custom_components.haeo.core.model.linear import Rows
 from custom_components.haeo.core.model.reactive import TrackedParam, computed, constraint
 from custom_components.haeo.core.model.reactive.tracked_param import _values_equal
@@ -187,6 +188,22 @@ def test_dict_access_setitem_unknown_key_raises_keyerror() -> None:
 
     with pytest.raises(KeyError, match="unknown_param"):
         elem["unknown_param"] = 123
+
+
+def test_dict_access_getitem_index_raises_keyerror() -> None:
+    """An element without segments has nothing to look up by index."""
+    node = Node(name="node", periods=np.array([1.0]), solver=Solver())
+
+    with pytest.raises(KeyError, match="does not support indexed access"):
+        _ = node[0]
+
+
+def test_dict_access_setitem_read_only_attribute_raises_keyerror() -> None:
+    """A value fixed when the element is built cannot be set by name."""
+    node = Node(name="node", periods=np.array([1.0]), solver=Solver())
+
+    with pytest.raises(KeyError, match="is_source"):
+        node["is_source"] = False
 
 
 def test_dict_access_getitem_regular_attribute_returns_value() -> None:

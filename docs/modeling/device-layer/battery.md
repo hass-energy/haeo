@@ -1,9 +1,9 @@
-# Battery modeling
+# Battery Modeling
 
 The Battery device composes a single [Battery model](../model-layer/elements/battery.md) element and two [Connections](../model-layer/connections/connection.md), one for discharging and one for charging.
 The min and max charge are limits on the battery element itself.
 
-## Model elements created
+## Model Elements Created
 
 ```mermaid
 graph LR
@@ -27,7 +27,7 @@ The adapter creates three model elements:
 | [Connection](../model-layer/connections/connection.md) | `{name}:discharge` | Efficiency, power limits                                    |
 | [Connection](../model-layer/connections/connection.md) | `{name}:charge`    | Power limits, efficiency                                    |
 
-## Architecture details
+## Architecture Details
 
 ### Charge limits
 
@@ -75,7 +75,7 @@ The battery element can include a terminal salvage value.
 This assigns a per-kWh value to the final stored energy at the horizon end.
 It discourages draining the battery to zero when energy is still valuable beyond the forecast window.
 
-## Devices created
+## Devices Created
 
 Battery creates a single Home Assistant device:
 
@@ -98,7 +98,7 @@ Battery creates a single Home Assistant device:
 | `max_power_target_source`   | Power-limit segment | `max_power_target_source`  | Network to battery             |
 | `max_power_source_target`   | Power-limit segment | `max_power_source_target`  | Battery to network             |
 
-## Output mapping
+## Output Mapping
 
 Power sensors come from the bus end of the connections, and the remaining sensors from the battery element:
 
