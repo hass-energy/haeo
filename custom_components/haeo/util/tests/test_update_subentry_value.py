@@ -57,6 +57,39 @@ async def test_flag_remains_set_after_call(
     assert call_args.kwargs["data"]["power_limit"] == 10.0
 
 
+async def test_unchanged_value_leaves_flag_clear(
+    hass: HomeAssistant,
+    mock_runtime_data: Mock,
+) -> None:
+    """Writing the value a field already has changes nothing, so the flag stays clear.
+
+    No update listener fires for an unchanged subentry, so a flag set here would
+    never be cleared and would suppress the next configuration reload.
+    """
+    entry = Mock()
+    entry.runtime_data = mock_runtime_data
+
+    subentry = ConfigSubentry(
+        data=MappingProxyType({"power_limit": 5.0}),
+        subentry_type="battery",
+        title="Test Battery",
+        subentry_id="test_id",
+        unique_id=None,
+    )
+
+    hass.config_entries.async_update_subentry = Mock(return_value=False)
+
+    await async_update_subentry_value(
+        hass=hass,
+        entry=entry,
+        subentry=subentry,
+        field_path=("power_limit",),
+        value=5.0,
+    )
+
+    assert mock_runtime_data.value_update_in_progress is False
+
+
 async def test_flag_cleared_on_exception(
     hass: HomeAssistant,
     mock_runtime_data: Mock,

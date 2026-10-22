@@ -3,11 +3,11 @@
 import logging
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from custom_components.haeo import HaeoRuntimeData
+from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import NETWORK_DEVICE_NETWORK, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.entities import HaeoSensor
@@ -26,12 +26,12 @@ PARALLEL_UPDATES = 0
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: HaeoConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up HAEO sensor entities."""
     # Runtime data must be set by __init__.py before platforms are set up
-    runtime_data: HaeoRuntimeData | None = getattr(config_entry, "runtime_data", None)
+    runtime_data = config_entry.runtime_data
     if runtime_data is None:
         msg = "Runtime data not set - integration setup incomplete"
         raise RuntimeError(msg)
@@ -92,7 +92,7 @@ async def async_setup_entry(
 
 def _add_output_entities(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: HaeoConfigEntry,
     coordinator: HaeoDataUpdateCoordinator,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:

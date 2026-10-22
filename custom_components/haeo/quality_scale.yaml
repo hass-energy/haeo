@@ -1,227 +1,164 @@
-version: 1
-integration: haeo
-current_tier: platinum
-target_tier: platinum
-
-bronze:
-  config-flow:
-    status: done
-    comment: Config flow provided by custom_components/haeo/flows/hub.py with manifest.json exposing config_flow true
-
-  config-flow-test-coverage:
-    status: done
-    comment: Automated coverage in tests/flows/ exercises hub, network, element, and options flows
-
-  runtime-data:
-    status: done
-    comment: async_setup_entry assigns HaeoRuntimeData (carrying the HaeoDataUpdateCoordinator) to ConfigEntry.runtime_data in custom_components/haeo/__init__.py
-
-  entity-unique-id:
-    status: done
-    comment: HaeoInputNumber, HaeoInputSwitch, HaeoSensor, and HaeoHorizonEntity all set _attr_unique_id derived from entry/subentry/output identifiers in custom_components/haeo/entities/
-
-  has-entity-name:
-    status: done
-    comment: _attr_has_entity_name = True is set on every entity base in custom_components/haeo/entities/ (haeo_sensor.py, haeo_number.py, haeo_switch.py, haeo_horizon.py, auto_optimize_switch.py)
-
-  test-before-configure:
-    status: exempt
-    comment: Config flow gathers only local optimisation parameters and does not need connectivity validation
-
-  test-before-setup:
-    status: done
-    comment: async_setup_entry waits for input stores to be ready and performs first refresh through HaeoDataUpdateCoordinator before forwarding platforms in custom_components/haeo/__init__.py
-
-  unique-config-entry:
-    status: done
-    comment: HubConfigFlow assigns a normalised unique_id per network and aborts duplicates
-
-  docs-high-level-description:
-    status: done
-    comment: README.md and docs/index.md describe the optimisation features and scope
-
-  docs-installation-instructions:
-    status: done
-    comment: docs/user-guide/installation.md provides HACS and manual installation steps
-
-  docs-removal-instructions:
-    status: done
-    comment: docs/user-guide/removal.md covers UI removal, file cleanup, and post-removal checks
-
-  entity-event-setup:
-    status: done
-    comment: Event listeners register in HaeoDataUpdateCoordinator and unsubscribe via cleanup before unload
-
-  brands:
-    status: done
-    comment: HAEO icon.png and logo.png are published in home-assistant/brands at custom_integrations/haeo/
-
-  common-modules:
-    status: done
-    comment: Integration split across const.py, coordinator/, flows/, entities/, sections/, sensor.py/number.py/switch.py platform shims, repairs.py, diagnostics/, and system_health.py following Home Assistant layout
-
-  dependency-transparency:
-    status: done
-    comment: manifest.json lists highspy and numpy as installation requirements
-
-  appropriate-polling:
-    status: done
-    comment: HaeoDataUpdateCoordinator is fully event-driven via async_track_state_change_event with debounced async_call_later refresh (no update_interval) in custom_components/haeo/coordinator/coordinator.py
-
+rules:
+  # Bronze
   action-setup:
     status: done
-    comment: custom_components/haeo/services.py registers haeo.save_diagnostics and haeo.optimize via hass.services.async_register, both declared in services.yaml with config_entry selectors and translated in translations/en.json
-
-silver:
-  integration-owner:
+    comment: async_setup registers haeo.optimize and haeo.save_diagnostics through async_setup_services in services.py, so the actions exist before any config entry loads.
+  appropriate-polling:
     status: done
-    comment: manifest.json defines @TrentHouliston as the code owner
-
-  test-coverage:
+    comment: The coordinator has no update_interval; it is event driven through state change listeners with a debounced refresh.
+  brands:
     status: done
-    comment: uv run pytest --cov reports 1873 statements with 41 missed (98.0 percent)
-
-  entity-unavailable:
+    comment: Icons and logos ship in custom_components/haeo/brand/.
+  common-modules:
     status: done
-    comment: HaeoSensor inherits CoordinatorEntity.available which honours coordinator.last_update_success in custom_components/haeo/entities/haeo_sensor.py
-
-  log-when-unavailable:
+    comment: The coordinator lives in the coordinator/ package and the entity base classes in the entities/ package.
+  config-flow:
     status: done
-    comment: HaeoDataUpdateCoordinator raises UpdateFailed when required inputs are missing in custom_components/haeo/coordinator/coordinator.py, and Home Assistant logs availability transitions once
+    comment: flows/hub.py provides the hub config flow and each element is a config subentry flow.
+  config-flow-test-coverage:
+    status: done
+    comment: flows/tests/ and flows/elements/tests/ cover the hub, options, and element subentry flows.
+  dependency-transparency:
+    status: done
+    comment: highspy and numpy are open source and published to PyPI from public CI.
+  docs-actions:
+    status: done
+    comment: docs/user-guide/actions.md documents haeo.optimize and haeo.save_diagnostics, their fields, and the errors they raise.
+  docs-high-level-description:
+    status: done
+    comment: README.md and docs/index.md describe what HAEO does.
+  docs-installation-instructions:
+    status: done
+    comment: docs/user-guide/installation.md covers HACS and manual installation.
+  docs-removal-instructions:
+    status: done
+    comment: docs/user-guide/removal.md covers removal.
+  entity-event-setup:
+    status: done
+    comment: Entities subscribe in async_added_to_hass and unsubscribe through async_on_remove; coordinator listeners are released by entry.async_on_unload.
+  entity-unique-id:
+    status: done
+    comment: Every entity sets a unique ID derived from the entry, subentry, and field or output name.
+  has-entity-name:
+    status: done
+    comment: All entity base classes set _attr_has_entity_name = True.
+  runtime-data:
+    status: done
+    comment: async_setup_entry stores HaeoRuntimeData in ConfigEntry.runtime_data.
+  test-before-configure:
+    status: exempt
+    comment: The hub config flow collects only local optimization settings; there is no device or service to connect to.
+  test-before-setup:
+    status: done
+    comment: async_setup_entry raises ConfigEntryNotReady until every input is available and ConfigEntryError for invalid configuration.
+  unique-config-entry:
+    status: done
+    comment: The hub flow sets a unique ID from the network name and aborts duplicates.
 
+  # Silver
   action-exceptions:
     status: done
-    comment: Both service handlers in custom_components/haeo/services.py raise ServiceValidationError with translation_domain=haeo, translation_key, and translation_placeholders; translations live under exceptions in translations/en.json
-
+    comment: Both actions raise ServiceValidationError with translation keys for invalid input (an unknown, foreign, or unloaded system, a time without the recorder, or a time with no history). haeo.optimize raises HomeAssistantError (inputs_not_aligned) while forecasts for a new horizon are loading, a transient failure rather than invalid input.
   config-entry-unloading:
     status: done
-    comment: async_unload_entry in custom_components/haeo/__init__.py unloads INPUT_PLATFORMS and OUTPUT_PLATFORMS, clears entry.runtime_data, and listener teardown is registered via entry.async_on_unload
-
-  reauthentication-flow:
-    status: exempt
-    comment: Integration performs only local optimisation and has no external credentials to refresh
-
+    comment: async_unload_entry unloads the input and output platforms and returns whether that succeeded; other teardown is registered with entry.async_on_unload.
   docs-configuration-parameters:
     status: done
-    comment: docs/user-guide/elements/ pages document every hub and element field
-
+    comment: docs/user-guide/ documents the hub settings and every element field.
   docs-installation-parameters:
     status: done
-    comment: docs/user-guide/installation.md lists prerequisites and configuration inputs needed during setup
-
+    comment: docs/user-guide/installation.md and the element pages describe the values needed during setup.
+  entity-unavailable:
+    status: done
+    comment: Output sensors use CoordinatorEntity availability; input entities are backed by local input stores.
+  integration-owner:
+    status: done
+    comment: manifest.json lists code owners.
+  log-when-unavailable:
+    status: done
+    comment: Failed refreshes raise UpdateFailed, which the DataUpdateCoordinator logs once when unavailable and once when recovered.
   parallel-updates:
     status: done
-    comment: PARALLEL_UPDATES = 0 is declared in custom_components/haeo/sensor.py, number.py, and switch.py — sensors are coordinator-managed and number/switch entities are backed by local InputStore state
+    comment: sensor.py, number.py, and switch.py set PARALLEL_UPDATES = 0.
+  reauthentication-flow:
+    status: exempt
+    comment: HAEO has no credentials or external service to authenticate against.
+  test-coverage:
+    status: done
+    comment: Line coverage of custom_components/haeo is 99 percent.
 
-gold:
+  # Gold
   devices:
     status: done
-    comment: get_or_create_network_device and get_or_create_element_device in custom_components/haeo/entities/device.py call device_registry.async_get_or_create for the hub device and one device per element subentry
-
+    comment: entities/device.py creates a hub device and one device per element subentry.
   diagnostics:
     status: done
-    comment: custom_components/haeo/diagnostics/__init__.py exposes async_get_config_entry_diagnostics with redaction and topology data
-
+    comment: diagnostics/ implements async_get_config_entry_diagnostics.
   discovery:
     status: exempt
-    comment: Integration models virtual energy networks and has nothing to auto-discover
-
+    comment: HAEO models a user-described energy network; there is no device to discover.
   discovery-update-info:
     status: exempt
-    comment: Discovery support is exempt, so no discovery-based updates are required
-
-  reconfiguration-flow:
-    status: done
-    comment: custom_components/haeo/flows/options.py and the element subentry flows in custom_components/haeo/flows/element_flow.py provide async_step_reconfigure paths for runtime edits
-
-  dynamic-devices:
-    status: done
-    comment: Subentry addition triggers the config entry update listener which reloads sensors for new elements
-
-  stale-devices:
-    status: done
-    comment: async_remove_config_entry_device in custom_components/haeo/__init__.py matches (DOMAIN, entry_id) and {entry_id}_{subentry_id}_* identifiers and authorises removal of orphaned element devices
-
-  entity-category:
-    status: done
-    comment: Coordinator assigns EntityCategory.DIAGNOSTIC metadata for duration outputs in custom_components/haeo/coordinator/coordinator.py
-
-  entity-device-class:
-    status: done
-    comment: Coordinator attaches SensorDeviceClass values to outputs in custom_components/haeo/coordinator/coordinator.py
-
-  entity-disabled-by-default:
-    status: done
-    comment: HaeoSensor sets _attr_entity_registry_enabled_default from each output's advanced flag (custom_components/haeo/entities/haeo_sensor.py). Outputs flagged advanced in core/adapters/elements/battery.py (BATTERY_ENERGY_IN_FLOW, BATTERY_ENERGY_OUT_FLOW, BATTERY_SOC_MAX, BATTERY_SOC_MIN) are LP-internal diagnostics and ship disabled so the recorder does not track them by default
-
-  entity-translations:
-    status: done
-    comment: translation_key equals each output name and translations/en.json defines the sensor titles
-
-  exception-translations:
-    status: done
-    comment: translations/en.json defines 11 keys under exceptions consumed by ServiceValidationError raises in custom_components/haeo/services.py and UpdateFailed raises in custom_components/haeo/coordinator/coordinator.py
-
-  icon-translations:
-    status: exempt
-    comment: Sensors use Home Assistant default icons and do not vary iconography by state
-
-  repair-issues:
-    status: done
-    comment: custom_components/haeo/repairs.py raises actionable issues with translation keys for disconnected networks, missing sensors, invalid configs, and optimisation failures
-
-  docs-examples:
-    status: done
-    comment: docs/user-guide/automations.md documents automation patterns with applied YAML
-
-  docs-use-cases:
-    status: done
-    comment: README.md describes practical optimisation scenarios such as solar plus battery control
-
-  docs-supported-devices:
-    status: exempt
-    comment: Integration consumes arbitrary Home Assistant sensors so no fixed hardware list applies
-
-  docs-supported-functions:
-    status: done
-    comment: docs/modeling/device-layer/ enumerates every published output per element (battery.md, grid.md, solar.md, loads.md, inverter.md, node.md, connection.md) and docs/user-guide/elements/ describes user-facing configuration
-
-  docs-known-limitations:
-    status: done
-    comment: docs/user-guide/alternatives.md captures HAEO scope boundaries vs EMHASS (LP-only vs MILP, deferrable appliances out of scope, forecasting deferred to other integrations) and docs/modeling/ documents solver and data-shape assumptions
-
-  docs-troubleshooting:
-    status: done
-    comment: docs/user-guide/troubleshooting.md covers common configuration, network, and performance issues
-
+    comment: HAEO has no discovery, so there is no discovery information to update.
   docs-data-update:
     status: done
-    comment: docs/user-guide/data-updates.md explains polling cadence, event triggers, and manual refresh options
-
-platinum:
-  strict-typing:
+    comment: docs/user-guide/data-updates.md explains when HAEO re-optimizes.
+  docs-examples:
     status: done
-    comment: pyproject.toml enables pyright strict mode and uv run pyright completes without errors
+    comment: docs/user-guide/automations.md has automation examples.
+  docs-known-limitations:
+    status: done
+    comment: docs/user-guide/alternatives.md and docs/modeling/ describe what HAEO does not model.
+  docs-supported-devices:
+    status: exempt
+    comment: HAEO reads arbitrary Home Assistant sensors rather than talking to specific hardware.
+  docs-supported-functions:
+    status: done
+    comment: docs/user-guide/elements/ and docs/modeling/device-layer/ describe each element's inputs and output sensors.
+  docs-troubleshooting:
+    status: done
+    comment: docs/user-guide/troubleshooting.md covers common problems.
+  docs-use-cases:
+    status: done
+    comment: README.md and the walkthroughs describe example systems.
+  dynamic-devices:
+    status: done
+    comment: Adding an element subentry reloads the entry, which creates the new element's device and entities.
+  entity-category:
+    status: done
+    comment: Input entities use EntityCategory.CONFIG and diagnostic outputs use EntityCategory.DIAGNOSTIC.
+  entity-device-class:
+    status: done
+    comment: Output sensors take their device class from the output metadata.
+  entity-disabled-by-default:
+    status: done
+    comment: Outputs flagged advanced are disabled by default through _attr_entity_registry_enabled_default.
+  entity-translations:
+    status: done
+    comment: Every entity uses a translation_key defined in translations/en.json.
+  exception-translations:
+    status: done
+    comment: User-facing errors (action errors, setup errors, and optimization failures) use translation keys under exceptions in translations/en.json.
+  icon-translations:
+    status: exempt
+    comment: No entity sets a custom icon; entities use their device class icons. Action icons are in icons.json.
+  reconfiguration-flow:
+    status: done
+    comment: The hub config flow's reconfigure step edits the hub settings with the same form and validation as the options flow, and element subentry flows have their own reconfigure steps.
+  repair-issues:
+    status: done
+    comment: repairs.py raises repair issues for disconnected networks, invalid connection endpoints, unavailable inputs, and optimization failures.
+  stale-devices:
+    status: done
+    comment: Element devices are linked to their subentry, so removing the subentry removes the device; async_remove_config_entry_device allows removing devices no element creates.
 
+  # Platinum
   async-dependency:
-    status: done
-    comment: HaeoDataUpdateCoordinator offloads network.optimize via hass.async_add_executor_job and performs no blocking I/O in async paths
-
+    status: exempt
+    comment: highspy is a CPU-bound solver with no I/O, so it has no asyncio interface; the optimization runs in the executor through hass.async_add_executor_job.
   inject-websession:
     status: exempt
-    comment: Optimisation relies solely on Home Assistant state data and does not create HTTP clients
-
-summary:
-  total_rules: 51
-  done: 41
-  exempt: 7
-  not_applicable: 0
-  external: 0
-  todo: 0
-  completion_percentage: 100
-
-notes: |
-  HAEO operates entirely on local Home Assistant state, so discovery, reauthentication, web sessions, and supported-device hardware lists are exempt.
-  Bronze, Silver, Gold, and Platinum rules are all satisfied; brands assets are published in home-assistant/brands.
-  Diagnostic outputs flagged as advanced in the model adapters (currently four battery aggregate outputs: ENERGY_IN_FLOW, ENERGY_OUT_FLOW, SOC_MAX, SOC_MIN) are disabled by default in the entity registry; users who want them can enable individually.
-  Note: the HA Quality Scale formally applies to core integrations only. HAEO is a custom integration and so its visible badge will remain quality_scale=custom, but the implementation meets the same bar as a Platinum core integration.
+    comment: HAEO makes no HTTP requests.
+  strict-typing:
+    status: done
+    comment: py.typed is shipped, pyright runs in strict mode in CI, and highspy and numpy ship py.typed.
