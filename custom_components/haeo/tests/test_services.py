@@ -266,36 +266,23 @@ async def test_save_diagnostics_with_historical_time(
     assert file_date in files[0].name
 
 
-@pytest.mark.parametrize(
-    ("recorder_loaded", "expect_time"),
-    [
-        pytest.param(True, True, id="recorder_loaded"),
-        pytest.param(False, False, id="recorder_missing"),
-    ],
-)
-async def test_save_diagnostics_schema_time_field(
+async def test_save_diagnostics_time_without_recorder_raises_error(
     hass: HomeAssistant,
-    recorder_loaded: bool,
-    expect_time: bool,
+    mock_hub_entry: MockConfigEntry,
 ) -> None:
-    """save_diagnostics exposes time only when recorder is loaded."""
-    if recorder_loaded:
-        hass.config.components.add("recorder")
-
+    """A historical time needs the recorder, so without it the action explains why it cannot run."""
     await async_setup(hass, {})
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
 
-    service = hass.services._services.get(DOMAIN, {}).get("save_diagnostics")
-    assert service is not None
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "save_diagnostics",
+            {"config_entry": mock_hub_entry.entry_id, "time": "2026-01-20T14:32:03+00:00"},
+            blocking=True,
+        )
 
-    schema = service.schema
-    assert schema is not None
-
-    if expect_time:
-        schema({"config_entry": "test_entry", "time": "2026-01-20T14:32:03+00:00"})
-    else:
-        result = schema({"config_entry": "test_entry"})
-        assert "config_entry" in result
-        assert "time" not in result
+    assert exc_info.value.translation_key == "recorder_not_loaded"
 
 
 async def test_save_diagnostics_historical_missing_entities_raises_error(

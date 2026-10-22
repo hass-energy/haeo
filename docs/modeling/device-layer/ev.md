@@ -157,21 +157,7 @@ The EV element creates a single Home Assistant device:
 
 ## Output mapping
 
-The adapter maps model outputs to EV-specific sensor names:
-
-| Model output               | Sensor name                    | Description                                             |
-| -------------------------- | ------------------------------ | ------------------------------------------------------- |
-| `{name}:charge` power      | `ev_power_charge`              | Home charge power                                       |
-| `{name}:discharge` power   | `ev_power_discharge`           | V2G discharge power                                     |
-| Calculated                 | `ev_power_active`              | Net power (discharge − charge)                          |
-| `BATTERY_ENERGY_STORED`    | `ev_energy_stored`             | Energy in EV battery                                    |
-| Calculated                 | `ev_state_of_charge`           | SOC ratio                                               |
-| Trip load energy delivered | `ev_trip_energy_delivered`     | Energy used by the current trip                         |
-| Trip load energy shortfall | `ev_trip_energy_shortfall`     | Expected public top-up energy for each trip, at its end |
-| Power limit shadow         | `ev_power_max_charge_price`    | Charge limit shadow price                               |
-| Power limit shadow         | `ev_power_max_discharge_price` | Discharge limit shadow price                            |
-
-See [EV Configuration](../../user-guide/elements/ev.md#sensors-created) for complete sensor documentation.
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/ev.md#sensors-created) on the EV page.
 
 ## Next steps
 

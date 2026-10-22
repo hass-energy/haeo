@@ -172,7 +172,7 @@ async def test_async_update_data_returns_outputs(
 
     # Patch coordinator to use mocked _load_from_input_stores
     with (
-        patch("custom_components.haeo.coordinator.coordinator.build_network", new_callable=AsyncMock),
+        patch("custom_components.haeo.coordinator.coordinator.build_network"),
         patch.object(
             hass, "async_add_executor_job", side_effect=run_jobs_but(hass, fake_network.optimize, 123.45)
         ) as mock_executor,

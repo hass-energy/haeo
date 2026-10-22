@@ -578,23 +578,20 @@ def test_network_cost_with_multiple_elements() -> None:
         }
     )
 
-    # Get aggregated cost - should use Highs.qsum for multiple costs
-    cost = network.cost()
+    primary, secondary = network.cost()
 
-    # Should return a combined objective tuple
-    assert cost is not None
+    assert primary is not None
+    assert secondary is not None
 
 
-def test_network_cost_returns_none_when_no_costs() -> None:
-    """Test Network.cost() returns None when network has no objective terms."""
+def test_network_cost_is_empty_when_no_costs() -> None:
+    """Network.cost() has neither a primary nor a secondary cost when no element has one."""
     network = Network(name="test", periods=np.array([1.0]))
 
     # Add a node (has no costs)
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
 
-    # Should return None when no costs
-    cost = network.cost()
-    assert cost is None
+    assert network.cost() == (None, None)
 
 
 def test_network_constraints_empty_when_no_elements() -> None:
@@ -712,14 +709,6 @@ def test_solves_with_negligible_objective_coefficients() -> None:
     assert second == pytest.approx(first)
 
 
-def test_optimize_requires_objectives() -> None:
-    """Network without cost objectives raises ValueError."""
-    network = Network(name="test", periods=np.array([1.0]))
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
-    with pytest.raises(ValueError, match="no cost objectives"):
-        network.optimize()
-
-
 def test_optimize_raises_no_primary_cost() -> None:
     """Network with secondary but no primary cost raises ValueError."""
     network = Network(name="test", periods=np.array([1.0]))
@@ -741,10 +730,10 @@ def test_optimize_raises_no_primary_cost() -> None:
 
 
 def test_optimize_raises_no_secondary_cost() -> None:
-    """Network without connections has no secondary cost."""
+    """A network with a cost but no connections has no secondary cost."""
     network = Network(name="test", periods=np.array([1.0]))
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_source": True, "is_sink": True})
-    with pytest.raises(ValueError, match="no cost objectives"):
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0})
+    with pytest.raises(ValueError, match="no secondary cost"):
         network.optimize()
 
 
@@ -1001,9 +990,7 @@ def _network_with(elements: list[ModelElementConfig]) -> Network:
 
 def _objectives(network: Network) -> tuple[LinearArray, LinearArray]:
     """Return the network's cost and secondary objectives."""
-    objectives = network.cost()
-    assert objectives is not None
-    primary, secondary = objectives
+    primary, secondary = network.cost()
     assert primary is not None
     assert secondary is not None
     return primary, secondary
@@ -1160,7 +1147,7 @@ def test_a_failed_solve_counts_against_the_weight(monkeypatch: pytest.MonkeyPatc
     network = _network_with(_interchangeable_batteries())
     network.optimize()
     h = network._solver
-    objectives = network_module._build_objectives(*_objectives(network), h.numVariables)
+    objectives = network_module.Objectives.of(*_objectives(network), h.numVariables)
     monkeypatch.setattr(h, "getModelStatus", lambda: HighsModelStatus.kUnknown)
 
     _, cost_optimal, _ = network._solve_at(np.arange(h.numVariables, dtype=np.int32), objectives, 1e-6)
@@ -1186,7 +1173,7 @@ def test_checking_a_plan_leaves_it_and_its_basis_unchanged() -> None:
     cols = np.arange(h.getNumCol(), dtype=np.int32)
     weight = network._blend_weight
     assert weight is not None
-    blended = network_module._build_objectives(*_objectives(network), len(cols)).blend(weight)
+    blended = network_module.Objectives.of(*_objectives(network), len(cols)).blend(weight)
     # Same blend as the plan was solved with, so its solve stays put, but a cost of all ones to price
     ones = network_module.Objective(np.ones(len(cols)), 0.0)
     secondary = network_module.Objective((blended.costs - ones.costs) / weight, blended.offset / weight)

@@ -35,9 +35,9 @@ Connections define explicit, **unidirectional** power paths between elements, wi
 | **Name**       | String                                   | Yes      | -         | Unique identifier for this connection            |
 | **Source**     | Element                                  | Yes      | -         | Element power flows from                         |
 | **Target**     | Element                                  | Yes      | -         | Element power flows to                           |
-| **Max power**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power arriving at the target (kW)        |
+| **Max power**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power leaving the source (kW)            |
 | **Efficiency** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for this direction |
-| **Price**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for power arriving at the target  |
+| **Price**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for power leaving the source      |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 

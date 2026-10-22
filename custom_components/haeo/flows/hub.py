@@ -5,6 +5,7 @@ from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstr
 
 from homeassistant.config_entries import (
     ConfigEntry,
+    ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
     ConfigSubentryData,
@@ -28,7 +29,7 @@ from custom_components.haeo.flows.horizon import async_horizon_preset_labels, va
 from custom_components.haeo.migrations import MIGRATION_MINOR_VERSION
 
 from . import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, get_element_flow_classes, get_hub_setup_schema
-from .options import HubOptionsFlow
+from .options import HubOptionsFlow, async_hub_settings_schema, hub_settings_data, validate_hub_settings
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -114,6 +115,24 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             },
             subentries=[await async_network_subentry(self.hass), await async_switchboard_subentry(self.hass)],
         )
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Edit the hub settings, using the same form as the options flow."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            errors = validate_hub_settings(self.hass, entry, user_input)
+            if not errors:
+                data = hub_settings_data(entry, user_input)
+                # A loaded hub's update listener reloads it when its data changes, so
+                # reloading here as well would reload it twice. A hub that has not set
+                # up has no listener, so it is reloaded here to apply the settings.
+                if entry.state is ConfigEntryState.LOADED:
+                    return self.async_update_and_abort(entry, data=data)
+                return self.async_update_reload_and_abort(entry, data=data)
+
+        data_schema = await async_hub_settings_schema(self.hass, entry)
+        return self.async_show_form(step_id="reconfigure", data_schema=data_schema, errors=errors)
 
     @staticmethod
     def async_get_options_flow(config_entry: ConfigEntry) -> HubOptionsFlow:

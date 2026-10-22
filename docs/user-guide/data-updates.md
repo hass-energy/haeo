@@ -33,12 +33,8 @@ Related updates that arrive close together are grouped, and optimization runs af
 ## Manual refresh options
 
 Sometimes you want the latest recommendation right away.
-You can trigger a manual refresh from the entity details page or by calling the standard Home Assistant update service for any HAEO sensor.
-Manual refreshes skip the waiting period and start a new optimization as soon as they are invoked.
-
-Automations and scripts can call the **Optimize** action (`haeo.optimize`) with your HAEO system to run an optimization straight away, even while automatic optimization is turned off.
-Each time the planning horizon moves forward, forecast inputs need a moment to load for the new horizon.
-Calling the action during that moment fails with an error saying the inputs are still loading, so try again shortly after.
+Run the [`haeo.optimize` action](actions.md#run-an-optimization) to start a new optimization immediately.
+It skips the waiting period and runs even when the **Auto optimize** switch is off.
 
 ## Troubleshooting stale data
 
@@ -154,7 +150,7 @@ To improve responsiveness:
 - Ensure your source sensors update frequently (check their polling intervals)
 - Choose a shorter [planning horizon](configuration.md#planning-horizon) preset, or a forecast sensor with fewer periods, for faster solving
 - Simplify network topology when possible
-- Trigger manual updates via service calls when you need immediate feedback
+- Run the [`haeo.optimize` action](actions.md#run-an-optimization) when you need immediate feedback
 
 ### How do I inspect input entity data?
 

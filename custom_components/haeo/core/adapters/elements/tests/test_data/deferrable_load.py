@@ -9,7 +9,6 @@ from custom_components.haeo.core.adapters.elements.deferrable_load import (
     DEFERRABLE_LOAD_DEVICE,
     DEFERRABLE_POWER,
 )
-from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
@@ -24,99 +23,121 @@ from custom_components.haeo.core.model.elements.deferrable_load import (
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.deferrable_load import DeferrableLoadConfigData, ScheduleData
+from custom_components.haeo.core.schema.elements.deferrable_load import DeferrableLoadConfigData
 
 from . import CreateCase, OutputsCase
 
-# A 6 kWh window over period 2 of a four-period horizon
-SCHEDULE: ScheduleData = {
-    "in_window": np.array([0.0, 0.0, 1.0, 0.0]),
-    "window_start": np.array([0.0, 0.0, 1.0, 0.0, 0.0]),
-    "opened": np.array([0.0, 0.0, 6.0, 0.0, 0.0]),
-    "due": np.array([0.0, 0.0, 0.0, 6.0, 0.0]),
-}
-OVERAGE_PRICE = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
 
-PUMP = DeferrableLoadConfigData(
-    element_type=ElementType.DEFERRABLE_LOAD,
-    name="pump",
-    connection=as_connection_target("home"),
-    schedule={**SCHEDULE, "energy_meter": 2.0},
-    pricing={"deficit_price": np.full(5, 10.0), "overage_price": OVERAGE_PRICE},
-    power={"max_power": 1.5},
-)
+def _pump() -> DeferrableLoadConfigData:
+    """Return a 2 kW pump whose 6 kWh window opened before the horizon and is due at boundary 3.
+
+    Its meter has counted 2 kWh since the window opened, so 4 kWh remain.
+    """
+    return DeferrableLoadConfigData(
+        element_type=ElementType.DEFERRABLE_LOAD,
+        name="pump",
+        connection=as_connection_target("home"),
+        schedule={
+            "in_window": np.array([1.0, 1.0, 1.0, 0.0]),
+            "window_start": np.zeros(5),
+            "opened": np.array([6.0, 0.0, 0.0, 0.0, 0.0]),
+            "due": np.array([0.0, 0.0, 0.0, 6.0, 0.0]),
+            "energy_meter": 2.0,
+        },
+        pricing={"deficit_price": np.full(5, 10.0), "overage_price": np.array([0.1, 0.2, 0.3, 0.4, 0.5])},
+        power={"max_power": 2.0},
+    )
 
 
-def _load_element(name: str, *, initial_energy: float) -> dict[str, object]:
-    """Return the deferrable load model element built from SCHEDULE and the pricing above."""
-    return {
-        "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
-        "name": name,
-        "is_source": False,
-        "is_sink": True,
-        **SCHEDULE,
-        "initial_energy": initial_energy,
-        "deficit_price": [10.0] * 5,
-        "overage_price": OVERAGE_PRICE,
-    }
+def _heater() -> DeferrableLoadConfigData:
+    """Return a heater without a power limit or meter whose 6 kWh window covers period 2."""
+    return DeferrableLoadConfigData(
+        element_type=ElementType.DEFERRABLE_LOAD,
+        name="heater",
+        connection=as_connection_target("home"),
+        schedule={
+            "in_window": np.array([0.0, 0.0, 1.0, 0.0]),
+            "window_start": np.array([0.0, 0.0, 1.0, 0.0, 0.0]),
+            "opened": np.array([0.0, 0.0, 6.0, 0.0, 0.0]),
+            "due": np.array([0.0, 0.0, 0.0, 6.0, 0.0]),
+        },
+        pricing={"deficit_price": np.full(5, 10.0), "overage_price": np.zeros(5)},
+    )
 
 
 CREATE_CASES: list[CreateCase] = [
     {
-        "description": "Deferrable load with a power limit, meter, and overage price",
-        "data": PUMP,
+        "description": "Deferrable load with a power limit and a meter seeding its open window",
+        "data": _pump(),
         "model": [
-            _load_element("pump", initial_energy=2.0),
+            {
+                "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+                "name": "pump",
+                "is_source": False,
+                "is_sink": True,
+                "in_window": [1.0, 1.0, 1.0, 0.0],
+                "window_start": [0.0, 0.0, 0.0, 0.0, 0.0],
+                "opened": [6.0, 0.0, 0.0, 0.0, 0.0],
+                "due": [0.0, 0.0, 0.0, 6.0, 0.0],
+                "initial_energy": 2.0,
+                "deficit_price": [10.0, 10.0, 10.0, 10.0, 10.0],
+                "overage_price": [0.1, 0.2, 0.3, 0.4, 0.5],
+            },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
                 "name": "pump:connection",
                 "source": "home",
                 "target": "pump",
-                "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 1.5}},
+                "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 2.0}},
             },
         ],
     },
     {
         "description": "Deferrable load without a power limit or meter gates itself to its windows",
-        "data": DeferrableLoadConfigData(
-            element_type=ElementType.DEFERRABLE_LOAD,
-            name="unlimited",
-            connection=as_connection_target("home"),
-            schedule=SCHEDULE,
-            pricing={"deficit_price": np.full(5, 10.0), "overage_price": OVERAGE_PRICE},
-        ),
+        "data": _heater(),
         "model": [
-            _load_element("unlimited", initial_energy=0.0),
+            {
+                "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+                "name": "heater",
+                "is_source": False,
+                "is_sink": True,
+                "in_window": [0.0, 0.0, 1.0, 0.0],
+                "window_start": [0.0, 0.0, 1.0, 0.0, 0.0],
+                "opened": [0.0, 0.0, 6.0, 0.0, 0.0],
+                "due": [0.0, 0.0, 0.0, 6.0, 0.0],
+                "initial_energy": 0.0,
+                "deficit_price": [10.0, 10.0, 10.0, 10.0, 10.0],
+                "overage_price": [0.0, 0.0, 0.0, 0.0, 0.0],
+            },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "unlimited:connection",
+                "name": "heater:connection",
                 "source": "home",
-                "target": "unlimited",
+                "target": "heater",
                 "segments": {},
             },
         ],
     },
 ]
 
-DELIVERED = OutputData(type=OutputType.ENERGY, unit="kWh", values=(0.0, 0.0, 0.0, 6.0, 6.0))
-SHORTFALL = OutputData(type=OutputType.ENERGY, unit="kWh", values=(0.0, 0.0, 0.0, 0.0, 0.0))
-OVERAGE = OutputData(type=OutputType.ENERGY, unit="kWh", values=(0.0, 0.0, 0.0, 0.5, 0.0))
 
-LOAD_OUTPUTS: dict[ModelOutputName, ModelOutputValue] = {
-    DEFERRABLE_LOAD_ENERGY_DELIVERED: DELIVERED,
-    DEFERRABLE_LOAD_ENERGY_SHORTFALL: SHORTFALL,
-    DEFERRABLE_LOAD_ENERGY_OVERAGE: OVERAGE,
-}
+def _energy(*values: float) -> OutputData:
+    return OutputData(type=OutputType.ENERGY, unit="kWh", values=values)
+
 
 OUTPUTS_CASES: list[OutputsCase] = [
     {
-        "description": "Deferrable load reports the power it draws and its window energy",
-        "data": PUMP,
+        "description": "Deferrable load draws the 4 kWh its window still needs at its 2 kW limit",
+        "data": _pump(),
         "model_outputs": {
-            "pump": LOAD_OUTPUTS,
+            "pump": {
+                DEFERRABLE_LOAD_ENERGY_DELIVERED: _energy(2.0, 4.0, 6.0, 6.0, 6.0),
+                DEFERRABLE_LOAD_ENERGY_SHORTFALL: _energy(0.0, 0.0, 0.0, 0.0, 0.0),
+                DEFERRABLE_LOAD_ENERGY_OVERAGE: _energy(0.0, 0.0, 0.0, 0.0, 0.0),
+            },
             "pump:connection": {
                 connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(0.0, 0.0, 6.0, 0.0), direction="+"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(2.0, 2.0, 0.0, 0.0), direction="+"
                 ),
             },
         },
@@ -124,27 +145,33 @@ OUTPUTS_CASES: list[OutputsCase] = [
         "outputs": {
             DEFERRABLE_LOAD_DEVICE: {
                 DEFERRABLE_POWER: OutputData(
-                    type=OutputType.POWER, unit="kW", values=(0.0, 0.0, 6.0, 0.0), direction="-"
+                    type=OutputType.POWER, unit="kW", values=(2.0, 2.0, 0.0, 0.0), direction="-"
                 ),
-                DEFERRABLE_ENERGY_DELIVERED: DELIVERED,
-                DEFERRABLE_ENERGY_SHORTFALL: SHORTFALL,
-                DEFERRABLE_ENERGY_OVERAGE: OVERAGE,
+                DEFERRABLE_ENERGY_DELIVERED: _energy(2.0, 4.0, 6.0, 6.0, 6.0),
+                DEFERRABLE_ENERGY_SHORTFALL: _energy(0.0, 0.0, 0.0, 0.0, 0.0),
+                DEFERRABLE_ENERGY_OVERAGE: _energy(0.0, 0.0, 0.0, 0.0, 0.0),
             }
         },
     },
     {
-        "description": "Deferrable load connection pruned - load draws no power",
-        "data": PUMP,
-        "model_outputs": {"pump": LOAD_OUTPUTS},
+        "description": "Deferrable load connection pruned - nothing drawn, so the remainder falls short",
+        "data": _pump(),
+        "model_outputs": {
+            "pump": {
+                DEFERRABLE_LOAD_ENERGY_DELIVERED: _energy(2.0, 2.0, 2.0, 2.0, 2.0),
+                DEFERRABLE_LOAD_ENERGY_SHORTFALL: _energy(0.0, 0.0, 0.0, 4.0, 0.0),
+                DEFERRABLE_LOAD_ENERGY_OVERAGE: _energy(0.0, 0.0, 0.0, 0.0, 0.0),
+            },
+        },
         "periods": np.ones(4),
         "outputs": {
             DEFERRABLE_LOAD_DEVICE: {
                 DEFERRABLE_POWER: OutputData(
                     type=OutputType.POWER, unit="kW", values=(0.0, 0.0, 0.0, 0.0), direction="-"
                 ),
-                DEFERRABLE_ENERGY_DELIVERED: DELIVERED,
-                DEFERRABLE_ENERGY_SHORTFALL: SHORTFALL,
-                DEFERRABLE_ENERGY_OVERAGE: OVERAGE,
+                DEFERRABLE_ENERGY_DELIVERED: _energy(2.0, 2.0, 2.0, 2.0, 2.0),
+                DEFERRABLE_ENERGY_SHORTFALL: _energy(0.0, 0.0, 0.0, 4.0, 0.0),
+                DEFERRABLE_ENERGY_OVERAGE: _energy(0.0, 0.0, 0.0, 0.0, 0.0),
             }
         },
     },

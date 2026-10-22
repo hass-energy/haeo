@@ -3,13 +3,24 @@
 import copy
 from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.elements import InputFieldPath, set_nested_config_value_by_path
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry
+
+
+def network_subentry(entry: ConfigEntry) -> ConfigSubentry:
+    """Return the hub's network subentry, which setup creates before anything reads it.
+
+    Raises:
+        StopIteration: When the hub has no network subentry.
+
+    """
+    return next(subentry for subentry in entry.subentries.values() if subentry.subentry_type == ELEMENT_TYPE_NETWORK)
 
 
 async def async_update_subentry_value(
@@ -21,9 +32,10 @@ async def async_update_subentry_value(
 ) -> None:
     """Update a single field value in a subentry without triggering reload.
 
-    This function sets a flag on runtime_data before updating the subentry,
-    which signals async_update_listener to skip the full integration reload
-    and just refresh the coordinator instead.
+    When the value changes, this function sets a flag on runtime_data before
+    updating the subentry, which signals async_update_listener to skip the full
+    integration reload and just refresh the coordinator instead. Writing the
+    value the field already has does nothing.
 
     Args:
         hass: Home Assistant instance.
@@ -33,14 +45,16 @@ async def async_update_subentry_value(
         value: New value for the field.
 
     """
+    new_data = copy.deepcopy(dict(subentry.data))
+    set_nested_config_value_by_path(new_data, field_path, value)
+    # An unchanged subentry fires no update listener, which is what clears the flag
+    if new_data == dict(subentry.data):
+        return
+
     # Set flag to prevent reload
     runtime_data = entry.runtime_data
     if runtime_data is not None:
         runtime_data.value_update_in_progress = True
-
-    # Update subentry data with new value
-    new_data = copy.deepcopy(dict(subentry.data))
-    set_nested_config_value_by_path(new_data, field_path, value)
 
     try:
         hass.config_entries.async_update_subentry(

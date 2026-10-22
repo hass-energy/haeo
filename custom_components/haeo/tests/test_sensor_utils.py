@@ -379,14 +379,6 @@ def test_get_duration_sensor_entity_id_found(hass: HomeAssistant) -> None:
     assert get_duration_sensor_entity_id(hass, entry) == registered.entity_id
 
 
-def test_get_duration_sensor_entity_id_no_network_subentry(hass: HomeAssistant) -> None:
-    """Without a network subentry there is no duration sensor."""
-    entry = _build_hub_entry()
-    entry.add_to_hass(hass)
-
-    assert get_duration_sensor_entity_id(hass, entry) is None
-
-
 def test_get_horizon_sensor_entity_id_found(hass: HomeAssistant) -> None:
     """The horizon sensor is found by the unique ID it has on the hub."""
     entry = _build_hub_entry()

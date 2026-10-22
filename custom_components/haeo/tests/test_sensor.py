@@ -6,7 +6,7 @@ from types import MappingProxyType
 
 # Coordinator output fixtures use runtime string keys that cannot satisfy the
 # Literal key types of SubentryDevices.
-from typing import Any, Literal  # noqa: TID251
+from typing import Any  # noqa: TID251
 from unittest.mock import Mock
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
@@ -14,7 +14,6 @@ from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.translation import async_get_translations
-from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -26,10 +25,9 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
 )
-from custom_components.haeo.coordinator import CoordinatorData, CoordinatorOutput, ForecastPoint, OptimizationContext
+from custom_components.haeo.coordinator import ForecastPoint
 from custom_components.haeo.core.adapters.elements.load import LOAD_POWER
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
-from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
 from custom_components.haeo.core.schema import as_connection_target
@@ -38,57 +36,13 @@ from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as 
 from custom_components.haeo.core.schema.elements.battery import SECTION_LIMITS
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.entities import HaeoSensor
+from custom_components.haeo.entities.tests.sensor_helpers import (
+    create_mock_coordinator,
+    make_coordinator_data,
+    make_output,
+)
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.sensor import async_setup_entry
-
-
-def _make_coordinator_data(
-    outputs: dict[str, Any] | None = None,
-    *,
-    started_at: datetime | None = None,
-    completed_at: datetime | None = None,
-) -> CoordinatorData | None:
-    """Create a CoordinatorData instance for tests.
-
-    Args:
-        outputs: Dict of outputs. If None, returns None to simulate no data.
-        started_at: Optimization start time; defaults to current UTC time.
-        completed_at: Optimization completion time; defaults to current UTC time.
-
-    Returns:
-        CoordinatorData with the given outputs, or None.
-
-    """
-    if outputs is None:
-        return None
-    context = OptimizationContext(
-        hub_config={},
-        horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
-        participants={},
-        source_states={},
-    )
-    run_started_at = started_at or datetime.now(UTC)
-    run_completed_at = completed_at or datetime.now(UTC)
-    return CoordinatorData(
-        context=context,
-        outputs=outputs,
-        started_at=run_started_at,
-        completed_at=run_completed_at,
-    )
-
-
-def _create_mock_coordinator() -> Mock:
-    """Create a mock coordinator for sensor tests.
-
-    Returns a Mock configured with the minimal interface needed for sensor tests.
-    Callers can use this where HaeoDataUpdateCoordinator is expected since Mock
-    attribute access returns Any, making it compatible at runtime.
-    """
-    coordinator = Mock()
-    coordinator.data = _make_coordinator_data({})
-    coordinator.last_update_success = True
-    coordinator.async_add_listener = Mock(return_value=lambda: None)
-    return coordinator
 
 
 def _create_mock_horizon_manager() -> Mock:
@@ -105,33 +59,6 @@ def _create_mock_runtime_data(coordinator: Mock) -> HaeoRuntimeData:
     """Create mock runtime data with horizon manager and coordinator."""
     horizon = _create_mock_horizon_manager()
     return HaeoRuntimeData(horizon_manager=horizon, coordinator=coordinator)
-
-
-def _make_output(
-    *,
-    type_: OutputType,
-    unit: str | None,
-    state: float | str | None,
-    forecast: list[ForecastPoint] | None,
-    entity_category: EntityCategory | None,
-    device_class: SensorDeviceClass | None,
-    state_class: SensorStateClass | None,
-    options: tuple[str, ...] | None,
-    direction: Literal["+", "-"] | None = None,
-    interpolation_mode: InterpolationMode | None = None,
-) -> CoordinatorOutput:
-    return CoordinatorOutput(
-        type=type_,
-        unit=unit,
-        state=state,
-        forecast=forecast,
-        interpolation_mode=interpolation_mode,
-        entity_category=entity_category,
-        device_class=device_class,
-        state_class=state_class,
-        options=options,
-        direction=direction,
-    )
 
 
 @pytest.fixture
@@ -187,15 +114,15 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
 ) -> None:
     """Sensors inherit metadata supplied by coordinator outputs."""
 
-    coordinator = _create_mock_coordinator()
+    coordinator = create_mock_coordinator()
     network_key = config_entry.title
     battery_key = "Battery"
 
-    coordinator.data = _make_coordinator_data(
+    coordinator.data = make_coordinator_data(
         {
             network_key: {
                 network_key: {
-                    OUTPUT_NAME_OPTIMIZATION_DURATION: _make_output(
+                    OUTPUT_NAME_OPTIMIZATION_DURATION: make_output(
                         type_=OutputType.DURATION,
                         unit=UnitOfTime.SECONDS,
                         state=12.3,
@@ -209,7 +136,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
             },
             battery_key: {
                 battery_key: {
-                    LOAD_POWER: _make_output(
+                    LOAD_POWER: make_output(
                         type_=OutputType.POWER,
                         unit="kW",
                         state=1.5,
@@ -272,8 +199,8 @@ async def test_async_setup_entry_creates_horizon_when_no_outputs(
     The horizon entity is essential for input entities to function,
     so it must be included regardless of optimization output availability.
     """
-    coordinator = _create_mock_coordinator()
-    coordinator.data = _make_coordinator_data({})
+    coordinator = create_mock_coordinator()
+    coordinator.data = make_coordinator_data({})
     config_entry.runtime_data = _create_mock_runtime_data(coordinator)
 
     async_add_entities = Mock()
@@ -291,15 +218,15 @@ async def test_async_setup_entry_creates_sub_device_sensors(
 ) -> None:
     """Sensors are created for sub-devices (e.g. nested components)."""
 
-    coordinator = _create_mock_coordinator()
+    coordinator = create_mock_coordinator()
     battery_key = "Battery"
     sub_device_key = "Battery Sub"
 
-    coordinator.data = _make_coordinator_data(
+    coordinator.data = make_coordinator_data(
         {
             battery_key: {
                 sub_device_key: {
-                    LOAD_POWER: _make_output(
+                    LOAD_POWER: make_output(
                         type_=OutputType.POWER,
                         unit="kW",
                         state=1.0,
@@ -360,12 +287,12 @@ async def test_async_setup_entry_flattens_connection_endpoints_into_placeholders
     )
     hass.config_entries.async_add_subentry(config_entry, connection_subentry)
 
-    coordinator = _create_mock_coordinator()
-    coordinator.data = _make_coordinator_data(
+    coordinator = create_mock_coordinator()
+    coordinator.data = make_coordinator_data(
         {
             "ACEV to EV1": {
                 ElementType.CONNECTION: {
-                    CONNECTION_POWER: _make_output(
+                    CONNECTION_POWER: make_output(
                         type_=OutputType.POWER_FLOW,
                         unit="kW",
                         state=11.14,
@@ -394,7 +321,7 @@ async def test_async_setup_entry_flattens_connection_endpoints_into_placeholders
 
 def _coordinator_without_data() -> tuple[Mock, list[Callable[[], None]]]:
     """Return a coordinator whose first optimization failed, and its registered listeners."""
-    coordinator = _create_mock_coordinator()
+    coordinator = create_mock_coordinator()
     coordinator.data = None
     coordinator.last_update_success = False
     listeners: list[Callable[[], None]] = []
@@ -411,7 +338,7 @@ def _network_outputs(network_key: str) -> dict[str, Any]:
     return {
         network_key: {
             network_key: {
-                OUTPUT_NAME_OPTIMIZATION_COST: _make_output(
+                OUTPUT_NAME_OPTIMIZATION_COST: make_output(
                     type_=OutputType.COST,
                     unit="$",
                     state=1.0,
@@ -450,7 +377,7 @@ async def test_outputs_added_after_failed_first_optimization(
         listener()
     assert len(added_entities(async_add_entities)) == 2
 
-    coordinator.data = _make_coordinator_data(_network_outputs(config_entry.title))
+    coordinator.data = make_coordinator_data(_network_outputs(config_entry.title))
     for _ in range(2):
         for listener in list(listeners):
             listener()
@@ -471,7 +398,7 @@ async def test_outputs_not_added_while_entry_unloads(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     config_entry.mock_state(hass, ConfigEntryState.UNLOAD_IN_PROGRESS)
-    coordinator.data = _make_coordinator_data(_network_outputs(config_entry.title))
+    coordinator.data = make_coordinator_data(_network_outputs(config_entry.title))
     for listener in list(listeners):
         listener()
     assert async_add_entities.call_count == 1
@@ -485,7 +412,7 @@ async def test_status_sensor_keeps_previous_unique_id(
     config_entry: MockConfigEntry,
 ) -> None:
     """The status sensor keeps the unique ID it had as a network output, so its entity ID is unchanged."""
-    config_entry.runtime_data = _create_mock_runtime_data(_create_mock_coordinator())
+    config_entry.runtime_data = _create_mock_runtime_data(create_mock_coordinator())
     async_add_entities = Mock()
 
     await async_setup_entry(hass, config_entry, async_add_entities)

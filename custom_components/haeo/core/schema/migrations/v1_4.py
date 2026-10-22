@@ -8,6 +8,7 @@ and battery undercharge and overcharge partitions become buffers.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 import logging
 
@@ -47,6 +48,9 @@ from custom_components.haeo.core.schema.sections import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# The config entry minor version these migrations bring an entry to
+MINOR_VERSION = 4
+
 # Each reverse-direction connection field, with its section and the field
 # that holds the same setting on a connection running the other way
 REVERSE_FIELDS: Mapping[str, tuple[str, str]] = {
@@ -58,6 +62,11 @@ REVERSE_FIELDS: Mapping[str, tuple[str, str]] = {
 _CONNECTION_SECTIONS: tuple[str, ...] = (SECTION_POWER_LIMITS, SECTION_PRICING, SECTION_EFFICIENCY)
 
 _SEGMENT_ORDER = "segment_order"
+
+# The name the hub's Switchboard node was created with. English is the only
+# language HAEO has shipped translations for, and Home Assistant falls back to
+# it, so every Switchboard got this name whatever the language.
+SWITCHBOARD_NAME = "Switchboard"
 
 
 def _is_configured_value(value: object) -> bool:
@@ -92,7 +101,7 @@ def migrate_connection_config(
     data: Mapping[str, object],
     *,
     existing_names: set[str],
-    routes: set[tuple[str, str]],
+    routes: AbstractSet[tuple[str, str]],
 ) -> tuple[dict[str, object], dict[str, object] | None]:
     """Migrate a connection config to unidirectional fields.
 
@@ -104,9 +113,10 @@ def migrate_connection_config(
     flow, and no other connection already carries power the other way. A
     connection that already does keeps behaving as it did.
 
-    ``routes`` holds the (source, target) names of every connection, see
-    ``connection_route``. The reverse connection's name is made unique against
-    ``existing_names``, and both sets gain the reverse connection.
+    ``routes`` holds the (source, target) names of every connection from
+    before the migration, see ``connection_route``, so reverse connections the
+    migration creates do not count. The reverse connection's name is made
+    unique against ``existing_names``, which gains it.
 
     Returns:
         Tuple of forward connection data and reverse connection data, or None
@@ -136,7 +146,7 @@ def migrate_connection_config(
         return forward, None
 
     source_name, target_name = connection_route(data)
-    if (target_name, source_name) in routes:
+    if source_name != target_name and (target_name, source_name) in routes:
         _LOGGER.info(
             "Another connection already carries power from %s to %s, so connection %s keeps carrying power "
             "one way and its reverse settings, which had no effect, were dropped: %s",
@@ -149,7 +159,6 @@ def migrate_connection_config(
 
     reverse_name = _unique_name(f"{name} ({target_name} to {source_name})", existing_names)
     existing_names.add(reverse_name)
-    routes.add((target_name, source_name))
     reverse: dict[str, object] = {
         CONF_ELEMENT_TYPE: connection.ELEMENT_TYPE,
         CONF_NAME: reverse_name,
@@ -183,19 +192,37 @@ def node_is_junction(data: Mapping[str, object]) -> bool:
     return not any(_role_enabled(role.get(field)) for field in (node.CONF_IS_SOURCE, node.CONF_IS_SINK))
 
 
+def node_becomes_junction(name: str, data: Mapping[str, object], *, advanced_mode: bool) -> bool:
+    """Return True when the node called ``name`` is replaced by a junction.
+
+    The Switchboard is always a junction. Outside advanced mode a node cannot be
+    configured, so every node becomes a junction. In advanced mode, other nodes
+    become junctions only when neither their source nor sink switch is on.
+    """
+    return node_is_junction(data) or not advanced_mode or name == SWITCHBOARD_NAME
+
+
 def junction_config(data: Mapping[str, object]) -> dict[str, object]:
     """Return the junction config that replaces a node config."""
     return {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: data[CONF_NAME]}
 
 
-def uses_custom_horizon(data: Mapping[str, object]) -> bool:
-    """Return True when a hub plans over custom tiers, which no horizon choice can hold."""
-    common = section_dict(data, HUB_SECTION_COMMON)
-    preset = common.get(CONF_HORIZON_PRESET)
-    return CONF_HORIZON not in common and preset is not None and preset not in HORIZON_PRESET_DAYS
+@dataclass(frozen=True, slots=True)
+class HubHorizonMigration:
+    """A migrated hub config.
+
+    Attributes:
+        hub: The hub config with a horizon choice in place of its preset and tiers.
+        tiers_replaced_by: The preset that replaced the hub's custom tiers, or
+            None when the hub kept its horizon.
+
+    """
+
+    hub: dict[str, object]
+    tiers_replaced_by: str | None
 
 
-def migrate_hub_horizon(data: Mapping[str, object]) -> dict[str, object]:
+def migrate_hub_horizon(data: Mapping[str, object]) -> HubHorizonMigration:
     """Replace the hub's horizon preset and tiers with a horizon choice holding the preset.
 
     A hub that already has a horizon choice keeps it. Custom tiers are no
@@ -204,14 +231,15 @@ def migrate_hub_horizon(data: Mapping[str, object]) -> dict[str, object]:
     migrated = {key: value for key, value in data.items() if key != HUB_SECTION_TIERS}
     common = section_dict(data, HUB_SECTION_COMMON)
     preset = common.pop(CONF_HORIZON_PRESET, None)
-    common.setdefault(
-        CONF_HORIZON,
-        as_horizon_preset_value(
-            preset if isinstance(preset, str) and preset in HORIZON_PRESET_DAYS else HORIZON_PRESET_5_DAYS
-        ),
-    )
+    tiers_replaced_by: str | None = None
+    if CONF_HORIZON not in common:
+        if isinstance(preset, str) and preset in HORIZON_PRESET_DAYS:
+            common[CONF_HORIZON] = as_horizon_preset_value(preset)
+        else:
+            common[CONF_HORIZON] = as_horizon_preset_value(HORIZON_PRESET_5_DAYS)
+            tiers_replaced_by = None if preset is None else HORIZON_PRESET_5_DAYS
     migrated[HUB_SECTION_COMMON] = common
-    return migrated
+    return HubHorizonMigration(migrated, tiers_replaced_by)
 
 
 # Window of the buffers partitions become. They cover no loads or generation,
@@ -308,16 +336,91 @@ def migrate_battery_config(data: Mapping[str, object], *, existing_names: set[st
     return BatteryMigration(migrated, tuple(buffers))
 
 
+@dataclass(frozen=True)
+class ParticipantMigration:
+    """Element configs after the v1.4 element migrations.
+
+    Attributes:
+        participants: Every element's config by name. Elements the migration
+            created follow the elements they came from.
+        created_from: The name of the element each created element came from.
+        junctions: The names of nodes replaced by junctions.
+
+    """
+
+    participants: dict[str, dict[str, object]]
+    created_from: dict[str, str]
+    junctions: tuple[str, ...]
+
+
+def migrate_participants(
+    participants: Mapping[str, Mapping[str, object]], *, advanced_mode: bool
+) -> ParticipantMigration:
+    """Apply the v1.4 element migrations to element configs keyed by name.
+
+    Every connection becomes unidirectional first, then every battery moves its
+    partitions into buffers, then nodes that only pass power through become
+    junctions. Each step runs over every element before the next starts, so
+    created elements are named in the same order whoever applies the result.
+    The steps are for configs older than v1.4: a current node that sources or
+    sinks power becomes a junction outside advanced mode.
+    """
+    existing_names = set(participants)
+    routes = {
+        connection_route(config)
+        for config in participants.values()
+        if config[CONF_ELEMENT_TYPE] == connection.ELEMENT_TYPE
+    }
+    created_from: dict[str, str] = {}
+    added: dict[str, list[tuple[str, dict[str, object]]]] = {name: [] for name in participants}
+    migrated = {name: dict(config) for name, config in participants.items()}
+
+    for name, config in participants.items():
+        if config[CONF_ELEMENT_TYPE] == connection.ELEMENT_TYPE:
+            forward, reverse = migrate_connection_config(config, existing_names=existing_names, routes=routes)
+            migrated[name] = forward
+            if reverse is not None:
+                added[name].append((str(reverse[CONF_NAME]), reverse))
+
+    for name, config in participants.items():
+        if config[CONF_ELEMENT_TYPE] == battery.ELEMENT_TYPE:
+            migration = migrate_battery_config(config, existing_names=existing_names)
+            migrated[name] = migration.battery
+            added[name].extend((str(buffer_config[CONF_NAME]), buffer_config) for buffer_config in migration.buffers)
+
+    junctions = tuple(
+        name
+        for name, config in participants.items()
+        if config[CONF_ELEMENT_TYPE] == node.ELEMENT_TYPE
+        and node_becomes_junction(name, config, advanced_mode=advanced_mode)
+    )
+    for name in junctions:
+        migrated[name] = junction_config(participants[name])
+
+    ordered: dict[str, dict[str, object]] = {}
+    for name, config in migrated.items():
+        ordered[name] = config
+        for created_name, created_config in added[name]:
+            ordered[created_name] = created_config
+            created_from[created_name] = name
+    return ParticipantMigration(ordered, created_from, junctions)
+
+
 __all__ = [
     "LEGACY_CHARGE_LIMIT_COST",
+    "MINOR_VERSION",
     "PARTITION_BUFFER_WINDOW",
     "REVERSE_FIELDS",
+    "SWITCHBOARD_NAME",
     "BatteryMigration",
+    "HubHorizonMigration",
+    "ParticipantMigration",
     "connection_route",
     "junction_config",
     "migrate_battery_config",
     "migrate_connection_config",
     "migrate_hub_horizon",
+    "migrate_participants",
+    "node_becomes_junction",
     "node_is_junction",
-    "uses_custom_horizon",
 ]

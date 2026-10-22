@@ -11,12 +11,9 @@ from custom_components.haeo.core.adapters.elements.ev import (
     DEFAULT_PUBLIC_CHARGING_PRICE,
     EV_DEVICE_EV,
     EV_ENERGY_STORED,
-    EV_POWER_ACTIVE,
     EV_POWER_CHARGE,
     EV_POWER_DISCHARGE,
     EV_STATE_OF_CHARGE,
-    EV_TRIP_ENERGY_DELIVERED,
-    EV_TRIP_ENERGY_SHORTFALL,
     TRIP_OVERAGE_PRICE,
     adapter,
 )
@@ -128,24 +125,7 @@ def _home(config: EvConfigData) -> NDArray[np.float64]:
     return np.asarray(_max_power(_elements(config).trip_connection)) == 0.0
 
 
-# --- model_elements structure ---
-
-
-def test_model_elements_structure() -> None:
-    """The adapter creates the five expected model elements."""
-    elements = _elements(_ev_config())
-
-    assert [element["name"] for element in elements] == [
-        "ev",
-        "ev:charge",
-        "ev:discharge",
-        "ev:trip",
-        "ev:trip_connection",
-    ]
-    assert elements.pack.get("initial_charge") == pytest.approx(5.0)  # SOC ratio 0.10 of 50 kWh
-    assert elements.charge["source"] == "home"
-    assert elements.charge["target"] == "ev"
-    assert elements.trip_connection["target"] == "ev:trip"
+# --- model_elements ---
 
 
 def test_no_trip_config_yields_an_inert_trip_load() -> None:
@@ -383,7 +363,7 @@ def test_home_charge_limit_binds_at_the_charger() -> None:
     network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
 
-    outputs = adapter.outputs("ev", model_outputs, config=config)[EV_DEVICE_EV]
+    outputs = adapter.outputs("ev", model_outputs, config=config, periods=network.periods)[EV_DEVICE_EV]
 
     # Both periods before departure charge at the 2 kW limit; 90% of it reaches the pack.
     np.testing.assert_allclose(outputs[EV_POWER_CHARGE].values[:2], [2.0, 2.0], atol=1e-6)
@@ -395,7 +375,7 @@ def test_rate_limits_share_the_direction_of_the_power_they_limit() -> None:
     config = _ev_config(charging={"max_charge_rate": 2.0, "connected": np.ones(N_PERIODS)})
     network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
-    outputs = adapter.outputs("ev", model_outputs, config=config)[EV_DEVICE_EV]
+    outputs = adapter.outputs("ev", model_outputs, config=config, periods=network.periods)[EV_DEVICE_EV]
 
     charging = extract_field_hints(EvConfigSchema)[SECTION_CHARGING]
 
@@ -426,28 +406,6 @@ def test_negative_prices_never_plan_driving_further_than_the_trip() -> None:
     np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_OVERAGE].values, [0.0] * (N_PERIODS + 1), atol=1e-9)
 
 
-# --- Outputs mapping ---
-
-
-def test_outputs_mapping_from_solved_network() -> None:
-    """Adapter outputs map solved model values to EV output names."""
-    config = _ev_config(trip=_trips((2, 3, 30.0)))
-    network = _solve_ev_network(config, grid_price=[0.1, 0.5, 0.5, 0.5])
-    model_outputs = {name: element.outputs() for name, element in network.elements.items()}
-
-    outputs = adapter.outputs("ev", model_outputs, config=config)[EV_DEVICE_EV]
-
-    assert outputs[EV_TRIP_ENERGY_DELIVERED].values[3] == pytest.approx(6.0, abs=1e-6)
-    assert outputs[EV_TRIP_ENERGY_SHORTFALL].values[3] == pytest.approx(0.0, abs=1e-6)
-    # SOC is derived from stored energy over pack capacity.
-    assert outputs[EV_STATE_OF_CHARGE].values[0] == pytest.approx(0.10)
-    # Active power is discharge minus charge for every period.
-    np.testing.assert_allclose(
-        outputs[EV_POWER_ACTIVE].values,
-        np.asarray(outputs[EV_POWER_DISCHARGE].values) - np.asarray(outputs[EV_POWER_CHARGE].values),
-    )
-
-
 def test_state_of_charge_uses_capacity_at_each_boundary() -> None:
     """SOC divides each boundary's stored energy by that boundary's capacity."""
     config = _ev_config()
@@ -455,7 +413,7 @@ def test_state_of_charge_uses_capacity_at_each_boundary() -> None:
     network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
 
-    outputs = adapter.outputs("ev", model_outputs, config=config)[EV_DEVICE_EV]
+    outputs = adapter.outputs("ev", model_outputs, config=config, periods=network.periods)[EV_DEVICE_EV]
 
     stored = np.asarray(outputs[EV_ENERGY_STORED].values)
     assert stored[3] > 0.0

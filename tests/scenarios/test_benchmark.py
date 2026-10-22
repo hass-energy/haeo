@@ -24,14 +24,19 @@ from numpy.typing import NDArray
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
-from custom_components.haeo.core.adapters.network_builder import ElementUpdater, build_network, periods_in_hours
+from custom_components.haeo.core.adapters.network_builder import (
+    ElementUpdater,
+    build_element_updaters,
+    build_network,
+    periods_in_hours,
+)
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import Network
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.state import EntityState
-from custom_components.haeo.elements import is_element_config_schema
-from tools.diag.cli import config_horizon_preset, migrate_batteries_for_diag
+from tools.diag.cli import config_horizon_preset, migrate_participants_for_diag
 
 # ---------------------------------------------------------------------------
 # Lightweight StateMachine backed by scenario inputs.json
@@ -96,7 +101,7 @@ def _load_scenario(
 
 
 def _participants_from_config(config: Mapping[str, JsonValueType]) -> dict[str, ElementConfigSchema]:
-    """Migrate a scenario config's batteries as v1.4 does and narrow its participants to ElementConfigSchema entries."""
+    """Migrate a scenario config's elements as v1.4 does and narrow its participants to ElementConfigSchema entries."""
     participants_raw = config["participants"]
     if not isinstance(participants_raw, dict):
         msg = "Scenario config participants must be an object"
@@ -108,7 +113,7 @@ def _participants_from_config(config: Mapping[str, JsonValueType]) -> dict[str, 
             raise TypeError(msg)
         raw_configs[name] = dict(participant_config)
     participants: dict[str, ElementConfigSchema] = {}
-    for name, participant_config in migrate_batteries_for_diag(raw_configs).items():
+    for name, participant_config in migrate_participants_for_diag(config, raw_configs).items():
         if not is_element_config_schema(participant_config):
             msg = f"Scenario participant {name!r} is not a valid element config"
             raise TypeError(msg)
@@ -126,7 +131,8 @@ def _build_network(
     periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
     forecast_times = generate_forecast_timestamps(periods_seconds, start_time=frozen_dt.timestamp())
     loaded_configs = load_element_configs(participants, sm, forecast_times)
-    return build_network("benchmark", loaded_configs, periods_seconds)
+    network = build_network("benchmark", loaded_configs, periods_seconds)
+    return network, build_element_updaters(network, loaded_configs)
 
 
 def _load_configs(

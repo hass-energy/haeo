@@ -77,16 +77,7 @@ The deferrable load element creates a single Home Assistant device:
 
 ## Output mapping
 
-The adapter maps model outputs to deferrable-load-specific sensor names:
-
-| Model output                       | Sensor name        | Description                               |
-| ---------------------------------- | ------------------ | ----------------------------------------- |
-| Connection power                   | `power`            | Power drawn by the load                   |
-| `DEFERRABLE_LOAD_ENERGY_DELIVERED` | `energy_delivered` | Energy delivered in the current window    |
-| `DEFERRABLE_LOAD_ENERGY_SHORTFALL` | `energy_shortfall` | Requirement each event misses, at its end |
-| `DEFERRABLE_LOAD_ENERGY_OVERAGE`   | `energy_overage`   | Delivery beyond what has started          |
-
-See [Deferrable Load Configuration](../../user-guide/elements/deferrable_load.md#sensors-created) for complete sensor documentation.
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/deferrable_load.md#sensors-created) on the Deferrable load page.
 
 ## Next steps
 

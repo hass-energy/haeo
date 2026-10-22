@@ -1,6 +1,6 @@
 # Grid modeling
 
-The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connections/connection.md) to model utility grid connections with time-varying import and export pricing.
+The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectional power source/sink) with two implicit one-way [Connections](../model-layer/connections/connection.md), one for import and one for export, to model utility grid connections with time-varying import and export pricing.
 
 ## Model elements created
 
@@ -8,19 +8,23 @@ The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectiona
 graph LR
     subgraph "Device"
         SS["Node<br/>(is_source=true, is_sink=true)"]
-        Conn["Connection<br/>{name}:connection"]
+        Import["Connection<br/>{name}:import"]
+        Export["Connection<br/>{name}:export"]
     end
 
     Node[Connection Target]
 
-    SS <-->|linked via| Conn
-    Conn <-->|connects to| Node
+    SS --> Import
+    Import --> Node
+    Node --> Export
+    Export --> SS
 ```
 
-| Model Element                                          | Name                | Parameters From Configuration          |
-| ------------------------------------------------------ | ------------------- | -------------------------------------- |
-| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=true, is_sink=true           |
-| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit and pricing segment values |
+| Model Element                                          | Name            | Parameters From Configuration         |
+| ------------------------------------------------------ | --------------- | ------------------------------------- |
+| [Node](../model-layer/elements/node.md)                | `{name}`        | is_source=true, is_sink=true          |
+| [Connection](../model-layer/connections/connection.md) | `{name}:import` | import limit and import price         |
+| [Connection](../model-layer/connections/connection.md) | `{name}:export` | export limit and negated export price |
 
 ## Devices created
 
@@ -32,17 +36,17 @@ Grid creates 1 device in Home Assistant:
 
 ## Parameter mapping
 
-The adapter transforms user configuration into connection segments:
+The adapter transforms user configuration into segments on the import and export connections:
 
-| User Configuration        | Segment           | Segment Field             | Notes                                   |
-| ------------------------- | ----------------- | ------------------------- | --------------------------------------- |
-| `price_source_target`     | PricingSegment    | `price_source_target`     | Cost per kWh imported                   |
-| `price_target_source`     | PricingSegment    | `price_target_source`     | Stored as negative to represent revenue |
-| `max_power_source_target` | PowerLimitSegment | `max_power_source_target` | Maximum import power (optional)         |
-| `max_power_target_source` | PowerLimitSegment | `max_power_target_source` | Maximum export power (optional)         |
-| `connection`              | Connection        | `target`                  | Node to connect to                      |
-| —                         | Node              | `is_source=true`          | Grid can supply power                   |
-| —                         | Node              | `is_sink=true`            | Grid can absorb power                   |
+| User Configuration        | Segment           | Segment Field                    | Notes                                   |
+| ------------------------- | ----------------- | -------------------------------- | --------------------------------------- |
+| `price_source_target`     | PricingSegment    | `{name}:import` `price`          | Cost per kWh imported                   |
+| `price_target_source`     | PricingSegment    | `{name}:export` `price`          | Stored as negative to represent revenue |
+| `max_power_source_target` | PowerLimitSegment | `{name}:import` `max_power`      | Maximum import power (optional)         |
+| `max_power_target_source` | PowerLimitSegment | `{name}:export` `max_power`      | Maximum export power (optional)         |
+| `connection`              | Connection        | import `target`, export `source` | Endpoint to connect to                  |
+| —                         | Node              | `is_source=true`                 | Grid can supply power                   |
+| —                         | Node              | `is_sink=true`                   | Grid can absorb power                   |
 
 ## Sensors created
 

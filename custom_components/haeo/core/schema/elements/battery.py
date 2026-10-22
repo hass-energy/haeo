@@ -53,7 +53,6 @@ SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
             default_value=-0.001,
         ),
         source_is_wildcard=True,
-        section=SECTION_PRICING,
     ),
     CONF_DISCHARGE_COST: SurfacedPriceHint(
         hint=FieldHint(
@@ -63,7 +62,6 @@ SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
             default_value=0.0,
         ),
         source_is_wildcard=False,
-        section=SECTION_PRICING,
     ),
 }
 

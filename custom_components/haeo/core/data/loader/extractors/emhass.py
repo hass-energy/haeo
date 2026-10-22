@@ -7,7 +7,7 @@ EMHASS (Energy Management for Home Assistant) provides forecasts with a unique f
 - Values are stored as strings that need to be parsed to floats
 """
 
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from datetime import tzinfo
 from typing import Literal, Protocol, TypeGuard
 
@@ -83,20 +83,26 @@ class Parser:
         return entity_id.split(".", 1)[1] if "." in entity_id else entity_id
 
     @staticmethod
-    def _forecast_keys(attributes: Mapping[str, object]) -> Iterator[str]:
-        """Yield the EMHASS forecast attribute keys holding a non-empty sequence, in order."""
-        for attr_key in FORECAST_ATTRIBUTES:
-            forecast = attributes.get(attr_key)
-            if isinstance(forecast, Sequence) and not isinstance(forecast, (str, bytes)) and forecast:
-                yield attr_key
+    def _forecast(attributes: Mapping[str, object]) -> tuple[str, Sequence[object]] | None:
+        """Return the first EMHASS forecast attribute holding a non-empty sequence, with its key, or None."""
+        return next(
+            (
+                (attr_key, forecast)
+                for attr_key in FORECAST_ATTRIBUTES
+                if isinstance(forecast := attributes.get(attr_key), Sequence)
+                and not isinstance(forecast, (str, bytes))
+                and forecast
+            ),
+            None,
+        )
 
     @staticmethod
     def detect(state: EntityState) -> TypeGuard[EmhassState]:
         """Check if data matches EMHASS forecast format."""
-        forecast_key = next(Parser._forecast_keys(state.attributes), None)
-        forecast = state.attributes.get(forecast_key) if forecast_key is not None else None
-        if not isinstance(forecast, Sequence):
+        found = Parser._forecast(state.attributes)
+        if found is None:
             return False
+        _, forecast = found
 
         entity_name = Parser._get_entity_name(state.entity_id)
         return all(
@@ -126,8 +132,11 @@ class Parser:
         and predicted temperature the state at its start.
         """
         entity_name = Parser._get_entity_name(state.entity_id)
-        # detect() read the first non-empty forecast attribute, so there is one
-        forecast_key = next(Parser._forecast_keys(state.attributes))
+        found = Parser._forecast(state.attributes)
+        if found is None:
+            msg = f"{state.entity_id} carries no EMHASS forecast"
+            raise ValueError(msg)
+        forecast_key, _ = found
         forecast = state.attributes[forecast_key]
 
         # detect() validated all items have date and entity_name keys

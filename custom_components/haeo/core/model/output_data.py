@@ -1,6 +1,6 @@
 """Output data specification for model elements."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import KW_ONLY, dataclass
 from typing import (
     Any,  # noqa: TID251  # values mixes float (most outputs) and str (STATUS); adapters outside
@@ -18,7 +18,7 @@ class OutputData:
     Attributes:
         type: The output type (power, energy, SOC, etc.).
         unit: The unit of measurement for the output values (e.g., "W", "Wh", "%").
-        values: The sequence of output values, stored as a tuple.
+        values: The output values as a tuple.
         direction: Power flow direction from the energy system's perspective.
             "+" = production: power added to the system (solar generation, battery discharge, grid import).
             "-" = consumption: power removed from the system (load demand, battery charge, grid export).
@@ -48,7 +48,7 @@ class OutputData:
 
     type: OutputType
     unit: str | None
-    values: Sequence[Any]
+    values: tuple[Any, ...]
     direction: Literal["+", "-"] | None = None
     _: KW_ONLY
     advanced: bool = False
@@ -60,8 +60,10 @@ class OutputData:
     diagnostic: bool = False
 
     def __post_init__(self) -> None:
-        """Store the values as a tuple, so the output does not share a list its caller may change."""
-        self.values = tuple(self.values)
+        """Reject values that are not a tuple, which ``dataclasses.replace`` lets through unchecked."""
+        if type(self.values) is not tuple:
+            msg = f"OutputData values must be a tuple, not {type(self.values).__name__}"
+            raise TypeError(msg)
 
 
 type ModelOutputValue = OutputData | Mapping[str, OutputData] | Mapping[str, Mapping[str, OutputData]]

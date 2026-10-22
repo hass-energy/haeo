@@ -1,17 +1,15 @@
 """Tests for the shared element flow helpers."""
 
-from types import MappingProxyType
-
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import UnitOfEnergyDistance, UnitOfLength
 from homeassistant.core import HomeAssistant
 from homeassistant.util.unit_conversion import DistanceConverter
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
+from conftest import add_participant
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.elements import ElementType
@@ -163,17 +161,14 @@ def test_build_inclusion_map_offers_only_running_totals_for_meter_fields() -> No
     ]
 
 
-def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, *, element_type: str, title: str) -> None:
-    """Add a subentry with the given element_type value."""
-    subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: title}),
-        subentry_type=str(element_type),
-        title=title,
-        unique_id=None,
+def _set_advanced_mode(hass: HomeAssistant, hub_entry: MockConfigEntry, *, advanced_mode: bool) -> None:
+    hass.config_entries.async_update_entry(
+        hub_entry,
+        data={**hub_entry.data, HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: advanced_mode}},
     )
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
 
 
+@pytest.mark.parametrize("advanced_mode", [False, True], ids=["standard", "advanced"])
 @pytest.mark.parametrize(
     ("node_type", "inverter_type"),
     [
@@ -183,11 +178,17 @@ def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, *, element_ty
     ],
 )
 async def test_participant_names_resolve_element_type(
-    hass: HomeAssistant, hub_entry: MockConfigEntry, node_type: str, inverter_type: str
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    node_type: str,
+    inverter_type: str,
+    *,
+    advanced_mode: bool,
 ) -> None:
     """Participant names resolve whether element_type is an ElementType or the string it deserializes to."""
-    _add_subentry(hass, hub_entry, element_type=node_type, title="Switchboard")
-    _add_subentry(hass, hub_entry, element_type=inverter_type, title="Inverter")
+    _set_advanced_mode(hass, hub_entry, advanced_mode=advanced_mode)
+    add_participant(hass, hub_entry, "Switchboard", node_type)
+    add_participant(hass, hub_entry, "Inverter", inverter_type)
 
     flow = create_flow(hass, hub_entry, ElementType.INVERTER)
 
@@ -208,12 +209,9 @@ async def test_participant_names_exclude_elements_with_own_connections(
     expected: list[str],
 ) -> None:
     """Grid, battery, solar, and load are never endpoints, even in advanced mode."""
-    hass.config_entries.async_update_entry(
-        hub_entry,
-        data={**hub_entry.data, HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: advanced_mode}},
-    )
+    _set_advanced_mode(hass, hub_entry, advanced_mode=advanced_mode)
     for element_type in ElementType:
-        _add_subentry(hass, hub_entry, element_type=element_type, title=element_type.replace("_", " ").title())
+        add_participant(hass, hub_entry, element_type.replace("_", " ").title(), element_type)
 
     flow = create_flow(hass, hub_entry, ElementType.CONNECTION)
 

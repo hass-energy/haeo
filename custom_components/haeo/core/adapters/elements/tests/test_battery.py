@@ -11,6 +11,7 @@ from custom_components.haeo.core.adapters.elements.battery import (
     BATTERY_POWER_ACTIVE,
     BATTERY_POWER_CHARGE,
     BATTERY_POWER_DISCHARGE,
+    BATTERY_STATE_OF_CHARGE,
 )
 from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.core.model.elements import (
@@ -299,3 +300,22 @@ def test_adapter_charge_cap_binds_bus_side() -> None:
     assert discharge == pytest.approx(0.0)
     assert stored[1] - stored[0] == pytest.approx(cap * efficiency)
     assert outputs[BATTERY_POWER_ACTIVE].values[0] == pytest.approx(discharge - charge)
+
+
+def test_adapter_state_of_charge_of_a_battery_without_capacity_is_empty() -> None:
+    """A battery whose capacity reads 0 kWh, as a sensor can report, holds nothing, so its state of charge is 0."""
+    config = _wrap_data(
+        {
+            "name": "battery",
+            "connection": "bus",
+            "capacity": np.array([0.0, 0.0]),
+            "initial_charge_percentage": 0.0,
+        }
+    )
+    model_outputs = optimize_participants(
+        {"bus": bus_node("bus"), "battery": config, "grid": grid_at("grid", "bus", import_price=0.1, export_price=0.0)}
+    )
+
+    outputs = battery_adapter.outputs("battery", model_outputs, config=config)[BATTERY_DEVICE_BATTERY]
+
+    assert outputs[BATTERY_STATE_OF_CHARGE].values == (0.0, 0.0)

@@ -14,9 +14,9 @@ import pytest
 
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
-from custom_components.haeo.core.schema import as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.schema.elements import ElementType, battery
-from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from tools.diag import cli as diag
 from tools.diag import run_diagnostics
 
@@ -186,42 +186,6 @@ def test_normalize_participant_config_for_diag_migrates_mixed_config(monkeypatch
 
     assert normalized is migrated
     assert len(called) == 1
-
-
-def test_migrate_batteries_for_diag() -> None:
-    """Battery partitions become buffers named clear of every participant, and other elements pass through."""
-    first = _base_battery_config()
-    first["storage"] = {"capacity": as_constant_value(10.0)}
-    first["limits"] = {"min_charge_percentage": as_constant_value(10.0)}
-    first["undercharge"] = {"percentage": as_constant_value(5.0), "cost": as_constant_value(0.03)}
-    second = _base_battery_config()
-    second["name"] = "Second"
-    second["storage"] = {"capacity": as_constant_value(10.0)}
-    second["limits"] = {"max_charge_percentage": as_entity_value(["sensor.max"])}
-    second["overcharge"] = {"percentage": as_entity_value(["sensor.ceiling"]), "cost": as_constant_value(0.02)}
-    grid: dict[str, object] = {"element_type": "grid", "name": "Grid"}
-
-    replaced = diag.migrate_batteries_for_diag(
-        {"Battery": first, "Second": second, "Grid": grid, "Battery reserve": grid}
-    )
-
-    assert list(replaced) == ["Battery", "Battery reserve 2", "Second", "Second headroom", "Grid", "Battery reserve"]
-    assert replaced["Grid"] is grid
-    assert "undercharge" not in replaced["Battery"]
-    assert replaced["Battery"]["limits"] == {"min_charge_percentage": as_constant_value(5.0)}
-    assert replaced["Battery reserve 2"]["element_type"] == "buffer"
-    assert replaced["Battery reserve 2"]["kind"] == "reserve"
-    assert replaced["Battery reserve 2"]["requirement"] == {
-        "window": as_constant_value(1.0),
-        "level": as_constant_value(10.0),
-    }
-    assert "overcharge" not in replaced["Second"]
-    assert replaced["Second"]["limits"] == {"max_charge_percentage": as_entity_value(["sensor.ceiling"])}
-    assert replaced["Second headroom"]["kind"] == "headroom"
-    assert replaced["Second headroom"]["requirement"] == {
-        "window": as_constant_value(1.0),
-        "level": as_entity_value(["sensor.max"]),
-    }
 
 
 def test_get_forecast_by_fields_supports_legacy_grid_price_aliases() -> None:
@@ -409,3 +373,41 @@ def test_diag_follows_the_hub_relax_setting(
             run_diagnostics(tmp_path)
 
     assert expected in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("config", "expected"),
+    [
+        pytest.param({"advanced": {"advanced_mode": True}}, True, id="sectioned_on"),
+        pytest.param({"advanced": {"advanced_mode": False}}, False, id="sectioned_off"),
+        pytest.param({"advanced_mode": True}, True, id="flat_before_v1_3"),
+        pytest.param({}, False, id="unset"),
+    ],
+)
+def test_config_advanced_mode(config: dict[str, JsonValueType], expected: bool) -> None:
+    """Advanced mode is read from the hub's advanced section, or the top level for hubs before v1.3."""
+    assert diag.config_advanced_mode(config) is expected
+
+
+@pytest.mark.parametrize(
+    ("minor_version", "becomes_junction"),
+    [
+        pytest.param(3, True, id="before_v1_4_is_migrated"),
+        pytest.param(None, True, id="no_minor_version_is_migrated"),
+        pytest.param(4, False, id="current_export_passes_through"),
+    ],
+)
+def test_migrate_participants_for_diag_only_migrates_older_exports(
+    minor_version: int | None, becomes_junction: bool
+) -> None:
+    """A source node outside advanced mode becomes a junction only in exports from before v1.4."""
+    source_node: dict[str, object] = {
+        "element_type": ElementType.NODE,
+        "name": "Generator bus",
+        "role": {"is_source": as_constant_value(True), "is_sink": as_constant_value(False)},
+    }
+    config: dict[str, JsonValueType] = {} if minor_version is None else {"minor_version": minor_version}
+
+    migrated = diag.migrate_participants_for_diag(config, {"Generator bus": source_node})
+
+    assert (migrated["Generator bus"]["element_type"] == ElementType.JUNCTION) is becomes_junction

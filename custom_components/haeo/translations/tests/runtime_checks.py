@@ -29,6 +29,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.selector import ChooseSelector, Selector, SelectSelector
+from homeassistant.helpers.selector import selector as build_selector
 import pytest
 import voluptuous as vol
 
@@ -37,6 +38,9 @@ from custom_components.haeo.const import DOMAIN
 TRANSLATIONS_PATH = Path(__file__).parent.parent / "en.json"
 
 type TranslationPath = tuple[str, ...]
+
+# The only step of Home Assistant's ConfirmRepairFlow
+CONFIRM_STEP = "confirm"
 
 
 @cache
@@ -92,17 +96,33 @@ class TranslationChecker:
         for header in ("title", "description"):
             self.optional((*step, header), placeholders)
         if (schema := result.get("data_schema")) is not None:
-            self.check_schema(step, schema)
+            self.check_schema(step, schema, placeholders)
         for error in (result.get("errors") or {}).values():
             self.require((*prefix, "error", error), placeholders)
 
-    def check_schema(self, step: TranslationPath, schema: vol.Schema) -> None:
-        """Check the label of every field and section in a form, and the options of its selectors."""
+    def check_schema(self, step: TranslationPath, schema: vol.Schema, placeholders: Mapping[str, str]) -> None:
+        """Check the label of every field and section in a form, and the options of its selectors.
+
+        The frontend formats labels with the step's placeholders, as it does the step's description.
+        """
         for path, validator in form_labels(schema).items():
-            self.require((*step, *path))
+            self.require((*step, *path), placeholders)
             if isinstance(validator, Selector):
                 for selector_path in selector_translation_paths(validator):
                     self.require(selector_path)
+
+    def check_issue(self, issue: ir.IssueEntry) -> None:
+        """Check the strings a repair issue shows: a description, or the step its fix flow confirms."""
+        path = ("issues", str(issue.translation_key))
+        placeholders = issue.translation_placeholders
+        self.require((*path, "title"), placeholders)
+        if not issue.is_fixable:
+            self.require((*path, "description"), placeholders)
+            return
+        # The integration resolves every fixable issue with a ConfirmRepairFlow, which shows only its confirm step
+        confirm = (*path, "fix_flow", "step", CONFIRM_STEP)
+        self.require((*confirm, "title"), placeholders)
+        self.require((*confirm, "description"), placeholders)
 
     def check_entity(self, entity: Entity) -> None:
         """Check the name of an entity and, for an enum sensor, the name of every state."""
@@ -141,21 +161,27 @@ def selector_translation_paths(selector: Selector[Mapping[str, object]]) -> Iter
         for choice_key, choice in choices.items():
             if isinstance(key, str):
                 yield ("selector", key, "choices", choice_key)
-            if isinstance(nested := choice["selector"], Selector):
-                yield from selector_translation_paths(nested)
+            # Choices hold either a selector or its serialized form
+            nested = choice["selector"]
+            yield from selector_translation_paths(nested if isinstance(nested, Selector) else build_selector(nested))
 
 
 def flow_strings(
     flow: FlowHandler, placeholders: Mapping[str, str] | None
-) -> tuple[TranslationPath, Mapping[str, str]]:
-    """Return where a flow's strings live in en.json and the placeholders they may use."""
+) -> tuple[TranslationPath, Mapping[str, str]] | None:
+    """Return where a flow's strings live in en.json and the placeholders they may use.
+
+    A repair flow whose issue was already deleted has no strings to look up, so it returns None.
+    """
     supplied: Mapping[str, str] = placeholders or {}
     if isinstance(flow, ConfigSubentryFlow):
         return ("config_subentries", flow.handler[1]), supplied
     if isinstance(flow, OptionsFlow):
         return ("options",), supplied
     if isinstance(flow, RepairsFlow):
-        issue = ir.async_get(flow.hass).issues[(DOMAIN, flow.issue_id)]
+        issue = ir.async_get(flow.hass).async_get_issue(DOMAIN, flow.issue_id)
+        if issue is None:
+            return None
         return ("issues", str(issue.translation_key), "fix_flow"), {
             **(issue.translation_placeholders or {}),
             **supplied,
@@ -181,24 +207,21 @@ def check_translations(monkeypatch: pytest.MonkeyPatch) -> Generator[Translation
 
     def show_form(self: FlowHandler, **kwargs: object) -> FlowResult:
         result = original_show_form(self, **kwargs)  # type: ignore[arg-type] (keyword arguments pass through unchanged)
-        if is_haeo_flow(self):
-            checker.check_form(*flow_strings(self, result.get("description_placeholders")), result)
+        if is_haeo_flow(self) and (found := flow_strings(self, result.get("description_placeholders"))) is not None:
+            checker.check_form(*found, result)
         return result
 
     def abort(self: FlowHandler, **kwargs: object) -> FlowResult:
         result = original_abort(self, **kwargs)  # type: ignore[arg-type] (keyword arguments pass through unchanged)
-        if is_haeo_flow(self):
-            prefix, placeholders = flow_strings(self, result.get("description_placeholders"))
+        if is_haeo_flow(self) and (found := flow_strings(self, result.get("description_placeholders"))) is not None:
+            prefix, placeholders = found
             checker.require((*prefix, "abort", str(result.get("reason"))), placeholders)
         return result
 
     def get_or_create_issue(self: ir.IssueRegistry, domain: str, issue_id: str, **kwargs: object) -> ir.IssueEntry:
         issue = original_issue(self, domain, issue_id, **kwargs)  # type: ignore[arg-type] (keyword arguments pass through unchanged)
         if domain == DOMAIN and issue.translation_key is not None:
-            path = ("issues", issue.translation_key)
-            checker.require((*path, "title"), issue.translation_placeholders)
-            if not issue.is_fixable:
-                checker.require((*path, "description"), issue.translation_placeholders)
+            checker.check_issue(issue)
         return issue
 
     def error_init(

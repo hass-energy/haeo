@@ -181,7 +181,7 @@ def solve_relaxed(
         cost = solve()
         solver.column_values()
         solver.row_duals()
-        planned = np.asarray(solver.getSolution().row_value, dtype=np.float64)[rows]
+        planned = solver.row_values()[rows]
     except InfeasibleError:
         return None
     finally:

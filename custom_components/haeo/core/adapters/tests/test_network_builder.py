@@ -5,7 +5,7 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters.network_builder import build_network, periods_in_hours
+from custom_components.haeo.core.adapters.network_builder import build_element_updaters, build_network, periods_in_hours
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements.battery import Battery
 from custom_components.haeo.core.model.elements.connection import Connection
@@ -244,7 +244,8 @@ def test_updater_reaches_live_network(
     after: object,
 ) -> None:
     """An element's updater applies its edited config to the network it was built with, without a rebuild."""
-    network, updaters = build_network("test", participants, [3600])
+    network = build_network("test", participants, [3600])
+    updaters = build_element_updaters(network, participants)
     elements = dict(network.elements)
     assert observe(network) == before
 
@@ -256,7 +257,8 @@ def test_updater_reaches_live_network(
 
 def test_policy_updater_rejects_another_element_type() -> None:
     """The policy element's updater fails loudly when given another element's config."""
-    _network, updaters = build_network("test", {**_line_network(), POLICIES: _policies(0.07)}, [3600])
+    participants = {**_line_network(), POLICIES: _policies(0.07)}
+    updaters = build_element_updaters(build_network("test", participants, [3600]), participants)
 
     with pytest.raises(TypeError, match="received a connection config"):
         updaters[POLICIES](_line())
@@ -273,7 +275,8 @@ def test_build_network_adds_every_element_in_hours() -> None:
     }
     participants: dict[str, ElementConfigData] = {LINE: _line(), **_line_network(), "Baseload": load}
 
-    network, updaters = build_network("test", participants, [1800] * 4)
+    network = build_network("test", participants, [1800] * 4)
+    updaters = build_element_updaters(network, participants)
 
     np.testing.assert_array_equal(network.periods, [0.5] * 4)
     assert list(network.elements)[-1] == LINE
@@ -283,7 +286,8 @@ def test_build_network_adds_every_element_in_hours() -> None:
 
 def test_build_network_without_participants_is_empty() -> None:
     """A hub with no elements builds an empty network."""
-    network, updaters = build_network("empty", {}, [1800])
+    network = build_network("empty", {}, [1800])
+    updaters = build_element_updaters(network, {})
 
     assert network.name == "empty"
     assert network.elements == {}
@@ -292,7 +296,7 @@ def test_build_network_without_participants_is_empty() -> None:
 
 def test_build_network_tags_policied_flows() -> None:
     """A policy's source and target tag the flows it prices."""
-    network, _updaters = build_network("test", {**_line_network(), POLICIES: _policies(0.07)}, [900])
+    network = build_network("test", {**_line_network(), POLICIES: _policies(0.07)}, [900])
 
     line = network.elements[LINE]
     assert isinstance(line, Connection)

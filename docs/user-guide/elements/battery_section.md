@@ -277,7 +277,7 @@ Check that the Battery Section element exists before creating connections.
 
     ---
 
-    Learn when to expose raw model elements and which elements it adds.
+    Learn when to expose raw model elements.
 
     [:material-arrow-right: Configuration guide](../configuration.md#expose-raw-model-elements)
 

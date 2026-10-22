@@ -407,7 +407,7 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 2. Click **Create Helper** button
 3. Select **Number**
 4. Configure:
-    - **Name**: Descriptive name (e.g., "Base Load Power", "Fixed Price (source → target)")
+    - **Name**: Descriptive name (e.g., "Base Load Power", "Fixed Transfer Price")
     - **Unit of measurement**: Match the element's expected unit (kW, \$/kWh, %, etc.)
     - **Minimum/Maximum**: Set reasonable bounds
     - **Initial value**: Set your desired constant
@@ -417,10 +417,10 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 
 During element configuration, select the input_number entity in the entity selector:
 
-| Field                           | Value                                  |
-| ------------------------------- | -------------------------------------- |
-| **Price (source → target)**     | input_number.fixed_price_source_target |
-| **Max Power (source → target)** | input_number.max_power_source_target   |
+| Field         | Value                             |
+| ------------- | --------------------------------- |
+| **Price**     | input_number.fixed_transfer_price |
+| **Max power** | input_number.transfer_max_power   |
 
 HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
 

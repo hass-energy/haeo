@@ -21,6 +21,33 @@
             "name": "Common settings"
           }
         }
+      },
+      "reconfigure": {
+        "title": "HAEO settings",
+        "description": "Change the planning horizon and optimization settings. Choose a planning horizon that matches your forecast data availability.",
+        "sections": {
+          "advanced": {
+            "data": {
+              "advanced_mode": "Expose raw model elements",
+              "debounce_seconds": "Debounce window (seconds)",
+              "record_forecasts": "Record forecast data",
+              "relax_infeasible": "Relax impossible plans"
+            },
+            "data_description": {
+              "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
+              "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
+              "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
+            },
+            "name": "Advanced settings"
+          },
+          "common": {
+            "data": { "horizon": "Planning horizon" },
+            "data_description": {
+              "horizon": "A preset covering 2 to 7 days, or a sensor whose forecast times set the start and end of every period."
+            },
+            "name": "Common settings"
+          }
+        }
       }
     },
     "error": {
@@ -28,7 +55,11 @@
       "horizon_entity_invalid": "This sensor does not report a forecast with at least two increasing times.",
       "name_exists": "A system with this name already exists"
     },
-    "abort": { "already_configured": "HAEO already configured" }
+    "abort": {
+      "already_configured": "HAEO already configured",
+      "already_in_progress": "Setup of this system is already in progress",
+      "reconfigure_successful": "Settings saved"
+    }
   },
   "options": {
     "step": {
@@ -699,6 +730,9 @@
       "message": "No plan meets every constraint, and the solver could not narrow down which elements conflict."
     },
     "optimization_solver_failed": { "message": "The solver stopped without a plan (status: {status})." },
+    "recorder_not_loaded": {
+      "message": "Saving diagnostics for a past time needs Home Assistant's recorder, which is not running. Leave the time out to save the current state."
+    },
     "setup_failed_permanent": {
       "message": "Setup failed due to configuration error: {error}. Please check your configuration."
     },
@@ -714,8 +748,8 @@
       "description": "The system has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the system is fully connected"
     },
     "horizon_tiers_replaced": {
-      "title": "{hub_name} now plans 5 days ahead",
-      "description": "{hub_name} planned over custom horizon tiers, which are no longer supported. It now plans 5 days ahead.\n\nTo plan over a different length, open the HAEO integration configuration options and choose another Planning Horizon. You can ignore this issue once you have read it."
+      "title": "{hub_name} now plans {days} days ahead",
+      "description": "{hub_name} planned over custom horizon tiers, which are no longer supported. It now plans {days} days ahead.\n\nTo plan over a different length, open the HAEO integration configuration options and choose another Planning Horizon. You can ignore this issue once you have read it."
     },
     "invalid_connection_endpoints": {
       "title": "Connections bypass an element's own limits and prices",
