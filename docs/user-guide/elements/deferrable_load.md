@@ -82,7 +82,7 @@ Only sensors with statistics are offered: an energy sensor whose state class is 
 Statistics reach back a week, so a window that started earlier than that is credited only what the sensor counted within the week.
 
 HAEO credits the rise only to the window that is open when the plan starts.
-When events overlap, the window starts at the earliest of them, so the rise counts from there.
+When events overlap, the window starts at the earliest start among the events still open when the plan starts, so the rise counts from there.
 The **Energy since window started** input entity shows the rise HAEO is using, and reads zero while no window is open.
 
 - **Below the window's energy**: only the remainder is planned.

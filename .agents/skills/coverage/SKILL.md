@@ -1,169 +1,71 @@
 ---
 name: coverage
-description: Analyze test coverage for the current branch and add tests for uncovered lines, using the remove-first decision tree before writing new tests. Use when asked about coverage, when codecov reports a drop on changed lines, or when deciding what tests a change still needs.
+description: Analyze test coverage for the current branch and add tests for uncovered lines, using the remove-first decision tree before writing new tests. Use when asked about coverage, when codecov reports a drop on changed lines or a failing patch target, or when deciding what tests a change still needs.
 ---
 
-# Code Coverage Analysis
+# Code coverage analysis
 
-Check code coverage for the current branch and identify areas that need additional test cases.
+Check coverage for the current branch and decide what each uncovered line needs: deletion, a stricter type, or a test.
 
-## Step 1: Run Coverage Analysis
+## Step 1: run coverage
 
-### Full Coverage Report
-
-```bash
-uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=term-missing
-```
-
-This provides:
-
-- Overall coverage percentage
-- Branch coverage
-- Line-by-line coverage with missing lines identified
-
-### HTML Coverage Report
-
-For detailed visual analysis:
+Run the unit test gate with coverage, as CI does:
 
 ```bash
-uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=html
+uv run check test -- --cov=custom_components/haeo --cov-branch --cov-report=term-missing
 ```
 
-Open `htmlcov/index.html` in a browser to see:
+Add `--cov-report=html` and open `htmlcov/index.html` for a line-by-line view.
 
-- File-by-file coverage
-- Line-by-line highlighting
-- Branch coverage visualization
-
-### Coverage for Changed Files Only
-
-To focus on changes in the current branch:
+To run only the tests a branch changed, list them against `origin/main`, since a local `main` may be stale.
+Tests are colocated, so match every `tests/` directory, not just the top-level one.
+The `:(glob)` magic makes `**` span directories, and `xargs -r` runs nothing when no test changed rather than the whole suite:
 
 ```bash
-# List changed test files
-git diff main...HEAD --name-only -z --diff-filter=AM -- 'tests/**/*.py' | xargs -0 -n1
-
-# Run coverage for changed test files only (safe from shell injection)
-git diff main...HEAD --name-only -z --diff-filter=AM -- 'tests/**/*.py' | \
-    xargs -0 uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=term-missing
+git fetch origin main
+git diff origin/main...HEAD --name-only -z --diff-filter=AM -- ':(glob)**/tests/**/test_*.py' | \
+    xargs -0 -r uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=term-missing
 ```
 
-## Step 2: Analyze Coverage Results
+## Coverage philosophy
 
-### Coverage Requirements
+- Test behavior and edge cases, not percentages: a covered line that no assertion checks proves nothing.
+- Simplify before testing: code with fewer branches needs fewer tests, so removing a branch beats covering it.
+- Read an uncovered line as a signal: usually an untested edge case, an error path, or the other side of a branch, and sometimes code no input can reach, which should be deleted.
+- Cover what matters first:
+    1. Optimization logic: constraints and costs
+    2. Error handling paths
+    3. Edge cases and boundaries
+    4. New features on the branch
 
-- **CI Requirement**: Coverage ≥ 95% overall
-- **Codecov Enforcement**: Coverage must not decrease from main on changed lines
-- **Focus**: Test behavior and edge cases, not arbitrary percentages
+The `testing` skill's decision tree says what each uncovered line needs; it is not repeated here.
 
-### Identify Missing Coverage
+## Step 2: what codecov enforces
 
-For each file with low coverage:
+[`codecov.yml`](../../../codecov.yml) sets the targets:
 
-1. **Review untested lines**: Check which lines are not covered
+- **Patch**: at least 90% of the lines a pull request changes must be covered.
+- **Project**: overall coverage may not drop by more than 1%.
 
-2. **Consider simplification first**: Before adding test cases, evaluate if the code can be simplified:
+Codecov can also report lines outside the diff whose coverage changed indirectly, such as a branch that a refactor made unreachable.
 
-    - **Simplify logic**: If possible, refactor to remove unnecessary branches and conditional paths
-    - **Reduce complexity**: Simpler code with fewer branches is easier to test and maintain
-    - **Prefer simplification over testing**: Removing code that needs testing is better than adding tests for complex logic
-    - **Example**: Instead of testing multiple conditional branches, refactor to use a single, simpler approach
+## Step 3: decide what each uncovered line needs
 
-3. **Determine if coverage is needed**:
+Work through the decision tree in the `testing` skill, in order: remove the code, tighten the types, add a parametrized case, combine tests, and only then write a bespoke test.
+If no input can reach a line, the line is unreachable: delete it rather than testing it.
 
-    - **Unreachable code**: If lines cannot be covered by exercising input data, they may be unreachable and should be removed
-    - **Edge cases**: Missing coverage often indicates untested edge cases
-    - **Error paths**: Ensure error handling is tested
-    - **Branch coverage**: Check that both true/false branches of conditionals are tested
+## Step 4: where cases go
 
-4. **Prioritize by importance**:
+Add a case to an existing data module before writing a new test function:
 
-    - Critical business logic (optimization, constraints, cost functions)
-    - Error handling paths
-    - Edge cases and boundary conditions
-    - New features added in this branch
+- **Model elements**: `VALID_CASES` in `core/model/tests/test_data/{model_element}.py`
+- **Element adapters**: `CREATE_CASES` and `OUTPUTS_CASES` in `core/adapters/elements/tests/test_data/{element_type}.py`
+- **Element flows**: `VALID_DATA` and `INVALID_DATA` in `flows/tests/test_data/{element_type}.py`
+- **Everything else**: the `tests/` directory beside the module
 
-## Step 3: Add Test Cases
+The `testing` skill describes each of these structures.
 
-### Test Style Guidelines
+## Step 5: verify and summarize
 
-Follow HAEO testing standards from the `testing` skill:
-
-- **Function-style tests**: Use `def test_...()` not class-based tests
-- **Parametrized tests**: Use `@pytest.mark.parametrize` for data-driven tests
-- **Test data modules**: Add cases to `core/model/tests/test_data/` for model element tests
-- **Direct property access**: Access properties directly without None checks when you've created the entities
-
-### Where to Add Tests
-
-1. **Model elements**: Add test cases to `core/model/tests/test_data/{element}_cases.py`
-
-    - Add to `VALID_CASES` or `INVALID_CASES` lists
-    - Cases are aggregated in `__init__.py` for parametrized tests
-
-2. **Element adapters**: Add tests to `core/adapters/elements/tests/`
-
-3. **Config flows**: Add test data to `flows/tests/test_data/`
-
-4. **Coordinator/data loading**: Add tests to `coordinator/tests/`
-
-5. **New functionality**: Create appropriate test files following existing patterns
-
-### Example: Adding Model Element Test Cases
-
-```python
-# In core/model/tests/test_data/battery_cases.py
-VALID_CASES = [
-    # ... existing cases ...
-    {
-        "description": "Battery at minimum SOC with zero power",
-        "factory": create_battery,
-        "data": {"capacity": 10.0, "soc_min": 0.2, "soc_max": 0.9},
-        "expected_outputs": {...},
-    },
-]
-```
-
-## Step 4: Verify Coverage Improvement
-
-After adding tests:
-
-1. **Re-run coverage**:
-
-    ```bash
-    uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=term-missing
-    ```
-
-2. **Check coverage for changed lines**:
-
-    - Ensure new code has adequate coverage
-    - Verify coverage hasn't decreased for modified code
-    - **Note**: Codecov may report changed lines that are not directly part of your changeset due to indirect changes (e.g., refactoring that affects other code paths, or changes in dependencies that trigger different execution paths)
-
-3. **Run tests to ensure they pass**:
-
-    ```bash
-    uv run pytest
-    ```
-
-## Step 5: Summary
-
-Provide a summary of:
-
-- Current overall coverage percentage
-- Coverage for changed files (if applicable)
-- Files with low coverage that need attention
-- Test cases added to improve coverage
-- Any unreachable code identified
-- Confirmation that coverage requirements are met
-
-## Notes
-
-- **Coverage philosophy**: Focus on testing behavior and edge cases, not achieving arbitrary percentages
-- **Simplification preferred**: When encountering untested code, first consider if the logic can be simplified to remove branches and lines that need testing
-- **Codecov**: Enforces that coverage does not decrease from main on changed lines
-- **Indirect changes**: Codecov may report changed lines that are not directly part of your changeset due to indirect changes (refactoring effects, dependency changes, or different execution paths)
-- **Unreachable code**: If lines cannot be covered by exercising input data, they may be unreachable and should be removed
-- **Branch coverage**: Use `--cov-branch` to ensure both branches of conditionals are tested
-- **CI requirement**: Overall coverage must be ≥ 95%
-- **Changed lines**: Codecov focuses on coverage of changed lines, not overall project coverage
+Re-run the coverage command, then `uv run check`.
+Report the coverage of the changed files, the cases added, and any code removed as unreachable.

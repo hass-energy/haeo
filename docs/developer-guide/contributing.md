@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing!
 
-## Development Workflow
+## Development workflow
 
 1. Fork the repository
 2. Create a feature branch
@@ -11,7 +11,7 @@ Thank you for your interest in contributing!
 5. Run linters and tests
 6. Submit a pull request
 
-## Code Standards
+## Code standards
 
 - **Python 3.13+** required
 - **Type hints** on all functions
@@ -19,7 +19,7 @@ Thank you for your interest in contributing!
 - **Tests** for new features
 - **Ruff** formatting
 
-### Type Safety Guidelines
+### Type safety guidelines
 
 HAEO uses Python's type system to make invalid states impossible.
 Follow these guidelines when writing code:
@@ -70,7 +70,7 @@ if state is None:
 | Home Assistant entity state | Defensive check + test | Entity might not exist, user-caused                |
 | User input (initial)        | Defensive check + test | User can provide invalid data                      |
 
-See [Testing Guide](testing.md#type-safety-philosophy) for detailed examples.
+See [Testing Guide](testing.md#type-safety-over-defensive-tests) for detailed examples.
 
 ## Testing
 
@@ -90,7 +90,7 @@ Update documentation for:
 - Configuration changes
 - API modifications
 
-### Markdown Formatting
+### Markdown formatting
 
 Write all markdown files using semantic line breaks.
 Follow the [Semantic Line Breaks specification (SemBr)](https://sembr.org/).
@@ -115,17 +115,18 @@ They are endowed with reason and conscience and should act towards one another i
 The rendered output remains unchanged,
 but the source is easier to edit and review.
 
-### Building Documentation
+### Building documentation
 
 Build docs locally:
 
 ```bash
-uv run mkdocs serve
+uv run zensical serve
 ```
 
-## Pull Request Process
+## Pull request process
 
-1. Update CHANGELOG.md
-2. Ensure all tests pass
-3. Update documentation
-4. Request review
+1. Run `uv run check` and fix anything it reports
+2. Update the documentation the change affects
+3. Open the pull request and request review
+
+Release notes are written from the merged pull requests, so describe the change in the pull request rather than in a changelog file.

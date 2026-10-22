@@ -218,22 +218,24 @@ nav:
 
   - Developer Guide:
       - developer-guide/index.md
-      - Documentation Guidelines:
+      - Documentation guidelines:
           - developer-guide/documentation-guidelines.md
-          - Element User Guide Template: developer-guide/templates/element-user-guide-template.md
-          - Model Layer Template: developer-guide/templates/model-layer-template.md
-          - Device Layer Template: developer-guide/templates/device-layer-template.md
+          - Element user guide template: developer-guide/templates/element-user-guide-template.md
+          - Model layer template: developer-guide/templates/model-layer-template.md
+          - Device layer template: developer-guide/templates/device-layer-template.md
       - Architecture: developer-guide/architecture.md
-      - Adapter Layer: developer-guide/adapter-layer.md
-      - Horizon Manager: developer-guide/horizon-manager.md
-      - Input Entities: developer-guide/inputs.md
+      - Adapter layer: developer-guide/adapter-layer.md
+      - Policy compilation: developer-guide/policy-compilation.md
+      - VLAN optimization: developer-guide/vlan-optimization.md
+      - Horizon manager: developer-guide/horizon-manager.md
+      - Input entities: developer-guide/inputs.md
       - Setup: developer-guide/setup.md
       - Local simulation: developer-guide/local-sim.md
-      - Typing Philosophy: developer-guide/typing.md
-      - Units & Stability: developer-guide/units.md
-      - Energy Models: developer-guide/energy-models.md
+      - Typing philosophy: developer-guide/typing.md
+      - Units and stability: developer-guide/units.md
+      - Energy models: developer-guide/energy-models.md
       - Coordinator: developer-guide/coordinator.md
-      - Data Loading: developer-guide/data-loading.md
-      - Config Flow: developer-guide/config-flow.md
+      - Data loading: developer-guide/data-loading.md
+      - Config flow: developer-guide/config-flow.md
       - Testing: developer-guide/testing.md
       - Contributing: developer-guide/contributing.md

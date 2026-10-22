@@ -15,7 +15,7 @@ Save it somewhere scratch, or as `tests/scenarios/<name>/scenario.json` if it sh
 
 People describe optimizer behavior loosely. Before analyzing anything, establish four things, from the report if possible and by asking if not:
 
-1. **Which element** — the battery, the grid connection, solar, a specific load.
+1. **Which element** — by its configured name, as it appears in the entity ids.
 2. **Which interval** — a clock time, or the phrase that identifies it ("this morning", "the price spike").
 3. **What it did** — the observed decision.
 4. **What they expected instead** — this is the one people leave out, and it is the one that makes the question answerable.
@@ -33,7 +33,7 @@ The question is nearly always one of:
 
 | Section            | Contents                                                                       |
 | ------------------ | ------------------------------------------------------------------------------ |
-| `config.json`      | Element configuration and hub tiers — what was set up                          |
+| `config.json`      | Element configuration and the hub horizon preset — what was set up             |
 | `environment.json` | Timestamps and timezone — `optimization_start_time` is "now" for that plan     |
 | `inputs.json`      | Raw Home Assistant sensor states the optimizer read                            |
 | `outputs.json`     | The plan: every entity's `state` plus a `forecast` series, including all duals |
@@ -92,24 +92,24 @@ uv run diag -f <dir> -a binding -a series:soc   # analyses compose
 
 ## Worked example
 
-In `tests/scenarios/scenario3` the battery sits at 1 kW (serving load only) all morning, then discharges at its cap and exports 18.2 kW for four intervals from 09:35, then stops.
-Columns below are abbreviated entity ids, as the helper prints them:
+In `tests/scenarios/scenario3` the battery sits at 1 kW (serving load only) around 09:30, then discharges at its 19.2 kW cap and exports 18.2 kW for four intervals from 09:35, then stops.
+Columns below are abbreviated entity ids, as `series` prints them:
 
 ```
-  time  export_price  discharge_power  switchboard_power_  grid_max_export_po
- 09:30        0.2200           1.0000              0.2200              0.0000
- 09:35        0.2600          19.4000              0.2600              0.0000
- 09:40        0.2700          19.4000              0.2700              0.0000
- 09:45        0.3500          19.4000              0.3500              0.0000
- 09:50        0.3100          19.4000              0.3100              0.0000
- 09:55        0.2000           1.0000              0.2200              0.0000
+  time grid_export_pr battery_discha grid_export_po grid_max_expor switchboard_po
+ 09:30         0.2200         1.0000         0.0000         0.0000         0.2200
+ 09:35         0.2600        19.2000        18.2000         0.0000         0.2600
+ 09:40         0.2700        19.2000        18.2000         0.0000         0.2700
+ 09:45         0.3500        19.2000        18.2000         0.0000         0.3500
+ 09:50         0.3100        19.2000        18.2000         0.0000         0.3100
+ 09:55         0.2000         1.0000         0.0000         0.0000         0.2200
 ```
 
-Every limit dual is zero, so nothing was forced — this was a choice.
+No limit dual is non-zero in these intervals, so nothing was forced — this was a choice.
 The node balance dual never falls below 0.22, which is the opportunity cost of holding stored energy rather than selling it now.
 Export happens exactly in the intervals where the export price beats that floor, and stops when it does not.
 
-`uv run diag -f tests/scenarios/scenario3 -a binding` reports no capacity limits reached, which is what licenses reading this as an economic choice.
+`uv run diag -f tests/scenarios/scenario3 -a binding` lists the battery state-of-charge limits binding only at other times of day, none in this window, which is what licenses reading this as an economic choice.
 
 Confirm rather than assert. Copy the scenario, flatten the export price, re-solve:
 
@@ -131,7 +131,7 @@ Use it whenever the price story is not obvious. Useful perturbations:
 | --------------------------------- | ---------------------------------------------- |
 | Driven by an export or spot price | Flatten that price series                      |
 | Held back by a power limit        | Raise the limit in `config.json`               |
-| Driven by a later opportunity     | Shorten the horizon in `config.json` tiers     |
+| Driven by a later opportunity     | Re-solve with a shorter `--preset`             |
 | Caused by a forecast              | Flatten or zero that forecast in `inputs.json` |
 | Caused by round-trip losses       | Set efficiencies to 100                        |
 

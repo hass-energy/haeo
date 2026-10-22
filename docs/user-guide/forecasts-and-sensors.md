@@ -41,7 +41,7 @@ When you configure a sensor that only provides a present value, that value is us
 
 Some configuration fields are scalar-only and do not create forecasts.
 For example, the [Current charge percentage field](elements/battery.md#current-charge-percentage) uses the present value at optimization start to set the initial battery SOC.
-HAEO reads the current sensor state and does not repeat it across the horizon for these fields.
+HAEO reads the current sensor state and does not repeat it across the horizon for these fields, even when the sensor also carries a forecast.
 
 ## Forecast sensors
 

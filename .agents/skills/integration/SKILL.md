@@ -1,18 +1,26 @@
 ---
 name: integration
-description: Home Assistant integration patterns — coordinator usage, entity unique IDs and naming, device registry, exception types, diagnostics redaction, and setup and unload. Use when working anywhere under custom_components/haeo/ outside the standalone core package.
+description: Home Assistant integration patterns — the event-driven optimization coordinator in coordinator/, HaeoRuntimeData and setup and unload in __init__.py, input stores and the inputs/ package of Home Assistant readers, entity unique IDs and naming, device registry, exception types, and diagnostics redaction. Use when working anywhere under custom_components/haeo/ outside the standalone core package.
 ---
 
 # Home Assistant integration development
 
+## Package boundary
+
+`core/` never imports Home Assistant; import-linter enforces it.
+Code that reads Home Assistant at run time lives outside it: the `inputs/` package holds the state machine adapter, calendar event loading, and meter history readers that feed the core loaders.
+
 ## Coordinator pattern
 
-HAEO uses DataUpdateCoordinator for optimization scheduling.
-The coordinator loads data from sensors, runs optimization, and exposes results.
+`HaeoDataUpdateCoordinator` in [`coordinator/coordinator.py`](../../../custom_components/haeo/coordinator/coordinator.py) assembles each element's config from the input stores, runs the optimization, and exposes the results.
 
-- Pass `config_entry` to coordinator constructor
-- Use `UpdateFailed` for data loading or optimization errors
-- Integration determines update interval (not user-configurable)
+- It has no `update_interval`.
+    Updates are event-driven: input store changes and horizon changes signal the results stale, and the coordinator optimizes after the hub's debounce window.
+- Refreshes are single-flight: one lock and one "rerun wanted" flag, so requests made while an optimization runs share one follow-up run.
+    `async_request_refresh()` goes through the debounce window like any automatic request.
+- An optimization is skipped while forecast inputs are still loading for a new horizon; `async_run_optimization()`, behind the `haeo.optimize` action, checks this under the lock and raises `HomeAssistantError` with `inputs_not_aligned`.
+- Turning auto-optimize off cancels an optimization waiting out the debounce window.
+- Raise `UpdateFailed` for data loading or optimization errors, or `ReportedUpdateFailed` when the failure raises a repair issue of its own.
 
 ## Entity development
 
@@ -44,7 +52,7 @@ Use translation keys for all entity names:
 ```python
 class MySensor(SensorEntity):
     _attr_has_entity_name = True
-    _attr_translation_key = "battery_power"
+    _attr_translation_key = "battery_power_charge"
 ```
 
 ### State handling
@@ -62,14 +70,7 @@ async def async_added_to_hass(self) -> None:
 
 ## Device registry
 
-Group related entities under devices using translation keys:
-
-```python
-_attr_device_info = DeviceInfo(
-    identifiers={(DOMAIN, device_id)},
-    translation_key="battery",  # Use translation key for device name
-)
-```
+Create devices through the helpers in `entities/device.py`, which register each device with the adapter's device name as its translation key and the element name as the `name` placeholder.
 
 ## Exception handling
 
@@ -86,37 +87,24 @@ For service calls and user actions, use `HomeAssistantError` with a translation 
 ```python
 raise HomeAssistantError(
     translation_domain=DOMAIN,
-    translation_key="optimization_failed",
+    translation_key="inputs_not_aligned",
 )
 ```
 
 ## Diagnostics
 
-Implement diagnostic data collection with redaction:
-
-```python
-TO_REDACT = [CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE]
-
-
-async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
-    return async_redact_data(entry.data, TO_REDACT)
-```
-
-Never expose passwords, tokens, or sensitive coordinates.
+Diagnostics are collected in [`diagnostics/collector.py`](../../../custom_components/haeo/diagnostics/collector.py), which passes config through `async_redact_data` with `_REDACTED_CONFIG_KEYS`.
+Add any key that holds a password, token, or sensitive coordinate there.
 
 ## Setup and unload
 
-```python
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up from config entry."""
-    coordinator = MyCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
-    entry.runtime_data = coordinator
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    return True
+`async_setup_entry()` in [`__init__.py`](../../../custom_components/haeo/__init__.py) stores a `HaeoRuntimeData` on `entry.runtime_data`, holding the horizon manager, the input stores in `input_stores`, the auto-optimize switch, and the coordinator.
+Setup runs in this order:
 
+1. Create the horizon manager and the input stores.
+2. Forward the input platforms and wait for every input store to settle, raising `ConfigEntryNotReady` while inputs are unavailable.
+3. Initialize the coordinator and run the first optimization with `async_refresh()`, so a failed optimization does not retry setup.
+4. Forward the output platforms.
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-```
+Register every cleanup with `entry.async_on_unload()` during setup.
+`async_unload_entry()` then only unloads the platforms, clears `entry.runtime_data` if they unloaded, and returns that result.

@@ -1,4 +1,4 @@
-# Horizon Manager
+# Horizon manager
 
 The HorizonManager provides synchronized forecast time windows for all input entities in HAEO.
 
@@ -25,19 +25,20 @@ graph LR
     HM -.->|subscribe| INE
 ```
 
-### Creation Timing
+### Creation timing
 
 The HorizonManager is created during `async_setup_entry()` before platform setup:
 
 1. Hub entry loaded
 2. **HorizonManager created** and stored in `runtime_data`
-3. Input platforms (Number, Switch) set up
-4. Input entities subscribe to HorizonManager
-5. Output platforms (Sensor) set up
+3. Input stores built, and the calendar loader subscribes
+4. Input platforms (Number, Switch) set up, and their entities subscribe
+5. Coordinator subscribes, so each horizon change marks the plan stale
+6. Output platforms (Sensor) set up
 
-This ordering ensures input entities can subscribe immediately during their setup.
+This ordering lets every subscriber register before the first horizon change.
 
-## Horizon Computation
+## Horizon computation
 
 The hub stores its planning horizon as either a preset value or an entity value, and the HorizonManager handles each mode differently.
 The implementation is in `custom_components/haeo/horizon.py` and `custom_components/haeo/core/data/forecast_times.py`.
@@ -72,12 +73,12 @@ Input entities and the coordinator use these values to align data loading with t
 
 The diagnostic `HaeoHorizonEntity` in `custom_components/haeo/entities/haeo_horizon.py` exposes the same boundaries as timezone-aware `datetime` objects in its `forecast` attribute.
 
-## Subscription Pattern
+## Subscription pattern
 
-Input entities subscribe to receive notifications when the horizon changes.
+Input entities, the calendar loader, the horizon sensor, and the coordinator subscribe to receive notifications when the horizon changes.
 The subscription returns an unsubscribe callable that entities register for automatic cleanup during removal.
 
-### Subscription Lifecycle
+### Subscription lifecycle
 
 1. **Subscribe**: Entity calls `subscribe()` during `async_added_to_hass()`
 2. **Receive updates**: Manager calls subscriber callbacks whenever the horizon updates
@@ -107,7 +108,7 @@ An entity horizon has no timer.
 Instead, the manager subscribes to the sensor with `async_track_state_change_event()`, recomputes the horizon on each state change, and notifies subscribers.
 Pausing and stopping the manager remove this listener in the same way they cancel the preset timer.
 
-## Horizon Sensor
+## Horizon sensor
 
 A read-only sensor entity displays the current horizon state for debugging:
 
@@ -116,21 +117,20 @@ A read-only sensor entity displays the current horizon state for debugging:
 
 This sensor is diagnostic only and does not participate in optimization.
 
-## Integration with Input Entities
+## Alignment with input stores
 
-Input entities use the HorizonManager to:
+Input entities reload their store's forecast for the new boundaries each time the horizon changes.
+Each time-series input store records the `horizon_start` it was loaded for.
 
-1. **Get aligned timestamps**: Access the `horizon` property when loading forecast data
-2. **Refresh on boundaries**: Subscribe to receive horizon change notifications
-3. **Tag loaded data**: Store `horizon_id` to verify alignment during optimization
+Before optimizing, the coordinator checks that every available time-series store's `horizon_start` matches the first of `get_forecast_timestamps()`.
+Until they match, refreshes are skipped and the `haeo.optimize` action raises `inputs_not_aligned`; the stores request another refresh once they have loaded.
+See [Update coordination](coordinator.md) for the refresh rules.
 
-The coordinator checks that all inputs have matching `horizon_id` before running optimization, ensuring temporal consistency.
-
-## Related Documentation
+## Related documentation
 
 <div class="grid cards" markdown>
 
-- :material-import:{ .lg .middle } **Input Entities**
+- :material-import:{ .lg .middle } **Input entities**
 
     ---
 

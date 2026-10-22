@@ -23,7 +23,9 @@ Some gates cannot run outside GitHub Actions and are reported as skipped with th
 
 - `hassfest` and `hacs` are provided wholly by third-party actions.
     Hassfest can still be run by hand, as [Running hassfest](#running-hassfest) describes; run it whenever you change `translations/en.json`, `manifest.json`, `services.yaml`, or repair issues.
-- `guide` is slow and needs Playwright Firefox. It runs in `guides.yml` and is not part of the required check. Run it explicitly with `uv run check guide` when touching `docs/walkthroughs/`.
+- `guide` is opt-in rather than skipped: it is slow and needs Playwright Firefox, so it runs in `guides.yml` and is not part of the required check.
+    Run it when touching a page with ```` ```guide ```` blocks, which today are under `docs/walkthroughs/`.
+    `uv run pytest -m guide -n 8 --timeout=300` runs the guides in parallel; `uv run check guide` runs them one after another.
 
 ## Step 2: fix what failed
 
@@ -46,6 +48,9 @@ Everything still failing needs a real change:
 - **Tests**: `filterwarnings = ["error"]`, so a new warning is a hard failure, and `timeout = 5` turns a hang into a timeout.
 - **Scenario tests**: a diff means optimizer behavior changed.
     Confirm that is intended before regenerating with `--snapshot-update`.
+    See the `scenarios` skill.
+- **Docs build**: `uv run zensical build` must succeed.
+    It does not check links or anchors, so a passing build says nothing about them; see the `documentation` skill.
 - **Version consistency**: `pyproject.toml` and `custom_components/haeo/manifest.json` versions must match, and `homeassistant>=X` in `pyproject.toml` must equal `homeassistant` in `hacs.json`.
     Run `uv sync` after changing either.
 

@@ -1,42 +1,41 @@
 # Adapter layer
 
-The adapter layer transforms Device Layer elements into Model Layer elements and maps optimization outputs back to user-friendly device outputs.
-This separation enables composition flexibility where a single configuration creates multiple model elements and devices.
+The adapter layer transforms device layer elements into model layer elements and maps optimization outputs back to user-facing device outputs.
+This separation lets a single configured element create several model elements and devices.
 
 ## Purpose
 
 HAEO separates user configuration from optimization modeling through distinct layers:
 
-- **Device Layer**: User-configured elements (Battery, Grid, Solar, Load, Node, Connection) with Home Assistant sensor integration
-- **Model Layer**: Mathematical building blocks forming the linear programming problem
-- **Adapter Layer**: Transformation logic connecting these layers
+- **Device layer**: The element types a user configures, with Home Assistant sensor integration
+- **Model layer**: Mathematical building blocks forming the linear programming problem
+- **Adapter layer**: Transformation logic connecting these layers
 
-This architecture enables:
+This enables:
 
-- **Composition flexibility**: One Device Layer element creates multiple Model Layer elements
-- **Output aggregation**: Model outputs map to multiple devices with user-friendly sensor names
-- **Future extensibility**: Foundation for composite elements that group multiple devices
+- **Composition**: One device layer element creates several model layer elements
+- **Output mapping**: Model outputs map to one or more devices with user-facing sensor names
 
-## Transformation Flow
+## Transformation flow
 
 ```mermaid
 graph LR
-    subgraph "Device Layer"
-        Config[User Configuration]
+    subgraph "Device layer"
+        Config[User configuration]
     end
 
-    subgraph "Adapter Layer"
+    subgraph "Adapter layer"
         Create["model_elements()"]
         Map["outputs()"]
     end
 
-    subgraph "Model Layer"
-        Model[Model Elements]
-        Results[Optimization Results]
+    subgraph "Model layer"
+        Model[Model elements]
+        Results[Optimization results]
     end
 
     subgraph "Home Assistant"
-        Devices[Devices & Sensors]
+        Devices[Devices and sensors]
     end
 
     Config --> Create
@@ -46,81 +45,61 @@ graph LR
     Map --> Devices
 ```
 
-The adapter layer provides two transformation functions per element type:
+**Configuration to model** (`model_elements`): Transforms a loaded element config into `ModelElementConfig` dictionaries, discriminated by a model `element_type` from the `ELEMENTS` registry in `core/model/elements/__init__.py`.
+An element with nothing to add to the network, such as one whose rules are compiled separately, returns an empty list.
 
-**Configuration → Model** (`model_elements`): Transforms user configuration into model element specifications.
-Called during network construction before optimization.
-The adapter returns `ModelElementConfig` dictionaries with a discriminated `element_type`.
-Use model-layer element type constants from `custom_components/haeo/core/model/elements/__init__.py`.
+**Model to devices** (`outputs`): Transforms the model outputs into each of the element's devices, keyed by device name and then output name.
+Some adapters take the loaded `config` and the `periods` as keyword arguments to derive outputs, such as costs from prices.
 
-**Model → Devices** (`outputs`): Transforms optimization results into device-specific outputs with user-friendly names.
-Called after optimization to populate sensors.
+## Adapter contract
 
-## Element Composition Patterns
+Every adapter conforms to the `ElementAdapter` protocol in [`core/adapters/registry.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/registry.py) and is registered in `ELEMENT_TYPES`, keyed by `ElementType`.
+Besides the two methods, an adapter declares attributes that the rest of the integration reads instead of naming element types:
 
-### One-to-Many Model Elements
+| Attribute      | Read by                                                                                      |
+| -------------- | -------------------------------------------------------------------------------------------- |
+| `advanced`     | The hub flow, which offers the type only in advanced mode                                    |
+| `connectivity` | Connection selectors and topology validation, through `ConnectivityLevel`                    |
+| `can_source`   | The policy flow, to decide whether the element can be a rule's source                        |
+| `can_sink`     | The policy flow, to decide whether the element can be a rule's destination                   |
+| `switchboard`  | Setup, which creates a switchboard element outside advanced mode when no such element exists |
+| `device_names` | Device cleanup, which removes devices the element no longer creates                          |
+| `buffer_roles` | The buffer flow, to decide what a buffer can count the element as                            |
 
-Most Device Layer elements create multiple Model Layer elements:
+Adding a behavior that differs between element types means adding an attribute here, not a list of types where the behavior is used.
 
-| Device Element | Model Elements Created   |
-| -------------- | ------------------------ |
-| Battery        | `battery` + `connection` |
-| Grid           | `node` + `connection`    |
-| Solar          | `node` + `connection`    |
-| Load           | `node` + `connection`    |
-| Junction       | `node` only              |
-| Node           | `node` only              |
-| Connection     | `connection` only        |
+An adapter whose elements choose in their own config whether they produce or consume power also implements `ConfiguredRolesAdapter`, whose `roles(config)` narrows `can_source` and `can_sink` for one configured element.
 
-Implicit connections (created by Battery, Grid, PV, Load) link the element to its configured target node.
-The connection carries operational parameters (power limits, efficiency, pricing) from the device configuration.
+### Sub-element naming
 
-### One-to-Many Devices
+When an adapter creates several model elements, they are named `{name}:{subname}`, such as `Grid:import` and `Grid:export`.
+This prevents naming collisions and lets the coordinator trace a model element back to the configured element it belongs to.
 
-Some Device Layer elements produce multiple devices in Home Assistant:
+## Related registries
 
-Each element creates a single device matching its configuration.
+Some element types carry schema-level behavior that others do not.
+These are registered beside `ELEMENT_CONFIG_SCHEMAS` in [`core/schema/elements/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/schema/elements/__init__.py):
 
-### Sub-element Naming
+- **`ELEMENT_SURFACED_PRICE_HINTS`**: Policy pricing fields an element type shows on its own form.
+    The value is stored as a policy rule rather than in the element's config, and the element's flow lists each surfaced field in one of its sections.
+- **`ELEMENT_REFERENCE_PRUNERS`**: For element types whose config names other elements, how each drops names of elements that no longer exist.
+    The config entry's update listener applies them when the configuration changes, removing an element left with nothing to do.
 
-When adapters create multiple model elements or devices, they use a naming convention:
+`FieldSchemaInfo` in `elements/input_fields.py` carries a field's value type and whether it is optional, read from the schema for the config flow.
 
-- Main element: `{name}` (e.g., `Battery`)
-- Sub-elements: `{name}:{subname}` (e.g., `Battery:connection`, `Battery:discharge`)
+## Integration points
 
-This prevents naming collisions and groups related components visually.
+The adapter layer integrates at two points:
 
-## Adding New Element Types
+**Network construction**: `build_network` in [`core/adapters/network_builder.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/network_builder.py) calls `collect_model_elements()`, which calls each adapter's `model_elements()` and sorts the results by their model element's `add_order`.
+It then runs [policy compilation](policy-compilation.md) and adds the compiled elements to the network.
+`build_element_updaters` then returns, for each configured element, an updater that calls `model_elements()` again with new values and writes them to the live model elements.
 
-To add a new Device Layer element:
+**Output processing**: [`coordinator/coordinator.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/coordinator.py) calls `outputs()` after each optimization to build the values of each element's sensors.
 
-1. Define schema in `core/schema/elements/{element_type}.py` with `ConfigSchema`, `ConfigData`, and `DEFAULTS`
-2. Implement adapter in `core/adapters/elements/{element_type}.py` with `available()`, `inputs()`, `model_elements()`, `outputs()`
-3. Implement config flow in `flows/elements/{element_type}.py`
-4. Register `ElementAdapter` in `elements/__init__.py` `ELEMENT_TYPES` dictionary
-5. Add translations in `translations/en.json`
-6. Write tests colocated with source (adapter tests in `core/adapters/elements/tests/`, flow tests in `flows/elements/tests/`)
+## Adding element types
 
-See existing adapter modules in [`custom_components/haeo/core/adapters/elements/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/core/adapters/elements) for implementation patterns.
-
-## Integration Points
-
-The adapter layer integrates at two points in HAEO's execution:
-
-**Network construction**: [`coordinator/network.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/network.py) calls `model_elements()` for each configured element to build the optimization network.
-The `create_network()` function assembles all element specifications and adds them to the network.
-
-**Output processing**: [`coordinator/coordinator.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/coordinator.py) calls `outputs()` after optimization to transform results into device sensor values.
-
-## Future: Composite Elements
-
-The adapter architecture supports future composite elements that group multiple Device Layer elements:
-
-- **Virtual Power Plant**: Multiple batteries and solar systems as a single unit
-- **Building**: Aggregated loads and generation for a location
-- **Pre-configured networks**: Complete system templates
-
-Composite adapters would create nested element structures and aggregate their outputs, presenting a unified interface to users while maintaining full optimization capability.
+See [Adding element types](architecture.md#adding-element-types) and the existing adapters in [`core/adapters/elements/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/core/adapters/elements).
 
 ## Next steps
 
@@ -130,7 +109,7 @@ Composite adapters would create nested element structures and aggregate their ou
 
     ---
 
-    Understand the Model Layer mathematical formulation.
+    Understand the model layer mathematical formulation.
 
     [:material-arrow-right: Network optimization](../modeling/index.md)
 
@@ -138,7 +117,7 @@ Composite adapters would create nested element structures and aggregate their ou
 
     ---
 
-    User guide for Device Layer elements.
+    User guide for device layer elements.
 
     [:material-arrow-right: Elements overview](../user-guide/elements/index.md)
 

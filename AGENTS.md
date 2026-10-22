@@ -7,52 +7,27 @@ This repository contains **HAEO** (Home Assistant Energy Optimizer) - a Python 3
 HAEO optimizes energy usage across battery storage, grid import/export, loads, and generators using linear programming.
 The integration provides real-time optimization based on energy prices, forecasts, and system constraints.
 
-### Core components
-
-The integration follows a layered architecture:
-
-- **Model layer** (`core/model/`): LP formulation with elements, constraints, and cost functions
-- **Elements layer** (`elements/`, `core/schema/`, `core/adapters/`): Element registry, schemas, and adapters
-- **Coordinator** (`coordinator/`): Orchestrates data loading, optimization, and result extraction
-- **Entities** (`sensor.py`, `number.py`, `switch.py`, `entities/`): Expose inputs and optimization results to Home Assistant
-- **Config flows** (`flows/`): Subentry-based configuration for hub and elements
-
-See [architecture guide](docs/developer-guide/architecture.md) for detailed component interactions.
-
 ### Project structure
 
-```
-custom_components/haeo/     # Home Assistant integration
-├── core/                   # Core infrastructure (no HA dependencies)
-│   ├── model/              # LP model (constraints, variables, optimization)
-│   ├── data/               # Data loading utilities and forecast extractors
-│   ├── schema/             # Element schemas, field types, sections, migrations
-│   └── adapters/           # Element adapters and policy compilation
-├── elements/               # Element registry, availability, input field derivation
-├── flows/                  # Hub, options, and element config flows
-│   └── elements/           # Per-element flow implementations
-├── coordinator/            # Optimization cycle and network assembly
-├── entities/               # Entity classes behind the sensor, number, and switch platforms
-├── horizon.py              # Forecast time windows
-├── input_stores.py         # Input store layer backing the input entities
-└── translations/           # i18n strings (en.json)
-tools/                      # Developer CLIs (check, diag, sim, snapshot)
-tests/scenarios/            # End-to-end scenario tests
-docs/                       # Documentation
-```
+The integration lives in `custom_components/haeo/` and is layered:
+
+- **`core/`** holds everything that does not need Home Assistant: the LP model (`core/model/`), element schemas and config migrations (`core/schema/`), adapters that turn configuration into model elements and outputs (`core/adapters/`), and forecast parsing and input loading (`core/data/`).
+    It must never import Home Assistant; import-linter enforces this.
+- **Home Assistant glue** sits beside it: config and subentry flows (`flows/`), the coordinator that runs each optimization cycle (`coordinator/`), the entity classes behind the sensor, number, and switch platforms (`entities/`), readers of Home Assistant state, calendars, and recorder history (`inputs/`), and config entry migrations, diagnostics, repairs, and services.
+- **`tools/`** holds the developer CLIs, and **`frontend/`** the forecast card.
+
+The [architecture guide](docs/developer-guide/architecture.md) describes each package and how they interact.
 
 Tests are colocated with source code in `tests/` subdirectories within each package.
 The top-level `tests/` directory holds only scenario tests, guide tests, and CLI tool tests.
-`custom_components/haeo/sensors/` contains tests, not an implementation.
-
-The `core/` package must never import Home Assistant; import-linter enforces this.
 
 ## Development tools
 
 - **Package manager**: uv (use `uv sync` for dependencies, `uv run` to execute tools)
-- **Testing**: pytest (scenarios require `-m scenario` marker and are skipped in CI)
+- **Testing**: pytest, with `scenario`, `guide`, and `benchmark` markers selecting the slower suites (`uv run check` selects them the way CI does)
 - **Linting/Formatting**: Ruff (Python), Prettier (JSON), mdformat (Markdown)
 - **Type checking**: Pyright
+- **Documentation**: Zensical builds `docs/` from `mkdocs.yml`
 
 ## Agent behavioral rules
 
@@ -185,15 +160,6 @@ The version number must be consistent across:
 
 When updating version numbers, update both files together, then run `uv sync` to regenerate `uv.lock`.
 
-Key patterns for sensor display names using sentence case (capital first letter, rest lowercase):
-
-1. **Power sensors**: Action + noun pattern ("Import power", "Charge power")
-2. **Price sensors**: Qualifier + price pattern ("Import price", "Export price")
-3. **Shadow price sensors**: Constraint + "shadow price" suffix ("Max import power shadow price")
-4. **Connection sensors**: Use parameterized translations with `{source}` and `{target}` placeholders
-
-Avoid special characters in translation display names as they are used in entity ID generation.
-
 ## Skills
 
 Detailed standards and workflows live in `.agents/skills/`, one directory per skill, each with a `SKILL.md`.
@@ -209,9 +175,10 @@ Read the skill covering an area before changing code in it.
 ## Verification
 
 Run `uv run check` before considering work complete.
-It runs every CI job that can run locally — ruff, pyright, import boundaries, mdformat, prettier, version consistency, unit tests, scenario tests, and frontend card checks — in about 65 seconds.
+It runs every CI job that can run locally — ruff, pyright, import boundaries, mdformat, prettier, version consistency, unit tests, scenario tests, frontend card checks, and the documentation build — in about 65 seconds.
 `--fast` runs ruff, pyright, and unit tests in about 35.
 HACS validation has no local equivalent and runs only in GitHub Actions.
+The documentation build does not check links or anchors, so verify any you add or move.
 `hassfest` is not part of `uv run check`, but the `lint` skill shows how to run it from Home Assistant's source; do so after changing translations, the manifest, services, or repair issues.
 
 Tests run under `timeout = 5` per test with `filterwarnings = ["error"]`, so a new warning is a hard failure and a hang surfaces as a 5-second timeout.

@@ -47,7 +47,7 @@ The sensors this element creates, with their entity IDs, are listed under [Senso
 | ------------------ | ----------------------- |
 | **Name**           | Battery Section 1       |
 | **Capacity**       | sensor.battery_capacity |
-| **Initial Charge** | sensor.battery_energy   |
+| **Initial charge** | sensor.battery_energy   |
 
 ## Typical use cases
 

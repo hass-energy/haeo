@@ -11,40 +11,67 @@ Scenario tests are end-to-end integration tests with realistic configurations an
 
 ```
 tests/scenarios/
-├── test_scenarios.py         # Centralized parameterized test runner
-├── conftest.py               # Shared fixtures
-├── syrupy_json_extension.py  # Snapshot format
-├── visualization.py          # Debugging visualizations
+├── test_scenarios.py         # Parametrized runner, one test per scenario folder
+├── conftest.py               # Fixtures, including the scenario.json splitter
+├── syrupy_json_extension.py  # Reads and writes outputs.json as the snapshot
+├── visualization.py          # Topology and dispatch plan SVGs
 └── scenario*/
     ├── config.json           # Hub and element configuration
-    ├── environment.json      # Timestamp for time freezing
+    ├── environment.json      # Captured timestamps; optimization_start_time freezes time
     ├── inputs.json           # HA sensor states to inject
     └── outputs.json          # Expected sensor outputs (snapshot)
 ```
 
-## Auto-discovery
+## Discovery
 
-Test runner automatically discovers all `scenario*/` folders using `Path.glob("scenario*/")`.
-No registration needed - just create a new folder.
+`_discover_scenarios()` in `test_scenarios.py` globs `scenario*/` and keeps only folders that hold all four JSON files.
+No registration is needed, but a folder whose name does not start with `scenario`, or that lacks `outputs.json`, is silently skipped.
 
 ## Scenario files
 
 ### config.json
 
-Hub configuration and element participants:
+The hub config entry's data with its element subentries under `participants`, keyed by element name, plus the entry's `version` and `minor_version`.
+The test sets the entry up at that version, so Home Assistant migrates an older config to the current schema exactly as it would a user's.
+A config without `minor_version` is taken as current and is not migrated.
+
+A config in the current schema looks like this, with each element's fields in the same sections as its stored subentry:
 
 ```json
 {
-  "tier_1_count": 12,
-  "tier_1_duration": 5,
+  "version": 1,
+  "minor_version": 4,
+  "common": {
+    "name": "Test Hub",
+    "horizon": {
+      "type": "preset",
+      "value": "3_days"
+    }
+  },
+  "advanced": {},
   "participants": {
     "Battery": {
+      "name": "Battery",
       "element_type": "battery",
-      "name": "Battery"
+      "connection": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "storage": {
+        "capacity": {
+          "type": "entity",
+          "value": [
+            "sensor.battery_capacity"
+          ]
+        }
+      }
     }
   }
 }
 ```
+
+Copy an existing scenario's `config.json` rather than writing one from scratch, and keep the `version` and `minor_version` it carries.
+A config from an older export, such as one with `common.horizon_preset`, must keep its older `minor_version` so it migrates.
 
 ### environment.json
 
@@ -96,10 +123,12 @@ All datetime operations during the test see this frozen time.
 
 ## Running scenarios
 
-Scenarios carry the `scenario` marker and are deselected from the default test run:
+Scenarios carry the `scenario` marker.
+The `test` gate excludes them and the `scenario` gate runs them, both in CI and in `uv run check`:
 
 ```bash
 # Run all scenarios
+uv run check scenario
 uv run pytest -m scenario
 
 # Run specific scenario
@@ -119,7 +148,7 @@ npm --prefix frontend/haeo-forecast-card ci
 npm --prefix frontend/haeo-forecast-card run build
 ```
 
-CI does this before its scenario job, and `uv run check` does it automatically.
+CI does this before its scenario job, and the `scenario` gate of `uv run check` does it automatically.
 Running scenarios by hand means doing it yourself once.
 
 ## Creating new scenarios
@@ -127,20 +156,21 @@ Running scenarios by hand means doing it yourself once.
 The usual path is a user's diagnostics download, which becomes a regression test directly:
 
 1. Ask the user for Settings → Devices & Services → HAEO → Download Diagnostics
-2. Create `tests/scenarios/<name>/` and save the download as `<name>/scenario.json`
-3. Run the scenario suite once — the runner splits the unified file into the four files and deletes the original
-4. Review the generated `outputs.json` and commit
+2. Create `tests/scenarios/scenario_<name>/` and save the download as `scenario_<name>/scenario.json`
+3. Run the scenario suite once — a session fixture splits the unified file into the four files, taking `outputs.json` from the outputs the diagnostics recorded, and deletes the original
+4. Run it again: the split happens after collection, so the new scenario is only picked up on the second run, which compares HAEO's results with the recorded outputs
+5. If the results should replace the recorded outputs, rerun with `--snapshot-update`; review `outputs.json`, run `uv run check --fix` so prettier formats the split files, and commit
 
-Name the folder for the behavior under test rather than the next number in sequence, since discovery is a glob.
+Name the folder `scenario_<behavior>` for the behavior under test rather than the next number in sequence.
+The `scenario` prefix is required for discovery.
 
 To hand-author a scenario instead:
 
-1. Create new folder: `tests/scenarios/scenario_name/`
-2. Add `config.json` with hub and element configuration
-3. Add `environment.json` with freeze timestamp
-4. Add `inputs.json` with sensor states to inject
-5. Run tests - `outputs.json` will be generated
-6. Review and commit the generated outputs
+1. Create `tests/scenarios/scenario_<name>/`
+2. Add `config.json`, `environment.json`, and `inputs.json`
+3. Add an `outputs.json` containing `{}` so discovery picks the folder up
+4. Run `uv run pytest -m scenario -k scenario_<name> --snapshot-update` to fill `outputs.json`
+5. Review and commit the generated outputs
 
 ## Snapshot format
 
@@ -162,7 +192,7 @@ Decide first whether that is intended — `--snapshot-update` is not a way to ma
 
 ## Debugging scenarios
 
-Visualizations are regenerated into `scenario*/visualizations/` on each run and are deterministic enough to commit.
+Visualizations are regenerated into `scenario*/visualizations/` on each run and are committed.
 Open them to see the network topology and the dispatch plan.
 
 To optimize a scenario without Home Assistant in the loop:

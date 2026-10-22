@@ -59,8 +59,8 @@ The sensors this element creates, with their entity IDs, are listed under [Senso
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
 | **Name**         | Main Grid                       |
-| **Import Price** | sensor.electricity_import_price |
-| **Export Price** | sensor.electricity_export_price |
+| **Import price** | sensor.electricity_import_price |
+| **Export price** | sensor.electricity_export_price |
 | **Connection**   | Home Bus                        |
 
 ### With capacity limits
@@ -68,10 +68,10 @@ The sensors this element creates, with their entity IDs, are listed under [Senso
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
 | **Name**         | Limited Grid                    |
-| **Import Price** | sensor.electricity_import_price |
-| **Export Price** | sensor.electricity_export_price |
-| **Import Limit** | 10.0                            |
-| **Export Limit** | 5.0                             |
+| **Import price** | sensor.electricity_import_price |
+| **Export price** | sensor.electricity_export_price |
+| **Import limit** | 10.0                            |
+| **Export limit** | 5.0                             |
 | **Connection**   | Home Bus                        |
 
 ## Typical use cases

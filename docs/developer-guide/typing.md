@@ -3,7 +3,7 @@
 HAEO uses Python's type system to prevent errors at development time rather than catching them at runtime.
 This document describes the project's typing conventions and philosophy.
 
-## Core Principles
+## Core principles
 
 ### Type at boundaries
 
@@ -72,7 +72,7 @@ def test_battery_has_capacity() -> None:
 
 Use TypedDict to type dictionary-like structures, especially configuration data from Home Assistant.
 
-### Schema vs Data mode
+### Schema vs data mode
 
 HAEO uses a dual TypedDict pattern for element configuration:
 

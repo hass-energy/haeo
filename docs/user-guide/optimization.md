@@ -16,10 +16,11 @@ Total cost over the optimization horizon in dollars.
 - **Includes**: Grid import/export costs, buffer shortfall costs, connection transfer costs
 - **Unit**: \$ (or your configured currency)
 
-!!! info "Lexicographic ordering"
+!!! info "Equally cheap plans"
 
-    When multiple schedules share the same primary cost, HAEO applies a secondary time-preference objective.
-    This ordering favors earlier energy transfers without changing the reported optimization cost.
+    When several plans cost exactly the same, HAEO picks the one that moves energy earlier.
+    This choice never changes the cost it reports.
+    [How the optimization works](../modeling/index.md#secondary-objective-time-preference) explains the tie-break.
 
 ### Status
 

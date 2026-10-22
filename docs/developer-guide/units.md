@@ -2,7 +2,7 @@
 
 HAEO uses specific unit conventions for numerical stability and solver performance.
 
-## Unit System
+## Unit system
 
 HAEO uses SI-derived units scaled for energy systems:
 
@@ -13,7 +13,7 @@ HAEO uses SI-derived units scaled for energy systems:
 | Time     | hours (h)                | Natural for energy calculations    |
 | Price    | dollars per kWh (\$/kWh) | Standard electricity pricing       |
 
-## Why Not Watts and Watt-hours?
+## Why not watts and watt-hours?
 
 Using watts would create numerical issues:
 
@@ -33,7 +33,7 @@ power = 5  # kW
 time = 0.0833  # hours
 ```
 
-## Numerical Stability
+## Numerical stability
 
 Linear programming solvers work best when:
 
@@ -48,7 +48,7 @@ Our unit choice keeps values in the ideal range:
 - Time steps: 0.0833-1 hours
 - Prices: 0.05-0.50 \$/kWh
 
-## Energy Calculations
+## Energy calculations
 
 With our units, energy calculations are natural:
 
@@ -62,7 +62,7 @@ energy = 5.0 * 0.5  # = 2.5 kWh
 
 No conversion factors needed!
 
-## Cost Calculations
+## Cost calculations
 
 ```python
 # Cost = Energy × Price
@@ -74,7 +74,7 @@ cost = 10.0 * 0.25  # = $2.50
 
 Again, no conversions!
 
-## Converting External Data
+## Converting external data
 
 Sources are converted to base units as they load, in [`core/units.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/units.py).
 `base_unit_conversion()` returns the factor from a unit to its base unit: W, MW, and GW to kW, Wh and MWh to kWh, minutes and days to hours, and a price per energy unit, such as €/MWh, to the same currency per kWh, with a price in cents or pence, such as c/kWh, converting to the main currency unit (`ct` to `€` and `p` to `£`, while `c` and `¢` name no currency and convert to HAEO's `$` placeholder).
@@ -86,7 +86,7 @@ A sensor that states no unit passes.
 
 A value a user types, such as in a calendar event, must state its unit: `to_field_unit()` converts it to the field's unit and rejects a bare number for a field with a unit, so no number is ever taken to be in HAEO's own units.
 
-## Implementation Guidelines
+## Implementation guidelines
 
 When adding new features:
 
@@ -117,7 +117,7 @@ def add_battery(
     # ... rest of implementation
 ```
 
-## Related Documentation
+## Related documentation
 
 <div class="grid cards" markdown>
 

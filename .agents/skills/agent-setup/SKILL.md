@@ -51,7 +51,7 @@ description: User-facing strings in translations/en.json — sensor and device
   entity name, or output sensor.
 ```
 
-Name concrete files, directories, and domain nouns.
+Name concrete files, directories, and domain nouns, but never a list of element kinds (see [Don't enumerate groups](#dont-enumerate-groups)).
 Avoid descriptions that only restate the skill name.
 
 ## Adding a skill
@@ -105,13 +105,13 @@ Each element (Battery, Grid, Load, Solar, Node) must have...
 
 <!-- ✅ Good: Pattern description -->
 
-Each element type registered in ELEMENT_TYPES must have...
+Each element type registered in ElementType must have...
 ```
 
 The test for good grouping: if you cannot identify the group without enumerating it, it is not a well-defined group.
 
-Descriptions are the exception.
-Listing concrete names there helps an agent decide whether the skill is relevant, which is the whole job of that field.
+Descriptions may name concrete files, directories, and tools, because that helps an agent decide whether the skill is relevant.
+Element kinds are not an exception: describe them as "every type registered in `ElementType`" in a description as well as a body, so adding an element type never leaves a skill silently stale.
 
 ### Actionable content
 

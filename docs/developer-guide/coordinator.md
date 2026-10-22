@@ -1,143 +1,159 @@
-# Data Update Coordinator
+# Data update coordinator
 
-The coordinator manages optimization cycles and result distribution using an event-driven model.
+The coordinator runs optimizations when inputs change and distributes the results to sensors.
 
 ## Purpose
 
-HAEO's coordinator implements Home Assistant's [DataUpdateCoordinator pattern](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities) to orchestrate optimization cycles.
-The implementation is in `custom_components/haeo/coordinator/coordinator.py`.
-Network building functions are in `custom_components/haeo/coordinator/network.py`.
+HAEO's coordinator implements Home Assistant's [DataUpdateCoordinator pattern](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities).
+The implementation is in [`coordinator/coordinator.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/coordinator.py).
+[`coordinator/network.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/network.py) checks network connectivity and keeps its repair issues current.
 
-The coordinator performs these core responsibilities:
+The coordinator:
 
-- Reads pre-loaded data from [input entities](inputs.md)
-- Validates input alignment before optimization
-- Builds network model from configuration and loaded data
-- Runs LP solver in executor thread (non-blocking)
-- Updates network parameters for warm start optimization
-- Distributes results to sensors
-- Triggers re-optimization on input changes or horizon boundaries
-- Handles errors gracefully with [UpdateFailed](https://developers.home-assistant.io/docs/integration_fetching_data/) exceptions
+- Reads resolved values from the [input stores](inputs.md) in `runtime_data.input_stores`
+- Applies the inputs that changed to the network built by `build_network`
+- Runs the LP solver in an executor thread
+- Builds the outputs that sensors read
+- Reports failed optimizations through the status sensor and repair issues
 
-**Event-driven updates**:
+Each hub config entry has one coordinator.
+It is created during setup from the same snapshot of element subentries that built the input stores, so the elements it optimizes always match the stores it reads.
+Adding, changing, or removing an element reloads the config entry, which builds a new coordinator.
+An input entity writing a new value does not reload; it signals the coordinator instead.
 
-Unlike traditional coordinators with fixed polling intervals, HAEO uses event-driven triggers.
-Optimization runs when input entity states change or when the [HorizonManager](horizon-manager.md) signals a period boundary crossing.
-This ensures optimization uses the latest data without unnecessary polling.
+The coordinator has no update interval.
+Optimizations run when an input store reports a new value, when the [HorizonManager](horizon-manager.md) advances, or when one is requested.
 
-**Subentry discovery**:
+## Initialization
 
-The coordinator is created only for hub entries (identified by `integration_type: "hub"`).
-It discovers element subentries by querying the config entry registry for entries where `parent_entry_id` matches the hub's `entry_id`.
-This discovery happens on each update cycle, supporting dynamic element addition and removal without integration reload.
+`async_initialize()` runs once every input store has settled:
 
-## Update Cycle
+1. Assembles each element's config from the stores' values
+2. Calls `build_network` in [`core/adapters/network_builder.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/network_builder.py) to build the network, and `build_element_updaters` to build an updater per element for it
+3. Serializes the topology for the frontend card and checks network connectivity
+4. Subscribes to each input store, the auto-optimize switch, and the HorizonManager
 
-The coordinator follows this sequence for each optimization cycle:
+Setup then runs the first optimization before adding the output sensors.
+
+## Update cycle
 
 ```mermaid
 sequenceDiagram
-    participant Trigger as Event Trigger
+    participant Trigger as Trigger
     participant C as Coordinator
-    participant RD as RuntimeData
+    participant S as Input stores
     participant N as Network
-    participant LP as LP Solver
+    participant LP as Executor
 
-    Trigger->>C: Input change / Horizon boundary
-    C->>RD: Read runtime_data.inputs
-    C->>C: Check input alignment
-    alt Inputs not aligned
-        C-->>Trigger: Skip (wait for alignment)
+    Trigger->>C: _optimize()
+    C->>C: Wait for the optimization lock
+    alt Inputs not aligned to the horizon
+        C-->>Trigger: Skip (stores request again once loaded)
     else Inputs aligned
-        alt First optimization
-            C->>N: create_network() from inputs
-            N-->>C: New network
-        else Subsequent optimization
-            C->>N: Call element updaters with new parameters
-            Note over N: Only invalidated constraints rebuilt
-        end
-        C->>LP: Optimize (executor)
-        LP-->>C: Optimal solution
-        C->>C: Extract results
-        C-->>Trigger: Return results
+        C->>S: Check availability and read values
+        C->>N: update_periods() and updaters of changed elements
+        C->>LP: network.optimize()
+        LP-->>C: Cost, or InfeasibleError or SolverError
+        C->>C: Build outputs
     end
 ```
 
-### Update phases
+### Warm start
 
-**1. Input alignment check**
+Each store listener marks its element stale.
+Before a solve, the coordinator copies the horizon's period durations onto the network and calls the updater of every stale element.
+An updater calls the adapter's `model_elements()` with the new values and writes them to the `TrackedParam` descriptors on the live model elements, so only the constraints that read them are rebuilt.
 
-Before optimization, the coordinator verifies all input entities have matching `horizon_id` values.
-This ensures temporal consistency—all inputs represent the same forecast horizon.
-If inputs are misaligned (some entities haven't refreshed after a horizon change), the coordinator skips optimization and waits.
+All network changes happen on the event loop before the solve is handed to the executor, so the network is never mutated while it is being solved.
 
-**2. Data reading**
+### Outputs
 
-The coordinator reads pre-loaded values from `runtime_data.inputs`, a dictionary keyed by `(element_name, field_name)`.
-Input entities populate this dictionary during their refresh cycles.
-See [Input Entities](inputs.md) for details on how data loading works.
+`_build_outputs()` stores the results in `coordinator.data.outputs`, keyed by element name, then device name, then output name.
+Each adapter's `outputs()` maps the model outputs to its devices.
+The network's own outputs, the optimization cost and duration, are keyed by the network subentry's title, which its sensors look them up by.
+An `OutputData` marked `diagnostic` becomes a sensor in the diagnostic entity category.
 
-**3. Optimization**
+## Scheduling
 
-The network optimization runs in an executor thread via `hass.async_add_executor_job()` to avoid blocking the event loop.
-The coordinator calls `network.optimize()`, which uses the bundled HiGHS solver.
-This blocking operation is tracked for diagnostics timing.
+### Single-flight refresh
 
-**Network building and warm start**:
+Every optimization goes through `_optimize()`, which holds a lock while it runs, so optimizations never overlap.
+A request sets a single "rerun wanted" flag before waiting for the lock.
+Each optimization reads every input as it is when it starts and clears the flag, so requests made while one runs share a single follow-up, and a request already met by an optimization that started after it does nothing.
+An optimization is skipped while any available forecast input is still loading for a new horizon, since its `horizon_start` does not yet match the horizon's.
+Those stores request another optimization once they load.
 
-On the first optimization cycle, the coordinator calls `create_network()` from `coordinator/network.py` to build the complete network from configuration.
-On subsequent cycles, it calls pre-built `ElementUpdater` closures to update element parameters without recreating the network.
+`async_refresh()` optimizes as soon as the lock allows, which setup uses for the first optimization.
+The `haeo.optimize` action calls `async_run_optimization()`, which also bypasses the debounce window and the auto-optimize switch.
+It checks alignment under the lock and raises the `inputs_not_aligned` error when inputs are loading for a new horizon, rather than skipping silently.
 
-Period durations are applied the same way.
-Each cycle copies the horizon manager's current period durations onto the network before handing the solve to the executor.
-A horizon change only signals that an optimization is needed and never touches the network itself.
-At a period boundary the input stores reload first and the last of them can start the optimization immediately, so a horizon-change callback that updated the network would race the solve already running in the executor thread.
+### Debouncing
 
-The warm start pattern works by:
+Automatic requests wait out the debounce window:
 
-1. Elements declare parameters using `TrackedParam` descriptors
-2. At network creation time, `create_network()` discovers all `TrackedParam` locations and builds `ElementUpdater` closures with pre-resolved setters
-3. On update, each `ElementUpdater` calls the adapter's `model_elements()` for fresh values and writes them via the captured setters
-4. Changed parameters automatically invalidate dependent constraints
-5. Only invalidated constraints are rebuilt during optimization
-6. Unchanged constraints are reused from the previous solve
+```mermaid
+sequenceDiagram
+    participant E as Store, horizon, or entity update
+    participant C as Coordinator
+    participant Timer
 
-This selective rebuilding is more efficient than recreating the entire problem, particularly when only forecasts change between cycles.
+    E->>C: signal_optimization_stale() or async_request_refresh()
+    C->>C: Set rerun wanted
+    alt Optimization running or timer pending
+        Note over C: The running optimization or the timer picks it up
+    else Within debounce window
+        C->>Timer: Start timer for the remaining window
+    else Otherwise
+        C->>C: Optimize
+    end
 
-**4. Result extraction**
+    Timer->>C: Window expires
+    alt Rerun still wanted
+        C->>C: Optimize
+    end
+```
 
-The coordinator converts model outputs to Home Assistant-friendly structures using `_collect_outputs()`.
-Results include optimization cost, status, duration, and entity-specific outputs (power, energy, SOC, etc.).
-These are stored in `coordinator.data` and exposed to sensor entities through the coordinator pattern.
+`signal_optimization_stale()` does nothing while the auto-optimize switch is off; `async_request_refresh()`, which an entity update calls, requests one either way.
+The debounce window, the hub's debounce seconds, starts when an optimization starts and again when it succeeds, which batches rapid input changes into one optimization.
+An input that changes while an optimization runs requests a follow-up through the same window.
 
-## Error Handling
+Turning the auto-optimize switch off cancels an optimization waiting out the debounce window and pauses the HorizonManager.
+Turning it back on resumes the HorizonManager, whose notification requests an optimization that catches up on changes made while it was off.
 
-The coordinator implements comprehensive error handling using Home Assistant's [UpdateFailed](https://developers.home-assistant.io/docs/integration_fetching_data/) exception pattern:
+## Error handling
 
-### Error scenarios
+Failures raise [UpdateFailed](https://developers.home-assistant.io/docs/integration_fetching_data/), which sets `last_update_success` to false and makes the output sensors unavailable.
 
-**Sensor unavailability (startup)**
+### Optimization status
 
-When configured sensors are not yet available, the coordinator returns `PENDING` status without logging an error (this is expected during startup).
-Sensors show "Unavailable" state in the UI, and the coordinator retries on the next input entity update or horizon boundary.
+The optimization status sensor is added at setup and stays available.
+It reads `coordinator.optimization_status`:
 
-**Inputs without a reading**
+- `failed` when the latest optimization failed
+- `success` when it succeeded
+- `pending` before any optimization has produced data
 
-A store that cannot load records the sources with no reading (`unavailable_sources`), and its input entity shows as unavailable.
-Before each solve the coordinator raises a repair issue per such input naming those sources, dismisses issues for inputs that have recovered, and fails the update with the `input_unavailable` translation.
-Setup does the same when its inputs do not settle in time, raising `ConfigEntryNotReady` instead.
-A store that rejected its source's value reports that error instead.
+Its `error` attribute shows `coordinator.optimization_error`.
+Home Assistant notifies listeners only when an update switches between failing and succeeding, so `_async_refresh_finished` also notifies them after each repeated failure to keep that attribute current.
 
-**Data loading errors**
+Once updates have kept failing for `FAILURE_SECONDS_BEFORE_REPAIR_ISSUE`, `_async_refresh_finished` raises the general `optimization_failure` repair issue with the error message, once per failing stretch, and the next success dismisses it.
+A failure that raises a repair issue of its own fails the update with `ReportedUpdateFailed` instead, and the general issue is not raised for it.
 
-When sensor data is available but loading fails (invalid format, missing forecast, type conversion failures), the coordinator raises `UpdateFailed` with a descriptive message.
+### Inputs
 
-**Optimization errors**
+Setup waits for every input store to settle.
+If one rejects its source's value, or the stores do not settle in time, setup raises `ConfigEntryNotReady` naming the input.
 
-When network optimization fails (infeasible constraints, solver not installed, numerical instabilities), the coordinator raises `UpdateFailed` with the solver error.
+Before each solve, `_check_inputs()` raises a repair issue per input without a reading, naming its sources, and dismisses issues for inputs that have recovered.
+It then fails the update with the `input_unavailable` translation, or with the error of a store that rejected its source's value.
+It also keeps the mixed price currencies issue current.
 
-A solve that stops for any other reason, such as an unbounded model or a solver error, raises `SolverError` carrying the HiGHS status.
-The coordinator fails the update with the `optimization_solver_failed` translation, so the log shows one line instead of a traceback.
+### Solver
+
+A solve that stops for a reason other than infeasibility, such as an unbounded model, raises `SolverError` carrying the HiGHS status.
+The coordinator fails the update with the `optimization_solver_failed` translation.
+
+### Infeasible and relaxed plans
 
 An infeasible model raises `InfeasibleError` carrying the conflicting constraint rows.
 The coordinator raises the `optimization_infeasible` repair issue naming the configured elements those rows belong to and the minutes from the start of the plan to the first of them, and fails the update with the same message.
@@ -154,114 +170,16 @@ When either issue is raised, the coordinator saves diagnostics built from the fa
 The path goes in the issue's data, and the file is deleted when the issue is resolved or the config entry is removed, so there is at most one file per open issue.
 Issues that change only when the configuration does, such as a disconnected network, clear themselves once fixed and are not fixable.
 
-### Error propagation
-
-All coordinator errors raise `UpdateFailed`, which:
-
-- Sets `coordinator.last_update_success = False`
-- Logs the error message
-- Makes dependent entities unavailable, except the optimization status sensor
-- Schedules a retry on the next interval
-
-The optimization status sensor is added at setup and stays available.
-It reads `coordinator.optimization_status` (`pending`, `success`, or `failed`) and shows `coordinator.optimization_error` in its `error` attribute.
-Home Assistant notifies listeners only when an update switches between failing and succeeding, so `_async_refresh_finished` also notifies them after each repeated failure to keep that attribute current.
-
-Once updates have kept failing for `FAILURE_SECONDS_BEFORE_REPAIR_ISSUE`, `_async_refresh_finished` raises the general `optimization_failure` repair issue with the error message, once per failing stretch, and the next success dismisses it.
-A failure that raises a repair issue of its own, such as an input without a reading or an infeasible plan whose issue was raised, fails the update with `ReportedUpdateFailed` instead, and the general issue is not raised for it.
-
-State change triggers use the same error handling through the coordinator framework and don't crash the integration.
-
-## Event-Driven Triggers
-
-The coordinator uses event-driven triggers instead of a fixed polling interval.
-
-### Trigger sources
-
-**Input entity state changes**
-
-When an input's value changes (due to external sensor changes or user modification), its input store notifies the coordinator, which schedules optimization.
-A source update that resolves to the same value, timestamps, and availability as before does not notify, so it does not re-optimize.
-
-**Horizon boundary crossings**
-
-The coordinator subscribes to the [HorizonManager](horizon-manager.md).
-When the forecast horizon advances (at each period boundary of a preset horizon, or when the horizon sensor changes), the manager notifies the coordinator to refresh.
-
-**Manual refresh**
-
-Users can trigger optimization via the standard Home Assistant update service or entity refresh action.
-Manual refreshes bypass the cooldown period.
-
-### Custom debouncing
-
-The coordinator implements custom debouncing to prevent excessive optimization runs:
-
-```mermaid
-sequenceDiagram
-    participant E as Event
-    participant C as Coordinator
-    participant Timer
-
-    E->>C: State change
-    alt Outside cooldown
-        C->>C: Run optimization immediately
-        C->>C: Record _last_optimize_time
-    else Within cooldown
-        C->>C: Set _optimize_pending = True
-        Note over C: Wait for cooldown
-    end
-
-    Timer->>C: Cooldown expires
-    alt _optimize_pending
-        C->>C: Run optimization
-        C->>C: Clear _optimize_pending
-    end
-```
-
-**Debouncing parameters**:
-
-- **Cooldown period**: Minimum time between optimizations (prevents rapid re-runs)
-- **Pending flag**: Tracks whether optimization was requested during cooldown
-- **Timer**: Schedules retry when cooldown expires with pending request
-
-This approach batches rapid updates while ensuring eventual consistency.
-
-### Subscription lifecycle
-
-1. **Initialization**: Coordinator created without active subscriptions
-2. **First refresh**: Initial optimization runs, subscriptions enabled on success
-3. **Runtime**: Subscriptions active, coordinator responds to events
-4. **Shutdown**: Subscriptions cancelled via cleanup callbacks
-
 ## Testing
 
-Coordinator testing uses Home Assistant's [test fixtures](https://developers.home-assistant.io/docs/development_testing/#test-fixtures) and mocks.
-Comprehensive test coverage is in `coordinator/tests/`, including:
+Coordinator tests are in `coordinator/tests/`, split by concern: scheduling, outputs, failures, connectivity, and the optimization context.
+They use Home Assistant's [test fixtures](https://developers.home-assistant.io/docs/development_testing/#test-fixtures).
 
-- Successful coordinator updates
-- Input alignment verification
-- Debouncing behavior
-- Optimization failure cases
-- Event-driven trigger behavior
-
-Example test pattern:
-
-```python
-@pytest.fixture
-async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> HaeoDataUpdateCoordinator:
-    """Create coordinator for testing."""
-    mock_config_entry.add_to_hass(hass)
-    await hass.config_entries.async_setup(mock_config_entry.entry_id)
-    await hass.async_block_till_done()
-    return mock_config_entry.runtime_data.coordinator
-```
-
-## Related Documentation
+## Related documentation
 
 <div class="grid cards" markdown>
 
-- :material-timer-outline:{ .lg .middle } **Horizon Manager**
+- :material-timer-outline:{ .lg .middle } **Horizon manager**
 
     ---
 
@@ -269,7 +187,7 @@ async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -
 
     [:material-arrow-right: Horizon manager guide](horizon-manager.md)
 
-- :material-import:{ .lg .middle } **Input Entities**
+- :material-import:{ .lg .middle } **Input entities**
 
     ---
 
@@ -285,7 +203,7 @@ async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -
 
     [:material-arrow-right: Architecture guide](architecture.md)
 
-- :material-database:{ .lg .middle } **Data Loading**
+- :material-database:{ .lg .middle } **Data loading**
 
     ---
 
@@ -293,7 +211,7 @@ async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -
 
     [:material-arrow-right: Data loading guide](data-loading.md)
 
-- :material-network:{ .lg .middle } **Energy Models**
+- :material-network:{ .lg .middle } **Energy models**
 
     ---
 

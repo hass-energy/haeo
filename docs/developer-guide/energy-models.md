@@ -1,49 +1,53 @@
-# Implementing Energy Models
+# Implementing energy models
 
 Guide for adding new element types to HAEO's optimization engine.
 
-## Architecture Overview
+## Architecture overview
 
 HAEO uses a [layered architecture](architecture.md#layered-architecture):
 
-- **Model Layer**: Mathematical building blocks that form the LP problem
-- **Device Layer**: User-configured elements that compose Model Layer elements via the [Adapter Layer](adapter-layer.md)
+- **Model layer**: Mathematical building blocks that form the LP problem
+- **Device layer**: User-configured elements that compose model layer elements via the [adapter layer](adapter-layer.md)
 
 When adding a new element type, decide which layer it belongs to:
 
-- **Model Layer**: New mathematical formulation not representable by existing models
-- **Device Layer**: New user-facing element that composes existing Model Layer elements
+- **Model layer**: New mathematical formulation not representable by existing models
+- **Device layer**: New user-facing element that composes existing model layer elements
 
-Most new elements will be Device Layer elements that compose `node` and `connection` models with different parameter mappings.
+Most new elements are device layer elements that compose existing model elements with different parameter mappings.
 
 ## Workflow overview
 
-### Adding a Device Layer element
+### Adding a device layer element
 
-1. Design how existing Model Layer elements combine to achieve the desired behavior
-2. Define the configuration schema in `custom_components/haeo/elements/`
-3. Implement `create_model_elements()` to transform config into Model Layer specifications
-4. Implement `outputs()` to map Model Layer results to user-friendly device outputs
-5. Register in `ELEMENT_TYPES` and add translations
+1. Design how existing model layer elements combine to achieve the desired behavior
+2. Define the configuration schema in `core/schema/elements/`
+3. Implement the adapter's `model_elements()` to transform config into model layer element configs
+4. Implement `outputs()` to map model layer results to user-friendly device outputs
+5. Register the adapter in `ELEMENT_TYPES`, add the flow, and add translations
 6. Write tests covering configuration and output mapping
 
-### Adding a Model Layer element
+[Adding element types](architecture.md#adding-element-types) lists every registry the type joins.
+
+### Adding a model layer element
 
 1. Design the mathematical behavior: variables, constraints, cost contributions
-2. Implement the model class in `custom_components/haeo/core/model/elements/` deriving from `Element`
+2. Implement the model class in `custom_components/haeo/core/model/elements/` deriving from `Element`, or from `NetworkElement` if it takes part in power balance
 3. Use `TrackedParam` for parameters that can change between optimizations
 4. Use `@constraint` decorator for constraint methods
 5. Use `@cost` decorator for cost contribution methods
 6. Use `@output` decorator for output extraction methods
-7. Register in the `ELEMENTS` registry in `core/model/elements/__init__.py`
-8. Update Device Layer elements to use the new model
-9. Write model tests and integration tests
+7. Register an `ElementSpec` in the `ELEMENTS` registry in `core/model/elements/__init__.py`, with its output names and an `arguments` hook
+8. If the element reads other elements' flows, make its `arguments` hook resolve the elements it names; deriving from `Element` rather than `NetworkElement` or `Connection` adds it after them
+9. Update device layer elements to use the new model
+10. Write model tests and integration tests
 
-## Implementing Model Elements
+## Implementing model elements
 
 ### Element structure
 
 Model elements derive from the `Element` base class and use decorators to declare their constraints, costs, and outputs.
+`Element` and connection segments share the `ModelComponent` base in `core/model/component.py`, which discovers those decorated methods by reflection.
 
 ### Linear expressions
 
@@ -137,8 +141,9 @@ def cost_source_target(self) -> LinearArray | None:
 ```
 
 The element's `cost()` aggregator collects all `@cost` methods and sums them into a single primary expression.
-Connection overrides `cost()` to return a `(primary, secondary)` tuple, adding the time-preference objective.
-The network sums primary and secondary contributions separately across all elements and solves lexicographically.
+A constant term in a cost, one that reads no variable, is allowed and goes to the objective's offset.
+The time-preference objective comes from `secondary_cost()`, which only `Connection` overrides.
+The network sums the primary and secondary contributions separately across all elements and solves them as one blended objective, as [Solution process](../modeling/index.md#solution-process) describes.
 
 ### @output decorator
 
@@ -195,18 +200,9 @@ Return `OutputData` objects with:
 
 Extract solution values from HiGHS variables using `self.extract_values()`.
 
-**Expected outputs by element type:**
-
-- **Battery models**: `power_charge`, `power_discharge`, `energy_stored`
-- **Connection models**: `power_source_target`, `power_target_source`, costs, shadow prices
-- **Node models**: `power_in`, `power_out` (if applicable)
-
-Keeping the output contract consistent means new model components immediately surface in Home Assistant without changes to the sensor platform.
-See existing implementations in `custom_components/haeo/core/model/elements/` for examples:
-
-- `battery.py` - Energy storage with SOC tracking
-- `connection.py` - Functional segment composition for flow, pricing, and limits
-- `node.py` - Power balance points
+Each element's output names are declared beside its class in its `ElementSpec`, and the adapters map them to device outputs.
+Keeping the output contract consistent means new model components surface in Home Assistant without changes to the sensor platform.
+See the existing implementations in [`core/model/elements/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/core/model/elements) for examples.
 
 ## Element power protocol
 
@@ -221,7 +217,7 @@ Elements accept `outbound_tags` and `inbound_tags` parameters that control how p
 Elements that produce and consume power (e.g., Battery) override both methods.
 Source-only elements (e.g., solar Node) override `element_power_produced()`.
 Sink-only elements (e.g., load Node) override `element_power_consumed()`.
-Junctions return 0 for both (the default).
+Elements that neither produce nor consume return 0 for both (the default).
 
 See the [tagged power formulation](../modeling/tagged-power.md) for the mathematical details.
 
@@ -250,12 +246,12 @@ The current implementations are in `custom_components/haeo/core/model/elements/c
 Only add costs that reflect real trade-offs.
 If the element interacts with external tariffs or degradation models, expose the relevant coefficients through configuration and ensure the objective contribution uses each period's duration for scaling (available via `self.periods[t]`).
 
-Costs are aggregated into a lexicographic multi-objective framework.
-The primary objective (index 0) captures real monetary costs.
-The secondary objective (index 1) handles tie-breaking via time-preference weights.
-When adding new cost terms, contribute them to the primary objective unless they are explicitly for tie-breaking.
+The objective has two parts.
+The primary objective, the sum of every `@cost` method, captures real monetary costs.
+The secondary objective, the sum of every `secondary_cost()`, breaks ties between equally cheap plans.
+Add new cost terms as `@cost` methods; only tie-breaking belongs in `secondary_cost()`.
 
-## Related Documentation
+## Related documentation
 
 <div class="grid cards" markdown>
 

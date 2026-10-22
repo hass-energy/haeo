@@ -29,11 +29,11 @@ Measure each stage before choosing what to change; which one dominates depends o
 ## Measuring
 
 - Model benchmarks are disabled by default.
-    Run `uv run pytest tests/scenarios/test_benchmark.py -m benchmark --benchmark-enable -o timeout=300` and compare medians against the base branch.
+    Run `uv run pytest tests/scenarios/test_benchmark.py -m benchmark --benchmark-enable` and compare medians against the base branch.
 - A benchmark round must change something real.
     Re-solving unchanged inputs measures a warm no-op, which is why `test_time_shift` alternates between two horizons and updates the periods.
 - The helpers in `tests/scenarios/test_benchmark.py` build a network from a scenario without Home Assistant, which suits ad hoc timing and `cProfile` scripts.
-- Split solve time from Python time by timing `Highs.run` inside `optimize()`; the remainder is model rebuild.
+- Split solve time from Python time by timing the solver `run()` calls inside `Network.optimize()` (the `Highs` subclass in `core/model/solver.py`); the remainder is model rebuild.
 
 ## Profiling pitfalls
 

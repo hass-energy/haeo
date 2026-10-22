@@ -11,10 +11,10 @@ For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed
 | Field                             | Type   | Required | Default | Description                                                |
 | --------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
 | **[Name](#name)**                 | String | Yes      | -       | Unique identifier for this grid                            |
-| **[Import Price](#import-price)** | Price  | Yes      | -       | Price per kWh for importing electricity from grid (\$/kWh) |
-| **[Export Price](#export-price)** | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
-| **[Import Limit](#import-limit)** | Power  | No       | -       | Maximum import power from grid                             |
-| **[Export Limit](#export-limit)** | Power  | No       | -       | Maximum export power to grid                               |
+| **[Import price](#import-price)** | Price  | Yes      | -       | Price per kWh for importing electricity from grid (\$/kWh) |
+| **[Export price](#export-price)** | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
+| **[Import limit](#import-limit)** | Power  | No       | -       | Maximum import power from grid                             |
+| **[Export limit](#export-limit)** | Power  | No       | -       | Maximum export power to grid                               |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -116,10 +116,10 @@ Select multiple sensors for time-varying pricing:
 | Field            | Value                                                               |
 | ---------------- | ------------------------------------------------------------------- |
 | **Name**         | Main Grid                                                           |
-| **Import Price** | sensor.electricity_import_today, sensor.electricity_import_tomorrow |
-| **Export Price** | sensor.electricity_export_today, sensor.electricity_export_tomorrow |
-| **Import Limit** | 15                                                                  |
-| **Export Limit** | 10                                                                  |
+| **Import price** | sensor.electricity_import_today, sensor.electricity_import_tomorrow |
+| **Export price** | sensor.electricity_export_today, sensor.electricity_export_tomorrow |
+| **Import limit** | 15                                                                  |
+| **Export limit** | 10                                                                  |
 
 ### Fixed pricing
 
@@ -128,10 +128,10 @@ Select "Constant" for fixed rates, or "Entity" to link to an input_number for ad
 | Field            | Selection | Value |
 | ---------------- | --------- | ----- |
 | **Name**         | -         | Grid  |
-| **Import Price** | Constant  | 0.25  |
-| **Export Price** | Constant  | 0.08  |
-| **Import Limit** | Constant  | 20    |
-| **Export Limit** | Constant  | 5     |
+| **Import price** | Constant  | 0.25  |
+| **Export price** | Constant  | 0.08  |
+| **Import limit** | Constant  | 20    |
+| **Export limit** | Constant  | 5     |
 
 For more examples and sensor configuration, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
 
