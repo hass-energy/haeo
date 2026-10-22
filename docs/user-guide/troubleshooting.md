@@ -235,6 +235,21 @@ HAEO doesn't respond to price changes.
 3. **Ensure forecast length**: Must cover horizon
 4. **Check sensor updates**: Must update regularly
 
+## HAEO could not start
+
+### Problem
+
+A "HAEO could not start" repair issue appears, and the integration shows as retrying setup.
+
+### Solutions
+
+HAEO never gives up on starting.
+Home Assistant keeps retrying setup in the background, and the issue clears once it succeeds.
+
+1. **Read the error**: The issue shows the error HAEO hit, and the log has the full traceback
+2. **Check your sensors**: Every sensor your elements read should be available in **Developer tools → States**
+3. **Report it**: If the error persists once your sensors are available, [report a bug](https://github.com/hass-energy/haeo/issues) with the log and your diagnostics
+
 ## Getting help
 
 If these solutions don't help:
