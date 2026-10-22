@@ -18,13 +18,27 @@ uv run check test -- --cov=custom_components/haeo --cov-branch --cov-report=term
 Add `--cov-report=html` and open `htmlcov/index.html` for a line-by-line view.
 
 To run only the tests a branch changed, list them against `origin/main`, since a local `main` may be stale.
-Tests are colocated, so match every `tests/` directory, not just the top-level one:
+Tests are colocated, so match every `tests/` directory, not just the top-level one.
+The `:(glob)` magic makes `**` span directories, and `xargs -r` runs nothing when no test changed rather than the whole suite:
 
 ```bash
 git fetch origin main
-git diff origin/main...HEAD --name-only -z --diff-filter=AM -- '**/tests/**/test_*.py' | \
-    xargs -0 uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=term-missing
+git diff origin/main...HEAD --name-only -z --diff-filter=AM -- ':(glob)**/tests/**/test_*.py' | \
+    xargs -0 -r uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=term-missing
 ```
+
+## Coverage philosophy
+
+- Test behavior and edge cases, not percentages: a covered line that no assertion checks proves nothing.
+- Simplify before testing: code with fewer branches needs fewer tests, so removing a branch beats covering it.
+- Read an uncovered line as a signal: usually an untested edge case, an error path, or the other side of a branch, and sometimes code no input can reach, which should be deleted.
+- Cover what matters first:
+    1. Optimization logic: constraints and costs
+    2. Error handling paths
+    3. Edge cases and boundaries
+    4. New features on the branch
+
+The `testing` skill's decision tree says what each uncovered line needs; it is not repeated here.
 
 ## Step 2: what codecov enforces
 
