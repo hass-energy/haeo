@@ -80,8 +80,7 @@ An event whose text contains no distance, such as `School pickup`, still marks t
 !!! tip "Distance format"
 
     The distance can sit among other words and numbers, such as a summary of `Office 105 km` or `Pick up 2 kids, 12 km`, and is converted to kilometres.
-    It is read from the first of the location, summary, or description fields holding a number in a length unit, such as `50 km` or `30 mi`, so other numbers, such as a street number in the location, are skipped.
-    That field must hold exactly one distance.
+    It is read from the first of the location, summary, or description fields holding any number, which must hold exactly one number in a length unit, such as `50 km` or `30 mi`.
     An event whose numbers HAEO cannot use, such as one without a unit or two distances in one field, is ignored and listed in a repair issue so you can fix the event.
 
 The trip calendar creates four input entities showing what HAEO reads from it: **Away** (whether each period is inside a trip), **Trip start** (where each trip of overlapping events begins), **Trip distance opening** (the distance of the events starting at each time), and **Trip distance due** (the distance of the events ending at each time).
