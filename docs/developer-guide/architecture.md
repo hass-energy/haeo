@@ -69,7 +69,7 @@ The `core/` package holds everything with no Home Assistant dependency, which im
 
 - **`core/schema/`**: Element config schemas and data TypedDicts, field hints, form sections, and pure migration transforms.
     The registries `ELEMENT_CONFIG_SCHEMAS`, `ELEMENT_SURFACED_PRICE_HINTS`, and `ELEMENT_REFERENCE_PRUNERS` live in `core/schema/elements/__init__.py`.
-- **`core/adapters/`**: One adapter per element type registered in `ELEMENT_TYPES` (`registry.py`), [policy compilation](policy-compilation.md), and `network_builder.py`, whose `build_network` turns loaded configs into a `Network` and returns an updater per element.
+- **`core/adapters/`**: One adapter per element type registered in `ELEMENT_TYPES` (`registry.py`), [policy compilation](policy-compilation.md), and `network_builder.py`, whose `build_network` turns loaded configs into a `Network` and `build_element_updaters` returns an updater per element for it.
 - **`core/data/`**: The `InputStore` behind each input, and the loaders, extractors, and utilities that turn entity states into time series.
     See the [Data loading guide](data-loading.md).
 - **`core/model/`**: The LP model.
@@ -80,7 +80,7 @@ The `core/` package holds everything with no Home Assistant dependency, which im
 ### Integration
 
 - **`config_flow.py`, `flows/`**: The hub, options, and element subentry flows.
-    Element flows derive from `ElementSubentryFlow` (`flows/element_flow.py`) and declare their element type and form sections, which come from `flows/sections/`.
+    Element flows derive from `ElementSubentryFlow` (`flows/element_flow.py`), most through `SectionedElementSubentryFlow` or `ConnectedElementSubentryFlow`, and declare their element type and form sections, which come from `flows/sections/`.
     See the [Config flow guide](config-flow.md).
 - **`elements/`**: Input field metadata derived from the schemas, such as `get_input_fields` and `FieldSchemaInfo`, and helpers that read element subentries.
 - **`horizon.py`**: The [HorizonManager](horizon-manager.md).
@@ -93,6 +93,7 @@ The `core/` package holds everything with no Home Assistant dependency, which im
 - **`services.py`**: The `haeo.optimize` and `haeo.save_diagnostics` actions.
 - **`diagnostics/`**: Diagnostics export, including the inputs an optimization used so it can be replayed.
 - **`migrations/`**: Config entry migrations, which apply the transforms in `core/schema/migrations/`.
+    The diagnostics CLI replays older exports through the same transforms, such as `migrate_participants`, so both migrate a config alike.
 - **`translations/`**: User-facing strings.
 - **`www/`**: The built Lovelace cards the integration serves.
     The forecast card's source is in `frontend/haeo-forecast-card/` at the repository root.

@@ -29,7 +29,7 @@ Optimizations run when an input store reports a new value, when the [HorizonMana
 `async_initialize()` runs once every input store has settled:
 
 1. Assembles each element's config from the stores' values
-2. Calls `build_network` in [`core/adapters/network_builder.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/network_builder.py), which returns the network and an updater per element
+2. Calls `build_network` in [`core/adapters/network_builder.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/network_builder.py) to build the network, and `build_element_updaters` to build an updater per element for it
 3. Serializes the topology for the frontend card and checks network connectivity
 4. Subscribes to each input store, the auto-optimize switch, and the HorizonManager
 
@@ -45,7 +45,7 @@ sequenceDiagram
     participant N as Network
     participant LP as Executor
 
-    Trigger->>C: async_refresh()
+    Trigger->>C: _optimize()
     C->>C: Wait for the optimization lock
     alt Inputs not aligned to the horizon
         C-->>Trigger: Skip (stores request again once loaded)
@@ -77,46 +77,47 @@ An `OutputData` marked `diagnostic` becomes a sensor in the diagnostic entity ca
 
 ### Single-flight refresh
 
-`async_refresh()` holds a lock while an optimization runs, so optimizations never overlap.
-Each optimization reads every input as it is when it starts, so requests made while one runs share a single follow-up.
-A refresh is skipped while any available forecast input is still loading for a new horizon, since its `horizon_start` does not yet match the horizon's.
+Every optimization goes through `_optimize()`, which holds a lock while it runs, so optimizations never overlap.
+A request sets a single "rerun wanted" flag before waiting for the lock.
+Each optimization reads every input as it is when it starts and clears the flag, so requests made while one runs share a single follow-up, and a request already met by an optimization that started after it does nothing.
+An optimization is skipped while any available forecast input is still loading for a new horizon, since its `horizon_start` does not yet match the horizon's.
 Those stores request another optimization once they load.
 
-The `haeo.optimize` action calls `async_run_optimization()`, which bypasses the debounce window and the auto-optimize switch.
-It raises the `inputs_not_aligned` error while inputs are loading for a new horizon, rather than skipping silently.
+`async_refresh()` optimizes as soon as the lock allows, which setup uses for the first optimization.
+The `haeo.optimize` action calls `async_run_optimization()`, which also bypasses the debounce window and the auto-optimize switch.
+It checks alignment under the lock and raises the `inputs_not_aligned` error when inputs are loading for a new horizon, rather than skipping silently.
 
 ### Debouncing
 
-`signal_optimization_stale()` handles every automatic request:
+Automatic requests wait out the debounce window:
 
 ```mermaid
 sequenceDiagram
-    participant E as Store or horizon
+    participant E as Store, horizon, or entity update
     participant C as Coordinator
     participant Timer
 
-    E->>C: signal_optimization_stale()
-    alt Auto-optimize off
-        C->>C: Ignore
-    else Optimization running
-        C->>C: Set _pending_refresh
-        Note over C: Signals again when the run ends
+    E->>C: signal_optimization_stale() or async_request_refresh()
+    C->>C: Set rerun wanted
+    alt Optimization running or timer pending
+        Note over C: The running optimization or the timer picks it up
     else Within debounce window
-        C->>C: Set _pending_refresh
         C->>Timer: Start timer for the remaining window
     else Otherwise
-        C->>C: Start async_refresh()
+        C->>C: Optimize
     end
 
     Timer->>C: Window expires
-    alt _pending_refresh
-        C->>C: Start async_refresh()
+    alt Rerun still wanted
+        C->>C: Optimize
     end
 ```
 
+`signal_optimization_stale()` does nothing while the auto-optimize switch is off; `async_request_refresh()`, which an entity update calls, requests one either way.
 The debounce window, the hub's debounce seconds, starts when an optimization starts and again when it succeeds, which batches rapid input changes into one optimization.
+An input that changes while an optimization runs requests a follow-up through the same window.
 
-Turning the auto-optimize switch off cancels a pending optimization and pauses the HorizonManager.
+Turning the auto-optimize switch off cancels an optimization waiting out the debounce window and pauses the HorizonManager.
 Turning it back on resumes the HorizonManager, whose notification requests an optimization that catches up on changes made while it was off.
 
 ## Error handling

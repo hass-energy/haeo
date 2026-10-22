@@ -32,7 +32,8 @@ Never assume a constant period length — multiply by `periods` element-wise.
 ## Model elements
 
 The device layer's element types compile down to a small set of model elements, registered in `ELEMENTS` in [`core/model/elements/__init__.py`](../../../custom_components/haeo/core/model/elements/__init__.py).
-Each `ElementSpec` gives the class, its output names, an `add_order`, and an `arguments` hook.
+Each `ElementSpec` gives the class, its output names, and an `arguments` hook that builds the constructor arguments.
+Its `add_order` is derived from the class: network elements first, then connections, then elements that read flows.
 Network elements produce, consume, or store power and join connections; flow readers read other elements' planned flows to price or constrain them.
 `collect_model_elements()` in `core/adapters/registry.py` sorts elements by `add_order`, so flow readers are added after the connections they read.
 `Network.add()` builds each element's constructor arguments with its spec's `arguments`, which resolves the elements a flow reader names.
@@ -155,6 +156,7 @@ Degenerate LPs have many optimal solutions; the secondary objective is what stop
 
 It is a required step, not an optional one: connections take their tags as a required argument, so elements must be compiled before they are added.
 Build networks with `build_network()` in `core/adapters/network_builder.py`, which collects every adapter's model elements, compiles policies, and adds the result; the coordinator and the diagnostics CLI both use it.
+The coordinator also calls `build_element_updaters()` for the updaters that apply changed inputs to the built network.
 
 ## Testing
 

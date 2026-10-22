@@ -68,6 +68,8 @@ Besides the two methods, an adapter declares attributes that the rest of the int
 
 Adding a behavior that differs between element types means adding an attribute here, not a list of types where the behavior is used.
 
+An adapter whose elements choose in their own config whether they produce or consume power also implements `ConfiguredRolesAdapter`, whose `roles(config)` narrows `can_source` and `can_sink` for one configured element.
+
 ### Sub-element naming
 
 When an adapter creates several model elements, they are named `{name}:{subname}`, such as `Grid:import` and `Grid:export`.
@@ -79,7 +81,7 @@ Some element types carry schema-level behavior that others do not.
 These are registered beside `ELEMENT_CONFIG_SCHEMAS` in [`core/schema/elements/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/schema/elements/__init__.py):
 
 - **`ELEMENT_SURFACED_PRICE_HINTS`**: Policy pricing fields an element type shows on its own form.
-    Each `SurfacedPriceHint` names the form `section` it shows in, and the value is stored as a policy rule rather than in the element's config.
+    The value is stored as a policy rule rather than in the element's config, and the element's flow lists each surfaced field in one of its sections.
 - **`ELEMENT_REFERENCE_PRUNERS`**: For element types whose config names other elements, how each drops names of elements that no longer exist.
     The config entry's update listener applies them when the configuration changes, removing an element left with nothing to do.
 
@@ -91,7 +93,7 @@ The adapter layer integrates at two points:
 
 **Network construction**: `build_network` in [`core/adapters/network_builder.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/network_builder.py) calls `collect_model_elements()`, which calls each adapter's `model_elements()` and sorts the results by their model element's `add_order`.
 It then runs [policy compilation](policy-compilation.md) and adds the compiled elements to the network.
-For each configured element it returns an updater that calls `model_elements()` again with new values and writes them to the live model elements.
+`build_element_updaters` then returns, for each configured element, an updater that calls `model_elements()` again with new values and writes them to the live model elements.
 
 **Output processing**: [`coordinator/coordinator.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/coordinator.py) calls `outputs()` after each optimization to build the values of each element's sensors.
 

@@ -65,12 +65,15 @@ Labels for sectioned fields sit under `sections.{section}.data`.
 
 ## Checking translations
 
-Two checks keep `en.json` and the code in step, and both fail CI:
+These checks keep `en.json` and the code in step, and all fail CI:
 
 - `test_translations_match_used_keys` in `translations/tests/test_translations.py` requires every key the integration uses to be present, and every key present to be used.
     Delete a string in the same change that stops using it.
+
 - The pytest plugin [`translations/tests/runtime_checks.py`](../../../custom_components/haeo/translations/tests/runtime_checks.py) runs in every test.
     It fails a test that shows a flow form, abort, repair issue, translated error, entity name, or enum state whose string or placeholder `en.json` lacks.
+
+- [`translations/tests/flow_messages.py`](../../../custom_components/haeo/translations/tests/flow_messages.py) reads each flow's code to find the errors, aborts, and steps its `async_step_*` methods can reach, so the translation tests require strings for exactly those.
 
 So tests must use real translation keys, never placeholders such as `"test_error"`.
 

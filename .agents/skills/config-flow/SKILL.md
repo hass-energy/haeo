@@ -17,9 +17,12 @@ Every element flow subclasses `ElementSubentryFlow` in [`flows/element_flow.py`]
 It provides name validation, the participants an element can connect to, the on/off states step, and the save path.
 A flow declares its type with the `element_type` class attribute.
 
-An element that connects to one other element subclasses `ConnectedElementSubentryFlow` in [`flows/connected_flow.py`](../../../custom_components/haeo/flows/connected_flow.py) and declares only `element_type` and `sections`.
-The shared flow builds the form, defaults, validation, and surfaced policy pricing fields from those two attributes.
+Every flow also declares a `sections` class attribute.
+A flow whose form is sections of choose inputs subclasses `SectionedElementSubentryFlow` in [`flows/sectioned_flow.py`](../../../custom_components/haeo/flows/sectioned_flow.py), which builds the form, defaults, validation, saving, and surfaced policy pricing fields from `element_type` and `sections`.
+It adds fields outside the sections by overriding the hooks `_top_level_entries`, `_top_level_defaults`, `_section_entries`, `_section_defaults`, `_validate_fields`, and `_config_fields`, rather than writing steps.
+An element that connects to one other element subclasses `ConnectedElementSubentryFlow` in [`flows/connected_flow.py`](../../../custom_components/haeo/flows/connected_flow.py), which implements those hooks for `connection`.
 Write custom steps only for an element whose form does not fit that shape.
+A surfaced policy price field shows only if one of the flow's `sections` lists it.
 
 Build `sections` from the helpers in `flows/sections/`.
 Each element type's schema class defines the fields via TypedDict + Annotated + field hints (`FieldHint`, `SectionHints`, `ListFieldHints`), which drive the form, its defaults, and how each value loads.
@@ -78,4 +81,4 @@ The runtime translation checker fails a test that shows an error key `en.json` l
 Use standard step names:
 
 - `async_step_user` - User-initiated flow (new element creation)
-- `async_step_reconfigure` - Reconfiguration of existing element
+- `async_step_reconfigure` - Reconfiguration of an existing element, or of the hub, whose reconfigure step shares the options flow's schema

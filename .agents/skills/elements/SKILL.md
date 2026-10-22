@@ -78,7 +78,7 @@ A schema module may also export hooks that only some element types need.
 Each is registered in a mapping in `core/schema/elements/__init__.py`, and code looks the type up there rather than naming it:
 
 - `SURFACED_PRICE_HINTS` go in `ELEMENT_SURFACED_PRICE_HINTS` when the element's form shows policy pricing fields.
-    Each `SurfacedPriceHint` names the form `section` it shows in.
+    The element's flow must list each surfaced field in one of its `sections`.
 - `prune_references` goes in `ELEMENT_REFERENCE_PRUNERS` when the config names other elements, so a deleted element is dropped from it.
 
 `is_element_config_schema()` in `core/schema/elements/conformance.py` checks a stored mapping against the schema registered for its type.
@@ -92,6 +92,7 @@ The `ElementAdapter` protocol in `core/adapters/registry.py` requires:
 - `outputs(name, model_outputs, **kwargs)` — map model outputs to device outputs
 
 Shared code branches on these attributes, never on the element type.
+An adapter whose elements choose in their config whether they produce or consume power also implements `ConfiguredRolesAdapter.roles(config)`.
 `ELEMENT_DEVICE_NAMES_BY_TYPE` in `elements/__init__.py` is built from each adapter's `device_names`.
 
 Availability and input field derivation are deliberately **not** adapter methods.
@@ -101,12 +102,12 @@ When a per-element hook seems necessary for either, express the difference in th
 The module also declares the element's output and device name literals plus matching frozensets, and exposes a module-level `adapter` instance.
 
 An adapter builds configs for the model element types registered in `ELEMENTS` (`core/model/elements/__init__.py`).
-When a new model element reads other elements' flows, give its `ElementSpec` a later `add_order` and an `arguments` hook that resolves the elements it names; the network builder needs no change.
+When a new model element reads other elements' flows, give its `ElementSpec` an `arguments` hook that resolves the elements it names; it is added after the connections it reads because it is neither a network element nor a connection, and the network builder needs no change.
 
 ## Flow module (`flows/elements/{type}.py`)
 
-A subclass of `ElementSubentryFlow` (`flows/element_flow.py`).
-An element that connects to one other element subclasses `ConnectedElementSubentryFlow` (`flows/connected_flow.py`) and declares only `element_type` and `sections` as class attributes; the shared flow drives the form, validation, surfaced pricing fields, and saving from them.
+A subclass of `ElementSubentryFlow` (`flows/element_flow.py`) that declares `element_type` and `sections` as class attributes.
+Most flows subclass `SectionedElementSubentryFlow` (`flows/sectioned_flow.py`), which drives the form, validation, surfaced pricing fields, and saving from those attributes, or `ConnectedElementSubentryFlow` (`flows/connected_flow.py`) when the element connects to one other element.
 Build sections from the helpers in `flows/sections/`.
 
 Defaults reach the form through `build_sectioned_choose_defaults()`, which reads them from the schema's field hints.

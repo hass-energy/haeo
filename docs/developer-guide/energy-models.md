@@ -37,8 +37,8 @@ Most new elements are device layer elements that compose existing model elements
 4. Use `@constraint` decorator for constraint methods
 5. Use `@cost` decorator for cost contribution methods
 6. Use `@output` decorator for output extraction methods
-7. Register an `ElementSpec` in the `ELEMENTS` registry in `core/model/elements/__init__.py`, with its output names and `add_order`
-8. If the element reads other elements' flows, give its spec a later `add_order` than those elements and an `arguments` hook that resolves the elements it names
+7. Register an `ElementSpec` in the `ELEMENTS` registry in `core/model/elements/__init__.py`, with its output names and an `arguments` hook
+8. If the element reads other elements' flows, make its `arguments` hook resolve the elements it names; deriving from `Element` rather than `NetworkElement` or `Connection` adds it after them
 9. Update device layer elements to use the new model
 10. Write model tests and integration tests
 

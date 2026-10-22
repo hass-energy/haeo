@@ -16,9 +16,9 @@ Code that reads Home Assistant at run time lives outside it: the `inputs/` packa
 
 - It has no `update_interval`.
     Updates are event-driven: input store changes and horizon changes signal the results stale, and the coordinator optimizes after the hub's debounce window.
-- Refreshes are single-flight.
-    Requests made while an optimization runs share one follow-up run.
-- A refresh is skipped while forecast inputs are still loading for a new horizon, and `async_run_optimization()` raises `HomeAssistantError` with `inputs_not_aligned` then.
+- Refreshes are single-flight: one lock and one "rerun wanted" flag, so requests made while an optimization runs share one follow-up run.
+    `async_request_refresh()` goes through the debounce window like any automatic request.
+- An optimization is skipped while forecast inputs are still loading for a new horizon; `async_run_optimization()`, behind the `haeo.optimize` action, checks this under the lock and raises `HomeAssistantError` with `inputs_not_aligned`.
 - Turning auto-optimize off cancels an optimization waiting out the debounce window.
 - Raise `UpdateFailed` for data loading or optimization errors, or `ReportedUpdateFailed` when the failure raises a repair issue of its own.
 
@@ -107,4 +107,4 @@ Setup runs in this order:
 4. Forward the output platforms.
 
 Register every cleanup with `entry.async_on_unload()` during setup.
-`async_unload_entry()` then only clears `entry.runtime_data`.
+`async_unload_entry()` then only unloads the platforms, clears `entry.runtime_data` if they unloaded, and returns that result.

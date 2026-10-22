@@ -124,6 +124,7 @@ None checks reduce readability and make tests fragile to passing unexpectedly.
 
 Shared fixtures and helpers live in the root `conftest.py`, such as `hub_entry` for a hub config entry, `add_participant()` for an element subentry to connect to, and `added_entities()` for the entities a platform added.
 Reuse them before writing a new fixture.
+Coordinator data and output builders for sensor tests live in `entities/tests/sensor_helpers.py`.
 
 ## Translations in tests
 

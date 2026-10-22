@@ -107,12 +107,15 @@ Every element flow subclasses `ElementSubentryFlow` in [`flows/element_flow.py`]
 The base class provides name validation, the participants an element can connect to, endpoint validation, and the save path.
 Before saving, it asks which states mean on and off for any on/off input that reads an entity reporting words rather than booleans.
 
-Most element types connect to one other element and only configure sectioned inputs.
-Their flows subclass `ConnectedElementSubentryFlow` in [`flows/connected_flow.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/connected_flow.py) and declare only `element_type` and a `sections` tuple of `SectionDefinition`s.
+Most element types configure a form of sectioned inputs.
+Their flows subclass `SectionedElementSubentryFlow` in [`flows/sectioned_flow.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/sectioned_flow.py) and declare `element_type` and a `sections` tuple of `SectionDefinition`s as class attributes.
 That class builds the form, defaults, validation, and stored config from those declarations.
-It also places the pricing fields an element type surfaces from policy rules (its `SurfacedPriceHint`s) in the section each hint names, and saves them as policy rules rather than in the element's config.
+Fields outside the sections come from overriding its hooks: `_top_level_entries` and `_top_level_defaults` add them to the form, `_section_entries` and `_section_defaults` adjust the sections, `_validate_fields` checks them, and `_config_fields` stores them.
+It also shows the pricing fields an element type surfaces from policy rules (its `SurfacedPriceHint`s) in whichever of its sections lists them, and saves them as policy rules rather than in the element's config.
 
-Flows whose forms do not fit that pattern subclass `ElementSubentryFlow` directly and implement their own steps.
+An element that connects to one other element subclasses `ConnectedElementSubentryFlow` in [`flows/connected_flow.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/connected_flow.py), which implements those hooks for the `connection` field, so its flow declares only `element_type` and `sections`.
+
+Flows whose forms do not fit that pattern subclass `ElementSubentryFlow` directly, still declare `element_type` and `sections`, and implement their own steps.
 
 ### Connection endpoint filtering
 
