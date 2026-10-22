@@ -75,7 +75,7 @@ class TrackedParam[T]:
             return self
         record_access(obj, self._name)
         # Raise AttributeError if never set (standard Python behavior)
-        return getattr(obj, self._private)  # type: ignore[return-value]
+        return getattr(obj, self._private)
 
     def __set__(self, obj: ReactiveHost, value: T) -> None:
         """Set the parameter value and invalidate everything that read it, if it changed.
@@ -126,7 +126,7 @@ def _values_equal(a: object, b: object) -> bool:
     # Handle numpy array comparisons
     if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
         try:
-            return bool(np.array_equal(a, b))  # type: ignore[arg-type]
+            return bool(np.array_equal(np.asarray(a), np.asarray(b)))
         except (TypeError, ValueError):
             return False
     # Standard equality for other types

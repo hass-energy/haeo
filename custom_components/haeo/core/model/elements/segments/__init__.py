@@ -16,7 +16,6 @@ from typing import (
     # unknown output-name type" here; segments only use these via hasattr/isinstance duck typing.
     Final,
     Literal,
-    TypeGuard,
 )
 
 import numpy as np
@@ -36,26 +35,6 @@ type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing"
 
 # Union type for all segment specifications
 type SegmentSpec = EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec
-
-
-def is_efficiency_spec(spec: SegmentSpec) -> TypeGuard[EfficiencySegmentSpec]:
-    """Return True when spec is for an efficiency segment."""
-    return spec["segment_type"] == "efficiency"
-
-
-def is_passthrough_spec(spec: SegmentSpec) -> TypeGuard[PassthroughSegmentSpec]:
-    """Return True when spec is for a passthrough segment."""
-    return spec["segment_type"] == "passthrough"
-
-
-def is_power_limit_spec(spec: SegmentSpec) -> TypeGuard[PowerLimitSegmentSpec]:
-    """Return True when spec is for a power limit segment."""
-    return spec["segment_type"] == "power_limit"
-
-
-def is_pricing_spec(spec: SegmentSpec) -> TypeGuard[PricingSegmentSpec]:
-    """Return True when spec is for a pricing segment."""
-    return spec["segment_type"] == "pricing"
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,8 +96,4 @@ __all__ = [
     "SegmentSpecEntry",
     "SegmentType",
     "create_segment",
-    "is_efficiency_spec",
-    "is_passthrough_spec",
-    "is_power_limit_spec",
-    "is_pricing_spec",
 ]

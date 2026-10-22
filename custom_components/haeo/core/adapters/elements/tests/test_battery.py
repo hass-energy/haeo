@@ -11,6 +11,7 @@ from custom_components.haeo.core.adapters.elements.battery import (
     BATTERY_POWER_ACTIVE,
     BATTERY_POWER_CHARGE,
     BATTERY_POWER_DISCHARGE,
+    BATTERY_STATE_OF_CHARGE,
 )
 from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.core.model.elements import (
@@ -19,7 +20,6 @@ from custom_components.haeo.core.model.elements import (
     ModelElementConfig,
 )
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
-from custom_components.haeo.core.model.elements.segments import is_efficiency_spec
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import battery
 
@@ -120,7 +120,7 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
     assert segments is not None
     efficiency_segment = segments.get("efficiency")
     assert efficiency_segment is not None
-    assert is_efficiency_spec(efficiency_segment)
+    assert efficiency_segment["segment_type"] == "efficiency"
     assert efficiency_segment.get("efficiency") is None
 
 
@@ -171,7 +171,7 @@ def test_model_elements_passes_efficiency_when_present() -> None:
     assert segments is not None
     efficiency_segment = segments.get("efficiency")
     assert efficiency_segment is not None
-    assert is_efficiency_spec(efficiency_segment)
+    assert efficiency_segment["segment_type"] == "efficiency"
     efficiency_source_target = efficiency_segment.get("efficiency")
     assert efficiency_source_target is not None
     np.testing.assert_array_equal(efficiency_source_target, [0.95, 0.95])
@@ -300,3 +300,22 @@ def test_adapter_charge_cap_binds_bus_side() -> None:
     assert discharge == pytest.approx(0.0)
     assert stored[1] - stored[0] == pytest.approx(cap * efficiency)
     assert outputs[BATTERY_POWER_ACTIVE].values[0] == pytest.approx(discharge - charge)
+
+
+def test_adapter_state_of_charge_of_a_battery_without_capacity_is_empty() -> None:
+    """A battery whose capacity reads 0 kWh, as a sensor can report, holds nothing, so its state of charge is 0."""
+    config = _wrap_data(
+        {
+            "name": "battery",
+            "connection": "bus",
+            "capacity": np.array([0.0, 0.0]),
+            "initial_charge_percentage": 0.0,
+        }
+    )
+    model_outputs = optimize_participants(
+        {"bus": bus_node("bus"), "battery": config, "grid": grid_at("grid", "bus", import_price=0.1, export_price=0.0)}
+    )
+
+    outputs = battery_adapter.outputs("battery", model_outputs, config=config)[BATTERY_DEVICE_BATTERY]
+
+    assert outputs[BATTERY_STATE_OF_CHARGE].values == (0.0, 0.0)
