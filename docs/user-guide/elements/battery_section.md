@@ -43,7 +43,7 @@ Put the charge and discharge efficiencies and power limits on those connections,
 | ------------------------------------- | ------------------------------------- | -------- | ------- | --------------------------------------------- |
 | **[Name](#name)**                     | String                                | Yes      | -       | Unique identifier (e.g., "Battery Section 1") |
 | **[Capacity](#capacity)**             | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Battery capacity in kWh (can vary over time)  |
-| **[Initial Charge](#initial-charge)** | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Initial energy stored in battery (kWh)        |
+| **[Initial charge](#initial-charge)** | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Initial energy stored in battery (kWh)        |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -75,7 +75,7 @@ Basic battery section configuration:
 | ------------------ | ----------------------- |
 | **Name**           | Battery Section 1       |
 | **Capacity**       | sensor.battery_capacity |
-| **Initial Charge** | sensor.battery_energy   |
+| **Initial charge** | sensor.battery_energy   |
 
 After creating the Battery Section element, create two Connection elements between it and an [endpoint](connection.md#connection-endpoint-selection):
 

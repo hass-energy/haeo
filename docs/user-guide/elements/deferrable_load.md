@@ -52,7 +52,8 @@ Each calendar event is one window:
 - **Event text**: The energy the window must receive, with its unit (e.g., `8 kWh` or `500 Wh`)
 
 The energy can sit among other words and numbers, such as a summary of `EV 8kWh` or `Charger 7 kW, needs 8 kWh`, and is converted to kWh.
-It is read from the first of the location, summary, or description fields holding any number, which must hold exactly one number in an energy unit.
+It is read from the first of the location, summary, or description fields holding a number in an energy unit, so other numbers, such as a street number in the location, are skipped.
+That field must hold exactly one energy.
 [Calendars as forecasts](../forecasts-and-sensors.md#calendars-as-forecasts) gives the exact rules.
 An event without a number is still a window, but needs no energy.
 An event whose numbers HAEO cannot use, such as one without a unit, a negative energy, or two energies in one field, is ignored and listed in a repair issue so you can fix the event.
@@ -82,7 +83,7 @@ Only sensors with statistics are offered: an energy sensor whose state class is 
 Statistics reach back a week, so a window that started earlier than that is credited only what the sensor counted within the week.
 
 HAEO credits the rise only to the window that is open when the plan starts.
-When events overlap, the window starts at the earliest of them, so the rise counts from there.
+When events overlap, the window starts at the earliest start among the events still open when the plan starts, so the rise counts from there.
 The **Energy since window started** input entity shows the rise HAEO is using, and reads zero while no window is open.
 
 - **Below the window's energy**: only the remainder is planned.

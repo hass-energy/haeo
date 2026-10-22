@@ -88,6 +88,7 @@ The template renders again every minute, but the forecast only changes at each q
     Earlier versions offered a **Custom** horizon with up to four tiers of interval counts and durations.
     Custom tiers are no longer available.
     When you upgrade, a hub that used custom tiers switches to the 5-day preset, and a hub on a preset keeps it.
+    A hub that switched raises a repair issue titled "*hub name* now plans 5 days ahead" so the change does not go unnoticed; ignore it once you have read it.
     To recreate a custom layout, build a sensor that lists your period boundaries and choose it as a **Forecast sensor**.
 
 #### Expose raw model elements

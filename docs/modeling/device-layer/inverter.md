@@ -74,20 +74,20 @@ The sensors this element creates, with their entity IDs, are listed under [Senso
 | Field                   | Value         |
 | ----------------------- | ------------- |
 | **Name**                | Main Inverter |
-| **AC Connection**       | Home Bus      |
-| **DC to AC Efficiency** | 97.0          |
-| **AC to DC Efficiency** | 97.0          |
+| **AC connection**       | Home Bus      |
+| **DC to AC efficiency** | 97.0          |
+| **AC to DC efficiency** | 97.0          |
 
 ### With power limits
 
 | Field                   | Value           |
 | ----------------------- | --------------- |
 | **Name**                | Hybrid Inverter |
-| **AC Connection**       | Home Bus        |
-| **DC to AC Efficiency** | 96.0            |
-| **AC to DC Efficiency** | 95.0            |
-| **Max DC to AC Power**  | 5.0             |
-| **Max AC to DC Power**  | 5.0             |
+| **AC connection**       | Home Bus        |
+| **DC to AC efficiency** | 96.0            |
+| **AC to DC efficiency** | 95.0            |
+| **Max DC to AC power**  | 5.0             |
+| **Max AC to DC power**  | 5.0             |
 
 ## Typical use cases
 

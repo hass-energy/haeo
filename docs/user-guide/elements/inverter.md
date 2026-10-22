@@ -9,8 +9,8 @@ They provide a DC bus for connecting batteries and solar panels, with bidirectio
 | --------------------------------------------- | ------------------------------------- | -------- | ------- | ------------------------------------------------------------------------------------ |
 | **[Name](#name)**                             | String                                | Yes      | -       | Unique identifier for this inverter                                                  |
 | **[Connection](#connection)**                 | Element                               | Yes      | -       | [Endpoint](connection.md#connection-endpoint-selection) on the AC side to connect to |
-| **[Max Power DC to AC](#max-power-dc-to-ac)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting DC to AC (kW)                                          |
-| **[Max Power AC to DC](#max-power-ac-to-dc)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting AC to DC (kW)                                          |
+| **[Max DC to AC power](#max-power-dc-to-ac)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting DC to AC (kW)                                          |
+| **[Max AC to DC power](#max-power-ac-to-dc)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting AC to DC (kW)                                          |
 | **Efficiency DC to AC**                       | Number (%)                            | No       | 100     | Efficiency percentage when inverting DC to AC (0-100)                                |
 | **Efficiency AC to DC**                       | Number (%)                            | No       | 100     | Efficiency percentage when rectifying AC to DC (0-100)                               |
 

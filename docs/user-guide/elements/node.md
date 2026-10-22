@@ -21,8 +21,8 @@ Use it to build a custom endpoint when no other element fits, and put the limits
 | Field                       | Type    | Required | Default | Description                              |
 | --------------------------- | ------- | -------- | ------- | ---------------------------------------- |
 | **[Name](#name)**           | String  | Yes      | -       | Unique identifier for this node          |
-| **[Is Source](#is-source)** | Boolean | No       | false   | Whether node can produce unlimited power |
-| **[Is Sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume unlimited power |
+| **[Is source](#is-source)** | Boolean | No       | false   | Whether node can produce unlimited power |
+| **[Is sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume unlimited power |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -89,8 +89,8 @@ A backup generator modeled as a source node:
 | Field         | Value     |
 | ------------- | --------- |
 | **Name**      | Generator |
-| **Is Source** | On        |
-| **Is Sink**   | Off       |
+| **Is source** | On        |
+| **Is sink**   | Off       |
 
 Then add a connection from "Generator" to your switchboard with a maximum power matching the generator rating and a price matching its fuel cost per kWh.
 

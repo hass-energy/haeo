@@ -34,7 +34,11 @@ Related updates that arrive close together are grouped, and optimization runs af
 
 Sometimes you want the latest recommendation right away.
 You can trigger a manual refresh from the entity details page or by calling the standard Home Assistant update service for any HAEO sensor.
-Manual refreshes skip the waiting period and start a new optimisation as soon as they are invoked.
+Manual refreshes skip the waiting period and start a new optimization as soon as they are invoked.
+
+Automations and scripts can call the **Optimize** action (`haeo.optimize`) with your HAEO system to run an optimization straight away, even while automatic optimization is turned off.
+Each time the planning horizon moves forward, forecast inputs need a moment to load for the new horizon.
+Calling the action during that moment fails with an error saying the inputs are still loading, so try again shortly after.
 
 ## Troubleshooting stale data
 

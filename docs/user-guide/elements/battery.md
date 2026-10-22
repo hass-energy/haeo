@@ -33,14 +33,14 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | ------------------------------------------------------------ | ---------- | -------- | ------- | ---------------------------------------------------------- |
 | **[Name](#name)**                                            | String     | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
 | **[Capacity](#capacity)**                                    | Energy     | Yes      | -       | Total energy storage capacity                              |
-| **[Current Charge Percentage](#current-charge-percentage)**  | Percentage | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
-| **[Min Charge Percentage](#min-and-max-charge-percentage)**  | Percentage | No       | 0       | Lowest SOC the battery is planned to reach (%)             |
-| **[Max Charge Percentage](#min-and-max-charge-percentage)**  | Percentage | No       | 100     | Highest SOC the battery is planned to reach (%)            |
+| **[State of charge](#current-charge-percentage)**            | Percentage | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
+| **[Min charge level](#min-and-max-charge-percentage)**       | Percentage | No       | 0       | Lowest SOC the battery is planned to reach (%)             |
+| **[Max charge level](#min-and-max-charge-percentage)**       | Percentage | No       | 100     | Highest SOC the battery is planned to reach (%)            |
 | **[Discharge efficiency](#charge-and-discharge-efficiency)** | Percentage | No       | 95      | Efficiency when discharging (battery to network)           |
 | **[Charge efficiency](#charge-and-discharge-efficiency)**    | Percentage | No       | 95      | Efficiency when charging (network to battery)              |
-| **[Max Charge Power](#max-charge-and-discharge-power)**      | Power      | No       | -       | Maximum charging power                                     |
-| **[Max Discharge Power](#max-charge-and-discharge-power)**   | Power      | No       | -       | Maximum discharging power                                  |
-| **[Salvage Value](#salvage-value)**                          | Price      | No       | 0       | Value assigned to stored energy at the horizon end         |
+| **[Max charge power](#max-charge-and-discharge-power)**      | Power      | No       | -       | Maximum charging power                                     |
+| **[Max discharge power](#max-charge-and-discharge-power)**   | Power      | No       | -       | Maximum discharging power                                  |
+| **[Salvage value](#salvage-value)**                          | Price      | No       | 0       | Value assigned to stored energy at the horizon end         |
 | **[Limit cost](#limit-cost)**                                | Price rate | Yes      | 100     | Holding cost per kWh outside the min and max charge        |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
@@ -144,10 +144,10 @@ A typical battery configuration with just the essential parameters:
 | **Current Charge Percentage** | sensor.battery_soc |
 | **Min Charge Percentage**     | 20%                |
 | **Max Charge Percentage**     | 90%                |
-| **Discharge Efficiency**      | 99%                |
-| **Charge Efficiency**         | 99%                |
-| **Max Charge Power**          | 6 kW               |
-| **Max Discharge Power**       | 6 kW               |
+| **Discharge efficiency**      | 99%                |
+| **Charge efficiency**         | 99%                |
+| **Max charge power**          | 6 kW               |
+| **Max discharge power**       | 6 kW               |
 
 This creates a battery that operates in the 20-90% range with no economic penalties for staying within that range.
 

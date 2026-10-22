@@ -63,7 +63,8 @@ E_{\text{trip}} = d \cdot r
 $$
 
 where $d$ is the trip distance and $r$ is the energy-per-distance rate.
-The distance is read from the first of the event's location, summary, or description fields that holds only a distance with its unit, such as `50 km`, and converted to kilometres.
+The distance is read from the first of the event's location, summary, or description fields holding a number in a length unit, such as `50 km`, and converted to kilometres.
+Other numbers, such as a street number in the location, are skipped, and a field holding several distances gives none.
 
 The trip calendar feeds four inputs, resolved the same way as for the [deferrable load device](deferrable_load.md#window-scheduling): the periods away, where trips start, and the distances of the events starting and ending at each boundary.
 Overlapping events share one window, touching trips stay separate, and an event running past the horizon end is due at the final boundary.

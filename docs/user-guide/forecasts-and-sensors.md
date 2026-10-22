@@ -41,7 +41,7 @@ When you configure a sensor that only provides a present value, that value is us
 
 Some configuration fields are scalar-only and do not create forecasts.
 For example, the [Current charge percentage field](elements/battery.md#current-charge-percentage) uses the present value at optimization start to set the initial battery SOC.
-HAEO reads the current sensor state and does not repeat it across the horizon for these fields.
+HAEO reads the current sensor state and does not repeat it across the horizon for these fields, even when the sensor also carries a forecast.
 
 ## Forecast sensors
 
@@ -363,9 +363,9 @@ HAEO reads the value by these rules:
     Pieces of a larger number are not read on their own either, such as the `500` in `1,500` or the `30` in `10:30`.
     Use a dot for decimals and no thousands separators: write `1.5 kWh` rather than `1,5 kWh`, and `1500 Wh` rather than `1,500 Wh`.
 - The unit is the word typed right after the number, with or without a space between them.
-- The location, summary, and description are checked in that order, and the first holding any number is the value's field.
-    Fields after it are not read, even when its numbers cannot be used, so a mistyped value is reported rather than replaced.
-    Keep other numbers, such as a street address, out of the fields before the value.
+- The location, summary, and description are checked in that order, and the first holding a number whose unit converts to the field's unit is the value's field.
+    Numbers HAEO cannot use in the fields before it, such as a street number in the location, are skipped.
+    When no field holds a usable number, the first holding any number is reported as the event's value text.
 - The value is the field's one number whose unit converts to the field's unit.
     Other numbers in it, such as a tariff number or a charger's `7 kW` in an energy field, are passed over.
 - A range, such as `8-10 kWh` or `8 to 10 kWh`, is never a value, and neither is a field holding several, such as `8 kWh or 10 kWh`.
