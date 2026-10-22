@@ -54,11 +54,14 @@ async def test_scenarios(
     # Freeze time at the captured optimization start, in the captured zone.
     freeze_timestamp = scenario_data["environment"]["optimization_start_time"]
     timezone = scenario_data["environment"]["timezone"]
+    currency = scenario_data["environment"]["currency"]
     assert isinstance(freeze_timestamp, str)
     assert isinstance(timezone, str)
+    assert isinstance(currency, str)
 
-    # Configure HA timezone from scenario environment
+    # Configure HA timezone and currency from scenario environment
     await hass.config.async_set_time_zone(timezone)
+    hass.config.currency = currency
 
     # Apply freeze_time dynamically
     with freeze_time(freeze_timestamp):

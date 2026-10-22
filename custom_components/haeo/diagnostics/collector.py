@@ -72,6 +72,9 @@ class EnvironmentInfo:
     timezone: str
     """System timezone."""
 
+    currency: str
+    """Home Assistant's currency (ISO 4217), which price units are shown in."""
+
     diagnostic_request_time: str
     """Wall-clock time when the diagnostic was requested (ISO 8601)."""
 
@@ -404,7 +407,7 @@ async def _build_environment(
 ) -> EnvironmentInfo:
     """Build the environment section of diagnostics.
 
-    Combines static runtime facts (versions, timezone) with per-snapshot timestamps.
+    Combines static runtime facts (versions, timezone, currency) with per-snapshot timestamps.
     """
     integration = await async_get_integration(hass, config_entry.domain)
     haeo_version = integration.version or "unknown"
@@ -414,6 +417,7 @@ async def _build_environment(
         ha_version=ha_version,
         haeo_version=haeo_version,
         timezone=str(dt_util.get_default_time_zone()),
+        currency=hass.config.currency,
         diagnostic_request_time=diagnostic_request_time,
         diagnostic_target_time=diagnostic_target_time,
         optimization_start_time=optimization_start_time,

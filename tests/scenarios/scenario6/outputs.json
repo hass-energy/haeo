@@ -641,7 +641,7 @@
       "source_role": "limit",
       "step": 0.001,
       "time_series": true,
-      "unit_of_measurement": "€/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.battery_discharge_efficiency": {
@@ -1092,7 +1092,7 @@
       "source_role": "limit",
       "step": 0.001,
       "time_series": true,
-      "unit_of_measurement": "€/kWh/h"
+      "unit_of_measurement": "$/kWh/h"
     }
   },
   "number.battery_max_charge": {
@@ -2388,7 +2388,7 @@
       "source_role": "limit",
       "step": 0.001,
       "time_series": true,
-      "unit_of_measurement": "€/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.grid_import_limit": {
@@ -2820,7 +2820,7 @@
       "source_role": "limit",
       "step": 0.001,
       "time_series": true,
-      "unit_of_measurement": "€/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.inverter_max_ac_to_dc_power": {
@@ -3687,7 +3687,7 @@
       "step": 0.001,
       "target": ["Grid"],
       "time_series": true,
-      "unit_of_measurement": "€/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.policies_battery_wear_price": {
@@ -3904,7 +3904,7 @@
       "source_role": "limit",
       "step": 0.001,
       "time_series": true,
-      "unit_of_measurement": "€/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.policies_solar_minimum_sell_price": {
@@ -4122,7 +4122,7 @@
       "step": 0.001,
       "target": ["Grid"],
       "time_series": true,
-      "unit_of_measurement": "€/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.solar_forecast": {
@@ -11850,9 +11850,9 @@
           { "group": "Switchboard", "name": "Switchboard", "type": "junction" }
         ],
         "policies": [
-          { "label": "Battery → *", "name": "policy_pricing_r0_v1", "terms": [{ "connection": "Inverter:dc_to_ac", "tag": 1 }] },
-          { "label": "Battery → Grid", "name": "policy_pricing_r1_v1", "terms": [{ "connection": "Grid:export", "tag": 1 }] },
-          { "label": "Solar → Grid", "name": "policy_pricing_r2_v3", "terms": [{ "connection": "Grid:export", "tag": 3 }] }
+          { "label": "Battery \u2192 *", "name": "policy_pricing_r0_v1", "terms": [{ "connection": "Inverter:dc_to_ac", "tag": 1 }] },
+          { "label": "Battery \u2192 Grid", "name": "policy_pricing_r1_v1", "terms": [{ "connection": "Grid:export", "tag": 1 }] },
+          { "label": "Solar \u2192 Grid", "name": "policy_pricing_r2_v3", "terms": [{ "connection": "Grid:export", "tag": 3 }] }
         ]
       }
     }
