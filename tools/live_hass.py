@@ -425,6 +425,8 @@ async def _setup_home_assistant_async(
     hass.config.longitude = -117.22743
     hass.config.elevation = 0
     await hass.config.async_set_time_zone(timezone)
+    # Home Assistant defaults to euros; the guides and simulator show prices in Australian dollars
+    hass.config.currency = "AUD"
     hass.config.skip_pip = True
     hass.config.skip_pip_packages = []
 
