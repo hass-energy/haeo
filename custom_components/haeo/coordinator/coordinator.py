@@ -389,11 +389,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._relax_infeasible: bool = advanced_data.get(CONF_RELAX_INFEASIBLE, False)
         self._last_optimization_time: float | None = None
         self._debounce_timer: CALLBACK_TYPE | None = None
-        self._pending_refresh: bool = False
         # Held while an optimization runs, so optimizations never overlap
         self._optimization_lock = asyncio.Lock()
-        # Whether an optimization was requested since the last one started
-        self._refresh_requested: bool = False
+        # Whether an optimization was requested that no optimization has started reading inputs for since
+        self._rerun_wanted: bool = False
         # When optimizations started failing, and whether that failure raises an issue of its own
         self._failing_since: float | None = None
         self._failure_reported = False
@@ -540,85 +539,72 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             HomeAssistantError: While forecast inputs are still loading for a new horizon.
 
         """
-        if not self._are_inputs_aligned():
+        if not await self._optimize():
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="inputs_not_aligned")
-        await self.async_refresh()
 
     async def async_refresh(self) -> None:
-        """Optimize with the current inputs, after any optimization already running.
-
-        Requests made while an optimization runs share one follow-up, since it reads
-        every input as it is when it starts. An optimization is skipped while forecast
-        inputs are still loading for a new horizon; they request another once loaded.
-        Inputs that changed while it ran request another through the debounce window.
-        """
-        self._refresh_requested = True
-        async with self._optimization_lock:
-            if self._refresh_requested and self._are_inputs_aligned():
-                self._refresh_requested = False
-                # This optimization reads every input as it is now, so earlier requests are met
-                self._pending_refresh = False
-                await super().async_refresh()
-        if self._pending_refresh:
-            self._pending_refresh = False
-            self.signal_optimization_stale()
+        """Optimize with the current inputs, after any optimization already running."""
+        await self._optimize()
 
     async def async_request_refresh(self) -> None:
-        """Optimize now, as a refresh requested by an entity update does."""
-        await self.async_refresh()
+        """Optimize when the debounce window allows, as an entity update requests."""
+        self._request_optimization()
+
+    async def _optimize(self) -> bool:
+        """Optimize with the current inputs once any optimization already running ends.
+
+        Returns False when the optimization is skipped because forecast inputs are
+        still loading for a new horizon; they request another once loaded. Requests
+        made while an optimization runs share one follow-up, since it reads every
+        input as it is when it starts.
+        """
+        self._rerun_wanted = True
+        async with self._optimization_lock:
+            # An optimization that started after this request has already read the inputs
+            if not self._rerun_wanted:
+                return True
+            if not self._are_inputs_aligned():
+                return False
+            self._rerun_wanted = False
+            await super().async_refresh()
+        # Inputs that changed while it ran request another through the debounce window
+        if self._rerun_wanted:
+            self.signal_optimization_stale()
+        return True
 
     @callback
     def signal_optimization_stale(self) -> None:
-        """Signal that optimization results are stale and a refresh may be needed.
+        """Request an optimization because inputs changed, when auto-optimize is on."""
+        if self.auto_optimize_enabled:
+            self._request_optimization()
 
-        Checks auto_optimize_enabled before proceeding. If disabled, does nothing.
-        Handles debouncing to prevent excessive refreshes.
-        """
-        # Skip if auto-optimization is disabled
-        if not self.auto_optimize_enabled:
+    @callback
+    def _request_optimization(self) -> None:
+        """Optimize now, or once the running optimization and the debounce window have passed."""
+        self._rerun_wanted = True
+        # The running optimization requests the follow-up when it ends
+        if self._optimization_lock.locked() or self._debounce_timer is not None:
             return
-
-        # If optimization is in progress, just mark pending
-        if self._optimization_lock.locked():
-            self._pending_refresh = True
+        elapsed = time.time() - (self._last_optimization_time or 0.0)
+        if elapsed < self._debounce_seconds:
+            self._debounce_timer = async_call_later(
+                self.hass, self._debounce_seconds - elapsed, self._debounce_timer_callback
+            )
             return
-
-        current_time = time.time()
-
-        # Check if we're within the cooldown period
-        if self._last_optimization_time is not None:
-            time_since_last = current_time - self._last_optimization_time
-            if time_since_last < self._debounce_seconds:
-                # Within cooldown - mark pending and ensure timer is set
-                self._pending_refresh = True
-                if self._debounce_timer is None:
-                    remaining = self._debounce_seconds - time_since_last
-                    self._debounce_timer = async_call_later(self.hass, remaining, self._debounce_timer_callback)
-                return
-
-        # Not in cooldown - optimize immediately
-        self._maybe_trigger_refresh()
+        self.hass.async_create_task(self._optimize())
 
     @callback
     def _debounce_timer_callback(self, _now: datetime) -> None:
-        """Handle debounce timer expiration."""
+        """Optimize once the debounce window has passed, unless an optimization has met the request since."""
         self._debounce_timer = None
-
-        if self._pending_refresh and self.auto_optimize_enabled:
-            self._pending_refresh = False
-            self._maybe_trigger_refresh()
+        if self._rerun_wanted:
+            self.hass.async_create_task(self._optimize())
 
     def _cancel_debounce_timer(self) -> None:
         """Cancel the optimization waiting out the debounce window, if one is."""
         if self._debounce_timer is not None:
             self._debounce_timer()
             self._debounce_timer = None
-        self._pending_refresh = False
-
-    @callback
-    def _maybe_trigger_refresh(self) -> None:
-        """Start an optimization, which runs once inputs are aligned."""
-        self.hass.async_create_task(self.async_refresh())
 
     def _are_inputs_aligned(self) -> bool:
         """Return whether every forecast input is loaded for the horizon's current start.
@@ -728,6 +714,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         if reported != self._failure_reported:
             self._failing_since = now
             self._failure_reported = reported
+            # A cause with its own issue replaces the general one, so the user sees one issue
+            self._failure_issue_raised = False
+            dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
         if reported:
             return
         if not self._failure_issue_raised and now - self._failing_since >= FAILURE_SECONDS_BEFORE_REPAIR_ISSUE:
