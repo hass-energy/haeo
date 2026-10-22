@@ -46,6 +46,27 @@ That issue clears on the next successful optimization.
 Time taken to solve the optimization in seconds.
 If this value climbs higher than you expect, choose a shorter [planning horizon](configuration.md#planning-horizon) or simplify the network.
 
+### Forecast horizon
+
+**Entity ID**: `sensor.optimizer_forecast_horizon`
+
+The period boundaries HAEO currently plans over.
+Its state is the start of the current period, and its `forecast` attribute lists the time of every period boundary in the horizon.
+It also reports `period_count`, the number of periods, and `smallest_period_seconds`, the length of the shortest period.
+
+Another hub can use this sensor as its [forecast sensor horizon](configuration.md#planning-horizon) to plan on the same periods.
+
+### Auto optimize
+
+**Entity ID**: `switch.optimizer_auto_optimize`
+
+Turns automatic optimization on or off.
+It is on by default and keeps its state across restarts.
+
+While it is off, HAEO stops advancing the horizon and does not optimize when inputs change.
+Run an optimization yourself with the `haeo.optimize` action, for example from an automation.
+Turning it back on resumes automatic optimization.
+
 ## Element sensors
 
 Each configured element creates optimization result sensors.
@@ -55,7 +76,9 @@ The specific sensors depend on the element type—see each element's documentati
 
 All HAEO sensors follow a consistent structure:
 
-**Current state**: The sensor's state shows the optimal value for the current time step.
+**Current state**: For most sensors, the state shows the optimal value for the current period.
+Sensors that summarize the plan, such as a grid's import cost or a load's horizon and next 24 hours totals, show the total instead.
+Each element's page says which of its sensors are totals.
 
 **Forecast attributes**: Each sensor includes a `forecast` attribute containing future timestamped values across your optimization horizon.
 

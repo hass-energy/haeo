@@ -54,7 +54,7 @@ A 24-hour solar forecast cycles to cover longer horizons with time-of-day alignm
 Use it when you want a period layout the presets do not offer, or to plan two hubs on the same horizon.
 The attribute is a list of points, and the `time` of each point is a period boundary, so a forecast with 25 points describes 24 periods.
 Any other keys in a point, such as `value`, are ignored.
-Another hub's horizon sensor publishes exactly this format.
+Another hub's [forecast horizon sensor](optimization.md#forecast-horizon) publishes exactly this format.
 The horizon updates whenever the sensor's forecast times change.
 
 The setup and options forms reject a sensor that does not report at least two increasing times.
@@ -103,7 +103,7 @@ Standard elements provide automatic connections and optimized behavior suitable 
 Most users should leave this setting off.
 Turn it on only if you are deliberately building the optimization model yourself.
 
-See the [elements overview](elements/index.md) for the raw model elements it exposes.
+Each element that needs this setting says so in a **Raw model element** note at the top of its page in the [elements overview](elements/index.md).
 
 Click **Submit** to create your hub.
 
