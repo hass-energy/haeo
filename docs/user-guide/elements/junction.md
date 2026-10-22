@@ -37,7 +37,7 @@ $$
 Junctions are not physical devices.
 They represent electrical buses where power is shared between the elements connected to them.
 A junction cannot produce or consume power itself.
-Power enters and leaves the network only through elements that set a price and a limit on it, such as a [grid](grid.md), [solar](solar.md), [battery](battery.md), or [load](load.md).
+Power enters and leaves the network only through elements that set a price and a limit on it.
 
 If you need a point that produces or consumes unlimited power, use a [node](node.md) instead.
 
@@ -53,7 +53,6 @@ If you need a point that produces or consumes unlimited power, use a [node](node
 
     Junctions pass [power policy](../../modeling/tagged-power.md) provenance through unchanged.
     This is what lets a `Solar → Grid` policy price the whole chain through your switchboard and inverter.
-    Junctions are not offered as policy sources or destinations, because power never starts or ends at a junction.
     See [Node roles and policy scope](../../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
 
 !!! note "Upgrading from earlier versions"
@@ -65,7 +64,7 @@ If you need a point that produces or consumes unlimited power, use a [node](node
     When a node that had its source or sink switch turned on becomes a junction, HAEO raises a repair issue for it.
     The junction keeps the node's device and power balance sensor, so their entity IDs, areas, and history carry over.
 
-## Use Cases
+## Use cases
 
 **Single junction (simple)**: Central hub for all elements.
 
@@ -95,7 +94,7 @@ graph LR
     class AC ac
 ```
 
-## Configuration Example
+## Configuration example
 
 Simple junction for connecting elements:
 
@@ -110,17 +109,17 @@ Then connect elements to "Sub Panel" via connections.
     If you delete a junction, you must update all connections that reference it.
     Connections cannot have endpoints that don't exist.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 A Junction element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                       | Unit   | Description                         |
-| ------------------------------------------------------------ | ------ | ----------------------------------- |
-| [`sensor.{name}_power_balance_shadow_price`](#power-balance) | \$/kWh | Local energy price at this junction |
+| Sensor                                                                    | Unit   | Description                         |
+| ------------------------------------------------------------------------- | ------ | ----------------------------------- |
+| [`sensor.{name}_power_balance_shadow_price`](#power-balance-shadow-price) | \$/kWh | Local energy price at this junction |
 
-### Power Balance
+### Power balance shadow price
 
 Displayed as "Power balance shadow price".
 The marginal cost or value of power at this point in the network.
@@ -154,9 +153,9 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 **Infeasible optimization**: Check all elements connected, sufficient sources exist, connection directions correct, limits not too restrictive.
 
-**Unexpected power flows**: Verify connection endpoints, review junction names unique, check connection min/max power limits.
+**Unexpected power flows**: Verify connection endpoints, review junction names unique, check connection max power limits.
 
-## Multiple Junctions
+## Multiple junctions
 
 **Use when**:
 
@@ -168,7 +167,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 **Complexity**: Requires more configuration and adds more constraints, but accurately models real system architecture.
 
-### Hybrid Inverter Example
+### Hybrid inverter example
 
 For hybrid (AC/DC) inverter systems, use separate AC and DC junctions with a connection between them:
 
@@ -190,7 +189,7 @@ Set connection power limits to match the inverter rating.
 | AC Bus → DC Bus | Inverter input rating (e.g., 10 kW)  |
 
 The [Inverter](inverter.md) element builds this pattern for you, including its own DC bus.
-See [Connections](connections.md) for detailed configuration guidance.
+See [Connections](connection.md) for detailed configuration guidance.
 
 ## Next steps
 
@@ -202,7 +201,7 @@ See [Connections](connections.md) for detailed configuration guidance.
 
     Learn how to connect elements using power flow connections.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 - :material-source-branch:{ .lg .middle } **Nodes**
 

@@ -1,4 +1,4 @@
-# Node Model
+# Node model
 
 The Node model element represents power sources, sinks, and junction points in the network.
 It provides a unified formulation for elements that produce power, consume power, or simply route power between connections.
@@ -17,9 +17,9 @@ Node is a versatile model element controlled by two flags:
 Power limits and pricing are configured on the [Connection](../connections/index.md) to/from the Node, not on the Node itself.
 This design separates the element's role (source, sink, or junction) from its operational constraints (limits, efficiency, cost).
 
-## Model Formulation
+## Model formulation
 
-### Decision Variables
+### Decision variables
 
 For each time step $t \in \{0, 1, \ldots, T-1\}$:
 
@@ -42,7 +42,7 @@ Operational parameters (power limits, efficiency, pricing) are configured on the
 
 ### Constraints
 
-#### Power Balance
+#### Power balance
 
 The power balance constraint depends on the Node configuration:
 
@@ -77,17 +77,17 @@ Net connection power must be zero (Kirchhoff's law).
 
 Where $P_{\text{connection}}(t)$ is the sum of power flows from all connected [Connection](../connections/index.md) elements, accounting for efficiency losses.
 
-#### Tag Balance
+#### Tag balance
 
 The Element base class creates per-tag power balance constraints for all elements with tagged connections.
 See the [tagged power formulation](../../tagged-power.md#per-tag-balance) for details.
 
-### Cost Contribution
+### Cost contribution
 
 Node contributes no direct cost to the objective function.
 Costs are applied through the connected [Connection](../connections/index.md) elements via their pricing parameters.
 
-## Physical Interpretation
+## Physical interpretation
 
 **Source behavior**: Represents power generation capacity.
 The actual generation is bounded by the Connection's `max_power_source_target` parameter (the forecast for PV, or import limit for Grid).

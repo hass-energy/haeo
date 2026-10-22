@@ -1,4 +1,4 @@
-# Forecasts and Sensors
+# Forecasts and sensors
 
 This guide explains how HAEO uses Home Assistant sensor data to optimize your energy network.
 
@@ -13,7 +13,7 @@ HAEO loads data from Home Assistant sensors to understand:
 Each sensor provides either a current value or a forecast series, never both.
 HAEO automatically detects what data each sensor exposes and combines everything into a unified time series aligned with your optimization horizon.
 
-## How HAEO Uses Sensor Data
+## How HAEO uses sensor data
 
 When you configure an element like a grid or solar system, you provide one or more sensor entity IDs.
 HAEO reads these sensors and extracts either:
@@ -23,7 +23,7 @@ HAEO reads these sensors and extracts either:
 
 These values are then processed to create a complete time series covering your optimization horizon.
 
-## Single Sensor Values
+## Single sensor values
 
 The simplest case is a sensor that only provides a current value without any forecast data.
 
@@ -43,7 +43,7 @@ Some configuration fields are scalar-only and do not create forecasts.
 For example, the [Current charge percentage field](elements/battery.md#current-charge-percentage) uses the present value at optimization start to set the initial battery SOC.
 HAEO reads the current sensor state and does not repeat it across the horizon for these fields.
 
-## Forecast Sensors
+## Forecast sensors
 
 Some sensors provide structured forecast data instead of a simple current value.
 HAEO automatically detects and parses forecast attributes from supported integrations.
@@ -76,7 +76,7 @@ attributes:
       per_kwh: 0.29
 ```
 
-### Interpolation Behavior
+### Interpolation behavior
 
 Forecast values are interpolated using trapezoidal integration to compute interval averages.
 This means HAEO calculates the average power or price over each optimization period, not just point samples.
@@ -88,7 +88,7 @@ For the optimization horizon:
 
 This approach accurately represents energy consumption and costs over time.
 
-### Unit Conversion
+### Unit conversion
 
 HAEO automatically converts sensor units to the internal representation used for optimization.
 You don't need to create template sensors for unit conversion.
@@ -117,7 +117,7 @@ Pence count as pounds and `ct` as euro cents, while cents written as `c` or `¢`
 
 All HAEO output sensors use kilowatts (kW) for power and kilowatt-hours (kWh) for energy, regardless of input sensor units.
 
-## Multiple Sensors
+## Multiple sensors
 
 You can provide multiple sensors for any field that accepts sensor(s).
 HAEO combines them automatically.
@@ -162,7 +162,7 @@ To add a constant across the horizon, give it a forecast, for example a template
 
 This makes it easy to model multiple solar arrays, price components, or load sources without manual calculation.
 
-### Visual Example: Combining Two Solar Arrays
+### Visual example: Combining two solar arrays
 
 When you configure two solar arrays for a solar element, HAEO sums their forecasts at each timestamp.
 This example uses real data from an east-facing and west-facing array:
@@ -192,7 +192,7 @@ xychart-beta
 
 The combined output provides more consistent generation throughout the day.
 
-## Multiple Forecast Windows
+## Multiple forecast windows
 
 Many integrations provide separate forecasts for different time windows (today, tomorrow, day-after-tomorrow).
 Combine them using multiple sensors:
@@ -204,7 +204,7 @@ Combine them using multiple sensors:
 HAEO merges all forecast series on shared timestamps and sums values.
 This gives you complete horizon coverage from multiple shorter forecast windows.
 
-### Visual Example: Combining Today and Tomorrow Forecasts
+### Visual example: Combining today and tomorrow forecasts
 
 When you provide both today's and tomorrow's forecasts, HAEO seamlessly combines them.
 This example shows the north array with different weather conditions each day:
@@ -235,12 +235,12 @@ xychart-beta
 Notice how tomorrow's partly cloudy forecast shows lower generation than today's clear-sky conditions.
 HAEO uses the actual forecast data for each day rather than assuming identical patterns.
 
-## Forecast Coverage and Cycling
+## Forecast coverage and cycling
 
 Forecasts don't always cover your entire optimization horizon.
 HAEO handles partial coverage automatically through **forecast cycling**.
 
-### How Cycling Works
+### How cycling works
 
 When forecast data ends before your horizon:
 
@@ -255,7 +255,7 @@ When forecast data ends before your horizon:
 
 This ensures optimization always uses plausible data rather than assuming zero values or constant prices.
 
-### What You'll See
+### What you'll see
 
 If your optimization horizon is 48 hours but you only have a 24-hour forecast:
 
@@ -264,7 +264,7 @@ If your optimization horizon is 48 hours but you only have a 24-hour forecast:
 
 For multi-day forecasts (like a 7-day solar forecast), the full pattern cycles at its natural period.
 
-### Visual Example: 24-Hour Forecast Cycling to 72 Hours
+### Visual example: 24-hour forecast cycling to 72 hours
 
 When your horizon exceeds forecast coverage, HAEO cycles the pattern with time-of-day alignment.
 This example shows a single 48-hour north-facing solar array forecast extended to 72 hours:
@@ -293,7 +293,7 @@ xychart-beta
 
 Note how the 48-hour pattern repeats starting at hour 48, maintaining realistic time-of-day generation profiles.
 
-## Supported Forecast Formats
+## Supported forecast formats
 
 HAEO automatically detects and parses these forecast formats:
 
@@ -311,7 +311,7 @@ HAEO automatically detects and parses these forecast formats:
 
 Format detection is automatic—you don't need to specify the integration type.
 
-## Creating Custom Forecast Sensors
+## Creating custom forecast sensors
 
 You can create custom forecast sensors using Home Assistant templates.
 The forecast must be a list of dictionaries with time and value keys.
@@ -346,7 +346,7 @@ template:
 
 HAEO will detect this as a simple forecast format and extract the data.
 
-## Calendars as Forecasts
+## Calendars as forecasts
 
 Any forecast field with a unit can read a Home Assistant calendar alongside or instead of a sensor.
 HAEO reads the calendar's events over the horizon as a stepped forecast: each event's value while the event runs, and zero outside events.
@@ -382,7 +382,7 @@ HAEO adds 0.30 \$/kWh to the import price during each event.
 Calendar events are fetched whenever the calendar or the horizon changes.
 If a calendar cannot be read, the field is unavailable and optimization pauses until it can, as it would for an unavailable sensor.
 
-## Using Constants vs Sensors
+## Using constants vs sensors
 
 For values that don't change over time (fixed prices, baseline loads, power limits), you have two options:
 
@@ -407,7 +407,7 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 2. Click **Create Helper** button
 3. Select **Number**
 4. Configure:
-    - **Name**: Descriptive name (e.g., "Base Load Power", "Fixed Price (source → target)")
+    - **Name**: Descriptive name (e.g., "Base Load Power", "Fixed Transfer Price")
     - **Unit of measurement**: Match the element's expected unit (kW, \$/kWh, %, etc.)
     - **Minimum/Maximum**: Set reasonable bounds
     - **Initial value**: Set your desired constant
@@ -417,10 +417,10 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 
 During element configuration, select the input_number entity in the entity selector:
 
-| Field                           | Value                                  |
-| ------------------------------- | -------------------------------------- |
-| **Price (source → target)**     | input_number.fixed_price_source_target |
-| **Max Power (source → target)** | input_number.max_power_source_target   |
+| Field         | Value                             |
+| ------------- | --------------------------------- |
+| **Price**     | input_number.fixed_transfer_price |
+| **Max power** | input_number.transfer_max_power   |
 
 HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
 
@@ -438,7 +438,7 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 ## Troubleshooting
 
-### Sensor Not Found
+### Sensor not found
 
 **Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
 
@@ -451,7 +451,7 @@ A repair issue names the element, the input, and the sensors with no reading, an
 - Check that the sensor is available (not "unavailable" or "unknown")
 - Ensure the sensor has been created by its integration
 
-### No Forecast Data
+### No forecast data
 
 **Problem**: Optimization uses repeated current values instead of forecasts
 
@@ -467,7 +467,7 @@ A repair issue names the element, the input, and the sensors with no reading, an
 - Verify the integration is configured correctly
 - Review HAEO logs for format detection warnings
 
-### Input Cannot Be Negative
+### Input cannot be negative
 
 **Problem**: Error message "Input ... cannot be negative, but ... supplied ..."
 
@@ -481,7 +481,7 @@ A value further below zero stops optimization, and the error names the element, 
 - Fix the sign of the source, for example with a template sensor, if the integration reports the value inverted
 - Optimization resumes automatically once the sensor reports a valid value
 
-### Incorrect Values
+### Incorrect values
 
 **Problem**: Optimized values don't match expectations
 
@@ -492,15 +492,15 @@ A value further below zero stops optimization, and the error names the element, 
 - Forecast data quality from the source integration
 - Optimization horizon covers the relevant time period
 
-## Best Practices
+## Best practices
 
-### Update Frequency
+### Update frequency
 
 - **Pricing sensors**: Update before each optimization run (typically every 5-30 minutes)
 - **Solar forecasts**: Update hourly or when weather changes significantly
 - **Load forecasts**: Update based on your usage pattern changes
 
-### Data Resolution
+### Data resolution
 
 Data resolution is less critical than you might expect because HAEO interpolates all data to match your optimization intervals.
 However, higher resolution forecasts improve accuracy:
@@ -510,7 +510,7 @@ However, higher resolution forecasts improve accuracy:
 - Longer periods (30-60 minutes) can use coarser forecast intervals
 - Finer forecast data provides more accurate interpolation results
 
-### Data Quality
+### Data quality
 
 - Validate forecast accuracy periodically against actual outcomes
 - Use reputable forecast providers with proven track records

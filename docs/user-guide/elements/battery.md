@@ -24,10 +24,10 @@ A battery in HAEO represents:
 Battery configuration uses a sectioned flow where you enter the name, connection, and configure each input field.
 For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
 
-Fields configured with "Constant" create input entities that you can adjust at runtime without reconfiguring.
+Each field you configure creates an input entity; those set to "Constant" can be adjusted at runtime without reconfiguring.
 Optional fields set to "None" are omitted from the optimization entirely.
 
-## Configuration Fields
+## Configuration fields
 
 | Field                                                        | Type       | Required | Default | Description                                                |
 | ------------------------------------------------------------ | ---------- | -------- | ------- | ---------------------------------------------------------- |
@@ -111,7 +111,7 @@ A 5 kW discharge limit means at most 5 kW leaves the battery terminals, whatever
     Use the battery charge/discharge rating, not the inverter rating.
     Hybrid inverters often have separate ratings for battery power and inverter output power.
 
-### Salvage Value
+### Salvage value
 
 Value in \$/kWh assigned to stored energy at the end of the optimization horizon.
 This prevents the optimizer from draining the battery to zero when future value is still expected.
@@ -131,9 +131,9 @@ Raise it if your prices can spike high enough to make crossing a limit worthwhil
 Very large values make the optimization numerically harder, so stay within a few thousand.
 It cannot be negative, and a sensor that reports a negative value stops the optimization with an error.
 
-## Configuration Examples
+## Configuration examples
 
-### Basic Battery Configuration
+### Basic battery configuration
 
 A typical battery configuration with just the essential parameters:
 
@@ -167,52 +167,68 @@ To let the battery reach 5-95% while preferring 10-90%:
 
 HAEO then uses the outer 5% at each end only when the price difference outweighs the holding cost for as long as the battery stays there.
 
-### Input Entities
+### Input entities
 
-Each configuration field creates a corresponding input entity in Home Assistant.
+Each field you configure creates an input entity on the battery's device.
 Input entities appear as Number entities with the `config` entity category.
+Their IDs combine the battery's name with the entity's name, so a battery named "Battery" has `number.battery_capacity`.
 
-| Input                                     | Unit     | Description                          |
-| ----------------------------------------- | -------- | ------------------------------------ |
-| `number.{name}_capacity`                  | kWh      | Battery storage capacity             |
-| `number.{name}_initial_charge_percentage` | %        | Current state of charge from sensor  |
-| `number.{name}_min_charge_percentage`     | %        | Minimum SOC                          |
-| `number.{name}_max_charge_percentage`     | %        | Maximum SOC                          |
-| `number.{name}_max_power_target_source`   | kW       | Maximum charging power               |
-| `number.{name}_max_power_source_target`   | kW       | Maximum discharging power            |
-| `number.{name}_efficiency_source_target`  | %        | Discharge efficiency (if configured) |
-| `number.{name}_efficiency_target_source`  | %        | Charge efficiency (if configured)    |
-| `number.{name}_charge_cost`               | \$/kWh   | Charge cost (if configured)          |
-| `number.{name}_discharge_cost`            | \$/kWh   | Discharge cost (if configured)       |
-| `number.{name}_charge_limit_cost`         | \$/kWh/h | Limit cost                           |
+| Input                                | Unit     | Description                          |
+| ------------------------------------ | -------- | ------------------------------------ |
+| `number.{name}_capacity`             | kWh      | Battery storage capacity             |
+| `number.{name}_initial_charge`       | %        | Current state of charge              |
+| `number.{name}_min_charge`           | %        | Min charge percentage                |
+| `number.{name}_max_charge`           | %        | Max charge percentage                |
+| `number.{name}_max_charge_power`     | kW       | Maximum charging power               |
+| `number.{name}_max_discharge_power`  | kW       | Maximum discharging power            |
+| `number.{name}_discharge_efficiency` | %        | Discharge efficiency (if configured) |
+| `number.{name}_charge_efficiency`    | %        | Charge efficiency (if configured)    |
+| `number.{name}_salvage_value`        | \$/kWh   | Salvage value (if configured)        |
+| `number.{name}_limit_cost`           | \$/kWh/h | Limit cost                           |
+| `number.{name}_charge_cost`          | \$/kWh   | Charge cost (if configured)          |
+| `number.{name}_discharge_cost`       | \$/kWh   | Discharge cost (if configured)       |
+
+A field set to "Constant" can be adjusted from its input entity at runtime.
+A field linked to sensors shows the values HAEO reads from them.
 
 The charge and discharge cost inputs are surfaced from the [policy](../../walkthroughs/power-policies.md) rules they create.
 They appear on both the battery device and the Policies device; editing either updates the same stored value.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
-See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+See [How data updates work](../data-updates.md) for how input entities receive their values.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 A Battery element creates a single device in Home Assistant:
 
 - **Battery device** (`{name}`): Always created with total power, energy, SOC, and shadow price sensors
 
-### Battery Device Sensors
+### Battery device sensors
 
 These sensors appear on the battery device:
 
-| Sensor                                                       | Unit   | Description                     |
-| ------------------------------------------------------------ | ------ | ------------------------------- |
-| [`sensor.{name}_power_charge`](#charge-power)                | kW     | Charging power                  |
-| [`sensor.{name}_power_discharge`](#discharge-power)          | kW     | Discharging power               |
-| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh    | Current energy level            |
-| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %      | State of charge percentage      |
-| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kWh | Marginal value of energy stored |
+| Sensor                                                                    | Unit   | Description                     |
+| ------------------------------------------------------------------------- | ------ | ------------------------------- |
+| [`sensor.{name}_charge_power`](#charge-power)                             | kW     | Charging power                  |
+| [`sensor.{name}_discharge_power`](#discharge-power)                       | kW     | Discharging power               |
+| [`sensor.{name}_active_power`](#active-power)                             | kW     | Net power (discharge − charge)  |
+| [`sensor.{name}_energy_stored`](#energy-stored)                           | kWh    | Current energy level            |
+| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)                | %      | State of charge percentage      |
+| [`sensor.{name}_power_balance_shadow_price`](#power-balance-shadow-price) | \$/kWh | Marginal value of energy stored |
 
-### Charge Power
+The battery also creates these diagnostic shadow price sensors.
+They are disabled by default; enable them from the entity settings if you want to inspect them.
+
+| Sensor                                       | Unit   | Description                                               |
+| -------------------------------------------- | ------ | --------------------------------------------------------- |
+| `sensor.{name}_soc_min_shadow_price`         | \$/kWh | Value of lowering the min charge                          |
+| `sensor.{name}_soc_max_shadow_price`         | \$/kWh | Value of raising the max charge                           |
+| `sensor.{name}_energy_in_flow_shadow_price`  | \$/kWh | Value of the rule that charged energy cannot be undone    |
+| `sensor.{name}_energy_out_flow_shadow_price` | \$/kWh | Value of the rule that discharged energy cannot be undone |
+
+### Charge power
 
 The optimal charging power for this battery at each time period.
 
@@ -223,7 +239,7 @@ The energy stored rises by this power less the charge efficiency loss.
 
 **Example**: A value of 3.2 kW means the battery is charging at an average rate of 3.2 kW during this period, limited by the configured max charge power or other system constraints.
 
-### Discharge Power
+### Discharge power
 
 The optimal discharging power for this battery at each time period.
 
@@ -234,7 +250,13 @@ The energy stored falls by this power plus the discharge efficiency loss.
 
 **Example**: A value of 2.5 kW means the battery is discharging at an average rate of 2.5 kW during this period, providing power to loads or exporting to the grid.
 
-### Energy Stored
+### Active power
+
+The net power of the battery at each time period, calculated as discharge power minus charge power.
+
+Positive values mean the battery is discharging; negative values mean it is charging.
+
+### Energy stored
 
 The total energy stored in the battery.
 
@@ -243,7 +265,7 @@ Multiply by 100 and divide by capacity to get state of charge percentage.
 
 **Example**: A value of 12.5 kWh in a 15 kWh battery means 83.3% state of charge.
 
-### State of Charge Sensor
+### State of charge sensor
 
 The battery's state of charge as a percentage (0-100%).
 
@@ -252,7 +274,7 @@ Provides a convenient percentage view of the battery level.
 
 **Example**: A value of 75% means the battery has 75% of its capacity available.
 
-### Power Balance Shadow Price
+### Power balance shadow price
 
 The marginal value of energy stored in the battery, measured inside the charge and discharge efficiency.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -282,7 +304,7 @@ HAEO models batteries using a single storage element with separate charge and di
 
 ## Troubleshooting
 
-### Battery Not Charging/Discharging
+### Battery not charging/discharging
 
 If your battery remains idle:
 
@@ -290,9 +312,9 @@ If your battery remains idle:
     See the [forecasts page](../forecasts-and-sensors.md) for details.
 2. **Verify SOC sensor**: Ensure it's reporting correctly
 3. **Review constraints**: Too-tight SOC limits may prevent operation
-4. **Check connections**: Battery must be [connected](connections.md) to the network
+4. **Check connections**: Battery must be [connected](connection.md) to the network
 
-### Unrealistic SOC Predictions
+### Unrealistic SOC predictions
 
 If forecast SOC values seem wrong:
 
@@ -300,7 +322,7 @@ If forecast SOC values seem wrong:
 2. **Check efficiency**: Confirm charge and discharge efficiencies are set (use the same value in both directions if you only have a round-trip figure)
 3. **Review power limits**: Ensure they match your battery rating
 
-### SOC Sensor Issues
+### SOC sensor issues
 
 Common problems:
 
@@ -310,7 +332,7 @@ Common problems:
 
 See the [troubleshooting guide](../troubleshooting.md) for more solutions.
 
-## Multiple Batteries
+## Multiple batteries
 
 HAEO supports multiple batteries in the same network:
 
@@ -344,7 +366,7 @@ Build on your battery configuration with these guides.
 
     Create power flow links between your battery and the rest of the network.
 
-    [:material-arrow-right: Connection setup](connections.md)
+    [:material-arrow-right: Connection setup](connection.md)
 
 - :material-chart-line:{ .lg .middle } **View optimization results**
 

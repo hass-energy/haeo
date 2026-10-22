@@ -114,7 +114,7 @@ rules:
     comment: HAEO reads arbitrary Home Assistant sensors rather than talking to specific hardware.
   docs-supported-functions:
     status: done
-    comment: docs/user-guide/elements/ and docs/modeling/device-layer/ describe each element's inputs and output sensors.
+    comment: docs/user-guide/elements/ lists every element's input entities and output sensors with their entity IDs, and docs/user-guide/optimization.md lists the optimizer's.
   docs-troubleshooting:
     status: done
     comment: docs/user-guide/troubleshooting.md covers common problems.

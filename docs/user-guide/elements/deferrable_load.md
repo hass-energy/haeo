@@ -1,4 +1,4 @@
-# Deferrable Load
+# Deferrable load
 
 Deferrable loads are appliances that must consume a set amount of energy within scheduled time windows, but are flexible about exactly when inside each window — pool pumps, hot water systems, irrigation, or an EV charger driven in energy mode.
 
@@ -22,15 +22,15 @@ A deferrable load in HAEO represents:
 
 ## Configuration fields
 
-| Field                                   | Type   | Required | Default | Description                                     |
-| --------------------------------------- | ------ | -------- | ------- | ----------------------------------------------- |
-| **[Name](#name)**                       | String | Yes      | -       | Unique identifier (e.g., "Pool Pump")           |
-| **[Connection](#connection)**           | Select | Yes      | -       | Junction or inverter the load is attached to    |
-| **[Run window calendar](#run-windows)** | Entity | Yes      | -       | Calendar entity with run window events          |
-| **[Energy meter](#energy-meter)**       | Energy | No       | -       | Running total of the energy the device has used |
-| **[Shortfall price](#pricing)**         | Price  | Yes      | 10      | Cost per kWh the window fails to receive        |
-| **[Overage price](#pricing)**           | Price  | Yes      | 0       | Cost per kWh delivered beyond the requirement   |
-| **[Max power](#max-power)**             | Power  | No       | -       | Maximum power the device can draw               |
+| Field                                   | Type   | Required | Default | Description                                                                     |
+| --------------------------------------- | ------ | -------- | ------- | ------------------------------------------------------------------------------- |
+| **[Name](#name)**                       | String | Yes      | -       | Unique identifier (e.g., "Pool Pump")                                           |
+| **[Connection](#connection)**           | Select | Yes      | -       | [endpoint](connection.md#connection-endpoint-selection) the load is attached to |
+| **[Run window calendar](#run-windows)** | Entity | Yes      | -       | Calendar entity with run window events                                          |
+| **[Energy meter](#energy-meter)**       | Energy | No       | -       | Running total of the energy the device has used                                 |
+| **[Shortfall price](#pricing)**         | Price  | Yes      | 10      | Cost per kWh the window fails to receive                                        |
+| **[Overage price](#pricing)**           | Price  | Yes      | 0       | Cost per kWh delivered beyond the requirement                                   |
+| **[Max power](#max-power)**             | Power  | No       | -       | Maximum power the device can draw                                               |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -41,7 +41,7 @@ Home Assistant uses it for sensor names, so avoid symbols or abbreviations you w
 
 ### Connection
 
-Select the junction or inverter the load is attached to, typically your main switchboard.
+Select the [endpoint](connection.md#connection-endpoint-selection) the load is attached to, typically your main switchboard.
 
 ### Run windows
 
@@ -106,20 +106,38 @@ Each event is settled on its own: a missed event stays priced even if energy arr
 Set the power the device draws while running (e.g. 1.5 kW for a pool pump).
 The optimizer spreads the window's energy across the window at up to this power.
 
+## Input entities
+
+Each field you configure creates an input entity on the load's device.
+Input entities appear as Number entities with the `config` entity category.
+Their IDs combine the load's name with the entity's name, so a load named "Pool Pump" has `number.pool_pump_max_power`.
+
+| Input                                       | Unit   | Description                                                     |
+| ------------------------------------------- | ------ | --------------------------------------------------------------- |
+| `number.{name}_run_window`                  | -      | Whether each period is inside a window                          |
+| `number.{name}_window_start`                | -      | Where each window of overlapping events opens                   |
+| `number.{name}_energy_opening`              | kWh    | Energy of the events starting at each time                      |
+| `number.{name}_energy_due`                  | kWh    | Energy of the events ending at each time                        |
+| `number.{name}_energy_since_window_started` | kWh    | Energy used since the current window opened (if a meter is set) |
+| `number.{name}_max_power`                   | kW     | Max power (if configured)                                       |
+| `number.{name}_shortfall_price`             | \$/kWh | Shortfall price                                                 |
+| `number.{name}_overage_price`               | \$/kWh | Overage price                                                   |
+
+The first four show what HAEO reads from the run window calendar.
+A field set to "Constant" can be adjusted from its input entity at runtime.
+
 ## Sensors created
 
 The deferrable load element creates one device with the following sensors:
 
-| Sensor           | Unit | Description                                                |
-| ---------------- | ---- | ---------------------------------------------------------- |
-| Power            | kW   | Power drawn by the load                                    |
-| Energy delivered | kWh  | Energy delivered in the current window, reset at its start |
-| Energy shortfall | kWh  | Requirement the optimizer expects each window to miss      |
-| Energy overage   | kWh  | Energy planned beyond each window's requirement            |
+| Sensor                           | Unit | Description                                                |
+| -------------------------------- | ---- | ---------------------------------------------------------- |
+| `sensor.{name}_power`            | kW   | Power drawn by the load                                    |
+| `sensor.{name}_energy_delivered` | kWh  | Energy delivered in the current window, reset at its start |
+| `sensor.{name}_energy_shortfall` | kWh  | Requirement the optimizer expects each window to miss      |
+| `sensor.{name}_energy_overage`   | kWh  | Energy planned beyond each window's requirement            |
 
 All sensors include a `forecast` attribute with optimized future values — drive your appliance's switch from the power sensor's forecast.
-
-The run window calendar also creates four input entities showing what HAEO reads from it: **Run window** (whether each period is inside a window), **Window start** (where each window of overlapping events opens), **Energy opening** (the energy of the events starting at each time), and **Energy due** (the energy of the events ending at each time).
 
 ## Next steps
 

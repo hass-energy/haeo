@@ -5,14 +5,14 @@ They provide a DC bus for connecting batteries and solar panels, with bidirectio
 
 ## Configuration
 
-| Field                                         | Type                                  | Required | Default | Description                                            |
-| --------------------------------------------- | ------------------------------------- | -------- | ------- | ------------------------------------------------------ |
-| **[Name](#name)**                             | String                                | Yes      | -       | Unique identifier for this inverter                    |
-| **[Connection](#connection)**                 | Element                               | Yes      | -       | AC side node to connect to                             |
-| **[Max Power DC to AC](#max-power-dc-to-ac)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting DC to AC (kW)            |
-| **[Max Power AC to DC](#max-power-ac-to-dc)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting AC to DC (kW)            |
-| **Efficiency DC to AC**                       | Number (%)                            | No       | 100     | Efficiency percentage when inverting DC to AC (0-100)  |
-| **Efficiency AC to DC**                       | Number (%)                            | No       | 100     | Efficiency percentage when rectifying AC to DC (0-100) |
+| Field                                         | Type                                  | Required | Default | Description                                                                          |
+| --------------------------------------------- | ------------------------------------- | -------- | ------- | ------------------------------------------------------------------------------------ |
+| **[Name](#name)**                             | String                                | Yes      | -       | Unique identifier for this inverter                                                  |
+| **[Connection](#connection)**                 | Element                               | Yes      | -       | [Endpoint](connection.md#connection-endpoint-selection) on the AC side to connect to |
+| **[Max Power DC to AC](#max-power-dc-to-ac)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting DC to AC (kW)                                          |
+| **[Max Power AC to DC](#max-power-ac-to-dc)** | [sensor](../forecasts-and-sensors.md) | No       | -       | Maximum power when converting AC to DC (kW)                                          |
+| **Efficiency DC to AC**                       | Number (%)                            | No       | 100     | Efficiency percentage when inverting DC to AC (0-100)                                |
+| **Efficiency AC to DC**                       | Number (%)                            | No       | 100     | Efficiency percentage when rectifying AC to DC (0-100)                               |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -30,7 +30,7 @@ This is typically your home's main electrical bus, such as the Switchboard junct
 
 Other elements (batteries, solar panels) connect to the inverter's DC bus by specifying the inverter name as their connection target.
 
-## Max Power DC to AC
+## Max power DC to AC
 
 Maximum power the inverter can convert from DC to AC (inverting direction).
 Leave empty for unlimited power.
@@ -40,7 +40,7 @@ The limit applies on the AC side, so a 5 kW limit means at most 5 kW reaches the
 
 Use a sensor to model time-varying power limits, or an input number helper for a constant value.
 
-## Max Power AC to DC
+## Max power AC to DC
 
 Maximum power the inverter can convert from AC to DC (rectifying direction).
 Leave empty for unlimited power.
@@ -64,9 +64,9 @@ Rectifying efficiency may differ from inverting efficiency.
 
 **Default**: 100% (no losses)
 
-## Configuration Examples
+## Configuration examples
 
-### Basic Hybrid Inverter
+### Basic hybrid inverter
 
 | Field                   | Value         |
 | ----------------------- | ------------- |
@@ -75,7 +75,7 @@ Rectifying efficiency may differ from inverting efficiency.
 | **Efficiency DC to AC** | 97.0          |
 | **Efficiency AC to DC** | 97.0          |
 
-### With Power Limits
+### With power limits
 
 | Field                   | Value                        |
 | ----------------------- | ---------------------------- |
@@ -86,7 +86,7 @@ Rectifying efficiency may differ from inverting efficiency.
 | **Max Power DC to AC**  | input_number.inverter_rating |
 | **Max Power AC to DC**  | input_number.inverter_rating |
 
-### Asymmetric Power Ratings
+### Asymmetric power ratings
 
 Some inverters have different power ratings for inverting vs. rectifying.
 
@@ -99,52 +99,56 @@ Some inverters have different power ratings for inverting vs. rectifying.
 | **Max Power DC to AC**  | input_number.inverter_max_5kw |
 | **Max Power AC to DC**  | input_number.inverter_max_3kw |
 
-### Input Entities
+### Input entities
 
-Each configuration field creates a corresponding input entity in Home Assistant.
+Each field you configure creates an input entity on the inverter's device.
 Input entities appear as Number entities with the `config` entity category.
+Their IDs combine the inverter's name with the entity's name, so an inverter named "Inverter" has `number.inverter_max_dc_to_ac_power`.
 
-| Input                                    | Unit | Description                            |
-| ---------------------------------------- | ---- | -------------------------------------- |
-| `number.{name}_max_power_source_target`  | kW   | Maximum DC to AC power (if configured) |
-| `number.{name}_max_power_target_source`  | kW   | Maximum AC to DC power (if configured) |
-| `number.{name}_efficiency_source_target` | %    | Efficiency DC to AC (if configured)    |
-| `number.{name}_efficiency_target_source` | %    | Efficiency AC to DC (if configured)    |
+| Input                               | Unit | Description                            |
+| ----------------------------------- | ---- | -------------------------------------- |
+| `number.{name}_max_dc_to_ac_power`  | kW   | Maximum DC to AC power (if configured) |
+| `number.{name}_max_ac_to_dc_power`  | kW   | Maximum AC to DC power (if configured) |
+| `number.{name}_dc_to_ac_efficiency` | %    | Efficiency DC to AC (if configured)    |
+| `number.{name}_ac_to_dc_efficiency` | %    | Efficiency AC to DC (if configured)    |
+
+A field set to "Constant" can be adjusted from its input entity at runtime.
+A field linked to sensors shows the values HAEO reads from them.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
-See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+See [How data updates work](../data-updates.md) for how input entities receive their values.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 An Inverter element creates 1 device in Home Assistant with the following sensors.
-Not all sensors are created for every inverter - only those relevant to the configuration.
+The max power shadow price sensors are only created when the corresponding power limit is configured.
 
-| Sensor                                                        | Unit   | Description                              |
-| ------------------------------------------------------------- | ------ | ---------------------------------------- |
-| [`sensor.{name}_power_dc_to_ac`](#dc-to-ac-power)             | kW     | Power flowing from DC to AC (inverting)  |
-| [`sensor.{name}_power_ac_to_dc`](#ac-to-dc-power)             | kW     | Power flowing from AC to DC (rectifying) |
-| [`sensor.{name}_power_active`](#active-power)                 | kW     | Net power (DC to AC - AC to DC)          |
-| [`sensor.{name}_dc_bus_power_balance`](#dc-bus-power-balance) | \$/kWh | DC bus power balance shadow price        |
-| [`sensor.{name}_max_power_dc_to_ac_price`](#shadow-prices)    | \$/kWh | Maximum DC to AC power shadow price      |
-| [`sensor.{name}_max_power_ac_to_dc_price`](#shadow-prices)    | \$/kWh | Maximum AC to DC power shadow price      |
+| Sensor                                                                                  | Unit   | Description                              |
+| --------------------------------------------------------------------------------------- | ------ | ---------------------------------------- |
+| [`sensor.{name}_dc_to_ac_power`](#dc-to-ac-power)                                       | kW     | Power flowing from DC to AC (inverting)  |
+| [`sensor.{name}_ac_to_dc_power`](#ac-to-dc-power)                                       | kW     | Power flowing from AC to DC (rectifying) |
+| [`sensor.{name}_active_power`](#active-power)                                           | kW     | Net power (DC to AC - AC to DC)          |
+| [`sensor.{name}_dc_bus_power_balance_shadow_price`](#dc-bus-power-balance-shadow-price) | \$/kWh | DC bus power balance shadow price        |
+| [`sensor.{name}_max_dc_to_ac_power_shadow_price`](#shadow-prices)                       | \$/kWh | Maximum DC to AC power shadow price      |
+| [`sensor.{name}_max_ac_to_dc_power_shadow_price`](#shadow-prices)                       | \$/kWh | Maximum AC to DC power shadow price      |
 
-### DC to AC Power
+### DC to AC power
 
 The optimal power flowing from the DC bus to the AC network (inverting direction), measured on the AC side.
 Values are always positive or zero.
 
 **Example**: A value of 3.5 kW means the inverter is converting 3.5 kW from DC to AC at this time period.
 
-### AC to DC Power
+### AC to DC power
 
 The optimal power flowing from the AC network to the DC bus (rectifying direction), measured on the AC side.
 Values are always positive or zero.
 
 **Example**: A value of 2.0 kW means the inverter is converting 2.0 kW from AC to DC at this time period.
 
-### Active Power
+### Active power
 
 The net power flow through the inverter (DC to AC minus AC to DC), measured on the AC side.
 Positive values indicate net DC to AC conversion.
@@ -152,7 +156,7 @@ Negative values indicate net AC to DC conversion.
 
 **Example**: A value of 1.5 kW means the inverter is net converting 1.5 kW from DC to AC (e.g., 3.5 kW DC to AC and 2.0 kW AC to DC).
 
-### DC Bus Power Balance
+### DC bus power balance shadow price
 
 The marginal value of power balance at the DC bus.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -166,7 +170,7 @@ This shadow price shows how much the total system cost would decrease if the DC 
     - The value shows how much system cost would decrease if the balance constraint were relaxed
     - Helps identify when DC devices (batteries, solar) are not optimally balanced
 
-### Shadow Prices
+### Shadow prices
 
 The marginal value of additional power capacity in each direction.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -186,13 +190,6 @@ Only created when the corresponding power limit is configured.
 All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
 ## Troubleshooting
-
-### Inverter not appearing in connection selectors
-
-**Problem**: Other elements cannot select the inverter as a connection target.
-
-**Solution**: Verify the inverter name matches exactly.
-Connection selectors show all configured elements that can be used as endpoints.
 
 ### DC bus power balance issues
 
@@ -219,7 +216,7 @@ Avoid using 100% efficiency unless your inverter truly has no losses.
 
     Connect batteries and solar panels to the inverter's DC bus.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 - :material-battery-charging:{ .lg .middle } **Configure battery**
 

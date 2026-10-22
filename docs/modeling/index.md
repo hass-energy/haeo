@@ -1,9 +1,9 @@
-# Network Optimization Overview
+# Network optimization overview
 
 HAEO uses linear programming to optimize energy flows across your network.
 This page explains the high-level architecture and mathematical foundations.
 
-## Layered Architecture
+## Layered architecture
 
 HAEO separates user configuration from mathematical modeling through a layered architecture:
 
@@ -17,7 +17,7 @@ See [Model Layer](model-layer/index.md).
 
 This separation enables composition flexibility—a single Device Layer element can create multiple Model Layer elements to achieve complex behavior (e.g., Battery creates both a battery model for SOC tracking and a connection model for power flow).
 
-## Linear Programming Overview
+## Linear programming overview
 
 Linear programming finds optimal values for decision variables that minimize (or maximize) an objective function subject to linear constraints.
 
@@ -56,13 +56,13 @@ It delivers a global optimum when a feasible solution exists and scales well as 
     **Deferrable loads follow that approach**: a [deferrable load](model-layer/elements/deferrable_load.md) is pure LP, with each window's requirement settled at its end and any shortfall priced rather than enforced.
     Loads that need a discrete **run-now** decision, such as fixed-power appliances that cannot modulate, are still fixed or forecast consumption, or scheduled externally (for example via EMHASS) and passed in as inputs.
 
-## Mathematical Model Structure
+## Mathematical model structure
 
 HAEO formulates energy system optimization as a network where elements contribute to a unified linear program.
 Each element defines its own decision variables, constraints, and cost terms.
 The network aggregates these contributions into a single optimization problem.
 
-### Model Aggregation
+### Model aggregation
 
 The complete optimization problem is built by combining contributions from all elements:
 
@@ -75,7 +75,7 @@ The complete constraint set is the union of all element constraints plus network
 **Objective function**: Each element contributes cost terms.
 The objective minimizes the sum of all element costs.
 
-### Solution Process
+### Solution process
 
 Optimization is lexicographic: the plan has the lowest cost, and among equally cheap plans, the lowest secondary time-preference objective.
 The secondary breaks ties among cost-equivalent solutions by preferring earlier energy transfers.
@@ -101,7 +101,7 @@ The primary objective is priced last, so its dual values at the plan's basis are
 The secondary's reduced costs are scaled by the small blend weight, so the solver runs with feasibility tolerances of $10^{-9}$ rather than the HiGHS default of $10^{-7}$.
 At the default, tie-breaking differences can fall below the tolerance and leave equally cheap plans unresolved.
 
-### Solution Outcomes
+### Solution outcomes
 
 - **Optimal solution**: Satisfies all constraints with minimum total cost and deterministic tie-breaking
 - **Infeasible**: No solution exists that satisfies all constraints simultaneously
@@ -115,7 +115,7 @@ A power balance row weighs 1 and every other row 1000, so a shortfall lands at a
 The violated rows are widened to the values the relaxation found, the model is solved for cost as usual, and the rows are restored.
 The relaxation does not see the cost, so the violation is minimal but where it falls is not chosen by cost.
 
-## Network Structure
+## Network structure
 
 HAEO models energy systems as directed graphs:
 
@@ -133,12 +133,12 @@ graph LR
     class Node emphasis
 ```
 
-### Element Registration
+### Element registration
 
 When a connection is added to the network, it registers itself with its source and target elements.
 This allows elements to track their incoming and outgoing connections for constraint generation.
 
-### Network Validation
+### Network validation
 
 Before optimization, the network validates its structure:
 
@@ -148,7 +148,7 @@ Before optimization, the network validates its structure:
 
 This validation ensures the network forms a valid directed graph before attempting optimization.
 
-## Time Discretization
+## Time discretization
 
 The optimization horizon is divided into $T$ discrete periods (time steps) whose durations can vary.
 The horizon is defined by its $T + 1$ period boundaries, which come from the hub's planning horizon setting:
@@ -160,7 +160,7 @@ The horizon is defined by its $T + 1$ period boundaries, which come from the hub
 Fine near-term periods give precise control over immediate decisions, while coarse distant periods keep the problem small across a multi-day lookahead.
 Each decision variable exists for every time step, but interval durations vary.
 
-## Power and Energy Discretization
+## Power and energy discretization
 
 HAEO distinguishes between two types of measurements across the optimization horizon:
 
@@ -205,11 +205,11 @@ $$
 
 Where $\Delta t_t$ is the duration of interval $t$ in hours (varies across the horizon).
 
-## Decision Variables and Constraints
+## Decision variables and constraints
 
 The complete optimization problem includes decision variables and constraints from all network elements.
 
-### Variable Structure
+### Variable structure
 
 **Power variables** represent average power over each time period.
 These are interval measurements spanning the optimization horizon with $T$ values.
@@ -219,7 +219,7 @@ These are point measurements with $T+1$ values.
 
 Each element contributes its own variables based on its physical role (power flows, energy storage, curtailment decisions).
 
-### Constraint Structure
+### Constraint structure
 
 **Element constraints** govern individual element behavior (capacity limits, efficiency losses, operating bounds).
 
@@ -227,7 +227,7 @@ Each element contributes its own variables based on its physical role (power flo
 
 The complete constraint set ensures physically feasible operation while allowing optimization across the network.
 
-## Objective Function
+## Objective function
 
 The optimization uses a lexicographic two-objective formulation.
 

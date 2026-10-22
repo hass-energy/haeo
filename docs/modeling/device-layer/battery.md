@@ -1,9 +1,9 @@
-# Battery Modeling
+# Battery modeling
 
 The Battery device composes a single [Battery model](../model-layer/elements/battery.md) element and two [Connections](../model-layer/connections/connection.md), one for discharging and one for charging.
 The min and max charge are limits on the battery element itself.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -27,7 +27,7 @@ The adapter creates three model elements:
 | [Connection](../model-layer/connections/connection.md) | `{name}:discharge` | Efficiency, power limits                                    |
 | [Connection](../model-layer/connections/connection.md) | `{name}:charge`    | Power limits, efficiency                                    |
 
-## Architecture Details
+## Architecture details
 
 ### Charge limits
 
@@ -75,7 +75,7 @@ The battery element can include a terminal salvage value.
 This assigns a per-kWh value to the final stored energy at the horizon end.
 It discourages draining the battery to zero when energy is still valuable beyond the forecast window.
 
-## Devices Created
+## Devices created
 
 Battery creates a single Home Assistant device:
 
@@ -98,24 +98,11 @@ Battery creates a single Home Assistant device:
 | `max_power_target_source`   | Power-limit segment | `max_power_target_source`  | Network to battery             |
 | `max_power_source_target`   | Power-limit segment | `max_power_source_target`  | Battery to network             |
 
-## Output Mapping
+## Output mapping
 
-Power sensors come from the bus end of the connections, and the remaining sensors from the battery element:
+Power sensors come from the bus end of the connections, and the remaining sensors from the battery element.
 
-| Model Output                              | Sensor Name                         | Description                  |
-| ----------------------------------------- | ----------------------------------- | ---------------------------- |
-| `{name}:charge` `CONNECTION_POWER`        | `power_charge`                      | Charge power at terminals    |
-| `{name}:discharge` `CONNECTION_POWER_OUT` | `power_discharge`                   | Discharge power at terminals |
-| Calculated as discharge minus charge      | `power_active`                      | Net power at terminals       |
-| `BATTERY_ENERGY_STORED`                   | `energy_stored`                     | Total energy stored          |
-| Calculated SOC                            | `state_of_charge`                   | State of charge              |
-| `BATTERY_POWER_BALANCE`                   | `power_balance_shadow_energy_price` | Power balance shadow price   |
-| `BATTERY_ENERGY_IN_FLOW`                  | `energy_in_flow`                    | Energy-in shadow price       |
-| `BATTERY_ENERGY_OUT_FLOW`                 | `energy_out_flow`                   | Energy-out shadow price      |
-| `BATTERY_SOC_MAX`                         | `soc_max`                           | Max SOC shadow price         |
-| `BATTERY_SOC_MIN`                         | `soc_min`                           | Min SOC shadow price         |
-
-See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created) for complete sensor documentation.
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/battery.md#sensors-created) on the Battery page.
 
 ## Next steps
 

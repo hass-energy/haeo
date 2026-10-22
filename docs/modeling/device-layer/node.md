@@ -1,10 +1,10 @@
-# Node Modeling
+# Node modeling
 
 The Node device composes a [Node](../model-layer/elements/node.md) model element with user-configured source and sink flags.
 It represents a point that can produce and/or consume unlimited power at no cost.
 For a pure power balance point, see [Junction](junction.md).
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -19,7 +19,7 @@ graph LR
 
 Node creates only a Node model element with no implicit Connection.
 
-## Devices Created
+## Devices created
 
 Node creates 1 device in Home Assistant:
 
@@ -27,7 +27,7 @@ Node creates 1 device in Home Assistant:
 | ------- | -------- | ------------ | ------------------------------------- |
 | Primary | `{name}` | Always       | Unlimited source and/or sink of power |
 
-## Parameter Mapping
+## Parameter mapping
 
 The adapter transforms user configuration into model parameters:
 
@@ -49,17 +49,11 @@ The Node model element places no bound or cost on the power it produces or consu
 The connections attached to a source or sink node must carry the power limits and prices.
 Without them, the optimizer can fabricate energy at a source node or discard it for free at a sink node.
 
-## Sensors Created
+## Sensors created
 
-### Node Device
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/node.md#sensors-created) on the Node page.
 
-| Sensor          | Unit   | Update    | Description                        |
-| --------------- | ------ | --------- | ---------------------------------- |
-| `power_balance` | \$/kWh | Real-time | Shadow price of power at this node |
-
-See [Node Configuration](../../user-guide/elements/node.md) for detailed sensor and configuration documentation.
-
-## Physical Interpretation
+## Physical interpretation
 
 A source or sink node represents an external supply or demand whose limits and prices are modeled on its connections rather than on the node itself.
 It is a building block for custom endpoints that the dedicated device elements do not cover.

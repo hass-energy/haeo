@@ -12,7 +12,7 @@ Use it to build a custom endpoint when no other element fits, and put the limits
 !!! danger "Attach a node only through a limiting, priced connection"
 
     A node that can produce or consume power does so without any limit or price of its own.
-    Connect it to the rest of your network only through [connections](connections.md) that set a power limit and a price.
+    Connect it to the rest of your network only through [connections](connection.md) that set a power limit and a price.
     Connections are one-way, so a node that both produces and consumes power needs a limited, priced connection in each direction.
     Without them, the optimizer can create free power from a source node or dump power for free into a sink node, and the resulting plan will not be physically meaningful.
 
@@ -33,21 +33,21 @@ Used to identify the node in connection endpoints.
 
 Choose descriptive names based on what the node represents: "Generator", "Neighbor Supply", "Dump Load"
 
-## Is Source
+## Is source
 
 Whether this node can produce power.
 When on, the node can supply any amount of power that flows out through its connections.
 
 **Default**: off (node cannot produce power)
 
-## Is Sink
+## Is sink
 
 Whether this node can consume power.
 When on, the node can absorb any amount of power that flows in through its connections.
 
 **Default**: off (node cannot consume power)
 
-### Source and Sink Combinations
+### Source and sink combinations
 
 The combination of `is_source` and `is_sink` determines the node's behavior:
 
@@ -82,7 +82,7 @@ The combination of `is_source` and `is_sink` determines the node's behavior:
     Sinks terminate a policy's provenance — a `source=X → destination=Y` rule cannot see past an intermediate sink.
     See [Node roles and policy scope](../../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
 
-## Configuration Example
+## Configuration example
 
 A backup generator modeled as a source node:
 
@@ -99,10 +99,11 @@ Then add a connection from "Generator" to your switchboard with a maximum power 
     If you delete a node element, you must update all connections that reference it.
     Connections cannot have endpoints that don't exist.
 
-### Input Entities
+### Input entities
 
-Each configuration option creates a corresponding input entity in Home Assistant.
+Each option creates an input entity on the node's device.
 Input entities appear as Switch entities with the `config` entity category.
+Their IDs combine the node's name with the entity's name.
 Because they are entities, you can switch a node's role at runtime, for example from an automation.
 
 | Input                     | Description                              |
@@ -111,23 +112,23 @@ Because they are entities, you can switch a node's role at runtime, for example 
 | `switch.{name}_is_sink`   | Whether node can consume unlimited power |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
-See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+See [How data updates work](../data-updates.md) for how input entities receive their values.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 A Node element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                       | Unit   | Description                     |
-| ------------------------------------------------------------ | ------ | ------------------------------- |
-| [`sensor.{name}_power_balance_shadow_price`](#power-balance) | \$/kWh | Local energy price at this node |
+| Sensor                                                                    | Unit   | Description                     |
+| ------------------------------------------------------------------------- | ------ | ------------------------------- |
+| [`sensor.{name}_power_balance_shadow_price`](#power-balance-shadow-price) | \$/kWh | Local energy price at this node |
 
-### Power Balance
+### Power balance shadow price
 
 Displayed as "Power balance shadow price".
 The marginal cost or value of power at this node.
-It is interpreted the same way as the [junction power balance sensor](junction.md#power-balance).
+It is interpreted the same way as the [junction power balance sensor](junction.md#power-balance-shadow-price).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
 ---
@@ -151,7 +152,7 @@ Add a limit and a price to every connection to or from the node.
 
     Set the limits and prices on the connections to your node.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Connections guide](connection.md)
 
 - :material-source-branch:{ .lg .middle } **Junctions**
 

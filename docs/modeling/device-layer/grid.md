@@ -1,28 +1,32 @@
-# Grid Modeling
+# Grid modeling
 
-The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connections/connection.md) to model utility grid connections with time-varying import and export pricing.
+The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectional power source/sink) with two implicit one-way [Connections](../model-layer/connections/connection.md), one for import and one for export, to model utility grid connections with time-varying import and export pricing.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
     subgraph "Device"
         SS["Node<br/>(is_source=true, is_sink=true)"]
-        Conn["Connection<br/>{name}:connection"]
+        Import["Connection<br/>{name}:import"]
+        Export["Connection<br/>{name}:export"]
     end
 
     Node[Connection Target]
 
-    SS <-->|linked via| Conn
-    Conn <-->|connects to| Node
+    SS --> Import
+    Import --> Node
+    Node --> Export
+    Export --> SS
 ```
 
-| Model Element                                          | Name                | Parameters From Configuration          |
-| ------------------------------------------------------ | ------------------- | -------------------------------------- |
-| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=true, is_sink=true           |
-| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit and pricing segment values |
+| Model Element                                          | Name            | Parameters From Configuration         |
+| ------------------------------------------------------ | --------------- | ------------------------------------- |
+| [Node](../model-layer/elements/node.md)                | `{name}`        | is_source=true, is_sink=true          |
+| [Connection](../model-layer/connections/connection.md) | `{name}:import` | import limit and import price         |
+| [Connection](../model-layer/connections/connection.md) | `{name}:export` | export limit and negated export price |
 
-## Devices Created
+## Devices created
 
 Grid creates 1 device in Home Assistant:
 
@@ -32,42 +36,25 @@ Grid creates 1 device in Home Assistant:
 
 ## Parameter mapping
 
-The adapter transforms user configuration into connection segments:
+The adapter transforms user configuration into segments on the import and export connections:
 
-| User Configuration        | Segment           | Segment Field             | Notes                                   |
-| ------------------------- | ----------------- | ------------------------- | --------------------------------------- |
-| `price_source_target`     | PricingSegment    | `price_source_target`     | Cost per kWh imported                   |
-| `price_target_source`     | PricingSegment    | `price_target_source`     | Stored as negative to represent revenue |
-| `max_power_source_target` | PowerLimitSegment | `max_power_source_target` | Maximum import power (optional)         |
-| `max_power_target_source` | PowerLimitSegment | `max_power_target_source` | Maximum export power (optional)         |
-| `connection`              | Connection        | `target`                  | Node to connect to                      |
-| —                         | Node              | `is_source=true`          | Grid can supply power                   |
-| —                         | Node              | `is_sink=true`            | Grid can absorb power                   |
+| User Configuration        | Segment           | Segment Field                    | Notes                                   |
+| ------------------------- | ----------------- | -------------------------------- | --------------------------------------- |
+| `price_source_target`     | PricingSegment    | `{name}:import` `price`          | Cost per kWh imported                   |
+| `price_target_source`     | PricingSegment    | `{name}:export` `price`          | Stored as negative to represent revenue |
+| `max_power_source_target` | PowerLimitSegment | `{name}:import` `max_power`      | Maximum import power (optional)         |
+| `max_power_target_source` | PowerLimitSegment | `{name}:export` `max_power`      | Maximum export power (optional)         |
+| `connection`              | Connection        | import `target`, export `source` | Endpoint to connect to                  |
+| —                         | Node              | `is_source=true`                 | Grid can supply power                   |
+| —                         | Node              | `is_sink=true`                   | Grid can absorb power                   |
 
-## Sensors Created
+## Sensors created
 
-### Grid Device
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/grid.md#sensors-created) on the Grid page.
 
-| Sensor                   | Unit     | Update    | Description                        |
-| ------------------------ | -------- | --------- | ---------------------------------- |
-| `power_import`           | kW       | Real-time | Import power                       |
-| `power_export`           | kW       | Real-time | Export power                       |
-| `cost_import`            | \$       | Real-time | Cost of imports (when priced)      |
-| `cost_export`            | \$       | Real-time | Revenue from exports (when priced) |
-| `cost_net`               | \$       | Real-time | Net cost (when any price exists)   |
-| `power_max_import`       | kW       | Real-time | Max import power (when limited)    |
-| `power_max_export`       | kW       | Real-time | Max export power (when limited)    |
-| `power_max_import_price` | \\\$/kWh | Real-time | Max import power shadow price      |
-| `power_max_export_price` | \\\$/kWh | Real-time | Max export power shadow price      |
+## Configuration examples
 
-The `power_max_*` sensors are only created when the corresponding limit is configured.
-The `cost_*` sensors are only created when the corresponding price is configured.
-
-See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor and configuration documentation.
-
-## Configuration Examples
-
-### Time-of-Use Pricing
+### Time-of-use pricing
 
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
@@ -76,7 +63,7 @@ See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor 
 | **Export Price** | sensor.electricity_export_price |
 | **Connection**   | Home Bus                        |
 
-### With Capacity Limits
+### With capacity limits
 
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
@@ -87,7 +74,7 @@ See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor 
 | **Export Limit** | 5.0                             |
 | **Connection**   | Home Bus                        |
 
-## Typical Use Cases
+## Typical use cases
 
 **Time-of-Use Optimization**:
 Grid with time-varying prices enables battery arbitrage—charge during low prices, discharge during high prices.
@@ -98,11 +85,11 @@ Configure export pricing to model solar export revenue and optimize when to expo
 **Demand-Limited Connections**:
 Use import/export limits to model connection capacity constraints and prevent exceeding utility limits.
 
-## Physical Interpretation
+## Physical interpretation
 
 Grid represents the utility connection that can supply power (import) when local generation is insufficient, or absorb excess power (export) from solar or battery discharge.
 
-### Configuration Guidelines
+### Configuration guidelines
 
 - **Import/Export Pricing**: Use [sensor](../../user-guide/forecasts-and-sensors.md) or [forecast](../../user-guide/forecasts-and-sensors.md) for time-varying prices. Ensure export prices are always less than import prices to prevent unrealistic arbitrage.
 - **Power Limits**: Configure limits to model connection capacity constraints. If omitted, grid has unlimited capacity.

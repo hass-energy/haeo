@@ -1,8 +1,8 @@
-# Solar Modeling
+# Solar modeling
 
 The Solar device composes a [Node](../model-layer/elements/node.md) (power source only) with an implicit [Connection](../model-layer/connections/connection.md) to model solar generation with optional curtailment.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -22,7 +22,7 @@ graph LR
 | [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=true, is_sink=false |
 | [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit segment values    |
 
-## Devices Created
+## Devices created
 
 Solar creates 1 device in Home Assistant:
 
@@ -42,20 +42,13 @@ The adapter transforms user configuration into connection segments:
 | —                  | Node              | `is_source=true`          | Solar provides power              |
 | —                  | Node              | `is_sink=false`           | Solar cannot consume power        |
 
-## Sensors Created
+## Sensors created
 
-### Solar Device
+The sensors this element creates, with their entity IDs, are listed under [Sensors created](../../user-guide/elements/solar.md#sensors-created) on the Solar page.
 
-| Sensor           | Unit   | Update    | Description                             |
-| ---------------- | ------ | --------- | --------------------------------------- |
-| `power`          | kW     | Real-time | Actual power generated                  |
-| `forecast_limit` | \$/kWh | Real-time | Value of additional generation capacity |
+## Configuration examples
 
-See [Solar Configuration](../../user-guide/elements/solar.md) for detailed sensor and configuration documentation.
-
-## Configuration Examples
-
-### Standard Solar (No Curtailment)
+### Standard solar (no curtailment)
 
 | Field           | Value                                |
 | --------------- | ------------------------------------ |
@@ -64,7 +57,7 @@ See [Solar Configuration](../../user-guide/elements/solar.md) for detailed senso
 | **Curtailment** | false                                |
 | **Connection**  | Home Bus                             |
 
-### With Curtailment Enabled
+### With curtailment enabled
 
 | Field           | Value                                |
 | --------------- | ------------------------------------ |
@@ -73,7 +66,7 @@ See [Solar Configuration](../../user-guide/elements/solar.md) for detailed senso
 | **Curtailment** | true                                 |
 | **Connection**  | Home Bus                             |
 
-## Typical Use Cases
+## Typical use cases
 
 **Standard Solar**:
 Leave curtailment enabled (default) so the optimizer can reduce generation when beneficial.
@@ -86,11 +79,11 @@ Optimizer will curtail generation when it's economically beneficial to avoid pay
 **Export-Limited Systems**:
 Curtailment allows optimizer to stay within export limits while managing battery and load efficiently.
 
-## Physical Interpretation
+## Physical interpretation
 
 Solar represents a solar generation system that produces power based on weather forecasts and system capacity.
 
-### Configuration Guidelines
+### Configuration guidelines
 
 - **Forecast Accuracy**:
     Critical for optimization quality.
