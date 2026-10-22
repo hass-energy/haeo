@@ -17,7 +17,7 @@ from custom_components.haeo.unique_id import element_unique_id, hub_unique_id
 
 
 async def test_number_entities_of_inputs_now_switches_are_removed(hass: HomeAssistant) -> None:
-    """An EV's plugged-in number is removed, so it does not linger beside the switch replacing it."""
+    """An EV's plugged-in and away numbers are removed, so they do not linger beside the switches replacing them."""
     entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=4)
     entry.add_to_hass(hass)
     ev = ConfigSubentry(
@@ -41,6 +41,7 @@ async def test_number_entities_of_inputs_now_switches_are_removed(hass: HomeAssi
 
     plugged_in = register("number", element_unique_id(entry.entry_id, ev.subentry_id, "connected"))
     plugged_in_switch = register("switch", element_unique_id(entry.entry_id, ev.subentry_id, "connected"))
+    away = register("number", element_unique_id(entry.entry_id, ev.subentry_id, "away"))
     capacity = register("number", element_unique_id(entry.entry_id, ev.subentry_id, "capacity"))
     hub_number = register("number", hub_unique_id(entry.entry_id, "debounce"))
 
@@ -48,6 +49,7 @@ async def test_number_entities_of_inputs_now_switches_are_removed(hass: HomeAssi
 
     assert registry.async_get(plugged_in) is None
     assert registry.async_get(plugged_in_switch) is not None
+    assert registry.async_get(away) is None
     assert registry.async_get(capacity) is not None
     assert registry.async_get(hub_number) is not None
     assert entry.minor_version == v1_5.MINOR_VERSION

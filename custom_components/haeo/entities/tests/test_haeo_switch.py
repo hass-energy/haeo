@@ -12,12 +12,15 @@ from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity_platform import EntityPlatform
+from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode, create_input_store
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import (
     SchemaValue,
@@ -33,8 +36,8 @@ from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
-from custom_components.haeo.elements import find_nested_config_path
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements import find_nested_config_path, get_input_fields, iter_input_field_paths
+from custom_components.haeo.elements.input_fields import InputFieldInfo, is_switch_field_info
 from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputSwitch
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.horizon import HorizonManager
@@ -172,6 +175,7 @@ def _make_switch_entity(
         direction=field_info.direction,
         time_series=field_info.time_series,
         boundaries=field_info.boundaries,
+        calendar=field_info.calendar,
     )
     store = create_input_store(
         value=get_nested_config_value_by_path(subentry.data, fp),
@@ -887,3 +891,50 @@ async def test_unrecorded_attributes_based_on_config(
         assert entity._state_info["unrecorded_attributes"] == FORECAST_UNRECORDED_ATTRIBUTES
     else:
         assert entity._state_info["unrecorded_attributes"] == frozenset()
+
+
+async def test_calendar_availability_switch_shows_each_period(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """An availability input read from a calendar is a switch on for now, with each period's value as its forecast."""
+    field_info = next(
+        info
+        for _path, info in iter_input_field_paths(get_input_fields(ElementType.EV))
+        if info.output_type is OutputType.AVAILABILITY and info.calendar is not None
+    )
+    assert is_switch_field_info(field_info)
+    assert field_info.source_field is not None
+    assert field_info.calendar is not None
+    timestamps = horizon_manager.get_forecast_timestamps()
+    subentry = _create_subentry("Test EV", {field_info.source_field: "calendar.trips"})
+    config_entry.runtime_data = None
+    entity = _make_switch_entity(
+        hass,
+        config_entry,
+        subentry,
+        field_info,
+        device_entry,
+        horizon_manager,
+        field_path=(SECTION_CURTAILMENT, field_info.source_field),
+    )
+    await _add_entity_to_hass(hass, entity)
+
+    # A trip covering the second period only
+    event = {
+        "start": dt_util.utc_from_timestamp(timestamps[1]).isoformat(),
+        "end": dt_util.utc_from_timestamp(timestamps[2]).isoformat(),
+        "summary": "Trip",
+        "location": None,
+        "description": None,
+    }
+    calendar = FakeEntityState("calendar.trips", "off", {CALENDAR_EVENTS_ATTRIBUTE: [event]})
+    assert entity._store.resolve_from_sources(FakeStateMachine({"calendar.trips": calendar}))
+    entity._store.notify_listeners()
+
+    assert entity.is_on is False
+    assert _forecast_points(entity) == [(timestamps[0], False), (timestamps[1], True)]
+    assert entity.extra_state_attributes is not None
+    assert entity.extra_state_attributes["calendar_projection"] == field_info.calendar.projection

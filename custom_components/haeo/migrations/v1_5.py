@@ -1,7 +1,8 @@
 """Migration for config entry version 1.5.
 
 Removes the number entities of inputs that are now switches, such as whether
-an EV is plugged in, so they do not linger beside the switches that replace them.
+an EV is plugged in and the availability read from calendars, so they do not
+linger beside the switches that replace them.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.elements import get_input_fields
+from custom_components.haeo.elements import get_input_fields, iter_input_field_paths
 from custom_components.haeo.elements.input_fields import is_switch_field_info
 from custom_components.haeo.unique_id import parse_element_unique_id
 
@@ -28,10 +29,9 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     switch_keys = {
         subentry.subentry_id: {
             key
-            for section, fields in get_input_fields(ElementType(subentry.subentry_type)).items()
-            for field_name, field_info in fields.items()
+            for path, field_info in iter_input_field_paths(get_input_fields(ElementType(subentry.subentry_type)))
             if is_switch_field_info(field_info)
-            for key in (field_name, f"{section}.{field_name}")
+            for key in (path[-1], ".".join(path))
         }
         for subentry in entry.subentries.values()
         if subentry.subentry_type in ELEMENT_TYPES

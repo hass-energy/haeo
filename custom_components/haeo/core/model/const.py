@@ -1,6 +1,7 @@
 """Constants for HAEO energy modeling."""
 
 from enum import StrEnum, auto
+from typing import Final
 
 
 class OutputType(StrEnum):
@@ -51,3 +52,7 @@ class OutputType(StrEnum):
     ENERGY_PER_DISTANCE = auto()
     DURATION = auto()
     SHADOW_PRICE = auto()
+
+
+# Output types whose values are on or off in each period, which inputs show as switches
+ON_OFF_OUTPUT_TYPES: Final = frozenset({OutputType.STATUS, OutputType.AVAILABILITY})
