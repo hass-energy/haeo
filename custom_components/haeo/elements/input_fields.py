@@ -18,6 +18,14 @@ from custom_components.haeo.core.units import localize_currency
 
 
 @dataclass(frozen=True, slots=True)
+class FieldSchemaInfo:
+    """Schema metadata for a config field."""
+
+    value_type: object
+    is_optional: bool
+
+
+@dataclass(frozen=True, slots=True)
 class InputFieldDefaults:
     """Default pre-selection behavior for config flow fields.
 
@@ -162,6 +170,7 @@ def localize_input_fields(groups: InputFieldGroups, currency_symbol: str) -> Inp
 
 __all__ = [
     "AnyInputFieldInfo",
+    "FieldSchemaInfo",
     "InputFieldDefaults",
     "InputFieldGroups",
     "InputFieldInfo",

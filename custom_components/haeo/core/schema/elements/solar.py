@@ -1,6 +1,6 @@
 """Solar element schema definitions."""
 
-from typing import Annotated, Final, Literal
+from typing import Annotated, Literal
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.elements.element_type import ElementType
@@ -19,8 +19,6 @@ from custom_components.haeo.core.schema.sections import (
 )
 
 ELEMENT_TYPE = ElementType.SOLAR
-
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT})
 
 
 class SolarConfigSchema(ConnectedCommonConfig):
@@ -69,7 +67,6 @@ __all__ = [
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_CURTAILMENT",
     "SECTION_FORECAST",
     "SolarConfigData",

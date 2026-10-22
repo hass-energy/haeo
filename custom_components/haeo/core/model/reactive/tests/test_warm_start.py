@@ -7,28 +7,17 @@ and the caching system automatically invalidates and rebuilds only the affected 
 import numpy as np
 import pytest
 
-from custom_components.haeo.coordinator.network import _build_element_updater
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
-    ModelElementConfig,
 )
 from custom_components.haeo.core.model.elements.battery import Battery
-from custom_components.haeo.core.model.elements.connection import Connection, ConnectionElementConfig
+from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as POLICY_PRICING_ELEMENT_TYPE
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 from custom_components.haeo.core.model.elements.segments import EfficiencySegment, PowerLimitSegment, PricingSegment
-from custom_components.haeo.core.schema import as_connection_target
-from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.connection import (
-    SECTION_EFFICIENCY,
-    SECTION_ENDPOINTS,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
-)
 
 # Battery reactive update tests
 
@@ -490,62 +479,6 @@ def test_warm_start_produces_same_result() -> None:
 
     # Should produce same result
     assert pytest.approx(cost1, rel=1e-6) == cost2
-
-
-def test_network_add_connection_updates_prices() -> None:
-    """Test that updating connection via network.add updates prices correctly."""
-    network = Network(name="test", periods=np.array([1.0]))
-
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "sink",
-            "tags": {1},
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
-                "pricing": {"segment_type": "pricing", "price": -0.10},
-            },
-        }
-    )
-
-    cost1 = network.optimize()
-
-    initial_model_configs: list[ModelElementConfig] = [
-        ConnectionElementConfig(
-            element_type="connection",
-            name="conn",
-            source="source",
-            target="sink",
-            tags={1},
-            segments={
-                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
-                "pricing": {"segment_type": "pricing", "price": -0.10},
-            },
-        )
-    ]
-    updater = _build_element_updater(network, ElementType.CONNECTION, initial_model_configs)
-
-    updater(
-        {
-            CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-            "name": "conn",
-            SECTION_ENDPOINTS: {
-                "source": as_connection_target("source"),
-                "target": as_connection_target("sink"),
-            },
-            SECTION_POWER_LIMITS: {"max_power_source_target": 5.0},
-            SECTION_PRICING: {"price_source_target": -0.20},
-            SECTION_EFFICIENCY: {},
-        },
-    )
-
-    cost2 = network.optimize()
-
-    assert pytest.approx(cost2 / cost1, rel=1e-6) == 2.0
 
 
 def test_solver_structure_unchanged_after_update() -> None:

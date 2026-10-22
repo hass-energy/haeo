@@ -34,7 +34,7 @@ CHOICE_PRESET = "preset"
 CHOICE_ENTITY = "entity"
 
 
-class HorizonSelector(ChooseSelector):  # type: ignore[type-arg]
+class HorizonSelector(ChooseSelector):  # type: ignore[type-arg]  # registering a selector erases its config type parameter
     """Choose a horizon preset or a forecast entity, returning the stored horizon value."""
 
     def __call__(self, data: Any) -> HorizonValue:  # matches upstream Selector.__call__(self, data: Any) signature

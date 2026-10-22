@@ -5,7 +5,7 @@ from typing import overload
 
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 
 
@@ -45,4 +45,13 @@ def connection_power(
     return expect_output_data(connection_outputs[CONNECTION_POWER])
 
 
-__all__ = ["connection_power", "expect_output_data"]
+def power_limit_shadow_price(
+    connection_outputs: Mapping[ModelOutputName, ModelOutputValue] | None,
+) -> OutputData | None:
+    """Return the shadow price of a connection's power limit segment, or None when it has none."""
+    segments = connection_outputs.get(CONNECTION_SEGMENTS) if connection_outputs is not None else None
+    power_limit = segments.get("power_limit") if isinstance(segments, Mapping) else None
+    return expect_output_data(power_limit.get("power_limit")) if isinstance(power_limit, Mapping) else None
+
+
+__all__ = ["connection_power", "expect_output_data", "power_limit_shadow_price"]

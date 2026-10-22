@@ -686,6 +686,9 @@
     "input_unit_incompatible": {
       "message": "Input {field} of {element} needs a value in {expected}, but {entities} supplied one in {unit}, which does not convert."
     },
+    "inputs_not_aligned": {
+      "message": "The forecast inputs are still loading for the new planning horizon. Try again in a moment."
+    },
     "negative_input_value": {
       "message": "Input {field} of {element} cannot be negative, but {entities} supplied {value}. Check that the sensor or forecast reports this value with the expected sign."
     },

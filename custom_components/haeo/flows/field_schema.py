@@ -26,6 +26,7 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    Selector,
 )
 import voluptuous as vol
 
@@ -45,9 +46,9 @@ from custom_components.haeo.core.schema import (
     is_none_value,
     is_schema_value,
 )
-from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import (
     AnyInputFieldInfo,
+    FieldSchemaInfo,
     InputFieldGroups,
     InputFieldInfo,
     accepts_calendar_forecast,
@@ -111,7 +112,7 @@ def _get_nested_value(data: Mapping[str, object], field_name: str) -> object | N
 
 def number_selector_from_field(
     field_info: InputFieldInfo[NumberEntityDescription],
-) -> NumberSelector:  # type: ignore[type-arg]
+) -> Selector[NumberSelectorConfig]:
     """Build a NumberSelector from InputFieldInfo entity description.
 
     Reuses min/max/step/unit from the NumberEntityDescription to ensure
@@ -141,7 +142,7 @@ def number_selector_from_field(
     return NumberSelector(config)
 
 
-def boolean_selector_from_field() -> BooleanSelector:  # type: ignore[type-arg]
+def boolean_selector_from_field() -> Selector[BooleanSelectorConfig]:
     """Build a BooleanSelector.
 
     Returns:
@@ -156,7 +157,7 @@ def build_entity_selector(
     include_entities: list[str] | None = None,
     multiple: bool = True,
     domains: Sequence[str] = _ENTITY_DOMAINS,
-) -> EntitySelector:  # type: ignore[type-arg]
+) -> Selector[EntitySelectorConfig]:
     """Build an EntitySelector restricted to unit-compatible entities.
 
     Args:
@@ -234,7 +235,7 @@ def get_preferred_choice(
     return CHOICE_NONE
 
 
-class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
+class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]  # registering a selector erases its config type parameter
     """ChooseSelector wrapper that normalizes raw dict format from frontend.
 
     Handles the case where frontend sends raw dict format like:
@@ -246,7 +247,7 @@ class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
     def __call__(self, data: Any) -> Any:  # matches upstream Selector.__call__(self, data: Any) -> Any signature
         """Normalize data before validation."""
         normalized = self._normalize(data)
-        return super().__call__(normalized)  # type: ignore[misc]
+        return super().__call__(normalized)  # type: ignore[misc]  # the erased base hides Selector.__call__
 
     def _normalize(self, value: object) -> object:
         """Normalize raw dict format to expected value."""

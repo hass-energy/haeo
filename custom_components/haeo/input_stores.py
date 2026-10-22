@@ -11,15 +11,19 @@ reads their resolved values to feed the optimization.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.config_loader import element_inputs, input_value
 from custom_components.haeo.core.data.util.input_values import InputError
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
-from custom_components.haeo.elements import InputFieldPath, is_element_config_schema
+from custom_components.haeo.elements import InputFieldPath
 from custom_components.haeo.util import async_update_subentry_value
 
 if TYPE_CHECKING:
@@ -78,8 +82,21 @@ def input_error_placeholders(key: InputStoreKey, error: InputError, store: Input
     }
 
 
-def unavailable_input_sources(input_stores: InputStoreMap) -> dict[InputStoreKey, tuple[str, ...]]:
-    """Return the sources to name for each input that has no value.
+def raise_for_rejected_input(input_stores: InputStoreMap, error_type: type[HomeAssistantError]) -> None:
+    """Raise ``error_type`` naming the first input that rejected its source's value, if one did."""
+    for key, store in input_stores.items():
+        if (error := store.error) is not None:
+            raise error_type(
+                translation_domain=DOMAIN,
+                translation_key=error.translation_key,
+                translation_placeholders=input_error_placeholders(key, error, store),
+            )
+
+
+def unavailable_input_sources(
+    input_stores: InputStoreMap, is_unavailable: Callable[[InputStore], bool]
+) -> dict[InputStoreKey, tuple[str, ...]]:
+    """Return the sources to name for each input ``is_unavailable`` picks.
 
     Names the sources with no reading, or every source when they all have one
     but the input still could not load. Inputs that rejected their source's
@@ -88,7 +105,7 @@ def unavailable_input_sources(input_stores: InputStoreMap) -> dict[InputStoreKey
     return {
         key: store.unavailable_sources or tuple(store.source_entity_ids)
         for key, store in input_stores.items()
-        if not store.available and store.error is None
+        if store.error is None and is_unavailable(store)
     }
 
 
@@ -145,6 +162,7 @@ __all__ = [
     "SubentryStorage",
     "build_input_stores",
     "input_error_placeholders",
+    "raise_for_rejected_input",
     "unavailable_input_placeholders",
     "unavailable_input_sources",
 ]

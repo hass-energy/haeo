@@ -30,14 +30,6 @@ SECTION_ENDPOINTS: Final = "endpoints"
 CONF_SOURCE: Final = "source"
 CONF_TARGET: Final = "target"
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
-    {
-        CONF_MAX_POWER_SOURCE_TARGET,
-        CONF_EFFICIENCY_SOURCE_TARGET,
-        CONF_PRICE_SOURCE_TARGET,
-    }
-)
-
 
 class EndpointsConfig(TypedDict):
     """Endpoint configuration for source/target pairs."""
@@ -111,7 +103,6 @@ __all__ = [
     "CONF_SOURCE",
     "CONF_TARGET",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_EFFICIENCY",
     "SECTION_ENDPOINTS",
     "SECTION_POWER_LIMITS",

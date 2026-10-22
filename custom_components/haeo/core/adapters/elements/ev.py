@@ -7,7 +7,11 @@ from typing import Final, Literal, NamedTuple
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
+from custom_components.haeo.core.adapters.output_utils import (
+    connection_power,
+    expect_output_data,
+    power_limit_shadow_price,
+)
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -18,7 +22,6 @@ from custom_components.haeo.core.model.elements import (
 )
 from custom_components.haeo.core.model.elements import battery as model_battery
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
-from custom_components.haeo.core.model.elements.connection import CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.elements.deferrable_load import (
     DEFERRABLE_LOAD_ENERGY_DELIVERED,
     DEFERRABLE_LOAD_ENERGY_SHORTFALL,
@@ -135,6 +138,8 @@ class EvAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = True
+    switchboard: bool = False
+    device_names: frozenset[EvDeviceName] = EV_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_STORAGE, CONF_LOADS})
 
     def model_elements(self, config: EvConfigData) -> list[ModelElementConfig]:
@@ -335,12 +340,7 @@ class EvAdapter:
             (EV_POWER_MAX_DISCHARGE_PRICE, discharge_conn),
         )
         for output_name, conn in shadow_mappings:
-            if (
-                conn is not None
-                and isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
-                and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
-                and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
-            ):
+            if (shadow := power_limit_shadow_price(conn)) is not None:
                 ev_outputs[output_name] = shadow
 
         return {EV_DEVICE_EV: ev_outputs}

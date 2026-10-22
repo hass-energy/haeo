@@ -23,8 +23,8 @@ from custom_components.haeo.elements import (
     get_input_field_schema_info,
     get_input_fields,
     get_list_input_fields,
-    is_element_config_schema,
 )
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 
 # Each element type's valid flow configs, as its subentry stores them
 VALID_CONFIGS = [
@@ -179,7 +179,7 @@ def test_get_input_field_schema_info_marks_optional_fields() -> None:
 
 def test_get_input_field_schema_info_missing_section() -> None:
     """get_input_field_schema_info raises when section is missing."""
-    input_fields = dict(get_input_fields({CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE}))
+    input_fields = dict(get_input_fields(battery.ELEMENT_TYPE))
     input_fields["missing_section"] = {}
 
     with pytest.raises(RuntimeError, match="Section 'missing_section' not found"):
@@ -233,30 +233,6 @@ def test_get_input_field_schema_info_type_alias(monkeypatch: pytest.MonkeyPatch)
     )
 
     assert schema_info["dummy"]["field"].is_optional is False
-
-
-def test_get_input_fields_returns_empty_for_none() -> None:
-    """get_input_fields returns empty dict for None element type."""
-    assert get_input_fields(None) == {}
-
-
-def test_get_input_fields_returns_empty_for_mapping_without_element_type() -> None:
-    """get_input_fields returns empty dict for mapping without element_type key."""
-    assert get_input_fields({"some_other_key": "value"}) == {}
-
-
-def test_conforms_to_typed_dict_skips_optional_without_hint() -> None:
-    """Test optional keys without hints are ignored when validating."""
-
-    class _Dummy:
-        __required_keys__ = frozenset()
-        __optional_keys__ = frozenset({"optional"})
-
-    assert elements_module._conforms_to_typed_dict(
-        {"optional": 1},
-        _Dummy,
-        check_optional=True,
-    )
 
 
 def test_get_list_input_fields_empty_for_unknown_element_type() -> None:

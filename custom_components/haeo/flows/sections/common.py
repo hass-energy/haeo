@@ -1,6 +1,6 @@
 """Flow builders for common configuration fields."""
 
-from homeassistant.helpers.selector import TextSelector, TextSelectorConfig  # type: ignore[reportUnknownVariableType]
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_NAME

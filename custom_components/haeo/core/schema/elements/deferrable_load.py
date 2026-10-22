@@ -46,13 +46,6 @@ DEFAULT_DEFICIT_PRICE: Final = 10.0
 # past its requirement cannot make the optimization infeasible.
 DEFAULT_OVERAGE_PRICE: Final = 0.0
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
-    {
-        CONF_ENERGY_METER,
-        CONF_MAX_POWER,
-    }
-)
-
 
 # --- Schedule section ---
 
@@ -204,7 +197,6 @@ __all__ = [
     "DEFAULT_DEFICIT_PRICE",
     "DEFAULT_OVERAGE_PRICE",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_POWER",
     "SECTION_PRICING",
     "SECTION_SCHEDULE",

@@ -54,18 +54,6 @@ CONF_PUBLIC_CHARGING_PRICE: Final = "public_charging_price"
 # Advanced section field names
 CONF_CHARGE_LIMIT_COST: Final = "charge_limit_cost"
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
-    {
-        CONF_TRIP_CALENDAR,
-        CONF_ODOMETER,
-        CONF_MAX_DISCHARGE_RATE,
-        CONF_MIN_CHARGE_PERCENTAGE,
-        CONF_EFFICIENCY_SOURCE_TARGET,
-        CONF_EFFICIENCY_TARGET_SOURCE,
-        CONF_PUBLIC_CHARGING_PRICE,
-    }
-)
-
 
 # --- Vehicle section ---
 
@@ -325,7 +313,6 @@ __all__ = [
     "CONF_TRIP_OPENED",
     "CONF_TRIP_START",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_ADVANCED",
     "SECTION_CHARGING",
     "SECTION_PUBLIC_CHARGING",

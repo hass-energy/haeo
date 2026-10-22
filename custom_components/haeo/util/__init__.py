@@ -3,13 +3,24 @@
 import copy
 from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.elements import InputFieldPath, set_nested_config_value_by_path
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry
+
+
+def network_subentry(entry: ConfigEntry) -> ConfigSubentry:
+    """Return the hub's network subentry, which setup creates before anything reads it.
+
+    Raises:
+        StopIteration: When the hub has no network subentry.
+
+    """
+    return next(subentry for subentry in entry.subentries.values() if subentry.subentry_type == ELEMENT_TYPE_NETWORK)
 
 
 async def async_update_subentry_value(

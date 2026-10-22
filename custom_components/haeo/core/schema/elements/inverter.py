@@ -1,6 +1,6 @@
 """Inverter element schema definitions."""
 
-from typing import Annotated, Final, Literal
+from typing import Annotated, Literal
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.elements.element_type import ElementType
@@ -21,8 +21,6 @@ from custom_components.haeo.core.schema.sections import (
 )
 
 ELEMENT_TYPE = ElementType.INVERTER
-
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE})
 
 
 class InverterConfigSchema(ConnectedCommonConfig):
@@ -77,7 +75,6 @@ __all__ = [
     "CONF_MAX_POWER_SOURCE_TARGET",
     "CONF_MAX_POWER_TARGET_SOURCE",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_EFFICIENCY",
     "SECTION_POWER_LIMITS",
     "InverterConfigData",

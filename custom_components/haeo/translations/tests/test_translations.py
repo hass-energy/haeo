@@ -47,7 +47,7 @@ from custom_components.haeo.core.const import (
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import ELEMENTS
 from custom_components.haeo.core.model.reactive import OutputMethod
-from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS
+from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementType
 from custom_components.haeo.core.schema.field_hints import extract_list_field_hints
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.elements import (
@@ -313,7 +313,7 @@ async def _states_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: 
     """Submit an element whose on/off input reads a sensor reporting words."""
     section, field_name = next(
         (section, field_name)
-        for section, fields in get_input_fields(prefix[-1]).items()
+        for section, fields in get_input_fields(ElementType(prefix[-1])).items()
         for field_name, info in fields.items()
         if info.output_type is OutputType.AVAILABILITY and not reads_calendar(info)
     )
