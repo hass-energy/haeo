@@ -1,9 +1,12 @@
-"""Tests for diagnostics CLI loader helpers."""
+"""Tests for the `uv run diag` CLI: its loader helpers and end-to-end runs over committed scenarios."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC
+import json
+from pathlib import Path
+import shutil
 
 from homeassistant.util.json import JsonValueType
 import numpy as np
@@ -13,8 +16,9 @@ from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, battery
-from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from tools.diag import cli as diag
+from tools.diag import run_diagnostics
 
 
 def _base_battery_config() -> dict[str, object]:
@@ -59,31 +63,23 @@ def test_load_element_config_unwraps_constant_wrappers() -> None:
     assert loaded.get("connection") == {"type": "connection_target", "value": "Inverter"}
 
 
-def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Entity-backed scalar fields use present value, not fused horizons."""
+def test_load_element_config_uses_present_value_for_scalar_entities() -> None:
+    """Entity-backed scalar fields read the captured state, not the forecast it carries."""
     config = _base_battery_config()
     config["storage"] = {
         "capacity": {"type": "constant", "value": 13.5},
         "initial_charge_percentage": {"type": "entity", "value": ["sensor.battery_soc"]},
     }
+    captured: dict[str, JsonValueType] = {
+        "entity_id": "sensor.battery_soc",
+        "state": "75",
+        "attributes": {
+            "unit_of_measurement": "%",
+            "forecast": [{"time": "1970-01-01T00:00:00+00:00", "value": 74.0}],
+        },
+    }
 
-    monkeypatch.setattr(
-        cl,
-        "load_sensors",
-        lambda _provider, entity_ids, **_kwargs: {entity_ids[0]: 75.0},
-    )
-    monkeypatch.setattr(
-        cl,
-        "split_sensor_payloads",
-        lambda _payloads: (75.0, [[(0.0, 74.0)]]),
-    )
-    monkeypatch.setattr(
-        cl,
-        "fuse_sensor_payloads",
-        lambda *_args, **_kwargs: pytest.fail("fuse_sensor_payloads should not run for scalar fields"),
-    )
-
-    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([], UTC), (0.0, 1800.0, 3600.0))
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([captured], UTC), (0.0, 1800.0, 3600.0))
 
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.75)
 
@@ -350,3 +346,66 @@ def test_infer_interval_starts_from_outputs_supports_legacy_price_fields() -> No
         diag.parse_datetime_to_timestamp("2026-01-01T00:00:00+00:00", UTC),
         diag.parse_datetime_to_timestamp("2026-01-01T01:00:00+00:00", UTC),
     ]
+
+
+SCENARIOS_DIR = Path(__file__).parent / "scenarios"
+
+# One scenario without a policy element and one with, so the end-to-end runs
+# cover both the plain tagging path and the policy pricing compilation path.
+SCENARIOS = ["scenario1", "scenario6"]
+
+
+@pytest.mark.timeout(60)
+@pytest.mark.parametrize("scenario", SCENARIOS)
+def test_diag_runs_optimization(scenario: str, capsys: pytest.CaptureFixture[str]) -> None:
+    """Diag reruns the optimization and prints a result table."""
+    run_diagnostics(SCENARIOS_DIR / scenario)
+
+    output = capsys.readouterr().out
+    assert "Optimization complete" in output
+    assert "Battery" in output
+
+
+@pytest.mark.timeout(60)
+def test_diag_compare_against_stored_outputs(capsys: pytest.CaptureFixture[str]) -> None:
+    """Diag compares stored diagnostics outputs against a fresh optimization."""
+    run_diagnostics(SCENARIOS_DIR / "scenario1", compare=True)
+
+    assert "Optimization complete" in capsys.readouterr().out
+
+
+def test_diag_outputs_only_skips_optimization(capsys: pytest.CaptureFixture[str]) -> None:
+    """Outputs-only mode reads the stored table without building a network."""
+    run_diagnostics(SCENARIOS_DIR / "scenario1", outputs_only=True)
+
+    output = capsys.readouterr().out
+    assert "Optimization complete" not in output
+    assert "Battery" in output
+
+
+@pytest.mark.timeout(60)
+@pytest.mark.parametrize(
+    ("relax_infeasible", "expected"),
+    [
+        pytest.param(False, "Optimization failed with status: Infeasible (conflicting constraints:", id="infeasible"),
+        pytest.param(True, "Relaxed Switchboard element_power_balance[0] by", id="relaxed"),
+    ],
+)
+def test_diag_follows_the_hub_relax_setting(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], *, relax_infeasible: bool, expected: str
+) -> None:
+    """A load no source can supply fails with its conflicts, or is relaxed when the hub relaxes impossible plans."""
+    for name in ("environment.json", "inputs.json"):
+        shutil.copy(SCENARIOS_DIR / "scenario1" / name, tmp_path / name)
+    config = json.loads((SCENARIOS_DIR / "scenario1" / "config.json").read_text())
+    config["participants"]["Constant Load"]["forecast"]["forecast"]["value"] = 500.0
+    config["advanced"] = {"relax_infeasible": relax_infeasible}
+    (tmp_path / "config.json").write_text(json.dumps(config))
+
+    if relax_infeasible:
+        run_diagnostics(tmp_path)
+    else:
+        with pytest.raises(SystemExit):
+            run_diagnostics(tmp_path)
+
+    assert expected in capsys.readouterr().out

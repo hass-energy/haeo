@@ -7,6 +7,8 @@ This ensures that:
 This prevents drift between declared outputs and implemented methods.
 """
 
+from typing import Never
+
 import pytest
 
 from custom_components.haeo.core.model.elements import ELEMENTS, ElementSpec
@@ -41,7 +43,7 @@ def get_own_output_methods(cls: type) -> set[str]:
     ELEMENTS.items(),
     ids=lambda x: x if isinstance(x, str) else x.factory.__name__,
 )
-def test_output_methods_match_declarations(element_type: str, element_spec: ElementSpec) -> None:
+def test_output_methods_match_declarations(element_type: str, element_spec: ElementSpec[Never]) -> None:
     """Test that @output methods match output_names in element spec.
 
     Args:

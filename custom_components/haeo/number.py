@@ -9,6 +9,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.surfaced_policy import (
     find_surfaced_rule,
@@ -20,7 +21,6 @@ from custom_components.haeo.elements import (
     get_input_fields,
     get_list_input_fields,
     get_surfaced_input_fields,
-    is_element_config_schema,
     iter_input_field_paths,
 )
 from custom_components.haeo.elements.input_fields import is_number_field_info, localize_input_field
@@ -121,7 +121,7 @@ async def async_setup_entry(
         element_type = element_config[CONF_ELEMENT_TYPE]
 
         # Get input field definitions for this element type (section-based)
-        input_fields = get_input_fields(element_config)
+        input_fields = get_input_fields(element_type)
 
         # Also get dynamic input fields from list-based config structures
         list_input_fields = get_list_input_fields(element_config)

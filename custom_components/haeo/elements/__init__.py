@@ -25,19 +25,7 @@ Sub-element Naming Convention:
 
 from collections.abc import Mapping, MutableSequence, Sequence
 import logging
-import types
-from typing import (
-    Any,  # noqa: TID251  # reflection over typing constructs (get_origin/get_args on type hints)
-    Final,
-    Literal,
-    NamedTuple,
-    TypeAliasType,
-    TypeGuard,
-    Union,
-    get_args,
-    get_origin,
-    get_type_hints,
-)
+from typing import Final, NamedTuple, TypeAliasType, get_type_hints
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 
@@ -49,116 +37,50 @@ from custom_components.haeo.const import (
     NetworkOutputName,
 )
 from custom_components.haeo.core.adapters.elements.battery import (
-    BATTERY_DEVICE_NAMES,
     BATTERY_OUTPUT_NAMES,
     BatteryDeviceName,
     BatteryOutputName,
 )
 from custom_components.haeo.core.adapters.elements.battery_section import (
-    BATTERY_SECTION_DEVICE_NAMES,
     BATTERY_SECTION_OUTPUT_NAMES,
     BatterySectionDeviceName,
     BatterySectionOutputName,
 )
-from custom_components.haeo.core.adapters.elements.buffer import (
-    BUFFER_DEVICE_NAMES,
-    BUFFER_OUTPUT_NAMES,
-    BufferDeviceName,
-    BufferOutputName,
-)
+from custom_components.haeo.core.adapters.elements.buffer import BUFFER_OUTPUT_NAMES, BufferDeviceName, BufferOutputName
 from custom_components.haeo.core.adapters.elements.connection import (
-    CONNECTION_DEVICE_NAMES,
     CONNECTION_OUTPUT_NAMES,
     ConnectionDeviceName,
     ConnectionOutputName,
 )
 from custom_components.haeo.core.adapters.elements.deferrable_load import (
-    DEFERRABLE_LOAD_DEVICE_NAMES,
     DEFERRABLE_LOAD_ELEMENT_OUTPUT_NAMES,
     DeferrableLoadDeviceName,
     DeferrableLoadElementOutputName,
 )
-from custom_components.haeo.core.adapters.elements.ev import (
-    EV_DEVICE_NAMES,
-    EV_OUTPUT_NAMES,
-    EvDeviceName,
-    EvOutputName,
-)
-from custom_components.haeo.core.adapters.elements.grid import (
-    GRID_DEVICE_NAMES,
-    GRID_OUTPUT_NAMES,
-    GridDeviceName,
-    GridOutputName,
-)
+from custom_components.haeo.core.adapters.elements.ev import EV_OUTPUT_NAMES, EvDeviceName, EvOutputName
+from custom_components.haeo.core.adapters.elements.grid import GRID_OUTPUT_NAMES, GridDeviceName, GridOutputName
 from custom_components.haeo.core.adapters.elements.inverter import (
-    INVERTER_DEVICE_NAMES,
     INVERTER_OUTPUT_NAMES,
     InverterDeviceName,
     InverterOutputName,
 )
 from custom_components.haeo.core.adapters.elements.junction import (
-    JUNCTION_DEVICE_NAMES,
     JUNCTION_OUTPUT_NAMES,
     JunctionDeviceName,
     JunctionOutputName,
 )
-from custom_components.haeo.core.adapters.elements.load import (
-    LOAD_DEVICE_NAMES,
-    LOAD_OUTPUT_NAMES,
-    LoadDeviceName,
-    LoadOutputName,
-)
-from custom_components.haeo.core.adapters.elements.node import (
-    NODE_DEVICE_NAMES,
-    NODE_OUTPUT_NAMES,
-    NodeDeviceName,
-    NodeOutputName,
-)
-from custom_components.haeo.core.adapters.elements.policy import POLICY_DEVICE_NAMES, PolicyDeviceName
-from custom_components.haeo.core.adapters.elements.solar import (
-    SOLAR_DEVICE_NAMES,
-    SOLAR_OUTPUT_NAMES,
-    SolarDeviceName,
-    SolarOutputName,
-)
+from custom_components.haeo.core.adapters.elements.load import LOAD_OUTPUT_NAMES, LoadDeviceName, LoadOutputName
+from custom_components.haeo.core.adapters.elements.node import NODE_OUTPUT_NAMES, NodeDeviceName, NodeOutputName
+from custom_components.haeo.core.adapters.elements.policy import PolicyDeviceName
+from custom_components.haeo.core.adapters.elements.solar import SOLAR_OUTPUT_NAMES, SolarDeviceName, SolarOutputName
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigSchema, ElementType
-from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
-from custom_components.haeo.core.schema.elements.battery_section import (
-    OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
-)
-from custom_components.haeo.core.schema.elements.battery_section import BatterySectionConfigData
-from custom_components.haeo.core.schema.elements.buffer import OPTIONAL_INPUT_FIELDS as BUFFER_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.buffer import BufferConfigData
-from custom_components.haeo.core.schema.elements.connection import (
-    OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS,
-)
-from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
-from custom_components.haeo.core.schema.elements.deferrable_load import (
-    OPTIONAL_INPUT_FIELDS as DEFERRABLE_LOAD_OPTIONAL_INPUT_FIELDS,
-)
-from custom_components.haeo.core.schema.elements.deferrable_load import DeferrableLoadConfigData
-from custom_components.haeo.core.schema.elements.ev import OPTIONAL_INPUT_FIELDS as EV_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.ev import EvConfigData
-from custom_components.haeo.core.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.grid import GridConfigData
-from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
-from custom_components.haeo.core.schema.elements.junction import OPTIONAL_INPUT_FIELDS as JUNCTION_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.junction import JunctionConfigData
-from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.load import LoadConfigData
-from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.node import NodeConfigData
-from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
-from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.solar import SolarConfigData
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
-from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
 from custom_components.haeo.core.schema.surfaced_policy import get_surfaced_price_hints
 from custom_components.haeo.elements.field_hints import build_input_fields, build_list_input_fields
+from custom_components.haeo.elements.input_fields import FieldSchemaInfo
 
 from .input_fields import AnyInputFieldInfo, InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
 
@@ -215,39 +137,12 @@ type ElementDeviceName = (
 )
 
 
-ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
-    INVERTER_DEVICE_NAMES
-    | BATTERY_DEVICE_NAMES
-    | BATTERY_SECTION_DEVICE_NAMES
-    | CONNECTION_DEVICE_NAMES
-    | DEFERRABLE_LOAD_DEVICE_NAMES
-    | EV_DEVICE_NAMES
-    | GRID_DEVICE_NAMES
-    | LOAD_DEVICE_NAMES
-    | NODE_DEVICE_NAMES
-    | JUNCTION_DEVICE_NAMES
-    | SOLAR_DEVICE_NAMES
-    | POLICY_DEVICE_NAMES
-    | BUFFER_DEVICE_NAMES
-    | NETWORK_DEVICE_NAMES
-)
-
-ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
-    ElementType.INVERTER: frozenset(INVERTER_DEVICE_NAMES),
-    ElementType.BATTERY: frozenset(BATTERY_DEVICE_NAMES),
-    ElementType.BATTERY_SECTION: frozenset(BATTERY_SECTION_DEVICE_NAMES),
-    ElementType.CONNECTION: frozenset(CONNECTION_DEVICE_NAMES),
-    ElementType.DEFERRABLE_LOAD: frozenset(DEFERRABLE_LOAD_DEVICE_NAMES),
-    ElementType.EV: frozenset(EV_DEVICE_NAMES),
-    ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
-    ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
-    ElementType.JUNCTION: frozenset(JUNCTION_DEVICE_NAMES),
-    ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
-    ElementType.POLICY: frozenset(POLICY_DEVICE_NAMES),
-    ElementType.BUFFER: frozenset(BUFFER_DEVICE_NAMES),
-    ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
-    ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
+ELEMENT_DEVICE_NAMES_BY_TYPE: Final[Mapping[str, frozenset[str]]] = {
+    **{element_type: adapter.device_names for element_type, adapter in ELEMENT_TYPES.items()},
+    ELEMENT_TYPE_NETWORK: NETWORK_DEVICE_NAMES,
 }
+
+ELEMENT_DEVICE_NAMES: Final[frozenset[str]] = frozenset().union(*ELEMENT_DEVICE_NAMES_BY_TYPE.values())
 
 
 class ValidatedElementSubentry(NamedTuple):
@@ -257,38 +152,6 @@ class ValidatedElementSubentry(NamedTuple):
     element_type: ElementType
     subentry: ConfigSubentry
     config: ElementConfigSchema
-
-
-ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
-    ElementType.BATTERY: BatteryConfigData,
-    ElementType.BATTERY_SECTION: BatterySectionConfigData,
-    ElementType.CONNECTION: ConnectionConfigData,
-    ElementType.DEFERRABLE_LOAD: DeferrableLoadConfigData,
-    ElementType.EV: EvConfigData,
-    ElementType.GRID: GridConfigData,
-    ElementType.INVERTER: InverterConfigData,
-    ElementType.LOAD: LoadConfigData,
-    ElementType.JUNCTION: JunctionConfigData,
-    ElementType.NODE: NodeConfigData,
-    ElementType.POLICY: PolicyConfigData,
-    ElementType.BUFFER: BufferConfigData,
-    ElementType.SOLAR: SolarConfigData,
-}
-
-ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
-    ElementType.BATTERY: BATTERY_OPTIONAL_INPUT_FIELDS,
-    ElementType.BATTERY_SECTION: BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
-    ElementType.CONNECTION: CONNECTION_OPTIONAL_INPUT_FIELDS,
-    ElementType.DEFERRABLE_LOAD: DEFERRABLE_LOAD_OPTIONAL_INPUT_FIELDS,
-    ElementType.EV: EV_OPTIONAL_INPUT_FIELDS,
-    ElementType.GRID: GRID_OPTIONAL_INPUT_FIELDS,
-    ElementType.INVERTER: INVERTER_OPTIONAL_INPUT_FIELDS,
-    ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
-    ElementType.JUNCTION: JUNCTION_OPTIONAL_INPUT_FIELDS,
-    ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
-    ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
-    ElementType.BUFFER: BUFFER_OPTIONAL_INPUT_FIELDS,
-}
 
 
 def get_input_field_schema_info(
@@ -331,100 +194,6 @@ def get_input_field_schema_info(
         results[section_key] = section_info
 
     return results
-
-
-def _conforms_to_typed_dict(
-    value: Mapping[str, object],
-    typed_dict_cls: type,
-    *,
-    check_optional: bool = False,
-) -> bool:
-    """Check if a mapping conforms to a TypedDict's required fields and types.
-
-    Uses reflection to get required keys and type hints from the TypedDict class.
-    Only checks required fields unless check_optional is True.
-    """
-    # Get required keys from TypedDict
-    required_keys: frozenset[str] = getattr(typed_dict_cls, "__required_keys__", frozenset())
-    optional_keys: frozenset[str] = getattr(typed_dict_cls, "__optional_keys__", frozenset())
-
-    # Get type hints for the TypedDict
-    hints = get_type_hints(typed_dict_cls)
-
-    def _matches_type(value_item: object, expected_type: Any) -> bool:
-        if isinstance(expected_type, TypeAliasType):
-            expected_type = expected_type.__value__
-
-        origin = get_origin(expected_type)
-
-        # Handle Literal types by checking if value is one of the allowed values
-        # For Literal, we don't do isinstance check - just ensure the field exists
-        if origin is Literal:
-            return True
-
-        if origin in (types.UnionType, Union):
-            union_args = get_args(expected_type)
-            return any(_matches_type(value_item, arg) for arg in union_args)
-
-        if expected_type is float and isinstance(value_item, int):
-            return True
-
-        if isinstance(expected_type, type) and hasattr(expected_type, "__required_keys__"):
-            return isinstance(value_item, Mapping) and _conforms_to_typed_dict(
-                value_item,
-                expected_type,
-                check_optional=True,
-            )
-
-        # Get the origin type for generic types (e.g., list[str] -> list)
-        # HA's deep-freeze converts list→tuple, so accept any sequence where list is expected
-        check_type = origin if origin is not None else expected_type
-        if check_type is list:
-            return isinstance(value_item, Sequence) and not isinstance(value_item, str)
-        return isinstance(value_item, check_type)
-
-    for key in required_keys:
-        if key not in value:
-            return False
-
-        # Required keys in a TypedDict always have type hints
-        expected_type = hints[key]
-        if not _matches_type(value[key], expected_type):
-            return False
-
-    if check_optional:
-        for key in optional_keys:
-            if key not in value:
-                continue
-            expected_type = hints.get(key)
-            if expected_type is None:
-                continue
-            if not _matches_type(value[key], expected_type):
-                return False
-
-    return True
-
-
-def is_element_config_schema(value: object) -> TypeGuard[ElementConfigSchema]:
-    """Return True when value matches any ElementConfigSchema TypedDict.
-
-    Performs structural validation using reflection - checks that:
-    - value is a mapping
-    - has a valid element_type field
-    - has all required fields for that element type (from TypedDict __required_keys__)
-    - all required fields have the correct type (from TypedDict type hints)
-    """
-    if not isinstance(value, Mapping):
-        return False
-
-    element_type = value.get(CONF_ELEMENT_TYPE)
-    if not is_element_type(element_type):
-        return False
-
-    # Get the TypedDict class - type-safe because is_element_type narrowed element_type
-    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
-
-    return _conforms_to_typed_dict(value, schema_cls)
 
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
@@ -487,22 +256,9 @@ def get_element_configs(
     return configs
 
 
-def get_input_fields(element_type: str | ElementType | Mapping[str, object] | None) -> InputFieldGroups:
+def get_input_fields(element_type: ElementType) -> InputFieldGroups:
     """Return input field definitions for an element type."""
-    if isinstance(element_type, Mapping):
-        if CONF_ELEMENT_TYPE in element_type:
-            # Discriminator field value is genuinely str|ElementType at runtime (see the
-            # matching type: ignore[index] below); the Mapping overload only widens the
-            # value type to object at the boundary.
-            element_type = element_type[CONF_ELEMENT_TYPE]  # type: ignore[assignment]
-        else:
-            return {}
-
-    if element_type is None:
-        return {}
-
-    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]  # type: ignore[index]
-    return build_input_fields(str(element_type), extract_field_hints(schema_cls))
+    return build_input_fields(str(element_type), extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type]))
 
 
 def get_list_input_fields(element_config: Mapping[str, object]) -> InputFieldGroups:
@@ -652,7 +408,6 @@ def set_nested_config_value_by_path(config: dict[str, object], field_path: Input
 __all__ = [
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_DEVICE_NAMES_BY_TYPE",
-    "ELEMENT_OPTIONAL_INPUT_FIELDS",
     "ElementDeviceName",
     "ElementOutputName",
     "FieldSchemaInfo",
@@ -670,7 +425,6 @@ __all__ = [
     "get_list_input_fields",
     "get_nested_config_value",
     "get_surfaced_input_fields",
-    "is_element_config_schema",
     "iter_input_field_paths",
     "set_nested_config_value",
     "set_nested_config_value_by_path",

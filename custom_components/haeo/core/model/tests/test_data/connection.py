@@ -186,5 +186,3 @@ VALID_CASES: list[ConnectionTestCase] = [
         },
     },
 ]
-
-INVALID_CASES: list[ConnectionTestCase] = []

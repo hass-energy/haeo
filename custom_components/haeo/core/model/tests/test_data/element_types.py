@@ -16,11 +16,19 @@ class ExpectedOutput(TypedDict):
 
 
 class ElementTestCaseInputs(TypedDict):
-    """Inputs for element optimization scenario."""
+    """Inputs for element optimization scenario.
+
+    ``power`` fixes the power flowing into the element in each period, where
+    given. ``max_power`` and ``min_power`` bound it instead, a negative power
+    being power flowing out. Each kWh in costs ``input_cost`` and each kWh out
+    costs ``output_cost``.
+    """
 
     power: NotRequired[Sequence[float | None]]
     input_cost: NotRequired[NDArray[np.float64] | float]
     output_cost: NotRequired[NDArray[np.float64] | float]
+    max_power: NotRequired[Sequence[float]]
+    min_power: NotRequired[Sequence[float]]
 
 
 class ElementTestCase(TypedDict):
@@ -31,4 +39,4 @@ class ElementTestCase(TypedDict):
     data: dict[str, Any]
     inputs: NotRequired[ElementTestCaseInputs]
     expected_outputs: NotRequired[dict[str, ExpectedOutput]]
-    expected_error: NotRequired[str]
+    expected_cost: NotRequired[float]

@@ -20,7 +20,6 @@ from custom_components.haeo.core.schema.sections import (
 
 ELEMENT_TYPE = ElementType.LOAD
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT})
 
 CONF_CONSUMPTION_COST: Final = "consumption_cost"
 
@@ -79,7 +78,6 @@ __all__ = [
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_CURTAILMENT",
     "SECTION_FORECAST",
     "LoadConfigData",

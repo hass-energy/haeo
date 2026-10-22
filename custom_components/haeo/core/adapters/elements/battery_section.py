@@ -7,9 +7,9 @@ from typing import Final, Literal
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
-from custom_components.haeo.core.model import battery as model_battery
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY
+from custom_components.haeo.core.model.elements import battery as model_battery
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery_section import (
@@ -62,6 +62,8 @@ class BatterySectionAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
     can_source: bool = True
     can_sink: bool = True
+    switchboard: bool = False
+    device_names: frozenset[BatterySectionDeviceName] = BATTERY_SECTION_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_STORAGE})
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
@@ -102,7 +104,7 @@ class BatterySectionAdapter:
         discharge_values = battery_data[model_battery.BATTERY_POWER_DISCHARGE].values
         section_outputs[BATTERY_SECTION_POWER_ACTIVE] = replace(
             battery_data[model_battery.BATTERY_POWER_CHARGE],
-            values=[d - c for c, d in zip(charge_values, discharge_values, strict=True)],
+            values=tuple(d - c for c, d in zip(charge_values, discharge_values, strict=True)),
             direction=None,
             type=OutputType.POWER,
         )

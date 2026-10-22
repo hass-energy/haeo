@@ -185,3 +185,11 @@ def test_events_of_every_calendar_count_together() -> None:
     assert (
         resolve_calendar([ENTITY_ID, other], hint, OutputType.ENERGY, FakeStateMachine(states), BOUNDARY_TIMES) is None
     )
+
+
+@pytest.mark.parametrize("projection", ["window_active", "window_starts", "event_opens", "event_due"])
+def test_empty_horizon_has_no_data(projection: CalendarProjection) -> None:
+    """Without horizon boundaries there is nothing to resolve events onto, so the input has no data."""
+    sm = FakeStateMachine({ENTITY_ID: FakeEntityState(ENTITY_ID, "on", {CALENDAR_EVENTS_ATTRIBUTE: [_event(0, 1)]})})
+
+    assert resolve_calendar([ENTITY_ID], CalendarFieldHint(projection=projection), OutputType.ENERGY, sm, ()) is None

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 import logging
 from types import MappingProxyType
 
@@ -11,7 +10,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.schema import is_constant_value, is_entity_value, is_none_value
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
+from custom_components.haeo.core.schema.migrations import section_dict
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config, migrate_hub_config
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -87,40 +88,34 @@ def _policy_subentry(*, rules: list[dict[str, object]]) -> dict[str, object]:
     }
 
 
-def _negate_price_value(price: Mapping[str, object]) -> dict[str, object]:
-    if price.get("type") == "constant":
-        value = price["value"]
-        if not isinstance(value, (int, float)):
-            msg = f"Cannot negate non-numeric constant price value {value!r}"
-            raise TypeError(msg)
-        return {**price, "value": -value}
-    _LOGGER.warning(
-        "Cannot negate non-constant charge price during migration; "
-        "a positive entity price will behave as a cost in the new policy system. "
-        "To preserve incentive semantics, use a template sensor that outputs a negated value: %s",
-        price,
-    )
-    return dict(price)
+def _negate_price_value(price: object) -> object:
+    """Return a charge price negated, or as it is when it is disabled or read from an entity."""
+    if is_constant_value(price):
+        return {**price, "value": -price["value"]}
+    if is_none_value(price):
+        return price
+    if is_entity_value(price):
+        _LOGGER.warning(
+            "Cannot negate non-constant charge price during migration; "
+            "a positive entity price will behave as a cost in the new policy system. "
+            "To preserve incentive semantics, use a template sensor that outputs a negated value: %s",
+            price,
+        )
+        return price
+    msg = f"Cannot negate charge price {price!r}"
+    raise TypeError(msg)
 
 
 def _is_default_policy_price(element_type: str, field_name: str, price: object) -> bool:
     """Return True when a constant price matches a legacy default value."""
-    defaults = _DEFAULT_POLICY_PRICES.get((element_type, field_name))
-    if defaults is None:
-        return False
-    if not isinstance(price, dict) or price.get("type") != "constant":
-        return False
-    value = price.get("value")
-    if not isinstance(value, (int, float)):
-        return False
-    return float(value) in defaults
+    defaults = _DEFAULT_POLICY_PRICES.get((element_type, field_name), frozenset())
+    return is_constant_value(price) and float(price["value"]) in defaults
 
 
 def _extract_pricing_rules(data: dict[str, object], subentry: ConfigSubentry) -> list[dict[str, object]]:
     element_type = data.get("element_type")
     element_name = data.get("name", subentry.title)
-    pricing_value = data.get("pricing", {})
-    pricing = pricing_value if isinstance(pricing_value, dict) else {}
+    pricing = section_dict(data, "pricing")
     rules: list[dict[str, object]] = []
 
     if element_type == _BATTERY_TYPE:
@@ -145,9 +140,6 @@ def _extract_pricing_rules(data: dict[str, object], subentry: ConfigSubentry) ->
             CONF_PRICE_TARGET_SOURCE,
             charge_price,
         ):
-            if not isinstance(charge_price, Mapping):
-                msg = f"Unsupported charge price shape {charge_price!r}"
-                raise TypeError(msg)
             rules.append(
                 {
                     "name": f"{element_name} Charge",
@@ -176,8 +168,7 @@ def _extract_pricing_rules(data: dict[str, object], subentry: ConfigSubentry) ->
 
 
 def _strip_pricing_from_battery(data: dict[str, object]) -> dict[str, object]:
-    pricing_value = data.get("pricing")
-    pricing: dict[str, object] = dict(pricing_value) if isinstance(pricing_value, dict) else {}
+    pricing = section_dict(data, "pricing")
     pricing.pop(CONF_PRICE_SOURCE_TARGET, None)
     pricing.pop(CONF_PRICE_TARGET_SOURCE, None)
     data["pricing"] = pricing

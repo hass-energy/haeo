@@ -65,17 +65,6 @@ SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
     ),
 }
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
-    {
-        CONF_MIN_CHARGE_PERCENTAGE,
-        CONF_MAX_CHARGE_PERCENTAGE,
-        CONF_MAX_POWER_SOURCE_TARGET,
-        CONF_MAX_POWER_TARGET_SOURCE,
-        CONF_EFFICIENCY_SOURCE_TARGET,
-        CONF_EFFICIENCY_TARGET_SOURCE,
-    }
-)
-
 
 class StorageSocConfig(TypedDict):
     """Storage config with required SOC percentage."""
@@ -264,7 +253,6 @@ __all__ = [
     "CONF_MIN_CHARGE_PERCENTAGE",
     "CONF_SALVAGE_VALUE",
     "ELEMENT_TYPE",
-    "OPTIONAL_INPUT_FIELDS",
     "SECTION_ADVANCED",
     "SECTION_EFFICIENCY",
     "SECTION_LIMITS",

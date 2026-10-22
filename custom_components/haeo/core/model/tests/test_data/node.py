@@ -35,5 +35,3 @@ VALID_CASES: list[ElementTestCase] = [
         },
     },
 ]
-
-INVALID_CASES: list[ElementTestCase] = []

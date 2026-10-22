@@ -218,7 +218,7 @@ Element sensors display `unknown` values.
 ### Solutions
 
 1. **Wait for optimization**: First run takes time
-2. **Check optimization status**: Must be `success`; when it is `failed`, its `error` attribute explains why
+2. **Check optimization status**: Must be **Succeeded**; when it is **Failed**, its `error` attribute explains why
 3. **Verify configuration**: All required fields filled
 4. **Review logs**: Check for error messages
 

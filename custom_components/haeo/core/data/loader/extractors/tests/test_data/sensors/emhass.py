@@ -51,6 +51,23 @@ VALID: list[dict[str, object]] = [
         "description": "EMHASS deferrable load with deferrables_schedule attribute",
     },
     {
+        "entity_id": "sensor.p_deferrable1",
+        "state": "500.0",
+        "attributes": {
+            "device_class": "power",
+            "unit_of_measurement": "W",
+            "forecasts": [],
+            "deferrables_schedule": [
+                {"date": "2025-10-06T00:00:00+11:00", "p_deferrable1": "0.0"},
+                {"date": "2025-10-06T00:30:00+11:00", "p_deferrable1": "500.0"},
+            ],
+        },
+        "expected_format": "emhass",
+        "expected_unit": "kW",
+        "expected_data": [(1759669200.0, 0.0), (np.nextafter(1759671000.0, -np.inf), 0.0), (1759671000.0, 0.5), (1759672800.0, 0.5)],
+        "description": "EMHASS reads the first non-empty forecast attribute after an empty one",
+    },
+    {
         "entity_id": "sensor.p_pv_forecast",
         "state": "2500",
         "attributes": {

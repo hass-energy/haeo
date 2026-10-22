@@ -25,14 +25,14 @@ Total cost over the optimization horizon in dollars.
 
 **Entity ID**: `sensor.optimizer_status`
 
-State of the latest optimization:
+State of the latest optimization, as Home Assistant shows it, with the state value automations compare against:
 
-- `success`: The latest optimization completed successfully
-- `failed`: The latest optimization failed, for example because inputs are unavailable or the problem is infeasible
-- `pending`: No optimization has finished since HAEO started
+- **Succeeded** (`success`): The latest optimization completed successfully
+- **Failed** (`failed`): The latest optimization failed, for example because inputs are unavailable or the problem is infeasible
+- **Pending** (`pending`): No optimization has finished since HAEO started
 
 This sensor exists from the moment the hub loads and stays available when an optimization fails.
-When the status is `failed`, its `error` attribute holds the error message, and the other output sensors are unavailable until an optimization succeeds.
+When the status is **Failed**, its `error` attribute holds the error message, and the other output sensors are unavailable until an optimization succeeds.
 Its `last_run` attribute is the time the latest successful optimization finished.
 
 Some failures, such as an input with no reading or a plan that cannot meet every constraint, raise their own repair issue under **Settings** → **System** → **Repairs** that names the cause.

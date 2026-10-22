@@ -4,13 +4,16 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Final, Literal
 
-from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
+from custom_components.haeo.core.adapters.output_utils import (
+    connection_power,
+    expect_output_data,
+    power_limit_shadow_price,
+)
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -63,6 +66,8 @@ class InverterAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
     can_source: bool = False
     can_sink: bool = False
+    switchboard: bool = False
+    device_names: frozenset[InverterDeviceName] = INVERTER_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
@@ -138,14 +143,14 @@ class InverterAdapter:
         # Active inverter power (DC to AC - AC to DC)
         inverter_outputs[INVERTER_POWER_ACTIVE] = replace(
             power_forward,
-            values=[
+            values=tuple(
                 dc_to_ac - ac_to_dc
                 for dc_to_ac, ac_to_dc in zip(
                     power_forward.values,
                     power_reverse.values,
                     strict=True,
                 )
-            ],
+            ),
             direction=None,
             type=OutputType.POWER_FLOW,
         )
@@ -162,12 +167,7 @@ class InverterAdapter:
             (reverse_conn, INVERTER_MAX_POWER_AC_TO_DC_PRICE),
         )
         for conn, output_name in shadow_price_mappings:
-            if (
-                conn is not None
-                and isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
-                and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
-                and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
-            ):
+            if (shadow := power_limit_shadow_price(conn)) is not None:
                 inverter_outputs[output_name] = shadow
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}

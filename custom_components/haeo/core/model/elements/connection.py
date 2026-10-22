@@ -29,7 +29,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.model.reactive import output
+from custom_components.haeo.core.model.reactive import cost, output
 from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util.solver_rows import RowIndices
 
@@ -157,9 +157,12 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._target = target
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
-        self.is_external = is_external
-        self.is_time_sensitive = is_time_sensitive
-        self.priority = 0  # assigned by Network from sort_key
+        self._is_external = is_external
+        self._is_time_sensitive = is_time_sensitive
+        # Position in the network's time-preference order, assigned by the network
+        # before each solve. Only the secondary objective and the power output read
+        # it, and both are rebuilt on every solve, so it needs no tracking.
+        self.priority = 0
 
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
@@ -173,6 +176,16 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return self._segments
 
     @property
+    def is_external(self) -> bool:
+        """Return whether the connection is external, which orders it after the system's own connections."""
+        return self._is_external
+
+    @property
+    def is_time_sensitive(self) -> bool:
+        """Return whether the connection is time-sensitive, which orders it before time-invariant ones."""
+        return self._is_time_sensitive
+
+    @property
     def sort_key(self) -> tuple[bool, bool, str, str, str]:
         """Deterministic sort key for time-preference ordering.
 
@@ -180,6 +193,12 @@ class Connection[TOutputName: str](Element[TOutputName]):
         then alphabetical by source/target/name for tiebreaking.
         """
         return (self.is_external, not self.is_time_sensitive, self._source, self._target, self.name)
+
+    def update_periods(self, periods: NDArray[np.float64]) -> None:
+        """Set new period durations on the connection and each of its segments."""
+        super().update_periods(periods)
+        for segment in self._segments.values():
+            segment.periods = periods
 
     @property
     def source(self) -> str:
@@ -298,34 +317,32 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return self.total_power_out
 
     def constraints(self) -> dict[str, RowIndices]:
-        """Collect constraints from all segments."""
+        """Collect constraints from all segments, each named after its segment and constraint."""
         result: dict[str, RowIndices] = {}
-        for segment in self._segments.values():
+        for seg_name, segment in self._segments.items():
             for name, cons in segment.constraints().items():
-                result[f"{segment.segment_id}_{name}"] = cons
+                result[f"{seg_name}_{name}"] = cons
         own_constraints = super().constraints()
         result.update(own_constraints)
         return result
 
-    def cost(self) -> tuple[LinearArray | None, LinearArray]:  # type: ignore[override]
-        """Return (primary_cost, secondary_cost) for this connection.
+    @cost
+    def segment_costs(self) -> LinearArray | None:
+        """Return the costs of the connection's segments."""
+        return total([segment.cost() for segment in self._segments.values()])
 
-        Primary: segment costs.
-        Secondary: time-preference objective for deterministic ordering.
+    def secondary_cost(self) -> LinearArray:
+        """Return the time-preference objective, which prefers earlier energy transfer.
+
+        It is offset so that equally cheap plans never tie.
         """
-        primary = total([seg.cost() for seg in self._segments.values()])
-
-        # Time-preference objective: prefer earlier energy transfer, offset so that
-        # equally cheap plans never tie
         n = self.n_periods
         weights = (
             self.priority * n
             + np.arange(1, n + 1, dtype=np.float64)
             + TIE_BREAK_SCALE * tie_break_offset(self.priority, n)
         )
-        secondary = (self.total_measured_power * self.periods * weights).total()
-
-        return (primary, secondary)
+        return (self.total_measured_power * self.periods * weights).total()
 
     # --- Output methods ---
 

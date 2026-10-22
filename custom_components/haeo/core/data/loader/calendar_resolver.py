@@ -71,30 +71,31 @@ def resolve_calendar(
 
     The events of every calendar the input reads count together. Returns
     None when a calendar's state is missing or carries no injected events,
-    so the input reads as not loaded. Calendars with no events in the horizon
+    or the horizon has no boundaries, so the input reads as not loaded. Calendars with no events in the horizon
     resolve to all zeros. The event projections read event values, each
     converted from the unit typed with it to the input's unit; an event whose
     value the input cannot use is still a window, worth nothing.
     """
     calendars = [load_calendar_events(sm.get(entity_id), sm.time_zone) for entity_id in entity_ids]
-    if any(events is None for events in calendars):
+    if not forecast_times or any(events is None for events in calendars):
         return None
     windows = event_windows([event for events in calendars if events for event in events], output_type)
-    counted = [replace(window, value=1.0) for window in windows]
     boundaries = [datetime.fromtimestamp(ts, tz=UTC) for ts in forecast_times]
-    # An event running past the horizon is due at its end, clamped to the horizon
-    clamped = [replace(window, end=min(window.end, boundaries[-1])) for window in windows]
 
-    active, starts = _windows(
-        _fused(fuse_windows_to_boundaries(counted, boundaries)),
-        _fused(fuse_window_edges_to_boundaries(counted, boundaries, "end")),
-    )
-    return {
-        "window_active": active,
-        "window_starts": starts,
-        "event_opens": _fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
-        "event_due": _fused(fuse_window_edges_to_boundaries(clamped, boundaries, "end")),
-    }[hint.projection]
+    match hint.projection:
+        case "window_active" | "window_starts":
+            counted = [replace(window, value=1.0) for window in windows]
+            active, starts = _windows(
+                _fused(fuse_windows_to_boundaries(counted, boundaries)),
+                _fused(fuse_window_edges_to_boundaries(counted, boundaries, "end")),
+            )
+            return active if hint.projection == "window_active" else starts
+        case "event_opens":
+            return _fused(fuse_window_edges_to_boundaries(windows, boundaries, "start"))
+        case "event_due":
+            # An event running past the horizon is due at its end, clamped to the horizon
+            clamped = [replace(window, end=min(window.end, boundaries[-1])) for window in windows]
+            return _fused(fuse_window_edges_to_boundaries(clamped, boundaries, "end"))
 
 
 __all__ = ["resolve_calendar"]

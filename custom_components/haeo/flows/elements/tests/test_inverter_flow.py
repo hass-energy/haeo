@@ -160,7 +160,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
+    input_fields = get_input_fields(ELEMENT_TYPE)
     defaults = flow._build_defaults("Test Inverter", input_fields, dict(existing_subentry.data))
     assert defaults[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == expected_defaults[CONF_MAX_POWER_DC_TO_AC]
     assert defaults[SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == expected_defaults[CONF_MAX_POWER_AC_TO_DC]
