@@ -8,7 +8,7 @@ Focus on what decisions the optimizer makes regarding this element.
     This page documents a **Model Layer** element—the building blocks of HAEO's linear programming formulation.
     Model Layer elements are composed by Device Layer elements through the adapter layer.
 
-## Model Formulation
+## Model formulation
 
 This section describes the mathematical optimization model for this element.
 Present the formulation in standard optimization notation.
@@ -23,7 +23,7 @@ Distinguish between configuration-derived parameters and sensor-derived data.
 | $p_{\text{max}}$ | scalar     | Configuration | Maximum power capacity                |
 | $f_{t}$          | $T$        | Sensor        | Forecasted values at each time period |
 
-### Decision Variables
+### Decision variables
 
 List all decision variables this element introduces to the optimization problem.
 Use consistent mathematical notation.
@@ -38,7 +38,7 @@ Use consistent mathematical notation.
 List all constraints this element contributes to the optimization problem.
 Present each constraint with its mathematical formulation and a brief explanation.
 
-#### Constraint Name
+#### Constraint name
 
 $$
 \text{mathematical formulation}
@@ -46,7 +46,7 @@ $$
 
 Brief explanation of what this constraint ensures and why it's necessary.
 
-### Cost Contribution
+### Cost contribution
 
 Describe this element's contribution to the objective function.
 Explain the economic interpretation.
@@ -57,18 +57,18 @@ $$
 
 Where $c_t$ represents the cost coefficient at time $t$.
 
-## Physical Interpretation
+## Physical interpretation
 
 Provide a conceptual explanation of how the mathematical model relates to real-world behavior.
 Focus on intuition, not detailed calculations.
 
-### Example Scenarios
+### Example scenarios
 
 Describe typical operating scenarios and how the model captures them:
 
 **Scenario Name**: Brief description of the scenario and how the model responds.
 
-### Model Assumptions
+### Model assumptions
 
 List key assumptions made in the formulation:
 

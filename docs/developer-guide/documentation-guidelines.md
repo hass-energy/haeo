@@ -54,8 +54,8 @@ Elsewhere, favour neutral language such as "elements" or "devices".
 
 ## Link checking
 
-- Use `mkdocs serve` or `mkdocs build` to surface warnings about missing pages.
-- Manually click each new or updated internal link to confirm it resolves.
+- `uv run zensical build` must succeed, but it does not check links or anchors.
+- Confirm each new or updated internal link and `#anchor` resolves, by following it in `uv run zensical serve` or with a script.
 - Verify external Home Assistant links still lead to maintained content.
 - Replace redirected URLs with their final destinations.
 
@@ -135,14 +135,8 @@ Choose the chart type that best represents the concept:
 
 ### Semantic color usage
 
-HAEO diagrams use consistent semantic colors configured in `docs/javascripts/mermaid-config.js`:
-
-- **Blue** (primary): General elements, neutral components, battery storage
-- **Green** (secondary): Generation sources (solar, renewable energy)
-- **Red** (tertiary): Consumption (loads, imported power)
-- **Yellow/Amber**: Grid connections, pricing, warnings
-
-These colors automatically adapt for light and dark modes via the mermaid configuration.
+Diagrams use the site theme's default mermaid styling, which adapts to light and dark modes.
+Do not set colors in diagram syntax: a hard-coded color stays fixed when the reader switches modes.
 
 ### Styling guidelines
 
@@ -175,11 +169,6 @@ xychart-beta
     line [0, 2, 5, 8, 5, 2, 0, 2, 5]
 ```
 
-### Configuration reference
-
-The mermaid theme configuration in `docs/javascripts/mermaid-config.js` ensures diagrams adapt to the user's selected theme.
-To modify diagram colors or add new semantic categories, update the `themeVariables` in that file.
-
 ## Technical accuracy checklist
 
 Before committing documentation changes, verify:
@@ -204,7 +193,7 @@ Before committing documentation changes, verify:
 - [ ] Sensor field types link to forecasts-and-sensors.md
 - [ ] Code examples match actual implementation (verify against source)
 - [ ] Configuration examples use valid YAML structure
-- [ ] Sensor naming matches actual output (e.g., `power_imported` not `import_power`)
+- [ ] Entity IDs and sensor names match what HAEO creates (check a scenario's `outputs.json`)
 
 ## Next steps requirements
 
@@ -281,7 +270,7 @@ Developer documentation explains architecture and design decisions, not implemen
 When referencing implementation:
 
 - Link to the specific module on GitHub: [`resolve_field`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/config_loader.py)
-- Reference function/class names in text: "The `combine_sensor_payloads()` function merges multiple sensors..."
+- Reference function/class names in text: "The `fuse_sensor_payloads()` function merges multiple sensors..."
 - Describe purpose and behavior, not implementation: "combines additively" not "loops through payloads and sums values"
 
 ### When code examples are appropriate

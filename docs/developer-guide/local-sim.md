@@ -3,8 +3,6 @@
 Use `uv run sim` to spin up a real, browsable Home Assistant instance for interactive development and testing.
 The simulator loads scenario input data from `tests/scenarios/`, time-shifts forecasts and prices to track the current (or accelerated) clock, optionally configures HAEO from the scenario config, and tears down when you press Ctrl+C.
 
-This replaces the previous `config/packages/` command_line sensor workflow.
-
 ## Quick start
 
 ```bash

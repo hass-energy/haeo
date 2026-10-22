@@ -1,30 +1,28 @@
 # Testing
 
-HAEO uses pytest with 95% minimum coverage target.
+HAEO uses pytest, and Codecov requires coverage of the lines each pull request changes.
 
 For more information on testing Home Assistant integrations, see:
 
 - [Testing integrations documentation](https://developers.home-assistant.io/docs/development_testing/)
 - [pytest fixtures reference](https://developers.home-assistant.io/docs/development_testing/#test-fixtures)
 
-## Test Organization
+## Test organization
 
-Tests are colocated with source code in `tests/` subdirectories within each package.
+Tests are colocated with source code in `tests/` subdirectories within each package, such as `core/model/tests/`, `core/adapters/elements/tests/`, `flows/elements/tests/`, and `flows/tests/`.
+The top-level `tests/` directory holds only scenario tests, guide tests, and tests of the developer CLIs in `tools/`.
 
-- `conftest.py` - Shared fixtures (Home Assistant instance, mock config entries, common scenarios)
-- `core/model/tests/` - Model element tests with structured test data
-- `core/adapters/elements/tests/` - Adapter tests
-- `flows/elements/tests/` - Element flow tests
-- `flows/tests/` - Hub and options flow tests
-- `tests/scenarios/` - Complete system integration tests
+The root [`conftest.py`](https://github.com/hass-energy/haeo/blob/main/conftest.py) holds the shared fixtures and registers the runtime translation checker plugin.
 
-## Test Structure
+Tests run with `filterwarnings = ["error"]`, so a new warning fails the test.
+
+## Test structure
 
 **Unit tests**: Fast, isolated verification of element constraints, cost functions, data validation
 
 **Integration tests**: Coordinator data flow, sensor updates, config entry lifecycle
 
-**Scenario tests**: Complete battery + solar + grid systems with realistic data
+**Scenario tests**: Complete systems with realistic data captured from users' diagnostics
 
 ## Local Home Assistant simulation
 
@@ -39,221 +37,86 @@ uv run sim scenario1 --no-config
 
 See [Local simulation](local-sim.md) for full options and architecture.
 
-## Scenario Testing
+## Scenario testing
 
 Scenario tests verify complete system integration with realistic Home Assistant data.
-All scenarios are automatically discovered and tested by `tests/scenarios/test_scenarios.py`.
+`tests/scenarios/test_scenarios.py` discovers every `scenario*/` folder that holds the four files below and runs it as one parametrized case.
 
 ### Structure
 
 Each scenario folder contains:
 
-- `config.json` - HAEO configuration with elements and connections
-- `states.json` - Filtered Home Assistant entity states
+- `config.json` - The hub's configuration with its element subentries
+- `environment.json` - The captured environment, including `optimization_start_time` and `timezone`
+- `inputs.json` - The Home Assistant entity states HAEO read
+- `outputs.json` - The expected output sensors, which is the scenario's snapshot
 
-New scenarios are automatically discovered by the test runner (any `scenario*/` folder).
-
-### Running Scenario Tests
+### Running scenario tests
 
 ```bash
-# Run all scenarios (scenarios are skipped by default)
-uv run pytest tests/scenarios/test_scenarios.py -m scenario
+# Run all scenarios
+uv run pytest -m scenario
 
 # Run specific scenario
-uv run pytest tests/scenarios/test_scenarios.py::test_scenarios[scenario1] -m scenario
+uv run pytest "tests/scenarios/test_scenarios.py::test_scenarios[scenario1]" -m scenario
 
-# Update snapshots after changes
-uv run pytest tests/scenarios/test_scenarios.py -m scenario --snapshot-update
+# Update outputs.json after an intended change
+uv run pytest -m scenario --snapshot-update
 ```
 
-### Test Behavior
+Scenario tests are excluded from the default `-m "not scenario"` selection but run as their own gate in `uv run check` and their own job in CI.
 
-- Automatically extracts freeze time from most recent `last_updated` timestamp in states.json
-- Parameterized test runs once per scenario with unique test ID
-- Snapshots stored in `tests/scenarios/snapshots/test_scenarios.ambr`
-- Visualizations generated in each scenario's `visualizations/` directory
+### Test behavior
 
-For detailed scenario setup instructions, see `tests/scenarios/README.md`.
+- Freezes time at the scenario's `optimization_start_time` in its `timezone`
+- Compares every output sensor with `outputs.json` through a custom syrupy extension that writes the snapshot as JSON
+- Generates visualizations in each scenario's `visualizations/` directory
 
-## Model Element Testing
+For detailed scenario setup instructions, see [`tests/scenarios/README.md`](https://github.com/hass-energy/haeo/blob/main/tests/scenarios/README.md).
 
-Model element tests are organized in `core/model/tests/` with structured test data:
+## Model element testing
 
-- `test_elements.py` - Parametrized tests for element outputs and validation
-- `test_data/__init__.py` - Utilities and test case aggregation
-- `test_data/element.py` - Base Element test cases
-- `test_data/battery.py` - Battery-specific test cases
-- `test_data/connection.py` - Connection test cases
-- `test_data/grid.py` - Grid test cases
-- `test_data/solar.py` - Solar test cases
+Model element tests use structured test data in `core/model/tests/test_data/`.
+Each module there defines `VALID_CASES` for one kind of model element or segment.
+`test_data/__init__.py` aggregates them into lists such as `VALID_ELEMENT_CASES` and `VALID_CONNECTION_CASES`, which the parametrized tests in `core/model/elements/tests/` and `core/model/elements/segments/tests/` run.
 
-### Test Case Structure
+Each element case is an `ElementTestCase` (defined in `test_data/element_types.py`) holding:
 
-Each test data module provides:
+- `factory`: The model element class or a function that builds one
+- `data`: The keyword arguments passed to the factory
+- `inputs`: Optional power fixes, bounds, and costs that drive the element in a small optimization
+- `expected_outputs` and `expected_cost`: What the solved element reports
 
-**Factory function**: Creates element instances with fixed LP variable values for testing
+## Adapter mapping tests
 
-```python
-def create(data: dict[str, Any]) -> Element:
-    """Create a test Element instance with fixed values."""
-    return Element(**data)
-```
+Each element type's adapter is tested through mapping cases in `core/adapters/elements/tests/test_data/<element_type>.py`.
+Each module defines `CREATE_CASES`, pairing a loaded config with the model elements `model_elements()` builds, and `OUTPUTS_CASES`, pairing model outputs with the device outputs `outputs()` maps them to.
+The modules are found through the `ELEMENT_TYPES` registry, so a registered type without a module fails collection, and `test_mapping.py` checks that every type has at least one case of each kind.
+Behavior that the mapping cases cannot show gets its own test in `core/adapters/elements/tests/test_<element_type>.py`.
 
-**VALID_CASES**: List of test cases with expected outputs
+## Flow and schema tests
 
-```python
-VALID_CASES = [
-    {
-        "description": "Battery with full configuration",
-        "factory": create,
-        "data": {
-            "name": "battery",
-            "n_periods": 2,
-            # etc
-        },
-        "expected_outputs": {
-            "battery_power_charge": {
-                "type": "power",
-                "unit": "kW",
-                "values": (1.0, 2.0),
-                # etc
-            },
-        },
-    }
-]
-```
+Each element type has flow test data in `flows/tests/test_data/<element_type>.py`.
+`VALID_DATA` holds configurations in the shape stored in the subentry, and `INVALID_DATA` holds inputs the flow must reject.
+The shared tests in `flows/tests/test_element_flows.py` run against every registered element type, and schema tests such as `elements/tests/test_init.py` validate each `VALID_DATA` configuration against its element type's schema.
+Element-specific flow behavior is tested in `flows/elements/tests/test_<element_type>_flow.py`.
 
-**INVALID_CASES**: Test cases that should raise validation errors
+When adding an element type, register its adapter in `ELEMENT_TYPES` in [`core/adapters/registry.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/registry.py) and add both test data modules.
+The parametrized tests then include it.
 
-```python
-INVALID_CASES = [
-    {
-        "description": "Grid with import price length mismatch",
-        "element_class": Grid,
-        "data": {"name": "grid", "n_periods": 2, "price_import": (0.3,)},
-        "expected_error": r"price_import length \(1\) must match n_periods \(2\)",
-    }
-]
-```
+## Translation checks
 
-### Adding New Element Tests
+The runtime translation checker in [`translations/tests/runtime_checks.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/translations/tests/runtime_checks.py) is a pytest plugin that fails a test when HAEO shows a string `en.json` does not translate.
+It checks flow forms, aborts, repair issues, Home Assistant errors raised with a HAEO translation key, entity names, and enum sensor states as each is shown, and that every placeholder a string uses is supplied.
+`translations/tests/test_translations.py` checks the other direction: every key the integration uses is present and no key is unused.
+Tests therefore use the real translation keys rather than invented ones.
 
-Tests are colocated with source code.
-Add adapter tests in `core/adapters/elements/tests/` and flow tests in `flows/elements/tests/`.
-
-**For adapter tests** (`core/adapters/elements/tests/test_{element_type}.py`):
-
-1. Test `available()` returns `True` when all required sensors exist
-2. Test `available()` returns `False` when required sensors are missing
-3. Test `load()` correctly transforms `ConfigSchema` to `ConfigData`
-4. Test `load()` handles optional fields appropriately
-
-**For flow tests** (`flows/elements/tests/test_{element_type}_flow.py`):
-
-1. Test user step creates entry with valid input
-2. Test user step shows form initially (no input)
-3. Test validation errors (empty name, duplicate name)
-4. Test reconfigure step preserves current values
-5. Test reconfigure with participant that no longer exists
-6. Test element-specific validation (e.g., source != target for connections)
-
-Also add test data in `flows/tests/test_data/{element_type}.py` for parametrized flow tests.
-
-## Type Safety Philosophy
+## Type safety over defensive tests
 
 HAEO uses Python's type system to make certain error conditions impossible, rather than writing tests for defensive error logging.
-This approach improves code quality and reduces test maintenance burden.
-
-### When to Use Types Over Tests
-
-**Use type safety (no tests needed) when:**
-
-- Condition is guaranteed by architectural constraints (e.g., config entry IDs we control)
-- Data structure is validated at creation boundaries (e.g., config flow validation)
-- Error would represent a programming error, not a runtime condition
-
-**Use defensive checks and tests when:**
-
-- Handling external API responses (forecast parsers)
-- Accessing Home Assistant state (entities might not exist)
-- Processing user input (config flow initial entry)
-- Dealing with optimization solver failures
-
-### Type Safety Examples
-
-**Config Entry Access:**
-
-```python
-# ❌ Old pattern with defensive logging
-hub_entry = hass.config_entries.async_get_entry(hub_entry_id)
-if not hub_entry:
-    _LOGGER.warning("Hub entry %s not found", hub_entry_id)
-    return {}
-
-# ✅ New pattern with type assertion
-from custom_components.haeo.elements import assert_config_entry_exists
-
-hub_entry = assert_config_entry_exists(
-    hass.config_entries.async_get_entry(hub_entry_id),
-    hub_entry_id,
-)
-# No test needed - we control hub_entry_id, if missing it's a programming error
-```
-
-**Required Field Access:**
-
-```python
-# ❌ Old pattern with defensive logging
-element_name = subentry.data.get("name")
-if not element_name:
-    _LOGGER.warning("Subentry %s has no name", subentry.subentry_id)
-    continue
-
-# ✅ New pattern with type assertion
-from custom_components.haeo.elements import assert_subentry_has_name
-
-element_name = assert_subentry_has_name(
-    subentry.data.get("name_value"),
-    subentry.subentry_id,
-)
-# No test needed - config flow guarantees name_value is set
-```
-
-**Element Type Validation:**
-
-```python
-# ❌ Old pattern with defensive logging
-element_types = ELEMENT_TYPES.get(element_type)
-if not element_types:
-    _LOGGER.error("Unknown element type %s", element_type)
-    continue
-
-# ✅ New pattern with exhaustive checking
-if element_type not in ELEMENT_TYPES:
-    msg = f"Invalid element type {element_type} - config flow validation failed"
-    raise RuntimeError(msg)
-registry_entry = ELEMENT_TYPES[element_type]
-schema_cls = registry_entry.schema
-# No test needed - config flow validates element_type
-```
-
-### Benefits of Type Safety Over Tests
-
-1. **Compile-time validation**: Catches errors before runtime
-2. **Self-documenting**: Type signatures communicate invariants
-3. **Reduced test maintenance**: No tests for "impossible" conditions
-4. **Better error messages**: RuntimeError explains programming error vs silently logging
-5. **Coverage focus**: Test coverage focuses on actual business logic
-
-## Adding Config Flow Tests
-
-When adding new element types:
-
-1. Add to `ELEMENT_TYPES` in `elements/__init__.py`
-2. Add config flow test data in `flows/tests/test_data/`
-3. Parameterized tests automatically include the new type by iterating over `tuple(ELEMENT_TYPES)`
-
-Parameterized tests marked with `@pytest.mark.parametrize` run once per element type.
+Conditions guaranteed by architectural constraints, such as data validated at the config flow boundary, are accessed directly, so a violation raises as the programming error it is.
+Defensive checks and their tests belong where the data comes from outside: forecast parsers, Home Assistant state, user input, and solver failures.
+See the [typing guide](typing.md) for the patterns.
 
 ## Guide testing
 
@@ -313,10 +176,10 @@ If a block's content hasn't changed, its screenshots are reused without re-runni
 ### Running guide tests
 
 ```bash
-# Run all guide tests
-uv run pytest -m guide -v -n auto --timeout=300
+# Run all guide tests in parallel
+uv run pytest -m guide -n 8 --timeout=300
 
-# Run the guide runner CLI directly for a specific walkthrough
+# Run one walkthrough sequentially with the guide runner CLI
 uv run python -m tools.guide_runner docs/walkthroughs/sigenergy-system.md
 ```
 
@@ -338,14 +201,11 @@ The slideshow frontend is implemented in `docs/javascripts/guide-slideshow.js` w
 
 ## CI requirements
 
-All PRs must pass:
+All PRs must pass every CI gate, including unit and scenario tests, Ruff, Pyright, and the documentation build.
+`uv run check` runs every gate that can run locally.
+Codecov requires coverage of the changed lines.
 
-- All tests
-- Coverage ≥ 95%
-- Ruff linting
-- Pyright type checking
-
-## Related Documentation
+## Related documentation
 
 <div class="grid cards" markdown>
 
@@ -357,7 +217,7 @@ All PRs must pass:
 
     [:material-arrow-right: Architecture guide](architecture.md)
 
-- :material-network:{ .lg .middle } **Energy Models**
+- :material-network:{ .lg .middle } **Energy models**
 
     ---
 
@@ -373,7 +233,7 @@ All PRs must pass:
 
     [:material-arrow-right: Coordinator guide](coordinator.md)
 
-- :material-database:{ .lg .middle } **Data Loading**
+- :material-database:{ .lg .middle } **Data loading**
 
     ---
 
@@ -381,7 +241,7 @@ All PRs must pass:
 
     [:material-arrow-right: Data loading guide](data-loading.md)
 
-- :material-cog:{ .lg .middle } **Config Flow**
+- :material-cog:{ .lg .middle } **Config flow**
 
     ---
 

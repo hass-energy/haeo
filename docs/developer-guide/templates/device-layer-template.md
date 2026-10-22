@@ -3,7 +3,7 @@
 Brief description of this device element's purpose and what it models (1-2 sentences).
 Focus on the user-facing functionality and the physical system being represented.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -30,7 +30,7 @@ graph LR
     - Don't show the Device Layer element itself (implied by page context)
     - Keep model element labels concise
 
-## Devices Created
+## Devices created
 
 Describe the Home Assistant devices created by this element.
 Most elements create a single device, but some may create multiple.
@@ -40,7 +40,7 @@ Most elements create a single device, but some may create multiple.
 | Primary   | `{name}`        | Always                    | Main device functionality       |
 | Secondary | `{name}:suffix` | Conditional configuration | Additional device functionality |
 
-## Parameter Mapping
+## Parameter mapping
 
 The adapter transforms user configuration into model parameters.
 Show the key mappings that aren't obvious.
@@ -50,9 +50,9 @@ Show the key mappings that aren't obvious.
 | `config_field`     | Model Element A | $p_{\text{param}}$ | Transformation description |
 | `another_field`    | Model Element B | $q_{\text{param}}$ | Transformation description |
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 List all sensors this device creates, organized by device.
 
@@ -63,11 +63,11 @@ List all sensors this device creates, organized by device.
 
 See [Element Configuration](../../user-guide/elements/%7Belement%7D.md) for detailed sensor and configuration documentation.
 
-## Configuration Example
+## Configuration example
 
 Provide realistic configuration examples using table format showing common use cases.
 
-### Basic Configuration
+### Basic configuration
 
 | Field              | Value        |
 | ------------------ | ------------ |
@@ -76,7 +76,7 @@ Provide realistic configuration examples using table format showing common use c
 | **Optional Field** | value        |
 | **Connection**     | node_name    |
 
-## Typical Use Cases
+## Typical use cases
 
 Describe 2-3 common scenarios where users would configure this element:
 
@@ -84,12 +84,12 @@ Describe 2-3 common scenarios where users would configure this element:
 
 **Use Case 2**: Brief description of scenario and configuration approach.
 
-## Physical Interpretation
+## Physical interpretation
 
 Explain how this device element maps to real-world hardware or system behavior.
 Focus on what the user is modeling, not mathematical formulation.
 
-### Configuration Guidelines
+### Configuration guidelines
 
 Provide practical advice for setting configuration values:
 

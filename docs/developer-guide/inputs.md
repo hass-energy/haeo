@@ -1,14 +1,14 @@
-# Input Entities
+# Input entities
 
 Input entities are an intermediate layer between external Home Assistant sensors and the optimization model.
-They load, transform, and expose forecast data as Number and Switch entities that users can inspect and optionally modify.
+They expose each configured input as a Number or Switch entity that users can inspect, and edit when it holds a constant.
 
 ## Purpose
 
-HAEO's input entity layer provides:
+HAEO's input layer provides:
 
-- **Visibility**: Users see loaded values as standard HA entities
-- **Editability**: Values can be modified for what-if analysis or via automation service calls
+- **Visibility**: Users see loaded values as standard Home Assistant entities
+- **Editability**: Constant values can be changed for what-if analysis or through automations
 - **Decoupling**: Data loading happens independently of optimization cycles
 - **Alignment**: All inputs share synchronized forecast horizons
 
@@ -17,159 +17,95 @@ HAEO's input entity layer provides:
 ```mermaid
 graph LR
     subgraph "External"
-        Sensors[HA Sensors]
+        Sensors[HA sensors]
     end
 
-    subgraph "Input Layer"
-        IE[Input Entities]
+    subgraph "Input layer"
+        Stores[runtime_data.input_stores]
+        IE[Input entities]
         HM[HorizonManager]
-    end
-
-    subgraph "Runtime Data"
-        RD[runtime_data.inputs]
     end
 
     subgraph "Optimization"
         Coord[Coordinator]
     end
 
-    Sensors -->|load| IE
-    HM -->|horizon| IE
-    IE -->|populate| RD
-    RD -->|read| Coord
+    Sensors -->|load| Stores
+    HM -->|horizon| Stores
+    Stores --> IE
+    Stores -->|values and listeners| Coord
 ```
 
-Input entities subscribe to the [HorizonManager](horizon-manager.md) and refresh their data when the forecast horizon advances.
-The coordinator reads pre-loaded values from `runtime_data.inputs` rather than loading directly from sensors.
+An `InputStore` ([`core/data/input_store.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/input_store.py)) is the single source of truth for one field's value.
+`build_input_stores` in [`input_stores.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/input_stores.py) creates the stores during setup, before any entity exists, and keeps them in `runtime_data.input_stores` keyed by `(element_name, field_path)`.
+Each store is bound to a `SubentryStorage`, so an edited constant is written back to the element's subentry.
 
-## Input Field Map
+The Number and Switch entities wrap the stores for display and trigger their loads.
+The coordinator reads each store's resolved `value` and subscribes to changes with `add_listener`, rather than reading sensors itself.
 
-Each element type declares which configuration fields become input entities via its adapter's `inputs()` method.
-The method returns a dict keyed by field name, with `InputFieldInfo` values that describe entity metadata, output type, direction, and time-series behavior.
+## Input fields
 
-See the element adapter modules for specific registrations.
+Which config fields become inputs is derived from each element type's schema.
+`get_input_fields()` in [`elements/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/elements/__init__.py) builds the `InputFieldInfo` for each field from its field hints, describing the entity description, output type, direction, and time-series behavior.
+`get_list_input_fields()` does the same for list fields, such as policy rules.
 
-## Entity Creation
+## Entity creation
 
-Input entities are only created for fields configured with "Constant" during element setup.
-When a user links to external sensors or selects "None" for optional fields, no HAEO input entity is created for that field.
-This keeps the entity list focused on functionality the user has enabled.
+Each field takes one of three values in the config flow, through the ChooseSelector pattern documented in [Config flow development](config-flow.md#chooseselector-config-flow-pattern):
 
-**Constant fields**: An entity is created in EDITABLE mode, allowing runtime adjustment of the value.
+- **Constant**: The store holds the value in **editable** mode, and the entity can change it.
+- **Entity**: The store loads the selected sensors in **driven** mode, and the entity shows the loaded value read-only.
+- **None**: No store or entity is created, and the field is omitted from the model.
 
-**Entity-linked fields**: The external sensor is used directly; no HAEO input entity is created.
+An element type with surfaced policy prices also gets mirror entities on its own device that wrap the policy rule's store, so editing either updates the one stored value.
 
-**None fields**: No entity is created.
-The field is omitted from the optimization model entirely.
+## Loading
 
-This behavior is controlled by the ChooseSelector config flow pattern documented in [Config Flow Development](config-flow.md#chooseselector-config-flow-pattern).
+Driven stores resolve their sources with `resolve_field`, which extracts, combines, and fuses forecast data.
+See the [Data loading guide](data-loading.md) for the pipeline.
 
-## Entity Types
+Stores load when their source sensors change and when the [HorizonManager](horizon-manager.md) advances.
+A source update that resolves to the same value, timestamps, and availability as before does not notify the coordinator.
 
-### Number Entities
+The Home Assistant side of reading inputs lives in [`inputs/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/inputs):
 
-Number entities represent numeric input parameters such as power limits, energy capacity, prices, and percentages.
-They allow user modification when in editable mode.
+- `ha_state_machine.py` adapts Home Assistant's state machine to the `StateMachine` protocol the core loaders read through.
+- `calendar_loader.py` loads stores that read calendars, since a calendar's state carries only its current event.
+    It fetches events over the horizon and hands them to the core loader as a state attribute.
+- `meter_history.py` keeps the running totals of meter fields through resets, from recorder statistics and later state changes.
 
-### Switch Entities
+`core/annotated_state.py` merges those calendar events and meter totals into entity states in the same form diagnostics capture, so live runs and replays read inputs the same way.
 
-Switch entities represent boolean input parameters.
-They toggle between on/off states and are typically editable.
-
-## Configuration Modes
-
-Input entities operate in one of two modes based on how the field was configured:
-
-### Editable Mode
-
-When the configuration specifies a constant value (not an external sensor):
-
-- The entity displays the configured value
-- Users can modify the value through the Home Assistant UI
-- Service calls can update values for automation scenarios
-- Changes persist and affect future optimizations
-- Useful for what-if analysis and dynamic adjustments
-
-### Driven Mode
-
-When the configuration specifies an entity ID or list of entity IDs:
-
-- The entity loads data from source sensors through the shared field resolver
-- Values update automatically when source sensors change
-- The `source_entities` attribute lists the driving sensors
-- User modifications via UI are not supported (value comes from sources)
-
-## Entity Attributes
+## Entity attributes
 
 All input entities expose extra state attributes for debugging and automation:
 
-| Attribute      | Description                                    |
-| -------------- | ---------------------------------------------- |
-| `config_mode`  | `"editable"` or `"driven"`                     |
-| `element_name` | Element display name                           |
-| `element_type` | Element type (battery, grid, etc.)             |
-| `field_name`   | Configuration field name                       |
-| `output_type`  | Category (power, energy, price, etc.)          |
-| `time_series`  | Whether values vary per period                 |
-| `direction`    | Power flow direction if applicable             |
-| `forecast`     | Array of `{time, value}` points across horizon |
+| Attribute      | Description                                                |
+| -------------- | ---------------------------------------------------------- |
+| `config_mode`  | `editable` or `driven`                                     |
+| `element_name` | Element name                                               |
+| `element_type` | Element type                                               |
+| `field_name`   | Configuration field name                                   |
+| `field_path`   | Path to the field within the element's config              |
+| `field_type`   | Output type of the field, such as power or price           |
+| `time_series`  | Whether values vary per period (Number entities)           |
+| `direction`    | Power flow direction, when the field has one               |
+| `forecast`     | `{time, value}` points across the horizon, for time series |
 
-Driven mode entities also expose `source_entities` listing the entity IDs providing the data.
+Driven entities also expose `source_entities`, listing the entity IDs that provide the data.
 
-## Entity Naming
+## Entity naming and category
 
-### Entity IDs
+Input entities use translated names, and belong to the device of the element they configure.
+Their unique IDs come from `element_unique_id` in `unique_id.py`.
 
-Entity IDs follow Home Assistant conventions:
+Input entities use `EntityCategory.CONFIG`, so they show on device pages rather than default dashboards.
 
-```
-number.{element_name}_{field_name}
-switch.{element_name}_{field_name}
-```
-
-Examples:
-
-- `number.battery_capacity`
-- `number.main_grid_price_source_target`
-- `switch.solar_curtailment`
-
-### Device Association
-
-Input entities belong to the same device as the element's output sensors, grouping all entities for an element together.
-
-## Forecast Attribute
-
-The `forecast` attribute provides time-series data aligned to the optimization horizon.
-Each entry contains an ISO 8601 timestamp and the value for that period.
-
-For scalar (non-time-series) inputs, all periods have the same value.
-For time-series inputs, values vary based on loaded forecast data.
-
-## Data Loading Flow
-
-When the horizon changes or source sensors update:
-
-1. HorizonManager notifies entity of new horizon
-2. Entity's input store resolves its source entity IDs with `resolve_field` (driven mode only)
-3. The resolver extracts, combines, and fuses forecast data
-4. Entity stores aligned values and updates HA state
-5. Entity writes to `runtime_data.inputs` for coordinator access
-
-## Entity Category
-
-Input entities use `EntityCategory.CONFIG`:
-
-- Excluded from default dashboards and history
-- Visible in device pages and entity lists
-- Appropriate for configuration-like values
-
-Users can add specific inputs to dashboards if desired for monitoring.
-
-## Related Documentation
+## Related documentation
 
 <div class="grid cards" markdown>
 
-- :material-timer-outline:{ .lg .middle } **Horizon Manager**
+- :material-timer-outline:{ .lg .middle } **Horizon manager**
 
     ---
 
@@ -177,7 +113,7 @@ Users can add specific inputs to dashboards if desired for monitoring.
 
     [:material-arrow-right: Horizon manager guide](horizon-manager.md)
 
-- :material-database:{ .lg .middle } **Data Loading**
+- :material-database:{ .lg .middle } **Data loading**
 
     ---
 
@@ -189,7 +125,7 @@ Users can add specific inputs to dashboards if desired for monitoring.
 
     ---
 
-    How coordinator uses pre-loaded input data.
+    How the coordinator uses pre-loaded input data.
 
     [:material-arrow-right: Coordinator guide](coordinator.md)
 

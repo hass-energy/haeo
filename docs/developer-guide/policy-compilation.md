@@ -109,12 +109,12 @@ Each injected segment's `tag` matches the source VLAN, and `price_source_target`
 ### Where compilation runs
 
 Compilation lives in `custom_components/haeo/core/adapters/policy_compilation.py`.
-It runs as a post-processing step in `collect_model_elements()`.
+`build_network()` in `core/adapters/network_builder.py` runs it on the model element configs from `collect_model_elements()`, before adding any of them to the network.
 
 ### Adapter interaction
 
 The policy adapter produces rule configs, not model elements.
-`collect_model_elements()` extracts those rules and passes them to the compilation pipeline.
+`build_network()` reads those rules from the policy element's config and passes them to `compile_policies()` with the other adapters' model element configs.
 The pipeline updates other adapters' model element configs by adding connection tags, node `outbound_tags` values, and tag costs.
 
 ### Model layer isolation

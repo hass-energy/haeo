@@ -10,14 +10,14 @@ Set up your development environment for HAEO.
 
 ## Installation
 
-### Clone Repository
+### Clone repository
 
 ```bash
 git clone https://github.com/hass-energy/haeo.git
 cd haeo
 ```
 
-### Install Dependencies
+### Install dependencies
 
 ```bash
 uv sync
@@ -28,7 +28,7 @@ This installs all development dependencies including:
 - pytest (testing)
 - ruff (linting/formatting)
 - pyright (type checking)
-- mkdocs (documentation)
+- zensical (documentation)
 
 ## Local Home Assistant simulation
 
@@ -40,7 +40,7 @@ uv run sim scenario1
 
 See the [local simulation guide](local-sim.md) for options including accelerated time, ephemeral mode, and skipping automatic HAEO setup.
 
-## Running Tests
+## Running tests
 
 ```bash
 # All tests
@@ -53,7 +53,7 @@ uv run pytest custom_components/haeo/core/model/tests/
 uv run pytest --cov=custom_components.haeo
 ```
 
-## Code Quality
+## Code quality
 
 ### Linting
 
@@ -67,7 +67,7 @@ uv run ruff check
 uv run ruff format
 ```
 
-### Type Checking
+### Type checking
 
 ```bash
 uv run pyright
@@ -75,13 +75,16 @@ uv run pyright
 
 ## Documentation
 
-### Build Locally
+### Build locally
 
 ```bash
-uv run mkdocs serve
+uv run zensical serve
 ```
 
 Visit http://127.0.0.1:8000
+
+`uv run zensical build` is the documentation gate in `uv run check`.
+It does not check links or anchors, so confirm any you add.
 
 ### Deploy
 
