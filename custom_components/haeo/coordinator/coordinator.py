@@ -28,7 +28,12 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     NetworkOutputName,
 )
-from custom_components.haeo.core.adapters.network_builder import ElementUpdater, build_network, periods_in_hours
+from custom_components.haeo.core.adapters.network_builder import (
+    ElementUpdater,
+    build_element_updaters,
+    build_network,
+    periods_in_hours,
+)
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -433,12 +438,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
 
-        self._network, self._element_updaters = build_network(
+        self._network = build_network(
             f"haeo_network_{self.config_entry.entry_id}",
             loaded_configs,
             self._runtime_data.horizon_manager.periods_seconds,
             relax_infeasible=self._relax_infeasible,
         )
+        self._element_updaters = build_element_updaters(self._network, loaded_configs)
 
         # Build topology for frontend card
         element_types = {name: str(config[CONF_ELEMENT_TYPE]) for name, config in loaded_configs.items()}

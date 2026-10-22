@@ -1118,7 +1118,7 @@ def run_diagnostics(
     print("\nCreating network...")
     advanced = config.get(HUB_SECTION_ADVANCED)
     relax_infeasible = isinstance(advanced, dict) and advanced.get(CONF_RELAX_INFEASIBLE) is True
-    network, _updaters = build_network("diag", loaded_participants, periods_seconds, relax_infeasible=relax_infeasible)
+    network = build_network("diag", loaded_participants, periods_seconds, relax_infeasible=relax_infeasible)
     print(f"Network elements: {list(network.elements.keys())}")
 
     print("\nRunning optimization...")

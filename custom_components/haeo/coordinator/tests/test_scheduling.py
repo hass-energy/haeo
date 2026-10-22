@@ -344,7 +344,7 @@ async def _initialized_coordinator(
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     with patch(
         "custom_components.haeo.coordinator.coordinator.build_network",
-        return_value=(network, {}),
+        return_value=network,
     ):
         await coordinator.async_initialize()
     return coordinator

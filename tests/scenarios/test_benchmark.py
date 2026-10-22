@@ -24,7 +24,12 @@ from numpy.typing import NDArray
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
-from custom_components.haeo.core.adapters.network_builder import ElementUpdater, build_network, periods_in_hours
+from custom_components.haeo.core.adapters.network_builder import (
+    ElementUpdater,
+    build_element_updaters,
+    build_network,
+    periods_in_hours,
+)
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import Network
@@ -126,7 +131,8 @@ def _build_network(
     periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
     forecast_times = generate_forecast_timestamps(periods_seconds, start_time=frozen_dt.timestamp())
     loaded_configs = load_element_configs(participants, sm, forecast_times)
-    return build_network("benchmark", loaded_configs, periods_seconds)
+    network = build_network("benchmark", loaded_configs, periods_seconds)
+    return network, build_element_updaters(network, loaded_configs)
 
 
 def _load_configs(

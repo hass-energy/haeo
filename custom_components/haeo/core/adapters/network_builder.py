@@ -1,8 +1,8 @@
 """Build the optimization network from loaded element configs.
 
 ``build_network`` adds every configured element's model elements to a new
-``Network`` and returns an ``ElementUpdater`` for each configured element. An
-updater takes the element's config again, with new values, re-derives its model
+``Network``, and ``build_element_updaters`` returns an ``ElementUpdater`` for
+each configured element of it. An updater takes the element's config again, with new values, re-derives its model
 values through the adapter, and writes them to the ``TrackedParam`` descriptors
 on the live model elements, so the next solve uses them without a rebuild.
 """
@@ -13,7 +13,11 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
-from custom_components.haeo.core.adapters.policy_compilation import CompiledPolicyRule, compile_policies
+from custom_components.haeo.core.adapters.policy_compilation import (
+    CompilationResult,
+    CompiledPolicyRule,
+    compile_policies,
+)
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
@@ -158,28 +162,37 @@ def build_network(
     periods_seconds: Sequence[float],
     *,
     relax_infeasible: bool = False,
-) -> tuple[Network, dict[str, ElementUpdater]]:
-    """Build a network from loaded element configs, with an updater for each element.
+) -> Network:
+    """Build a network from loaded element configs.
 
     Raises:
         ValueError: When a model element cannot be added, or more than one policy element is configured.
 
     """
     network = Network(name=name, periods=periods_in_hours(periods_seconds), relax_infeasible=relax_infeasible)
-    compiled = compile_policies(collect_model_elements(participants), _policy_rules(participants))
-    for model_config in compiled["elements"]:
+    for model_config in _compile(participants)["elements"]:
         try:
             network.add(model_config)
         except Exception as error:
             msg = f"Failed to add model element '{model_config['name']}' (type={model_config['element_type']})"
             raise ValueError(msg) from error
+    return network
 
-    policy_updater = _policy_updater(network, compiled["pricing_rule_map"])
-    updaters = {
+
+def build_element_updaters(
+    network: Network, participants: Mapping[str, ElementConfigData]
+) -> dict[str, ElementUpdater]:
+    """Return an updater for each element of a network that ``build_network`` built from the same configs."""
+    policy_updater = _policy_updater(network, _compile(participants)["pricing_rule_map"])
+    return {
         element_name: policy_updater if is_policy_config_data(config) else _element_updater(network, config)
         for element_name, config in participants.items()
     }
-    return network, updaters
 
 
-__all__ = ["ElementUpdater", "build_network", "periods_in_hours"]
+def _compile(participants: Mapping[str, ElementConfigData]) -> CompilationResult:
+    """Return the participants' model elements with their policy rules compiled in."""
+    return compile_policies(collect_model_elements(participants), _policy_rules(participants))
+
+
+__all__ = ["ElementUpdater", "build_element_updaters", "build_network", "periods_in_hours"]
