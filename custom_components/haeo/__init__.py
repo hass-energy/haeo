@@ -49,6 +49,7 @@ from custom_components.haeo.repairs import (
     async_dismiss_entry_issues,
     create_setup_failed_issue,
     dismiss_setup_failed_issue,
+    setup_failed_issue_error,
     sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_setup_services
@@ -335,10 +336,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     try:
         await _async_setup_entry(hass, entry)
     except ConfigEntryNotReady:
+        # Setup now waits on something it reports itself, so an earlier unexpected error is no longer the cause
+        dismiss_setup_failed_issue(hass, entry.entry_id)
         raise
     except Exception as err:
-        _LOGGER.exception("HAEO setup failed, Home Assistant will retry")
         error = f"{type(err).__name__}: {err}"
+        # Home Assistant retries indefinitely, so a repeat of the error the issue shows is not logged in full again
+        if setup_failed_issue_error(hass, entry.entry_id) == error:
+            _LOGGER.warning("HAEO setup failed again with %s, Home Assistant will retry", error)
+        else:
+            _LOGGER.exception("HAEO setup failed, Home Assistant will retry")
         create_setup_failed_issue(hass, entry.entry_id, error)
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,

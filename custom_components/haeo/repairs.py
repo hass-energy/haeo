@@ -210,6 +210,14 @@ def create_setup_failed_issue(hass: HomeAssistant, entry_id: str, error: str) ->
     )
 
 
+def setup_failed_issue_error(hass: HomeAssistant, entry_id: str) -> str | None:
+    """Return the error the open setup failure issue reports, or None when there is none."""
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"setup_failed_{entry_id}")
+    if issue is None or issue.translation_placeholders is None:
+        return None
+    return issue.translation_placeholders.get("error")
+
+
 def dismiss_setup_failed_issue(hass: HomeAssistant, entry_id: str) -> None:
     """Dismiss the setup failure issue once setup succeeds."""
     async_delete_issue(hass, DOMAIN, f"setup_failed_{entry_id}")

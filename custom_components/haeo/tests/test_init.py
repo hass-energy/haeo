@@ -824,6 +824,42 @@ async def test_unexpected_setup_failure_retries_with_a_repair_issue(
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"setup_failed_{mock_hub_entry.entry_id}") is None
 
 
+async def test_repeated_setup_failure_logs_once_and_clears_when_the_cause_changes(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+    haeo_caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A repeated setup error logs its traceback once, and its issue clears once a retry waits on something else."""
+    monkeypatch.setattr("custom_components.haeo.HorizonManager", lambda **_kwargs: _create_mock_horizon_manager())
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", AsyncMock())
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", AsyncMock(return_value=True))
+    error: Exception = ValueError("bad value")
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", lambda *_args: _FailingCoordinator(error))
+    issue_id = f"setup_failed_{mock_hub_entry.entry_id}"
+
+    for _ in range(2):
+        with pytest.raises(ConfigEntryNotReady):
+            await async_setup_entry(hass, mock_hub_entry)
+
+    assert [record.exc_info is not None for record in haeo_caplog.records if "setup failed" in record.message] == [
+        True,
+        False,
+    ]
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+    error = ConfigEntryNotReady(
+        translation_domain=DOMAIN,
+        translation_key="horizon_entity_not_ready",
+        translation_placeholders={"entity_id": "sensor.horizon"},
+    )
+    with pytest.raises(ConfigEntryNotReady):
+        await async_setup_entry(hass, mock_hub_entry)
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
 async def test_setup_preserves_config_entry_not_ready_exception(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
