@@ -50,7 +50,7 @@ async def async_setup_entry(
         element_type = element_config[CONF_ELEMENT_TYPE]
 
         # Get input field definitions for this element type
-        input_fields = get_input_fields(element_config)
+        input_fields = get_input_fields(element_type)
         list_input_fields = get_list_input_fields(element_config)
         all_fields = {**input_fields, **list_input_fields}
 

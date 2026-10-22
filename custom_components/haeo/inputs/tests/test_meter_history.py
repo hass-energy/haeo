@@ -8,7 +8,13 @@ from homeassistant.core import HomeAssistant, State
 import pytest
 
 from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
-from custom_components.haeo.meter_history import LOOKBACK, SPACING, MeterHistory, async_meter_totals_at, recorded_totals
+from custom_components.haeo.inputs.meter_history import (
+    LOOKBACK,
+    SPACING,
+    MeterHistory,
+    async_meter_totals_at,
+    recorded_totals,
+)
 
 METER = "sensor.pump_energy"
 
@@ -133,7 +139,9 @@ async def test_recorded_totals_continue_with_the_live_reading(hass: HomeAssistan
     hass.states.async_set(METER, "7")
     history = MeterHistory(hass, [METER])
 
-    with patch("custom_components.haeo.meter_history.get_instance", return_value=_recorder(([(100.0, 40.0)], 5.0))):
+    with patch(
+        "custom_components.haeo.inputs.meter_history.get_instance", return_value=_recorder(([(100.0, 40.0)], 5.0))
+    ):
         await history.async_load()
 
     totals = _totals(history)
@@ -147,7 +155,7 @@ async def test_a_failed_statistics_lookup_keeps_only_live_readings(hass: HomeAss
     hass.states.async_set(METER, "7")
     history = MeterHistory(hass, [METER])
 
-    with patch("custom_components.haeo.meter_history.get_instance", return_value=_recorder(RuntimeError("db"))):
+    with patch("custom_components.haeo.inputs.meter_history.get_instance", return_value=_recorder(RuntimeError("db"))):
         await history.async_load()
 
     assert [total for _at, total in _totals(history)] == [0.0]
@@ -162,7 +170,7 @@ async def test_totals_older_than_the_lookback_are_dropped(hass: HomeAssistant) -
     history = MeterHistory(hass, [METER])
 
     with patch(
-        "custom_components.haeo.meter_history.get_instance",
+        "custom_components.haeo.inputs.meter_history.get_instance",
         return_value=_recorder(([(old - 600.0, 30.0), (old, 35.0), (now - 600.0, 40.0)], 5.0)),
     ):
         await history.async_load()
@@ -181,7 +189,9 @@ def test_recorded_totals_read_the_statistics_sums_in_the_meter_unit(hass: HomeAs
     }
     start = datetime(2026, 10, 20, tzinfo=UTC)
 
-    with patch("custom_components.haeo.meter_history.statistics.statistics_during_period", return_value=rows) as lookup:
+    with patch(
+        "custom_components.haeo.inputs.meter_history.statistics.statistics_during_period", return_value=rows
+    ) as lookup:
         totals, last_reading = recorded_totals(hass, METER, "kWh", start, None)
 
     assert totals == [(300.0, 1.0), (900.0, 2.5)]
@@ -200,7 +210,7 @@ def test_recorded_totals_stop_at_buckets_ending_by_the_end(hass: HomeAssistant) 
     }
     end = datetime.fromtimestamp(450.0, tz=UTC)
 
-    with patch("custom_components.haeo.meter_history.statistics.statistics_during_period", return_value=rows):
+    with patch("custom_components.haeo.inputs.meter_history.statistics.statistics_during_period", return_value=rows):
         totals, last_reading = recorded_totals(hass, METER, None, end - LOOKBACK, end)
 
     assert totals == [(300.0, 1.0)]
@@ -213,7 +223,7 @@ async def test_totals_at_a_past_time_are_none_when_statistics_fail(hass: HomeAss
     state = hass.states.get(METER)
     assert state is not None
 
-    with patch("custom_components.haeo.meter_history.get_instance", return_value=_recorder(RuntimeError("db"))):
+    with patch("custom_components.haeo.inputs.meter_history.get_instance", return_value=_recorder(RuntimeError("db"))):
         totals = await async_meter_totals_at(hass, METER, datetime(2026, 10, 20, 12, tzinfo=UTC), state)
 
     assert totals is None
@@ -227,7 +237,7 @@ async def test_totals_at_a_past_time_end_with_the_state_then(hass: HomeAssistant
     assert state is not None
 
     with patch(
-        "custom_components.haeo.meter_history.get_instance",
+        "custom_components.haeo.inputs.meter_history.get_instance",
         return_value=_recorder(([((at - timedelta(minutes=5)).timestamp(), 40.0)], 6.0)),
     ):
         totals = await async_meter_totals_at(hass, METER, at, state)

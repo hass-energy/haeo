@@ -27,7 +27,6 @@ from custom_components.haeo import (
     MIGRATION_MINOR_VERSION,
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
-    _cleanup_buffer_participants,
     _element_flow_in_progress,
     _ensure_required_subentries,
     async_remove_config_entry_device,
@@ -37,6 +36,7 @@ from custom_components.haeo import (
     async_unload_entry,
     async_update_listener,
     card_static_url,
+    prune_element_references,
 )
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
@@ -1124,7 +1124,7 @@ def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: d
         ),
     ],
 )
-def test_cleanup_buffer_participants_strips_deleted_elements(
+def test_prune_element_references_buffer_strips_deleted_elements(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     participants: dict[str, list[str]],
@@ -1136,19 +1136,19 @@ def test_cleanup_buffer_participants_strips_deleted_elements(
     add_participant(hass, mock_hub_entry, "Battery", ElementType.BATTERY)
     subentry = _add_buffer(hass, mock_hub_entry, participants)
 
-    _cleanup_buffer_participants(hass, mock_hub_entry)
+    prune_element_references(hass, mock_hub_entry)
 
     assert mock_hub_entry.subentries[subentry.subentry_id].data[SECTION_PARTICIPANTS] == expected
 
 
-def test_cleanup_buffer_participants_removes_buffer_without_batteries(
+def test_prune_element_references_buffer_removes_buffer_without_batteries(
     hass: HomeAssistant, mock_hub_entry: MockConfigEntry
 ) -> None:
     """A buffer whose last battery is deleted holds nothing, so it is removed."""
     add_participant(hass, mock_hub_entry, "House", ElementType.LOAD)
     subentry = _add_buffer(hass, mock_hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]})
 
-    _cleanup_buffer_participants(hass, mock_hub_entry)
+    prune_element_references(hass, mock_hub_entry)
 
     assert subentry.subentry_id not in mock_hub_entry.subentries
 

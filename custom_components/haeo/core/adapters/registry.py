@@ -48,6 +48,15 @@ class ElementAdapter(Protocol):
 
     can_sink: bool
 
+    # Whether the element can be the switchboard: the central point other
+    # elements connect to, which a hub outside advanced mode always has
+    switchboard: bool
+
+    @property
+    def device_names(self) -> frozenset[str]:
+        """Names of the devices the element creates."""
+        ...
+
     # What a buffer can count the element as: a load it covers, generation
     # it covers, or storage that holds it
     buffer_roles: frozenset[BufferRole]
@@ -82,6 +91,19 @@ class ElementAdapter(Protocol):
         type parameter is invariant, so no shared key type (not even ``str``) is
         compatible with every adapter's concrete return type.
         """
+        ...
+
+
+@runtime_checkable
+class ConfiguredRolesAdapter(Protocol):
+    """An adapter whose elements each choose in their config whether they produce or consume power.
+
+    Such an element sources or sinks power only when its config says so, so
+    can_source and can_sink only say what it may do.
+    """
+
+    def roles(self, config: Mapping[str, object]) -> tuple[bool, bool]:
+        """Return whether the configured element can source and can sink power."""
         ...
 
 
@@ -127,6 +149,7 @@ def collect_model_elements(
 
 __all__ = [
     "ELEMENT_TYPES",
+    "ConfiguredRolesAdapter",
     "ElementAdapter",
     "collect_model_elements",
     "is_element_type",

@@ -62,6 +62,8 @@ class BatterySectionAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
     can_source: bool = True
     can_sink: bool = True
+    switchboard: bool = False
+    device_names: frozenset[BatterySectionDeviceName] = BATTERY_SECTION_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_STORAGE})
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:

@@ -53,10 +53,7 @@ def extract_policy_rules(config: PolicyConfigData) -> list[CompiledPolicyRule]:
                 sources=source if source else [WILDCARD],
                 destinations=target if target else [WILDCARD],
                 enabled=rule[CONF_ENABLED],
-                # PolicyRuleData.price may be None for tagging-only rules; compilation
-                # trusts loaders to price enabled rules. Pre-existing behavior kept
-                # as-is (the previous Any typing hid this hole).
-                price=rule[CONF_PRICE],  # type: ignore[typeddict-item]
+                price=rule[CONF_PRICE],
             )
         )
     return result
@@ -70,6 +67,8 @@ class PolicyAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = False
+    switchboard: bool = False
+    device_names: frozenset[PolicyDeviceName] = POLICY_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: PolicyConfigData) -> list[ModelElementConfig]:  # noqa: ARG002 (required by adapter protocol — policy has no model elements)

@@ -83,7 +83,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._record_forecasts = coordinator.config_entry.data.get(CONF_RECORD_FORECASTS, False)
 
     @property
-    def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
+    def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]  # Entity declares available as a cached_property
         """Return if sensor is available based on coordinator success."""
         return super().available and self.coordinator.last_update_success
 

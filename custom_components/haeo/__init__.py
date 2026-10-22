@@ -13,16 +13,14 @@ from typing import TYPE_CHECKING
 from homeassistant.components.frontend import DOMAIN as FRONTEND_DOMAIN
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry, ConfigSubentryData
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.setup import async_when_setup
 
-from custom_components.haeo.calendar_loader import CalendarInputLoader
 from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -31,13 +29,12 @@ from custom_components.haeo.const import (
     STATIC_CARD_STATIC_PATH,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema.elements.buffer import CONF_STORAGE, SECTION_PARTICIPANTS
-from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.elements.policy import PolicyRuleConfig
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE
+from custom_components.haeo.core.schema.elements import ELEMENT_REFERENCE_PRUNERS
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
-from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
+from custom_components.haeo.flows.hub import async_network_subentry, async_switchboard_subentry
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import (
     InputStoreMap,
@@ -46,6 +43,7 @@ from custom_components.haeo.input_stores import (
     unavailable_input_placeholders,
     unavailable_input_sources,
 )
+from custom_components.haeo.inputs.calendar_loader import CalendarInputLoader
 from custom_components.haeo.repairs import async_dismiss_entry_issues, sync_unavailable_input_issues
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
@@ -165,58 +163,31 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     """Ensure required subentries exist for the hub.
 
     Creates a Network subentry (for optimization sensors) if missing.
-    In non-advanced mode, also creates a Switchboard node if missing.
+    In non-advanced mode, also creates a Switchboard junction if missing.
     """
-    # Avoid circular import with schema module
-    from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
-
-    # Check if Network subentry already exists
-    has_network = False
-    has_switchboard = False
-
-    for subentry in hub_entry.subentries.values():
-        if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
-            has_network = True
-        elif subentry.subentry_type in (ElementType.JUNCTION, ElementType.NODE):
-            has_switchboard = True
-        if has_network and has_switchboard:
-            break
-
-    # Load translations for subentry names
-    translations = await async_get_translations(hass, hass.config.language, "common", integrations=[DOMAIN])
-
-    # Create Network subentry if missing
-    if not has_network:
-        _LOGGER.info("Creating Network subentry for hub %s", hub_entry.entry_id)
-        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
-        network_subentry = ConfigSubentry(
-            data=MappingProxyType({CONF_NAME: network_subentry_name, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
-            subentry_type=ELEMENT_TYPE_NETWORK,
-            title=network_subentry_name,
-            unique_id=None,
-        )
-        hass.config_entries.async_add_subentry(hub_entry, network_subentry)
-        _LOGGER.debug("Network subentry created successfully")
-
-    # In non-advanced mode, ensure the switchboard junction exists
+    subentry_types = {subentry.subentry_type for subentry in hub_entry.subentries.values()}
+    has_switchboard = any(
+        is_element_type(subentry_type) and ELEMENT_TYPES[subentry_type].switchboard for subentry_type in subentry_types
+    )
     advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
-    if not advanced_mode and not has_switchboard:
-        _LOGGER.info("Creating Switchboard junction for hub %s (non-advanced mode)", hub_entry.entry_id)
-        switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
 
-        switchboard_subentry = ConfigSubentry(
-            data=MappingProxyType(
-                {
-                    CONF_ELEMENT_TYPE: ElementType.JUNCTION,
-                    CONF_NAME: switchboard_name,
-                }
+    required: list[ConfigSubentryData] = []
+    if ELEMENT_TYPE_NETWORK not in subentry_types:
+        required.append(await async_network_subentry(hass))
+    if not advanced_mode and not has_switchboard:
+        required.append(await async_switchboard_subentry(hass))
+
+    for subentry in required:
+        _LOGGER.info("Creating %s subentry for hub %s", subentry["title"], hub_entry.entry_id)
+        hass.config_entries.async_add_subentry(
+            hub_entry,
+            ConfigSubentry(
+                data=MappingProxyType(subentry["data"]),
+                subentry_type=subentry["subentry_type"],
+                title=subentry["title"],
+                unique_id=subentry["unique_id"],
             ),
-            subentry_type=ElementType.JUNCTION,
-            title=switchboard_name,
-            unique_id=None,
         )
-        hass.config_entries.async_add_subentry(hub_entry, switchboard_subentry)
-        _LOGGER.debug("Switchboard junction created successfully")
 
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
@@ -248,8 +219,7 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     # for orphans; element deletions do not run a flow, so they still clean up.
     flow_in_progress = _element_flow_in_progress(hass, entry)
     if not flow_in_progress:
-        _cleanup_policy_rules(hass, entry)
-        _cleanup_buffer_participants(hass, entry)
+        prune_element_references(hass, entry)
 
     _LOGGER.info("HAEO configuration changed, reloading integration")
 
@@ -289,95 +259,25 @@ def _element_flow_in_progress(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return any(flow["handler"][0] == entry.entry_id for flow in hass.config_entries.subentries.async_progress())
 
 
-def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove deleted element references from policy rules.
+def prune_element_references(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove references to deleted elements from the elements that name them.
 
-    When an element subentry is deleted, policy rules may still reference
-    it by name. This strips deleted names from source/target lists,
-    removes rules where either side had elements but became empty, and
-    deduplicates rules that end up with the same source/target pattern.
+    Each element type that names other elements declares how it drops names
+    that no longer exist; an element left with nothing to do is removed.
     """
-    from custom_components.haeo.flows.surfaced_policy import _save_policy_rules  # noqa: PLC0415
-
-    policy_subentry = find_policy_subentry(entry)
-    if policy_subentry is None:
-        return
-
-    current_element_names = {
-        subentry.title for subentry in entry.subentries.values() if subentry.subentry_id != policy_subentry.subentry_id
-    }
-
-    rules = get_policy_rules(entry)
-    cleaned: list[PolicyRuleConfig] = []
-    seen_patterns: set[tuple[tuple[str, ...] | None, tuple[str, ...] | None]] = set()
-    changed = False
-
-    for rule in rules:
-        source = rule.get("source")
-        target = rule.get("target")
-
-        new_source = [name for name in source if name in current_element_names] if source else source
-        new_target = [name for name in target if name in current_element_names] if target else target
-
-        if new_source != source or new_target != target:
-            changed = True
-
-        # Drop rules where a named side lost all its elements
-        source_emptied = source and not new_source
-        target_emptied = target and not new_target
-        if source_emptied or target_emptied:
-            changed = True
-            continue
-
-        new_rule: PolicyRuleConfig = dict(rule)  # type: ignore[assignment]
-        if new_source != source:
-            if new_source:
-                new_rule["source"] = new_source
-            else:
-                new_rule.pop("source", None)
-        if new_target != target:
-            if new_target:
-                new_rule["target"] = new_target
-            else:
-                new_rule.pop("target", None)
-
-        # Deduplicate rules with the same source/target pattern
-        pattern = (
-            tuple(sorted(new_source)) if new_source else None,
-            tuple(sorted(new_target)) if new_target else None,
-        )
-        if pattern in seen_patterns:
-            changed = True
-            continue
-        seen_patterns.add(pattern)
-
-        cleaned.append(new_rule)
-
-    if changed:
-        _save_policy_rules(hass, entry, cleaned)
-
-
-def _cleanup_buffer_participants(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove deleted element references from buffer participants.
-
-    Each buffer names its loads, generation, and batteries, so deleting one of
-    those elements leaves a dangling name that is stripped here. A buffer left
-    with no batteries holds nothing, so it is removed, as a policy rule is when
-    one of its sides loses all its elements.
-    """
-    current_element_names = {subentry.title for subentry in entry.subentries.values()}
-    buffers = [subentry for subentry in entry.subentries.values() if subentry.subentry_type == ElementType.BUFFER]
-    for subentry in buffers:
-        participants = subentry.data[SECTION_PARTICIPANTS]
-        cleaned = {
-            field: [name for name in names if name in current_element_names] for field, names in participants.items()
-        }
-        if not cleaned[CONF_STORAGE]:
+    subentries = list(entry.subentries.values())
+    referencing = [
+        (subentry, ELEMENT_REFERENCE_PRUNERS[subentry.subentry_type])
+        for subentry in subentries
+        if subentry.subentry_type in ELEMENT_REFERENCE_PRUNERS
+    ]
+    for subentry, prune in referencing:
+        element_names = {other.title for other in subentries if other.subentry_id != subentry.subentry_id}
+        pruned = prune(subentry.data, element_names)
+        if pruned is None:
             hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
-        elif cleaned != participants:
-            hass.config_entries.async_update_subentry(
-                entry, subentry, data={**subentry.data, SECTION_PARTICIPANTS: cleaned}
-            )
+        elif pruned != subentry.data:
+            hass.config_entries.async_update_subentry(entry, subentry, data=pruned)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
@@ -437,10 +337,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # from their persisted value).
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
     # Register cleanup - will be called on failure or unload
-    # Return the coroutine directly - HA will wrap it in async_create_task
-    entry.async_on_unload(
-        lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
-    )
+
+    async def _async_unload_input_platforms() -> None:
+        await hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)
+
+    entry.async_on_unload(_async_unload_input_platforms)
 
     # Wait for every input store to have data or to reject its source's value,
     # so a rejected value is reported at once rather than after the timeout
@@ -495,10 +396,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Set up output platforms after coordinator has data
     await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)
     # Register cleanup - will be called on failure or unload
-    # Return the coroutine directly - HA will wrap it in async_create_task
-    entry.async_on_unload(
-        lambda: hass.config_entries.async_unload_platforms(entry, OUTPUT_PLATFORMS)  # type: ignore[arg-type]
-    )
+
+    async def _async_unload_output_platforms() -> None:
+        await hass.config_entries.async_unload_platforms(entry, OUTPUT_PLATFORMS)
+
+    entry.async_on_unload(_async_unload_output_platforms)
 
     # Register update listener LAST - after all setup is complete
     # This prevents reload loops from subentry additions during initial setup
