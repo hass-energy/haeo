@@ -5,17 +5,16 @@ from datetime import UTC, datetime
 
 # Coordinator output fixtures use runtime string keys that cannot satisfy the
 # Literal key types of SubentryDevices.
-from typing import Any, Literal  # noqa: TID251
+from typing import Literal
 from unittest.mock import Mock
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
 from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.util import dt as dt_util
 import pytest
 
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
-from custom_components.haeo.coordinator import CoordinatorData, CoordinatorOutput, ForecastPoint, OptimizationContext
+from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_STATE_OF_CHARGE
 from custom_components.haeo.core.adapters.elements.load import LOAD_POWER
 from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
@@ -24,82 +23,11 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
-
-
-def _make_coordinator_data(
-    outputs: dict[str, Any] | None = None,
-    *,
-    started_at: datetime | None = None,
-    completed_at: datetime | None = None,
-) -> CoordinatorData | None:
-    """Create a CoordinatorData instance for tests.
-
-    Args:
-        outputs: Dict of outputs. If None, returns None to simulate no data.
-        started_at: Optimization start time; defaults to current UTC time.
-        completed_at: Optimization completion time; defaults to current UTC time.
-
-    Returns:
-        CoordinatorData with the given outputs, or None.
-
-    """
-    if outputs is None:
-        return None
-    context = OptimizationContext(
-        hub_config={},
-        horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
-        participants={},
-        source_states={},
-    )
-    run_started_at = started_at or datetime.now(UTC)
-    run_completed_at = completed_at or datetime.now(UTC)
-    return CoordinatorData(
-        context=context,
-        outputs=outputs,
-        started_at=run_started_at,
-        completed_at=run_completed_at,
-    )
-
-
-def _create_mock_coordinator() -> Mock:
-    """Create a mock coordinator for sensor tests.
-
-    Returns a Mock configured with the minimal interface needed for sensor tests.
-    Callers can use this where HaeoDataUpdateCoordinator is expected since Mock
-    attribute access returns Any, making it compatible at runtime.
-    """
-    coordinator = Mock()
-    coordinator.data = _make_coordinator_data({})
-    coordinator.last_update_success = True
-    coordinator.async_add_listener = Mock(return_value=lambda: None)
-    return coordinator
-
-
-def _make_output(
-    *,
-    type_: OutputType,
-    unit: str | None,
-    state: float | str | None,
-    forecast: list[ForecastPoint] | None,
-    entity_category: EntityCategory | None,
-    device_class: SensorDeviceClass | None,
-    state_class: SensorStateClass | None,
-    options: tuple[str, ...] | None,
-    direction: Literal["+", "-"] | None = None,
-    interpolation_mode: InterpolationMode | None = None,
-) -> CoordinatorOutput:
-    return CoordinatorOutput(
-        type=type_,
-        unit=unit,
-        state=state,
-        forecast=forecast,
-        interpolation_mode=interpolation_mode,
-        entity_category=entity_category,
-        device_class=device_class,
-        state_class=state_class,
-        options=options,
-        direction=direction,
-    )
+from custom_components.haeo.entities.tests.sensor_helpers import (
+    create_mock_coordinator,
+    make_coordinator_data,
+    make_output,
+)
 
 
 @pytest.fixture
@@ -113,8 +41,8 @@ def device_entry() -> DeviceEntry:
 def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry) -> None:
     """Coordinator updates refresh metadata, forecasts, and native value."""
 
-    coordinator = _create_mock_coordinator()
-    initial_output = _make_output(
+    coordinator = create_mock_coordinator()
+    initial_output = make_output(
         type_=OutputType.POWER,
         unit="kW",
         state=1.0,
@@ -139,7 +67,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
     sensor.async_write_ha_state = Mock()
 
     forecast_time = datetime(2024, 1, 1, tzinfo=UTC)
-    updated_output = _make_output(
+    updated_output = make_output(
         type_=OutputType.POWER,
         unit="W",
         state=750.0,
@@ -150,7 +78,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         options=None,
         interpolation_mode=InterpolationMode.PREVIOUS,
     )
-    coordinator.data = _make_coordinator_data({"battery": {"battery": {LOAD_POWER: updated_output}}})
+    coordinator.data = make_coordinator_data({"battery": {"battery": {LOAD_POWER: updated_output}}})
 
     sensor._handle_coordinator_update()
 
@@ -171,9 +99,9 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
 
 def test_handle_coordinator_update_scales_percentage_outputs(device_entry: DeviceEntry) -> None:
     """Percentage outputs are scaled for display in sensors."""
-    coordinator = _create_mock_coordinator()
+    coordinator = create_mock_coordinator()
     forecast_time = datetime(2024, 1, 1, tzinfo=UTC)
-    output = _make_output(
+    output = make_output(
         type_=OutputType.STATE_OF_CHARGE,
         unit="%",
         state=0.5,
@@ -197,7 +125,7 @@ def test_handle_coordinator_update_scales_percentage_outputs(device_entry: Devic
     )
     sensor.async_write_ha_state = Mock()
 
-    coordinator.data = _make_coordinator_data({"battery": {"battery": {BATTERY_STATE_OF_CHARGE: output}}})
+    coordinator.data = make_coordinator_data({"battery": {"battery": {BATTERY_STATE_OF_CHARGE: output}}})
     sensor._handle_coordinator_update()
 
     assert sensor.native_value == 50.0
@@ -220,8 +148,8 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
 ) -> None:
     """Missing coordinator data clears the sensor value while keeping base attributes."""
 
-    coordinator = _create_mock_coordinator()
-    initial_output = _make_output(
+    coordinator = create_mock_coordinator()
+    initial_output = make_output(
         type_=OutputType.POWER,
         unit="kW",
         state=5.0,
@@ -245,7 +173,7 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
     )
     sensor.async_write_ha_state = Mock()
 
-    coordinator.data = _make_coordinator_data(coordinator_data)
+    coordinator.data = make_coordinator_data(coordinator_data)
     sensor._handle_coordinator_update()
 
     assert sensor.native_value is None
@@ -263,8 +191,8 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
 def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> None:
     """Sensor availability mirrors the coordinator's update status."""
 
-    coordinator = _create_mock_coordinator()
-    output = _make_output(
+    coordinator = create_mock_coordinator()
+    output = make_output(
         type_=OutputType.POWER,
         unit="kW",
         state=1.0,
@@ -297,8 +225,8 @@ def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> N
 async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: DeviceEntry) -> None:
     """async_added_to_hass should trigger an initial update when data exists."""
 
-    coordinator = _create_mock_coordinator()
-    output = _make_output(
+    coordinator = create_mock_coordinator()
+    output = make_output(
         type_=OutputType.POWER,
         unit="kW",
         state=1.0,
@@ -308,7 +236,7 @@ async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: Devi
         state_class=SensorStateClass.MEASUREMENT,
         options=None,
     )
-    coordinator.data = _make_coordinator_data({"battery": {"battery": {LOAD_POWER: output}}})
+    coordinator.data = make_coordinator_data({"battery": {"battery": {LOAD_POWER: output}}})
 
     sensor = HaeoSensor(
         coordinator,
@@ -331,8 +259,8 @@ async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: Devi
 
 def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> None:
     """Coordinator updates apply the direction attribute."""
-    coordinator = _create_mock_coordinator()
-    initial_output = _make_output(
+    coordinator = create_mock_coordinator()
+    initial_output = make_output(
         type_=OutputType.POWER,
         unit="kW",
         state=1.0,
@@ -356,7 +284,7 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
     )
     sensor.async_write_ha_state = Mock()
 
-    updated_output = _make_output(
+    updated_output = make_output(
         type_=OutputType.POWER,
         unit="kW",
         state=1.0,
@@ -367,7 +295,7 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
         options=None,
         direction="+",
     )
-    coordinator.data = _make_coordinator_data({"battery": {"battery": {LOAD_POWER: updated_output}}})
+    coordinator.data = make_coordinator_data({"battery": {"battery": {LOAD_POWER: updated_output}}})
 
     sensor._handle_coordinator_update()
 
@@ -389,12 +317,12 @@ def test_unrecorded_attributes_based_on_config(
     expect_unrecorded: bool,
 ) -> None:
     """Sensor applies recorder filtering based on record_forecasts config."""
-    coordinator = _create_mock_coordinator()
+    coordinator = create_mock_coordinator()
     # Mock the config_entry.data.get behavior
     coordinator.config_entry = Mock()
     coordinator.config_entry.data = {CONF_RECORD_FORECASTS: record_forecasts}
 
-    output = _make_output(
+    output = make_output(
         type_=OutputType.POWER,
         unit="kW",
         state=1.0,
@@ -427,8 +355,8 @@ def test_unrecorded_attributes_based_on_config(
 
 def test_handle_coordinator_update_sets_fixed_attribute(device_entry: DeviceEntry) -> None:
     """Fixed outputs expose a fixed=True attribute for the frontend card."""
-    coordinator = _create_mock_coordinator()
-    initial_output = _make_output(
+    coordinator = create_mock_coordinator()
+    initial_output = make_output(
         type_=OutputType.POWER,
         unit="kW",
         state=1.0,
@@ -464,7 +392,7 @@ def test_handle_coordinator_update_sets_fixed_attribute(device_entry: DeviceEntr
         options=None,
         fixed=True,
     )
-    coordinator.data = _make_coordinator_data({"load": {"load": {LOAD_POWER: fixed_output}}})
+    coordinator.data = make_coordinator_data({"load": {"load": {LOAD_POWER: fixed_output}}})
 
     sensor._handle_coordinator_update()
 
@@ -478,8 +406,8 @@ def test_handle_coordinator_update_sets_state_of_charge_direction(
     device_entry: DeviceEntry, direction: Literal["+", "-"] | None
 ) -> None:
     """A state of charge line exposes the flow it holds the batteries ready for, and a plain one has no direction."""
-    coordinator = _create_mock_coordinator()
-    output = _make_output(
+    coordinator = create_mock_coordinator()
+    output = make_output(
         type_=OutputType.STATE_OF_CHARGE,
         unit="%",
         state=0.5,
@@ -501,9 +429,7 @@ def test_handle_coordinator_update_sets_state_of_charge_direction(
         unique_id="sensor-id",
     )
     sensor.async_write_ha_state = Mock()
-    coordinator.data = _make_coordinator_data(
-        {"buffer": {"buffer": {LOAD_POWER: replace(output, direction=direction)}}}
-    )
+    coordinator.data = make_coordinator_data({"buffer": {"buffer": {LOAD_POWER: replace(output, direction=direction)}}})
 
     sensor._handle_coordinator_update()
 
@@ -522,7 +448,7 @@ def test_advanced_outputs_are_disabled_by_default(
 ) -> None:
     """Sensors for advanced outputs ship disabled in the entity registry."""
     output = replace(
-        _make_output(
+        make_output(
             type_=OutputType.SHADOW_PRICE,
             unit="$/kWh",
             state=0.0,
@@ -536,7 +462,7 @@ def test_advanced_outputs_are_disabled_by_default(
     )
 
     sensor = HaeoSensor(
-        _create_mock_coordinator(),
+        create_mock_coordinator(),
         device_entry=device_entry,
         subentry_key="battery",
         device_key=ElementType.BATTERY,

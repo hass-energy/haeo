@@ -4,7 +4,6 @@ import asyncio
 from datetime import timedelta
 import logging
 from types import MappingProxyType
-from typing import Any  # noqa: TID251  # captures HA's Any-typed extra_state_attributes property for later assertions
 from unittest.mock import Mock
 
 from homeassistant.components.switch import SwitchEntityDescription
@@ -211,6 +210,13 @@ def _forecast_values(entity: HaeoInputSwitch) -> list[bool | None]:
     attrs = entity.extra_state_attributes
     assert attrs is not None
     return [point["value"] for point in attrs["forecast"]]
+
+
+def _forecast_points(entity: HaeoInputSwitch) -> list[tuple[float, bool | None]]:
+    """Return the forecast attribute's (timestamp, value) points."""
+    attrs = entity.extra_state_attributes
+    assert attrs is not None
+    return [(point["time"].timestamp(), point["value"]) for point in attrs["forecast"]]
 
 
 # --- Tests for EDITABLE mode ---
@@ -672,7 +678,13 @@ async def test_editable_forecast_built_from_horizon_timestamps(
 # --- Tests for horizon and source state change handlers ---
 
 
-@pytest.mark.parametrize("config_value", [True, "input_boolean.curtail"], ids=["editable", "driven"])
+@pytest.mark.parametrize(
+    ("config_value", "expected"),
+    [
+        pytest.param(True, True, id="editable"),
+        pytest.param("input_boolean.curtail", False, id="driven"),
+    ],
+)
 async def test_horizon_change_updates_forecast_timestamps(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -680,35 +692,32 @@ async def test_horizon_change_updates_forecast_timestamps(
     curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
     horizon_manager: Mock,
     config_value: bool | str,
+    expected: bool,
 ) -> None:
-    """A horizon change writes a forecast on the new timestamps, keeping the value from config or source."""
+    """A horizon change writes a forecast on the new timestamps, rereading a driven switch's source.
+
+    The entity is not added to hass, so it never hears the source change and only the
+    horizon change can pick up the new source state.
+    """
     hass.states.async_set("input_boolean.curtail", STATE_ON)
     subentry = _create_subentry("Test Solar", {"allow_curtailment": config_value})
     config_entry.runtime_data = None
-
     entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
-    await _add_entity_to_hass(hass, entity)
+    entity.hass = hass
+    written_forecasts: list[list[tuple[float, bool | None]]] = []
 
-    # Track state writes by wrapping async_write_ha_state
-    state_writes: list[dict[str, Any]] = []
-    original_write = entity.async_write_ha_state
+    def capture_write() -> None:
+        written_forecasts.append(_forecast_points(entity))
 
-    def capturing_write() -> None:
-        attrs = entity.extra_state_attributes
-        state_writes.append({"forecast": attrs.get("forecast") if attrs else None})
-        original_write()
-
-    entity.async_write_ha_state = capturing_write  # type: ignore[method-assign]
+    entity.async_write_ha_state = capture_write  # type: ignore[method-assign]
+    hass.states.async_set("input_boolean.curtail", STATE_OFF)
 
     horizon_manager.get_forecast_timestamps.return_value = (100.0, 400.0, 700.0)
     entity._handle_horizon_change()
 
-    assert len(state_writes) == 1, "Horizon change should trigger state write"
-    written_forecast = state_writes[0]["forecast"]
-    assert written_forecast is not None
-    assert [point["time"].timestamp() for point in written_forecast] == [100.0, 400.0, 700.0]
-    assert [point["value"] for point in written_forecast] == [True, True, True]
-    assert entity.is_on is True
+    assert entity.is_on is expected
+    (written_forecast,) = written_forecasts
+    assert written_forecast == [(100.0, expected), (400.0, expected), (700.0, expected)]
 
 
 async def test_handle_source_state_change_updates_switch(
