@@ -730,6 +730,9 @@
       "message": "No plan meets every constraint, and the solver could not narrow down which elements conflict."
     },
     "optimization_solver_failed": { "message": "The solver stopped without a plan (status: {status})." },
+    "recorder_not_loaded": {
+      "message": "Saving diagnostics for a past time needs Home Assistant's recorder, which is not running. Leave the time out to save the current state."
+    },
     "setup_failed_permanent": {
       "message": "Setup failed due to configuration error: {error}. Please check your configuration."
     },

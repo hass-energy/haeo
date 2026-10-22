@@ -45,7 +45,7 @@ page.fill_service_action("haeo.save_diagnostics", "Save diagnostics")
 
 ### Step 3: Select the integration
 
-Choose your HAEO integration from the **Integration** dropdown.
+Choose your HAEO system from the **System** dropdown.
 
 ```guide
 page.select_config_entry("Sigenergy System")

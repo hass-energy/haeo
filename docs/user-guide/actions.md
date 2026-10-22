@@ -62,7 +62,8 @@ The file is saved in the `haeo/diagnostics/` folder of your Home Assistant confi
 Its name includes the time it describes.
 
 A **Time** without a time zone is read in Home Assistant's own time zone.
-The **Time** field appears only when Home Assistant's recorder is running, because the recorder is where past values come from.
+**Time** needs Home Assistant's recorder, because the recorder is where past values come from.
+Without the recorder, the action fails when you set a time.
 The [historic diagnostics walkthrough](../walkthroughs/historic-diagnostics.md) shows the steps in the Home Assistant interface.
 
 ```yaml
@@ -81,13 +82,14 @@ data:
 
 The actions stop with an error message when they cannot run:
 
-| Message                                 | What it means                                                                                          | What to do                                                          |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| Config entry … not found                | The chosen system no longer exists                                                                     | Pick the system again; it may have been removed and added again     |
-| Config entry … is not a HAEO hub        | The chosen entry belongs to another integration                                                        | Pick a HAEO system                                                  |
-| Config entry … is not loaded            | The HAEO system is still starting, failed to start, or is disabled                                     | Check the system on the integration page and fix any reported issue |
-| The forecast inputs are still loading … | Only from `haeo.optimize`: the horizon has just moved on and forecasts for the new periods are loading | Try again in a moment                                               |
-| No history available at time …          | Only from `haeo.save_diagnostics`: the recorder has no values at that time for the inputs it names     | Choose a later time, within how long your recorder keeps history    |
+| Message                                                              | What it means                                                                                          | What to do                                                          |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| Config entry … not found                                             | The chosen system no longer exists                                                                     | Pick the system again; it may have been removed and added again     |
+| Config entry … is not a HAEO hub                                     | The chosen entry belongs to another integration                                                        | Pick a HAEO system                                                  |
+| Config entry … is not loaded                                         | The HAEO system is still starting, failed to start, or is disabled                                     | Check the system on the integration page and fix any reported issue |
+| The forecast inputs are still loading …                              | Only from `haeo.optimize`: the horizon has just moved on and forecasts for the new periods are loading | Try again in a moment                                               |
+| Saving diagnostics for a past time needs Home Assistant's recorder … | Only from `haeo.save_diagnostics`: you set **Time** but the recorder is not running                    | Leave **Time** out, or enable the recorder                          |
+| No history available at time …                                       | Only from `haeo.save_diagnostics`: the recorder has no values at that time for the inputs it names     | Choose a later time, within how long your recorder keeps history    |
 
 ## Next steps
 

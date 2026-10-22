@@ -58,7 +58,7 @@ rules:
   # Silver
   action-exceptions:
     status: done
-    comment: Both action handlers raise ServiceValidationError with translation keys.
+    comment: Both actions raise ServiceValidationError with translation keys for invalid input (an unknown, foreign, or unloaded system, a time without the recorder, or a time with no history). haeo.optimize raises HomeAssistantError (inputs_not_aligned) while forecasts for a new horizon are loading, a transient failure rather than invalid input.
   config-entry-unloading:
     status: done
     comment: async_unload_entry unloads the input and output platforms and returns whether that succeeded; other teardown is registered with entry.async_on_unload.

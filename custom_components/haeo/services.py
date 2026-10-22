@@ -137,6 +137,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 translation_placeholders={"entry_id": entry_id, "state": str(entry.state)},
             )
 
+        # Past states come from the recorder
+        if target_timestamp is not None and "recorder" not in hass.config.components:
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="recorder_not_loaded")
+
         # Get diagnostics data — pass target_time for historical, omit for current
         result = await collect_diagnostics(hass, entry, target_time=target_timestamp)
 
@@ -153,16 +157,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         await async_save_diagnostics(hass, result.to_dict(), "diagnostics", target_timestamp or dt_util.now())
 
-    # Build schema - only include timestamp if recorder is available
-    schema_fields: dict[vol.Marker, object] = {vol.Required(ATTR_CONFIG_ENTRY): cv.string}
-    if "recorder" in hass.config.components:
-        schema_fields[vol.Optional(ATTR_TIMESTAMP)] = cv.datetime
-
     hass.services.async_register(
         DOMAIN,
         SERVICE_SAVE_DIAGNOSTICS,
         async_handle_save_diagnostics,
-        schema=vol.Schema(schema_fields),
+        schema=vol.Schema({vol.Required(ATTR_CONFIG_ENTRY): cv.string, vol.Optional(ATTR_TIMESTAMP): cv.datetime}),
     )
 
     async def async_handle_run_optimizer(call: ServiceCall) -> None:
