@@ -81,7 +81,7 @@ The subscription returns an unsubscribe callable that entities register for auto
 ### Subscription lifecycle
 
 1. **Subscribe**: Entity calls `subscribe()` during `async_added_to_hass()`
-2. **Receive updates**: Manager calls subscriber callbacks whenever the horizon updates; a callback that raises is logged, and the rest are still called and the next update still scheduled
+2. **Receive updates**: Manager calls subscriber callbacks whenever the horizon updates
 3. **Unsubscribe**: Cleanup function called during entity removal
 
 ## Update scheduling

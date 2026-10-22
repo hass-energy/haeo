@@ -154,7 +154,12 @@ class HorizonManager:
         and restarts the update timer.
         """
         self._update_timestamps()
-        self._notify_subscribers()
+
+        # Notify all subscribers of the resumed horizon
+        for subscriber in self._subscribers:
+            subscriber()
+
+        # Restart the timer
         self._schedule_next_update()
 
     def _schedule_next_update(self) -> None:
@@ -191,27 +196,20 @@ class HorizonManager:
     def _async_scheduled_update(self, _now: datetime) -> None:
         """Handle scheduled update when period boundary is reached."""
         self._update_timestamps()
-        self._notify_subscribers()
+
+        # Notify all subscribers
+        for subscriber in self._subscribers:
+            subscriber()
+
+        # Schedule next update
         self._schedule_next_update()
 
     @callback
     def _async_entity_update(self, _event: Event[EventStateChangedData]) -> None:
         """Handle a change to the horizon entity, notifying subscribers if its boundaries changed."""
         if self._update_timestamps():
-            self._notify_subscribers()
-
-    def _notify_subscribers(self) -> None:
-        """Tell every subscriber the horizon changed.
-
-        A subscriber that raises is logged and the rest are still told, so one
-        failure never leaves the others on the previous horizon or stops the
-        horizon moving.
-        """
-        for subscriber in list(self._subscribers):
-            try:
+            for subscriber in self._subscribers:
                 subscriber()
-            except Exception:
-                _LOGGER.exception("A horizon subscriber failed")
 
     def subscribe(self, callback_fn: Callable[[], None]) -> Callable[[], None]:
         """Subscribe to horizon changes.

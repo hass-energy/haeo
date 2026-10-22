@@ -551,35 +551,6 @@ async def test_horizon_manager_scheduled_update_reschedules(
     manager.stop()
 
 
-@pytest.mark.parametrize("update", ["scheduled", "resume"])
-async def test_horizon_manager_keeps_moving_when_a_subscriber_fails(
-    hass: HomeAssistant,
-    preset_config_entry: MockConfigEntry,
-    update: str,
-) -> None:
-    """A subscriber that raises is logged, the rest are still told, and the next update is still scheduled."""
-    manager = HorizonManager(hass, preset_config_entry)
-    manager.start()
-    later = Mock()
-
-    def failing() -> None:
-        msg = "subscriber bug"
-        raise RuntimeError(msg)
-
-    manager.subscribe(failing)
-    manager.subscribe(later)
-
-    if update == "scheduled":
-        manager._async_scheduled_update(dt_util.now())
-    else:
-        manager.pause()
-        manager.resume()
-
-    later.assert_called_once()
-    assert manager._unsub_update is not None
-    manager.stop()
-
-
 # --- Tests for pause/resume ---
 
 
