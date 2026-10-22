@@ -258,12 +258,12 @@ async def test_loader_unchanged_fetch_does_not_notify(hass: HomeAssistant, horiz
     loader.cleanup()
 
 
-class _BrokenCalendar(_StubCalendar):
-    """Calendar entity double that can hang or return an event that cannot be read."""
+class _HangingCalendar(_StubCalendar):
+    """Calendar entity double whose backend can stop answering."""
 
     def __init__(self, events: list[CalendarEvent]) -> None:
         super().__init__(events)
-        self.failure: str | None = None
+        self.hangs = False
 
     async def async_get_events(
         self,
@@ -271,21 +271,18 @@ class _BrokenCalendar(_StubCalendar):
         start_date: datetime,
         end_date: datetime,
     ) -> list[CalendarEvent]:
-        """Hang, return an unreadable event, or return the canned events."""
-        if self.failure == "hangs":
+        """Never answer while hanging, otherwise return the canned events."""
+        if self.hangs:
             await asyncio.Event().wait()
-        if self.failure == "unreadable_event":
-            return [Mock(start="soon", end="later", summary="Trip", location=None, description=None)]
         return await super().async_get_events(hass, start_date, end_date)
 
 
-@pytest.mark.parametrize("failure", ["hangs", "unreadable_event"])
-async def test_loader_recovers_from_a_calendar_that_hangs_or_returns_an_unreadable_event(
-    hass: HomeAssistant, horizon_manager: Mock, monkeypatch: pytest.MonkeyPatch, failure: str
+async def test_loader_recovers_from_a_calendar_that_stops_answering(
+    hass: HomeAssistant, horizon_manager: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A failed fetch makes the store unavailable without stopping later loads, which recover once the calendar does."""
+    """A fetch that never returns times out, making the store unavailable without stopping later loads."""
     monkeypatch.setattr("custom_components.haeo.inputs.calendar_loader.CALENDAR_FETCH_TIMEOUT", 0.01)
-    calendar = _BrokenCalendar([_trip(0.0, 3600.0)])
+    calendar = _HangingCalendar([_trip(0.0, 3600.0)])
     await _add_stub_calendars(hass, calendar)
     store = _calendar_store()
     loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
@@ -293,11 +290,11 @@ async def test_loader_recovers_from_a_calendar_that_hangs_or_returns_an_unreadab
     await hass.async_block_till_done()
     assert store.available
 
-    calendar.failure = failure
+    calendar.hangs = True
     await loader.async_load_all()
     assert not store.available
 
-    calendar.failure = None
+    calendar.hangs = False
     await loader.async_load_all()
     assert store.available
     loader.cleanup()

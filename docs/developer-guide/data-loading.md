@@ -216,7 +216,7 @@ A calendar's state only shows its current or next event, so the calendar extract
 The calendar input loader ([`inputs/calendar_loader.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/calendar_loader.py)) fetches each calendar's events over the horizon and injects them into the calendar's state as the `haeo_events` attribute, which the extractor reads.
 Input stores capture their source states through the same injecting state machine, so diagnostics hold the events and replay loads them without a calendar to fetch from.
 A calendar without injected events reads as unavailable rather than as its plain state.
-A fetch that fails, takes longer than 30 seconds, or returns an event that cannot be read leaves the calendar without injected events, so its inputs go unavailable until a later fetch succeeds.
+A fetch that fails or takes longer than 30 seconds leaves the calendar without injected events, so its inputs go unavailable until a later fetch succeeds.
 A calendar with no events over the horizon gives a forecast with no points, which adds nothing to the input.
 
 Each event's value is a number typed with its unit.

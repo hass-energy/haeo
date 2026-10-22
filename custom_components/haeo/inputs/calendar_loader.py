@@ -339,8 +339,7 @@ async def async_fetch_calendar_events(
     Calendars answer for past ranges as well as future ones, so the same fetch
     serves historical diagnostics. Returns None when the calendar entity cannot
     be queried (integration not loaded, entity missing, or the query failed or
-    took longer than ``CALENDAR_FETCH_TIMEOUT``), or returned events that cannot
-    be read.
+    took longer than ``CALENDAR_FETCH_TIMEOUT``).
     """
     component = hass.data.get(CALENDAR_DOMAIN)
     if not isinstance(component, EntityComponent):
@@ -358,20 +357,21 @@ async def async_fetch_calendar_events(
     try:
         async with asyncio.timeout(CALENDAR_FETCH_TIMEOUT):
             calendar_events = await entity.async_get_events(hass, start.astimezone(local_tz), end.astimezone(local_tz))
-        events = [
-            CalendarEventData(
-                start=_as_datetime(event.start),
-                end=_as_datetime(event.end),
-                summary=event.summary,
-                location=event.location,
-                description=event.description,
-            )
-            for event in calendar_events
-        ]
-        return capture_calendar_events(events)
     except Exception:
         _LOGGER.warning("Failed to fetch events from %s", entity_id, exc_info=True)
         return None
+
+    events = [
+        CalendarEventData(
+            start=_as_datetime(event.start),
+            end=_as_datetime(event.end),
+            summary=event.summary,
+            location=event.location,
+            description=event.description,
+        )
+        for event in calendar_events
+    ]
+    return capture_calendar_events(events)
 
 
 __all__ = [
