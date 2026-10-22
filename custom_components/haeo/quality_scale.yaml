@@ -22,8 +22,8 @@ rules:
     status: done
     comment: highspy and numpy are open source and published to PyPI from public CI.
   docs-actions:
-    status: todo
-    comment: haeo.save_diagnostics is described only in the historic diagnostics walkthrough, and haeo.optimize is not documented. The user guide needs a page describing both actions and their fields.
+    status: done
+    comment: docs/user-guide/actions.md documents haeo.optimize and haeo.save_diagnostics, their fields, and the errors they raise.
   docs-high-level-description:
     status: done
     comment: README.md and docs/index.md describe what HAEO does.

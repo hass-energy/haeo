@@ -36,7 +36,8 @@ page.navigate_to_developer_tools_actions()
 ### Step 2: Select the save diagnostics action
 
 Search for and select the `haeo.save_diagnostics` action.
-This is the service that generates diagnostics snapshots with optional time-travel support.
+This action generates diagnostics snapshots, optionally for a time in the past.
+The [actions guide](../user-guide/actions.md#save-diagnostics) describes each of its fields.
 
 ```guide
 page.fill_service_action("haeo.save_diagnostics", "Save diagnostics")
