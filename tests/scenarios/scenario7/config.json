@@ -109,6 +109,12 @@
           "source": ["Battery"]
         },
         {
+          "name": "EV discharge cost",
+          "enabled": true,
+          "price": { "type": "constant", "value": 0.03 },
+          "source": ["Atto 2"]
+        },
+        {
           "name": "Battery charge cost",
           "enabled": { "type": "constant", "value": true },
           "price": { "type": "constant", "value": 0.005 },
