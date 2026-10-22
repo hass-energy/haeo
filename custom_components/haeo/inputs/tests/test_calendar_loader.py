@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import Callable
 from datetime import UTC, date, datetime
 import logging
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
@@ -255,6 +255,51 @@ async def test_loader_unchanged_fetch_does_not_notify(hass: HomeAssistant, horiz
 
     assert store.available
     listener.assert_not_called()
+    loader.cleanup()
+
+
+class _BrokenCalendar(_StubCalendar):
+    """Calendar entity double that can hang or return an event that cannot be read."""
+
+    def __init__(self, events: list[CalendarEvent]) -> None:
+        super().__init__(events)
+        self.failure: str | None = None
+
+    async def async_get_events(
+        self,
+        hass: HomeAssistant,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> list[CalendarEvent]:
+        """Hang, return an unreadable event, or return the canned events."""
+        if self.failure == "hangs":
+            await asyncio.Event().wait()
+        if self.failure == "unreadable_event":
+            return [Mock(start="soon", end="later", summary="Trip", location=None, description=None)]
+        return await super().async_get_events(hass, start_date, end_date)
+
+
+@pytest.mark.parametrize("failure", ["hangs", "unreadable_event"])
+async def test_loader_recovers_from_a_calendar_that_hangs_or_returns_an_unreadable_event(
+    hass: HomeAssistant, horizon_manager: Mock, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    """A failed fetch makes the store unavailable without stopping later loads, which recover once the calendar does."""
+    monkeypatch.setattr("custom_components.haeo.inputs.calendar_loader.CALENDAR_FETCH_TIMEOUT", 0.01)
+    calendar = _BrokenCalendar([_trip(0.0, 3600.0)])
+    await _add_stub_calendars(hass, calendar)
+    store = _calendar_store()
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader.start()
+    await hass.async_block_till_done()
+    assert store.available
+
+    calendar.failure = failure
+    await loader.async_load_all()
+    assert not store.available
+
+    calendar.failure = None
+    await loader.async_load_all()
+    assert store.available
     loader.cleanup()
 
 
@@ -632,4 +677,44 @@ async def test_loader_resolves_a_meter_input_with_its_totals_beside_the_events(
     assert (
         ir.async_get(hass).async_get_issue(DOMAIN, "calendar_event_values_entry_id_Pump_schedule.energy_meter") is None
     )
+    loader.cleanup()
+
+
+async def test_loader_reads_meter_totals_again_until_the_recorder_answers(
+    hass: HomeAssistant, horizon_manager: Mock
+) -> None:
+    """A recorder read that fails at start is tried again on the next load, so the meter gets its recorded totals."""
+    start = dt_util.utcnow().timestamp()
+    timestamps = (start, start + 3600.0)
+    horizon_manager.get_forecast_timestamps.return_value = timestamps
+    await _add_stub_calendar(hass, [_demand(start - 3600.0, start + 3600.0, "6 kWh")])
+    hass.config.components.add("recorder")
+    hass.states.async_set(METER_ID, "12.5", {"unit_of_measurement": "kWh", "device_class": "energy"})
+    sources = {"type": "entity", "value": [METER_ID, ENTITY_ID]}
+    store = create_input_store(
+        value=sources,
+        storage=_MemStorage(sources),
+        hint=FieldHint(output_type=OutputType.ENERGY, meter=MeterFieldHint(since="window_calendar")),
+        get_forecast_timestamps=lambda: timestamps,
+    )
+    loader = CalendarInputLoader(hass, "entry_id", {("Pump", ("schedule", "energy_meter")): store}, horizon_manager)
+    recorded = ([(start - 7200.0, 0.0), (start - 3600.0, 2.0)], 10.0)
+    reads = iter([RuntimeError("database busy"), recorded])
+
+    async def run(_func: Callable[..., object], *_args: object) -> object:
+        result = next(reads)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    recorder = Mock()
+    recorder.async_add_executor_job = run
+    with patch("custom_components.haeo.inputs.meter_history.get_instance", return_value=recorder):
+        loader.start()
+        await hass.async_block_till_done()
+        assert store.value == pytest.approx(0.0)
+
+        await loader.async_load_all()
+
+    assert store.value == pytest.approx(2.5)
     loader.cleanup()

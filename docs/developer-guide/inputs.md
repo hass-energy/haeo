@@ -73,6 +73,7 @@ The Home Assistant side of reading inputs lives in [`inputs/`](https://github.co
 - `calendar_loader.py` loads stores that read calendars, since a calendar's state carries only its current event.
     It fetches events over the horizon and hands them to the core loader as a state attribute.
 - `meter_history.py` keeps the running totals of meter fields through resets, from recorder statistics and later state changes.
+    When the statistics cannot be read, the calendar loader reads them again on its next load.
 
 `core/annotated_state.py` merges those calendar events and meter totals into entity states in the same form diagnostics capture, so live runs and replays read inputs the same way.
 

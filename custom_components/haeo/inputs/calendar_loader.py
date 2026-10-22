@@ -62,6 +62,10 @@ def _as_datetime(value: datetime | date) -> datetime:
     return dt_util.start_of_local_day(value)
 
 
+# Longest a calendar's events are waited for, so a backend that never answers
+# reads as unavailable rather than holding every later load behind it
+CALENDAR_FETCH_TIMEOUT: Final = 30
+
 # Longest event text quoted in the repair issue, so a long description does not swamp it
 _QUOTED_TEXT_LENGTH: Final = 60
 
@@ -155,17 +159,7 @@ class CalendarInputLoader:
             self._unsubs.append(async_track_state_change_event(self._hass, other_sources, _on_source_change))
         self._unsubs.append(self._horizon_manager.subscribe(lambda: self._schedule(self.async_load_all())))
 
-        self._schedule(self._async_start())
-
-    async def _async_start(self) -> None:
-        """Read the meters' recorded totals, then load every store.
-
-        The totals are read under the load lock, so no store resolves
-        before its meters carry them.
-        """
-        async with self._load_lock:
-            await self._meters.async_load()
-        await self.async_load_all()
+        self._schedule(self.async_load_all())
 
     @callback
     def _schedule(self, load: Coroutine[object, object, None]) -> None:
@@ -185,8 +179,14 @@ class CalendarInputLoader:
         an older fetch never overwrites the stores after a newer one. Events
         are only kept for the horizon they were fetched for: when the horizon
         moves during the fetch, the reload it scheduled replaces this one.
+
+        The meters' recorded totals are read first, under the same lock, so no
+        store resolves before its meters carry them. A read that fails is tried
+        again on the next load, until the totals are read.
         """
         async with self._load_lock:
+            if not self._meters.recorded:
+                await self._meters.async_load()
             timestamps = self._horizon_manager.get_forecast_timestamps()
             fetched = await asyncio.gather(*(self._async_fetch_events(entity_id) for entity_id in self._calendars))
             if self._horizon_manager.get_forecast_timestamps() == timestamps:
@@ -310,7 +310,9 @@ async def async_fetch_calendar_events(
 
     Calendars answer for past ranges as well as future ones, so the same fetch
     serves historical diagnostics. Returns None when the calendar entity cannot
-    be queried (integration not loaded, entity missing, or the query failed).
+    be queried (integration not loaded, entity missing, or the query failed or
+    took longer than ``CALENDAR_FETCH_TIMEOUT``), or returned events that cannot
+    be read.
     """
     component = hass.data.get(CALENDAR_DOMAIN)
     if not isinstance(component, EntityComponent):
@@ -326,22 +328,22 @@ async def async_fetch_calendar_events(
     # local time, which is what a floating time means in Home Assistant
     local_tz = dt_util.get_default_time_zone()
     try:
-        calendar_events = await entity.async_get_events(hass, start.astimezone(local_tz), end.astimezone(local_tz))
+        async with asyncio.timeout(CALENDAR_FETCH_TIMEOUT):
+            calendar_events = await entity.async_get_events(hass, start.astimezone(local_tz), end.astimezone(local_tz))
+        events = [
+            CalendarEventData(
+                start=_as_datetime(event.start),
+                end=_as_datetime(event.end),
+                summary=event.summary,
+                location=event.location,
+                description=event.description,
+            )
+            for event in calendar_events
+        ]
+        return capture_calendar_events(events)
     except Exception:
         _LOGGER.warning("Failed to fetch events from %s", entity_id, exc_info=True)
         return None
-
-    events = [
-        CalendarEventData(
-            start=_as_datetime(event.start),
-            end=_as_datetime(event.end),
-            summary=event.summary,
-            location=event.location,
-            description=event.description,
-        )
-        for event in calendar_events
-    ]
-    return capture_calendar_events(events)
 
 
 __all__ = [
