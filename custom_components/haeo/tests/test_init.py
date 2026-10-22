@@ -922,6 +922,64 @@ async def test_setup_preserves_config_entry_not_ready_exception(
     unload_platforms.assert_awaited_once_with(mock_hub_entry, INPUT_PLATFORMS)
 
 
+class _InterruptedCoordinator:
+    """A coordinator whose first refresh is cancelled."""
+
+    def __init__(self, _hass: HomeAssistant, _entry: ConfigEntry) -> None:
+        self.auto_optimize_enabled = True
+
+    def cleanup(self) -> None:
+        pass
+
+    async def async_initialize(self) -> None:
+        raise asyncio.CancelledError
+
+    async def async_refresh(self) -> None:
+        pass
+
+
+class _ReadyCoordinator(_InterruptedCoordinator):
+    """A coordinator whose first refresh succeeds."""
+
+    async def async_initialize(self) -> None:
+        pass
+
+
+@pytest.mark.parametrize(
+    ("coordinator_class", "failing_platforms", "expected_error"),
+    [
+        pytest.param(_InterruptedCoordinator, [], asyncio.CancelledError, id="first_refresh_cancelled"),
+        pytest.param(_ReadyCoordinator, OUTPUT_PLATFORMS, RuntimeError, id="output_forward_failed"),
+    ],
+)
+async def test_setup_failure_after_input_platforms_unloads_them(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+    coordinator_class: type[_InterruptedCoordinator],
+    failing_platforms: list[Platform],
+    expected_error: type[BaseException],
+) -> None:
+    """Any failure once the input platforms are forwarded unloads them exactly once."""
+    monkeypatch.setattr("custom_components.haeo.HorizonManager", lambda **_kwargs: _create_mock_horizon_manager())
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", coordinator_class)
+
+    async def forward_setups(_entry: ConfigEntry, platforms: Iterable[Platform | str]) -> None:
+        if list(platforms) == failing_platforms:
+            msg = "platform setup failed"
+            raise RuntimeError(msg)
+
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", forward_setups)
+    unload_platforms = AsyncMock(return_value=True)
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", unload_platforms)
+
+    with pytest.raises(expected_error):
+        await async_setup_entry(hass, mock_hub_entry)
+
+    unload_platforms.assert_awaited_once_with(mock_hub_entry, INPUT_PLATFORMS)
+
+
 async def test_setup_preserves_config_entry_error_exception(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,

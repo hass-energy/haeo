@@ -348,8 +348,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     fails (returns False, raises ConfigEntryNotReady, or raises any exception).
 
     Forwarded platforms are not covered by those callbacks: async_unload_entry
-    unloads them, and a setup failure after the input platforms are forwarded
-    unloads those before re-raising.
+    unloads them, and any failure or cancellation after the input platforms are
+    forwarded unloads those before re-raising.
     """
     # Import here to avoid circular imports at module level
     from custom_components.haeo.entities.device import get_or_create_network_device  # noqa: PLC0415
@@ -399,12 +399,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
     try:
         await _async_first_refresh(hass, entry, runtime_data, coordinator)
-    except Exception:
+        # Set up output platforms after coordinator has data
+        await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)
+    except BaseException:
         await hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)
         raise
-
-    # Set up output platforms after coordinator has data
-    await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)
 
     # Register update listener LAST - after all setup is complete
     # This prevents reload loops from subentry additions during initial setup
@@ -431,12 +430,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> boo
 async def async_remove_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
     """Dismiss the repair issues raised for a removed config entry."""
     await async_dismiss_entry_issues(hass, entry.entry_id)
-
-
-async def async_reload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
-    """Reload config entry."""
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)
 
 
 async def async_remove_config_entry_device(
