@@ -395,6 +395,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._optimization_lock = asyncio.Lock()
         # Whether an optimization was requested that no optimization has started reading inputs for since
         self._rerun_wanted: bool = False
+        # The horizon start the latest optimization planned from
+        self._planned_horizon_start: float | None = None
         # When optimizations started failing, and whether that failure raises an issue of its own
         self._failing_since: float | None = None
         self._failure_reported = False
@@ -480,7 +482,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Horizon changes require a full re-optimization. The new period durations
         # are applied to the network when that optimization runs.
-        runtime_data.horizon_manager.subscribe(self.signal_optimization_stale)
+        runtime_data.horizon_manager.subscribe(self._handle_horizon_change)
 
         # Subscribe each store to update only its element when its value changes
         for (element_name, _field_path), store in runtime_data.input_stores.items():
@@ -502,18 +504,32 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.signal_optimization_stale()
 
     @callback
+    def _handle_horizon_change(self) -> None:
+        """Request an optimization for the new horizon, unless one already plans from its start.
+
+        Input stores subscribe to the horizon first, so their reload for the new
+        horizon usually starts that optimization before this runs. The request here
+        covers a roll that no input reloads for.
+        """
+        if self._planned_horizon_start != self._runtime_data.horizon_manager.get_forecast_timestamps()[0]:
+            self.signal_optimization_stale()
+
+    @callback
     def _handle_auto_optimize_switch_change(self, event: Event[EventStateChangedData]) -> None:
         """Handle auto-optimize switch state change.
 
-        Turning it on resumes the horizon, whose notification requests an
-        optimization that catches up on changes made while it was off.
-        Turning it off pauses the horizon.
+        Turning it on resumes the horizon and requests an optimization that
+        catches up on changes made while it was off, unless resuming the horizon
+        already started one. Turning it off pauses the horizon.
         """
         new_state = event.data["new_state"]
         if new_state is None:
             return
 
-        self._apply_auto_optimize_state(is_enabled=new_state.state == STATE_ON)
+        is_enabled = new_state.state == STATE_ON
+        self._apply_auto_optimize_state(is_enabled=is_enabled)
+        if is_enabled and not self._optimization_lock.locked():
+            self.signal_optimization_stale()
 
     def _apply_auto_optimize_state(self, *, is_enabled: bool) -> None:
         """Pause or resume the horizon manager to match the auto-optimize setting."""
@@ -569,6 +585,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             if not self._are_inputs_aligned():
                 return False
             self._rerun_wanted = False
+            self._planned_horizon_start = self._runtime_data.horizon_manager.get_forecast_timestamps()[0]
             await super().async_refresh()
         # Inputs that changed while it ran request another through the debounce window
         if self._rerun_wanted:
