@@ -9,8 +9,14 @@ from custom_components.haeo.core.schema.elements.buffer import (
 )
 from custom_components.haeo.core.schema.elements.buffer import ELEMENT_TYPE as BUFFER_TYPE
 from custom_components.haeo.core.schema.elements.buffer import SECTION_PRICING as BUFFER_SECTION_PRICING
+import pytest
+
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.ev import CONF_CONNECTED, SECTION_CHARGING
+from custom_components.haeo.core.schema.elements.ev import ELEMENT_TYPE as EV_TYPE
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
-from custom_components.haeo.elements import get_input_fields
+from custom_components.haeo.elements import get_input_fields, iter_input_field_paths
 from custom_components.haeo.elements.input_fields import (
     is_number_field_info,
     is_switch_field_info,
@@ -46,3 +52,20 @@ def test_localize_input_fields_shows_prices_per_kwh() -> None:
         price = localized[SECTION_PRICING][field_name]
         assert is_number_field_info(price)
         assert price.entity_description.native_unit_of_measurement == "£/kWh"
+
+
+def test_ev_plugged_in_is_a_switch() -> None:
+    """Whether an EV is plugged in is an on/off reading for now, so it shows as a switch."""
+    connected = get_input_fields(EV_TYPE)[SECTION_CHARGING][CONF_CONNECTED]
+
+    assert is_switch_field_info(connected)
+    assert not connected.time_series
+
+
+@pytest.mark.parametrize("element_type", [EV_TYPE, ElementType.DEFERRABLE_LOAD])
+def test_availability_inputs_are_switches(element_type: ElementType) -> None:
+    """Each availability input is on or off in each period, so it shows as a switch."""
+    availability = [info for _path, info in iter_input_field_paths(get_input_fields(element_type)) if info.output_type is OutputType.AVAILABILITY]
+
+    assert availability
+    assert all(is_switch_field_info(info) for info in availability)

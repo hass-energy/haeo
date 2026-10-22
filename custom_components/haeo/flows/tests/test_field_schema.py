@@ -19,12 +19,15 @@ from custom_components.haeo.core.schema import (
     as_entity_value,
     as_none_value,
 )
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
+from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.elements.input_fields import (
     AnyInputFieldInfo,
     FieldSchemaInfo,
     InputFieldDefaults,
     InputFieldInfo,
+    is_switch_field_info,
 )
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
@@ -41,6 +44,7 @@ from custom_components.haeo.flows.field_schema import (
     build_sectioned_choose_schema,
     convert_choose_data_to_config,
     convert_sectioned_choose_data_to_config,
+    entity_domains,
     get_choose_default,
     get_preferred_choice,
     is_valid_choose_value,
@@ -1421,3 +1425,18 @@ def test_calendar_field_offers_only_calendars() -> None:
     assert entity["domain"] == ["calendar"]
     assert entity["include_entities"] == ["calendar.pool_pump"]
     assert list(selector.config["choices"]) == [CHOICE_ENTITY]
+
+
+def test_switch_inputs_offer_on_off_entities() -> None:
+    """Every switch input can read binary sensors and input booleans as well as numeric entities."""
+    switches = [
+        info
+        for element_type in (ElementType.EV, ElementType.SOLAR)
+        for section in get_input_fields(element_type).values()
+        for info in section.values()
+        if is_switch_field_info(info)
+    ]
+
+    assert switches
+    for info in switches:
+        assert {"binary_sensor", "input_boolean"} <= set(entity_domains(info))

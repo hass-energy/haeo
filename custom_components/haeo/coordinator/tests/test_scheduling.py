@@ -5,7 +5,7 @@ from datetime import timedelta
 import threading
 import time
 from typing import Any  # noqa: TID251  # Mock-typed test doubles (MagicMock spec=) and monkeypatched callback stand-ins
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON
@@ -18,6 +18,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator.tests.helpers import network_double
 from custom_components.haeo.core.const import DEFAULT_DEBOUNCE_SECONDS
 
 from .helpers import mock_horizon
@@ -31,7 +32,7 @@ def test_horizon_change_triggers_optimization(
 ) -> None:
     """Horizon manager changes trigger optimization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    network = Mock()
+    network = network_double()
     coordinator._network = network
 
     with patch.object(coordinator, "signal_optimization_stale") as trigger_mock:
@@ -51,7 +52,7 @@ def test_signal_optimization_stale_schedules_timer_in_cooldown(
 ) -> None:
     """Trigger schedules timer when within cooldown period."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._last_optimization_time = time.time() - 0.5  # 0.5 seconds ago
+    coordinator._last_optimization_time = time.monotonic() - 0.5  # 0.5 seconds ago
     coordinator._debounce_seconds = 5.0  # 5 second cooldown
 
     with patch("custom_components.haeo.coordinator.coordinator.async_call_later") as mock_timer:
@@ -74,7 +75,7 @@ def test_signal_optimization_stale_reuses_existing_timer(
 ) -> None:
     """Trigger reuses existing timer rather than scheduling new one."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._last_optimization_time = time.time() - 0.5
+    coordinator._last_optimization_time = time.monotonic() - 0.5
     coordinator._debounce_seconds = 5.0
     existing_timer = MagicMock()
     coordinator._debounce_timer = existing_timer
@@ -341,6 +342,7 @@ async def _initialized_coordinator(
     network.optimize = solves
     network.relaxations = ()
     network.elements = {}
+    network.n_periods = len(entry.runtime_data.horizon_manager.periods_seconds)
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     with patch(
         "custom_components.haeo.coordinator.coordinator.build_network",
@@ -556,6 +558,25 @@ async def test_entity_update_requests_wait_out_the_debounce_window(
     await hass.async_block_till_done()
 
     assert solves.calls == 2
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_debounce_window_holds_when_the_wall_clock_is_set_back(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """A wall clock set back hours after an optimization does not stretch the wait for the next one."""
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+
+    with (
+        patch("custom_components.haeo.coordinator.coordinator.time.time", return_value=time.time() - 3 * 3600),
+        patch("custom_components.haeo.coordinator.coordinator.async_call_later") as wait,
+    ):
+        coordinator.signal_optimization_stale()
+
+    assert 0 < wait.call_args[0][1] <= coordinator._debounce_seconds
     coordinator.cleanup()
 
 

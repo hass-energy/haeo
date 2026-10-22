@@ -437,13 +437,19 @@
             },
             "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
           }
+        },
+        "states": {
+          "title": "On and off states",
+          "description": "{entities} report words rather than on or off. Choose which states mean on and which mean off. Leave one list empty to count every other state as the opposite.",
+          "data": { "off_states": "States meaning off", "on_states": "States meaning on" }
         }
       },
       "error": {
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
-        "required": "Choose an entity or enter a value for every required field in this section"
+        "required": "Choose an entity or enter a value for every required field in this section",
+        "states_required": "Choose at least one state"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -531,13 +537,19 @@
             "curtailment": { "data": { "curtailment": "Allow curtailment" }, "name": "Curtailment" },
             "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
           }
+        },
+        "states": {
+          "title": "On and off states",
+          "description": "{entities} report words rather than on or off. Choose which states mean on and which mean off. Leave one list empty to count every other state as the opposite.",
+          "data": { "off_states": "States meaning off", "on_states": "States meaning on" }
         }
       },
       "error": {
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
-        "required": "Choose an entity or enter a value for every required field in this section"
+        "required": "Choose an entity or enter a value for every required field in this section",
+        "states_required": "Choose at least one state"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
@@ -584,15 +596,11 @@
       "deferrable_load_deficit_price": { "name": "Shortfall price" },
       "deferrable_load_due": { "name": "Energy due" },
       "deferrable_load_energy_meter": { "name": "Energy since window started" },
-      "deferrable_load_in_window": { "name": "Run window" },
       "deferrable_load_max_power": { "name": "Max power" },
       "deferrable_load_opened": { "name": "Energy opening" },
       "deferrable_load_overage_price": { "name": "Overage price" },
-      "deferrable_load_window_start": { "name": "Window start" },
-      "ev_away": { "name": "Away" },
       "ev_capacity": { "name": "Battery capacity" },
       "ev_charge_limit_cost": { "name": "Limit cost" },
-      "ev_connected": { "name": "Plugged in" },
       "ev_current_soc": { "name": "Current state of charge" },
       "ev_efficiency_source_target": { "name": "Discharge efficiency" },
       "ev_efficiency_target_source": { "name": "Charge efficiency" },
@@ -604,7 +612,6 @@
       "ev_public_charging_price": { "name": "Public charging price" },
       "ev_trip_due": { "name": "Trip distance due" },
       "ev_trip_opened": { "name": "Trip distance opening" },
-      "ev_trip_start": { "name": "Trip start" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
@@ -693,6 +700,11 @@
       "solar_power": { "name": "Power" }
     },
     "switch": {
+      "deferrable_load_in_window": { "name": "Run window" },
+      "deferrable_load_window_start": { "name": "Window start" },
+      "ev_away": { "name": "Away" },
+      "ev_connected": { "name": "Plugged in" },
+      "ev_trip_start": { "name": "Trip start" },
       "load_curtailment": { "name": "Shedding" },
       "network_auto_optimize": { "name": "Auto optimize" },
       "node_is_sink": { "name": "Is sink" },

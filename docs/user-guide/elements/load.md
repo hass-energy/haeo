@@ -43,6 +43,8 @@ See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details o
 ## Shedding
 
 Allow HAEO to reduce load consumption below the forecast.
+To switch it from Home Assistant, choose an entity such as a binary sensor or input boolean.
+For a sensor that reports words, HAEO asks which of its states mean on and which mean off.
 
 **Default**: Disabled (load follows the forecast exactly).
 

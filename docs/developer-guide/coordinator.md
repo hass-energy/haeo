@@ -62,6 +62,7 @@ sequenceDiagram
 
 Each store listener marks its element stale.
 Before a solve, the coordinator copies the horizon's period durations onto the network and calls the updater of every stale element.
+When the horizon has a different number of periods from the network, as an entity horizon can, it rebuilds the network from the loaded inputs instead, because the network's variables are sized for the count it was built with.
 An updater calls the adapter's `model_elements()` with the new values and writes them to the `TrackedParam` descriptors on the live model elements, so only the constraints that read them are rebuilt.
 
 All network changes happen on the event loop before the solve is handed to the executor, so the network is never mutated while it is being solved.
@@ -115,6 +116,7 @@ sequenceDiagram
 
 `signal_optimization_stale()` does nothing while the auto-optimize switch is off; `async_request_refresh()`, which an entity update calls, requests one either way.
 The debounce window, the hub's debounce seconds, starts when an optimization starts and again when it succeeds, which batches rapid input changes into one optimization.
+It is measured on the monotonic clock, so a wall clock set back does not stretch it.
 An input that changes while an optimization runs requests a follow-up through the same window.
 
 Turning the auto-optimize switch off cancels an optimization waiting out the debounce window and pauses the HorizonManager.
