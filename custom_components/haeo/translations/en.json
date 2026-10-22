@@ -816,6 +816,10 @@
       "title": "System has disconnected components",
       "description": "The system has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the system is fully connected"
     },
+    "horizon_tiers_replaced": {
+      "title": "{hub_name} now plans {days} days ahead",
+      "description": "{hub_name} planned over custom horizon tiers, which are no longer supported. It now plans {days} days ahead.\n\nTo plan over a different length, open the HAEO integration configuration options and choose another Planning Horizon. You can ignore this issue once you have read it."
+    },
     "invalid_connection_endpoints": {
       "title": "Connections bypass an element's own limits and prices",
       "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the junction or inverter that its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
