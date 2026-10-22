@@ -297,6 +297,31 @@ async def test_driven_async_load_resolve_failure(
     assert str(record.exc_info[1]) == "boom"
 
 
+async def test_unexpected_load_error_is_logged_once_until_it_changes_or_the_store_recovers(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A repeating unexpected error is logged once, again when it changes, and again after a successful load."""
+    # HAEO's loggers write to the console only, so let this one reach caplog
+    monkeypatch.setattr(logging.getLogger("custom_components.haeo"), "propagate", True)
+    store = _make_store(storage_value=as_entity_value(["sensor.x"]), output_type=OutputType.PRICE, time_series=False)
+    sm = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "1.0", {})})
+    outcomes: list[Exception | float] = [
+        RuntimeError("boom"),
+        RuntimeError("boom"),
+        KeyError("other"),
+        KeyError("other"),
+        1.0,
+        RuntimeError("boom"),
+    ]
+
+    with patch("custom_components.haeo.core.data.input_store.resolve_field", side_effect=outcomes):
+        for _ in outcomes:
+            await store.async_load(sm)
+
+    warned = [record.exc_info[1] for record in caplog.records if record.levelno == logging.WARNING and record.exc_info]
+    assert [repr(error) for error in warned] == ["RuntimeError('boom')", "KeyError('other')", "RuntimeError('boom')"]
+
+
 async def test_driven_async_load_rejects_empty_time_series() -> None:
     """An empty time-series result is treated as a failed load."""
     store = _make_store(
@@ -527,6 +552,25 @@ def test_same_value_treats_nan_as_equal() -> None:
 
 
 # --- Construction errors ---
+
+
+@pytest.mark.parametrize(
+    ("storage_value", "expected"),
+    [
+        pytest.param(as_constant_value(2), 2.0, id="int_constant"),
+        pytest.param({"type": "constant", "value": np.int64(2)}, 2.0, id="numpy_int_constant"),
+        pytest.param(np.int64(2), 2.0, id="bare_numpy_int"),
+        pytest.param(as_constant_value(True), True, id="bool_constant"),
+    ],
+)
+def test_create_input_store_reads_any_real_constant(storage_value: object, expected: float | bool) -> None:
+    """Any real number counts as a constant, as is_constant_value accepts, and booleans stay booleans."""
+    store = _make_store(storage_value=storage_value)
+
+    store.refresh()
+
+    assert store.value == expected
+    assert type(store.value) is type(expected)
 
 
 def test_create_input_store_invalid_config_raises() -> None:
