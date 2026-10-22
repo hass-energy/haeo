@@ -121,6 +121,20 @@ def create_node_replaced_by_junction_issue(hass: HomeAssistant, entry_id: str, e
     )
 
 
+def create_horizon_tiers_replaced_issue(hass: HomeAssistant, entry_id: str, hub_name: str, days: int) -> None:
+    """Create a repair issue for a hub whose custom horizon tiers were replaced by a preset of ``days`` days."""
+    async_create_issue(
+        hass,
+        DOMAIN,
+        f"horizon_tiers_replaced_{entry_id}",
+        is_fixable=False,
+        is_persistent=True,
+        severity=IssueSeverity.WARNING,
+        translation_key="horizon_tiers_replaced",
+        translation_placeholders={"hub_name": hub_name, "days": str(days)},
+    )
+
+
 async def async_dismiss_entry_issues(hass: HomeAssistant, entry_id: str) -> None:
     """Dismiss every repair issue raised for a config entry, with the diagnostics saved for them."""
     for (domain, issue_id), issue in list(ir.async_get(hass).issues.items()):

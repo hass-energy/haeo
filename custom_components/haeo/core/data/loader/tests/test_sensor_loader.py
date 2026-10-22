@@ -8,7 +8,7 @@ import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.extractors import ExtractedData
-from custom_components.haeo.core.data.loader.sensor_loader import load_sensor, load_sensors
+from custom_components.haeo.core.data.loader.sensor_loader import load_readings, load_sensor, load_sensors
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model.const import OutputType
 
@@ -164,3 +164,56 @@ def test_load_sensors_is_unavailable_without_entity_ids() -> None:
     """No entity IDs means no data, not an empty set of payloads."""
 
     assert load_sensors(FakeStateMachine({}), []) is None
+
+
+def test_load_readings_reads_each_state_in_base_units() -> None:
+    """Readings are the sensors' states converted to base units, even for a sensor carrying a forecast."""
+    forecast = [{"time": "2025-07-01T12:00:00+00:00", "value": 9000.0}]
+    sm = FakeStateMachine(
+        {
+            "sensor.a": FakeEntityState(
+                entity_id="sensor.a",
+                state="1500",
+                attributes={"device_class": "power", "unit_of_measurement": "W", "forecast": forecast},
+            ),
+            "sensor.b": FakeEntityState(entity_id="sensor.b", state="on", attributes={}),
+        }
+    )
+
+    assert load_readings(sm, ["sensor.a", "sensor.b"]) == {"sensor.a": 1.5, "sensor.b": 1.0}
+
+
+@pytest.mark.parametrize(
+    "entity_ids",
+    [
+        pytest.param([], id="no_sensors"),
+        pytest.param(["sensor.a", "sensor.missing"], id="missing_sensor"),
+        pytest.param(["sensor.a", "sensor.unknown"], id="sensor_without_a_reading"),
+        pytest.param(["calendar.trips"], id="calendar"),
+        pytest.param(["sensor.nan"], id="nan"),
+        pytest.param(["sensor.inf"], id="infinity"),
+    ],
+)
+def test_load_readings_is_unavailable_without_every_reading(entity_ids: list[str]) -> None:
+    """One sensor without a reading makes the whole set unavailable."""
+    sm = FakeStateMachine(
+        {
+            "sensor.a": FakeEntityState(entity_id="sensor.a", state="1", attributes={}),
+            "sensor.unknown": FakeEntityState(entity_id="sensor.unknown", state="unknown", attributes={}),
+            "calendar.trips": FakeEntityState(entity_id="calendar.trips", state="on", attributes={}),
+            "sensor.nan": FakeEntityState(entity_id="sensor.nan", state="nan", attributes={}),
+            "sensor.inf": FakeEntityState(entity_id="sensor.inf", state="-Infinity", attributes={}),
+        }
+    )
+
+    assert load_readings(sm, entity_ids) is None
+
+
+def test_load_readings_rejects_a_unit_the_input_cannot_use() -> None:
+    """A reading in a unit that does not convert to the input's unit is rejected."""
+    sm = FakeStateMachine(
+        {"sensor.t": FakeEntityState(entity_id="sensor.t", state="20", attributes={"unit_of_measurement": "°C"})}
+    )
+
+    with pytest.raises(InputError):
+        load_readings(sm, ["sensor.t"], output_type=OutputType.POWER)

@@ -1,4 +1,4 @@
-"""Tests for connection adapter availability checks."""
+"""Tests for the connection adapter power limit placement."""
 
 import numpy as np
 import pytest

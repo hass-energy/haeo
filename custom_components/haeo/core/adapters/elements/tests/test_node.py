@@ -1,4 +1,4 @@
-"""Tests for node adapter availability and model elements."""
+"""Tests for node adapter model elements."""
 
 from custom_components.haeo.core.adapters.elements.node import adapter as node_adapter
 from custom_components.haeo.core.schema.elements import ElementType, node

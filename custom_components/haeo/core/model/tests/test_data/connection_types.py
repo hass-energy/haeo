@@ -35,4 +35,3 @@ class ConnectionTestCase(TypedDict):
     data: dict[str, object]
     inputs: NotRequired[ConnectionTestCaseInputs]
     expected_outputs: NotRequired[ExpectedOutputs]
-    expected_error: NotRequired[str]

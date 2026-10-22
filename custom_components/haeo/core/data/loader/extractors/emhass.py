@@ -83,25 +83,26 @@ class Parser:
         return entity_id.split(".", 1)[1] if "." in entity_id else entity_id
 
     @staticmethod
-    def _get_forecast_attribute(state: EntityState) -> Sequence[object] | None:
-        """Find the forecast sequence from state attributes.
-
-        Returns the first non-empty sequence attribute that matches an EMHASS forecast key.
-        """
-        for attr_key in FORECAST_ATTRIBUTES:
-            if attr_key not in state.attributes:
-                continue
-            forecast = state.attributes[attr_key]
-            if isinstance(forecast, Sequence) and not isinstance(forecast, (str, bytes)) and forecast:
-                return forecast
-        return None
+    def _forecast(attributes: Mapping[str, object]) -> tuple[str, Sequence[object]] | None:
+        """Return the first EMHASS forecast attribute holding a non-empty sequence, with its key, or None."""
+        return next(
+            (
+                (attr_key, forecast)
+                for attr_key in FORECAST_ATTRIBUTES
+                if isinstance(forecast := attributes.get(attr_key), Sequence)
+                and not isinstance(forecast, (str, bytes))
+                and forecast
+            ),
+            None,
+        )
 
     @staticmethod
     def detect(state: EntityState) -> TypeGuard[EmhassState]:
         """Check if data matches EMHASS forecast format."""
-        forecast = Parser._get_forecast_attribute(state)
-        if forecast is None:
+        found = Parser._forecast(state.attributes)
+        if found is None:
             return False
+        _, forecast = found
 
         entity_name = Parser._get_entity_name(state.entity_id)
         return all(
@@ -112,15 +113,6 @@ class Parser:
             and is_parsable_to_datetime(item["date"])
             for item in forecast
         )
-
-    @staticmethod
-    def _get_forecast_key(state: EmhassState) -> str:
-        """Get the attribute key holding the forecast of a validated EMHASS state.
-
-        This must only be called after detect() returns True.
-        """
-        # detect() guarantees at least one forecast attribute exists
-        return next(attr_key for attr_key in FORECAST_ATTRIBUTES if attr_key in state.attributes)
 
     @staticmethod
     def extract(
@@ -140,7 +132,11 @@ class Parser:
         and predicted temperature the state at its start.
         """
         entity_name = Parser._get_entity_name(state.entity_id)
-        forecast_key = Parser._get_forecast_key(state)
+        found = Parser._forecast(state.attributes)
+        if found is None:
+            msg = f"{state.entity_id} carries no EMHASS forecast"
+            raise ValueError(msg)
+        forecast_key, _ = found
         forecast = state.attributes[forecast_key]
 
         # detect() validated all items have date and entity_name keys

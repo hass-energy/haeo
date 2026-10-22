@@ -93,7 +93,7 @@ def power_field_info() -> InputFieldInfo[NumberEntityDescription]:
         field_name="power_limit",
         entity_description=NumberEntityDescription(
             key="power_limit",
-            translation_key="power_limit",
+            translation_key="battery_max_power_target_source",
             native_unit_of_measurement="kW",
             native_min_value=0.0,
             native_max_value=100.0,
@@ -112,7 +112,7 @@ def scalar_field_info() -> InputFieldInfo[NumberEntityDescription]:
         field_name="capacity",
         entity_description=NumberEntityDescription(
             key="capacity",
-            translation_key="capacity",
+            translation_key="battery_capacity",
             native_unit_of_measurement="kWh",
             native_min_value=0.0,
             native_max_value=1000.0,
@@ -130,7 +130,7 @@ def scalar_percent_field_info() -> InputFieldInfo[NumberEntityDescription]:
         field_name="soc",
         entity_description=NumberEntityDescription(
             key="soc",
-            translation_key="soc",
+            translation_key="battery_initial_charge_percentage",
             native_unit_of_measurement="%",
             native_min_value=0.0,
             native_max_value=100.0,
@@ -148,7 +148,7 @@ def boundary_field_info() -> InputFieldInfo[NumberEntityDescription]:
         field_name="soc",
         entity_description=NumberEntityDescription(
             key="soc",
-            translation_key="soc",
+            translation_key="battery_initial_charge_percentage",
             native_unit_of_measurement="%",
             native_min_value=0.0,
             native_max_value=100.0,
@@ -167,7 +167,7 @@ def percent_field_info() -> InputFieldInfo[NumberEntityDescription]:
         field_name="soc",
         entity_description=NumberEntityDescription(
             key="soc",
-            translation_key="soc",
+            translation_key="battery_initial_charge_percentage",
             native_unit_of_measurement="%",
             native_min_value=0.0,
             native_max_value=100.0,
@@ -1435,7 +1435,7 @@ async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
     field_info = InputFieldInfo(
         field_name="trip_away",
         entity_description=NumberEntityDescription(
-            key="trip_away", translation_key="trip_away", native_min_value=0.0, native_max_value=1.0
+            key="trip_away", translation_key="ev_away", native_min_value=0.0, native_max_value=1.0
         ),
         output_type=OutputType.AVAILABILITY,
         time_series=True,

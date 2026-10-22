@@ -44,7 +44,15 @@ class NodeAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
     can_source: bool = True
     can_sink: bool = True
+    switchboard: bool = True
+    device_names: frozenset[NodeDeviceName] = NODE_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
+
+    def roles(self, config: Mapping[str, object]) -> tuple[bool, bool]:
+        """Return whether the node is configured as a source and as a sink."""
+        role = config.get(SECTION_ROLE)
+        flags: Mapping[str, object] = role if isinstance(role, Mapping) else {}
+        return bool(flags.get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE)), bool(flags.get(CONF_IS_SINK, DEFAULT_IS_SINK))
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Node configuration."""

@@ -3,6 +3,7 @@
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
+from importlib import import_module
 from types import MappingProxyType
 
 # The synthetic test adapter below must accept ElementAdapter's own Any-typed protocol
@@ -31,12 +32,43 @@ from custom_components.haeo.core.const import (
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, OutputData
 from custom_components.haeo.core.schema.elements import ElementType, battery, connection, grid, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
-from custom_components.haeo.elements import ElementOutputName
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION
+from custom_components.haeo.elements import ElementOutputName, get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_COMMON, get_element_flow_classes
 
 # Policy uses a multi-step menu-driven flow incompatible with the generic single-step tests
 SINGLE_STEP_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(et for et in ELEMENT_TYPES if et != ElementType.POLICY)
+
+CONNECTED_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(
+    et
+    for et in SINGLE_STEP_ELEMENT_TYPES
+    if CONF_CONNECTION in import_module(f"custom_components.haeo.flows.tests.test_data.{et}").VALID_DATA[0]["config"]
+)
+
+NEVER_ENDPOINT_TYPE: ElementType = next(
+    et for et, adapter in ELEMENT_TYPES.items() if adapter.connectivity == ConnectivityLevel.NEVER.value
+)
+
+
+def _first_required_input(element_type: ElementType) -> tuple[str, str] | None:
+    """Return the section and name of the first input field a flow requires a value for."""
+    input_fields = get_input_fields(element_type)
+    schema_info = get_input_field_schema_info(element_type, input_fields)
+    return next(
+        (
+            (section, field_name)
+            for section, fields in input_fields.items()
+            for field_name, field_info in fields.items()
+            if field_info.force_required or not schema_info[section][field_name].is_optional
+        ),
+        None,
+    )
+
+
+REQUIRED_INPUTS: tuple[tuple[ElementType, str, str], ...] = tuple(
+    (et, *required) for et in SINGLE_STEP_ELEMENT_TYPES if (required := _first_required_input(et)) is not None
+)
 
 ALL_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
 
@@ -286,6 +318,46 @@ async def test_element_flow_user_step_missing_name(
     result = await flow.async_step_user(user_input=base_input)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "missing_name"}
+
+
+@pytest.mark.parametrize("element_type", CONNECTED_ELEMENT_TYPES)
+async def test_element_flow_rejects_endpoint_that_is_never_connected(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    element_type: ElementType,
+    element_test_data: dict[ElementType, ElementTestData],
+) -> None:
+    """Connecting to an element that is never a connection endpoint is rejected."""
+    endpoint = _add_participant_subentry(hass, hub_entry, "Endpoint", NEVER_ENDPOINT_TYPE)
+    user_input = deepcopy(element_test_data[element_type].valid[0].config)
+    user_input[CONF_CONNECTION] = endpoint.title
+
+    flow = _create_flow(hass, hub_entry, element_type)
+    result = await flow.async_step_user(user_input=user_input)
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("errors") == {CONF_CONNECTION: "invalid_endpoint"}
+
+
+@pytest.mark.parametrize(("element_type", "section", "field_name"), REQUIRED_INPUTS)
+async def test_element_flow_requires_a_value_for_required_inputs(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    element_type: ElementType,
+    section: str,
+    field_name: str,
+    element_test_data: dict[ElementType, ElementTestData],
+) -> None:
+    """Leaving a required input without a value reports an error on its section."""
+    user_input = deepcopy(element_test_data[element_type].valid[0].config)
+    _prepare_flow_context(hass, hub_entry, element_type, user_input)
+    user_input[section] = {**user_input[section], field_name: None}
+
+    flow = _create_flow(hass, hub_entry, element_type)
+    result = await flow.async_step_user(user_input=user_input)
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("errors") == {section: "required"}
 
 
 @pytest.mark.parametrize("element_type", SINGLE_STEP_ELEMENT_TYPES)

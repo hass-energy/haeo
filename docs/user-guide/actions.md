@@ -37,8 +37,9 @@ the output sensors update when it succeeds,
 and the optimization status sensor and a repair issue explain a failure.
 See [Understanding results](optimization.md) and [Troubleshooting](troubleshooting.md).
 
-When the planning horizon has just moved on and HAEO is still loading forecasts for the new periods, the action does nothing.
-HAEO plans by itself once those forecasts have loaded, so there is no need to run it again.
+When the planning horizon has just moved on, HAEO may still be loading forecasts for the new periods.
+The action then fails with a message saying the forecast inputs are still loading.
+HAEO plans by itself once those forecasts have loaded, so you only need to run it again if you turned **Auto optimize** off.
 
 ## Save diagnostics
 
@@ -68,7 +69,7 @@ The [historic diagnostics walkthrough](../walkthroughs/historic-diagnostics.md) 
 action: haeo.save_diagnostics
 data:
   config_entry: <your HAEO system>
-  time: "2025-01-01 18:30:00"
+  time: '2025-01-01 18:30:00'
 ```
 
 !!! warning "Privacy"
@@ -78,14 +79,15 @@ data:
 
 ## Errors
 
-Both actions stop with an error message when they cannot run:
+The actions stop with an error message when they cannot run:
 
-| Message                          | What it means                                                                                      | What to do                                                          |
-| -------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Config entry … not found         | The chosen system no longer exists                                                                 | Pick the system again; it may have been removed and added again     |
-| Config entry … is not a HAEO hub | The chosen entry belongs to another integration                                                    | Pick a HAEO system                                                  |
-| Config entry … is not loaded     | The HAEO system is still starting, failed to start, or is disabled                                 | Check the system on the integration page and fix any reported issue |
-| No history available at time …   | Only from `haeo.save_diagnostics`: the recorder has no values at that time for the inputs it names | Choose a later time, within how long your recorder keeps history    |
+| Message                                 | What it means                                                                                          | What to do                                                          |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| Config entry … not found                | The chosen system no longer exists                                                                     | Pick the system again; it may have been removed and added again     |
+| Config entry … is not a HAEO hub        | The chosen entry belongs to another integration                                                        | Pick a HAEO system                                                  |
+| Config entry … is not loaded            | The HAEO system is still starting, failed to start, or is disabled                                     | Check the system on the integration page and fix any reported issue |
+| The forecast inputs are still loading … | Only from `haeo.optimize`: the horizon has just moved on and forecasts for the new periods are loading | Try again in a moment                                               |
+| No history available at time …          | Only from `haeo.save_diagnostics`: the recorder has no values at that time for the inputs it names     | Choose a later time, within how long your recorder keeps history    |
 
 ## Next steps
 

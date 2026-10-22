@@ -5,22 +5,32 @@ This module provides:
 - build_inclusion_map(): Generate field → compatible entities mapping from input fields
 - filter_compatible_entities(): Filter entity metadata by unit compatibility
 - build_participant_selector(): Create dropdown selector for element names
-- ElementFlowMixin: Mixin providing common subentry flow functionality
+- ElementSubentryFlow: Base class of every element subentry flow
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from typing import ClassVar
 
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry, UnknownSubEntry
+from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfLength, UnitOfPower
 from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
+from custom_components.haeo.core.const import (
+    CONF_ADVANCED_MODE,
+    CONF_ELEMENT_TYPE,
+    CONF_NAME,
+    HUB_SECTION_ADVANCED,
+    ConnectivityLevel,
+)
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema import EntityValue, as_entity_value, is_entity_value
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.util import UnitSpec
 from custom_components.haeo.core.units import DURATION_UNITS, ENERGY_DISTANCE_UNITS, PRICE_UNIT_SPEC, currency_symbol
 from custom_components.haeo.elements import get_input_fields
@@ -30,6 +40,14 @@ from custom_components.haeo.elements.input_fields import (
     accepts_calendar_forecast,
     localize_input_fields,
     reads_calendar,
+)
+from custom_components.haeo.flows.on_off_states import (
+    CONF_OFF_STATES,
+    CONF_ON_STATES,
+    STEP_STATES,
+    FieldPath,
+    async_state_suggestions,
+    fields_reading_words,
 )
 
 
@@ -161,103 +179,60 @@ def build_participant_selector(
     )
 
 
-class ElementFlowMixin:
-    """Mixin providing common element subentry flow functionality.
+class ElementSubentryFlow(ConfigSubentryFlow):
+    """Base of every element subentry flow.
 
-    This mixin provides shared methods for all element config flows:
-    - Name validation and duplicate checking
-    - Participant name retrieval based on connectivity level
-    - Subentry ID retrieval for reconfigure flows
-
-    Expected attributes on the class using this mixin:
-    - hass: HomeAssistant instance
-    - _get_entry(): Returns the parent ConfigEntry
-    - _get_reconfigure_subentry(): Returns the subentry being reconfigured
-    - context: Flow context dict (from ConfigSubentryFlow)
-
+    Provides name validation, the elements an element can connect to, and the
+    save path, which first asks which states mean on and off for any on/off
+    input reading an entity that reports words.
     """
 
-    def _get_input_fields(self, element_type: str) -> InputFieldGroups:
+    element_type: ClassVar[ElementType]
+
+    _pending_title: str
+    _pending_config: dict[str, object]
+    _pending_fields: list[FieldPath]
+
+    def _get_input_fields(self) -> InputFieldGroups:
         """Return the element type's input fields with monetary units in the user's currency."""
-        currency = currency_symbol(self.hass.config.currency)  # type: ignore[attr-defined]
-        return localize_input_fields(get_input_fields(element_type), currency)
+        currency = currency_symbol(self.hass.config.currency)
+        return localize_input_fields(get_input_fields(self.element_type), currency)
 
     def _get_used_names(self) -> set[str]:
-        """Return all configured element names excluding the current subentry.
-
-        Used to validate that a new element name doesn't conflict with existing ones.
-
-        Returns:
-            Set of element names currently in use.
-
-        """
+        """Return all configured element names excluding the current subentry."""
         current_id = self._get_current_subentry_id()
-        entry: ConfigEntry = self._get_entry()  # type: ignore[attr-defined]
-        return {subentry.title for subentry in entry.subentries.values() if subentry.subentry_id != current_id}
+        return {
+            subentry.title for subentry in self._get_entry().subentries.values() if subentry.subentry_id != current_id
+        }
 
     def _get_participant_names(self) -> list[str]:
         """Return element names available as connection endpoints.
 
         Filters elements based on their connectivity level and the hub's
         advanced mode setting.
-
-        Returns:
-            List of element names that can be used as connection targets.
-
         """
-        # Avoid circular import with adapter registry, core constants, and schema module
-        from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES  # noqa: PLC0415
-        from custom_components.haeo.core.const import ConnectivityLevel  # noqa: PLC0415
-        from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
-        from custom_components.haeo.flows import HUB_SECTION_ADVANCED  # noqa: PLC0415
-
-        hub_entry: ConfigEntry = self._get_entry()  # type: ignore[attr-defined]
+        hub_entry = self._get_entry()
         advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
+        connectable = {
+            ConnectivityLevel.ALWAYS,
+            ConnectivityLevel.ADVANCED if advanced_mode else ConnectivityLevel.ALWAYS,
+        }
         current_id = self._get_current_subentry_id()
-
-        result: list[str] = []
-        for subentry in hub_entry.subentries.values():
-            if subentry.subentry_id == current_id:
-                continue
-
-            element_type_raw = subentry.data.get(CONF_ELEMENT_TYPE)
-            try:
-                element_type = ElementType(element_type_raw)
-            except (TypeError, ValueError):
-                continue
-
-            connectivity = ELEMENT_TYPES[element_type].connectivity
-            if connectivity == ConnectivityLevel.ALWAYS.value or (
-                connectivity == ConnectivityLevel.ADVANCED.value and advanced_mode
-            ):
-                result.append(subentry.title)
-
-        return result
+        return [
+            subentry.title
+            for subentry in hub_entry.subentries.values()
+            if subentry.subentry_id != current_id
+            and is_element_type(element_type := subentry.data.get(CONF_ELEMENT_TYPE))
+            and ELEMENT_TYPES[element_type].connectivity in connectable
+        ]
 
     def _get_current_subentry_id(self) -> str | None:
-        """Return the active subentry ID when reconfiguring, otherwise None.
-
-        Uses the flow context to determine if we're in a reconfigure flow.
-
-        Returns:
-            Subentry ID if reconfiguring, None otherwise.
-
-        """
-        context: dict[str, object] = getattr(self, "context", {})
-        subentry_id = context.get("subentry_id")
+        """Return the active subentry ID when reconfiguring, otherwise None."""
+        subentry_id = self.context.get("subentry_id")
         return subentry_id if isinstance(subentry_id, str) else None
 
     def _validate_name(self, name: str | None, errors: dict[str, str]) -> bool:
-        """Validate an element name and add errors if invalid.
-
-        Args:
-            name: The name to validate.
-            errors: Dict to add error messages to.
-
-        Returns:
-            True if name is valid, False otherwise.
-
-        """
+        """Validate an element name, adding an error and returning False when it is missing or taken."""
         if not name:
             errors[CONF_NAME] = "missing_name"
             return False
@@ -273,39 +248,128 @@ class ElementFlowMixin:
         saved before such endpoints were removed still renders, so the endpoint
         is rejected here when the form is submitted.
         """
-        # Avoid circular import with adapter registry, core constants, and schema module
-        from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type  # noqa: PLC0415
-        from custom_components.haeo.core.const import ConnectivityLevel  # noqa: PLC0415
-
-        hub_entry: ConfigEntry = self._get_entry()  # type: ignore[attr-defined]
-        for subentry in hub_entry.subentries.values():
+        for subentry in self._get_entry().subentries.values():
             if (
                 subentry.title == name
                 and is_element_type(subentry.subentry_type)
-                and ELEMENT_TYPES[subentry.subentry_type].connectivity == ConnectivityLevel.NEVER.value
+                and ELEMENT_TYPES[subentry.subentry_type].connectivity == ConnectivityLevel.NEVER
             ):
                 errors[field] = "invalid_endpoint"
 
     def _get_subentry(self) -> ConfigSubentry | None:
         """Get the subentry being reconfigured, or None for new entries."""
         try:
-            return self._get_reconfigure_subentry()  # type: ignore[attr-defined]
+            return self._get_reconfigure_subentry()
         except (ValueError, UnknownSubEntry):
             return None
 
-    async def _async_get_default_name(self, element_type: str) -> str:
-        """Fetch the default name for an element type."""
+    async def _async_get_default_name(self) -> str:
+        """Fetch the default name for the element type."""
         translations = await async_get_translations(
-            self.hass,  # type: ignore[attr-defined]
-            self.hass.config.language,  # type: ignore[attr-defined]
-            "config_subentries",
-            integrations=[DOMAIN],
+            self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
         )
-        return translations[f"component.{DOMAIN}.config_subentries.{element_type}.flow_title"]
+        return translations[f"component.{DOMAIN}.config_subentries.{self.element_type}.flow_title"]
+
+    async def _async_save_entry(self, title: str, config: dict[str, object]) -> SubentryFlowResult:
+        """Save an element's config, asking first for the on and off states of inputs reading words."""
+        self._pending_title = title
+        self._pending_config = config
+        self._pending_fields = fields_reading_words(self.hass, config, get_input_fields(self.element_type))
+        return await self._async_next_states_step(None)
+
+    async def async_step_states(self, user_input: dict[str, object] | None = None) -> SubentryFlowResult:
+        """Ask which states mean on and off for one input reading words."""
+        section_key, field_name = self._pending_fields[0]
+        value = self._pending_value(section_key, field_name)
+
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            on_states = _states(user_input.get(CONF_ON_STATES))
+            off_states = _states(user_input.get(CONF_OFF_STATES))
+            if not on_states and not off_states:
+                errors["base"] = "states_required"
+            else:
+                self._pending_section(section_key)[field_name] = as_entity_value(
+                    list(value["value"]), on_states=on_states, off_states=off_states
+                )
+                self._pending_fields.pop(0)
+                return await self._async_next_states_step(None)
+        return await self._async_next_states_step(errors)
+
+    async def _async_next_states_step(self, errors: dict[str, str] | None) -> SubentryFlowResult:
+        """Show the states form for the next input reading words, or save once none are left."""
+        if not self._pending_fields:
+            return self._write_entry()
+        section_key, field_name = self._pending_fields[0]
+        entity_ids = list(self._pending_value(section_key, field_name)["value"])
+
+        options = await async_state_suggestions(self.hass, entity_ids)
+        selector = SelectSelector(
+            SelectSelectorConfig(options=options, multiple=True, custom_value=True, mode=SelectSelectorMode.DROPDOWN)
+        )
+        schema = vol.Schema({vol.Optional(CONF_ON_STATES): selector, vol.Optional(CONF_OFF_STATES): selector})
+        stored = self._stored_value(section_key, field_name)
+        suggested = {
+            CONF_ON_STATES: list(stored.get("on_states", ())) if stored is not None else [],
+            CONF_OFF_STATES: list(stored.get("off_states", ())) if stored is not None else [],
+        }
+        names = [
+            state.name if (state := self.hass.states.get(entity_id)) is not None else entity_id
+            for entity_id in entity_ids
+        ]
+        return self.async_show_form(
+            step_id=STEP_STATES,
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
+            errors=errors,
+            description_placeholders={"entities": ", ".join(names)},
+        )
+
+    def _pending_section(self, section_key: str) -> dict[str, object]:
+        """Return a section of the config being saved."""
+        section = self._pending_config[section_key]
+        if not isinstance(section, dict):
+            msg = f"Section {section_key} is not a mapping"
+            raise TypeError(msg)
+        return section
+
+    def _pending_value(self, section_key: str, field_name: str) -> EntityValue:
+        """Return the entity value of a field in the config being saved."""
+        value = self._pending_section(section_key)[field_name]
+        if not is_entity_value(value):
+            msg = f"Field {section_key}.{field_name} is not entity-driven"
+            raise TypeError(msg)
+        return value
+
+    def _stored_value(self, section_key: str, field_name: str) -> EntityValue | None:
+        """Return the value a reconfigured element stored for a field, or None for a new element."""
+        subentry = self._get_subentry()
+        section = subentry.data.get(section_key) if subentry is not None else None
+        value = section.get(field_name) if isinstance(section, Mapping) else None
+        return value if is_entity_value(value) else None
+
+    def _target_subentry(self) -> ConfigSubentry | None:
+        """Return the subentry a save updates, or None when it creates a new one."""
+        return self._get_subentry()
+
+    def _write_entry(self) -> SubentryFlowResult:
+        """Create the element, or update the subentry the save targets."""
+        subentry = self._target_subentry()
+        if subentry is not None:
+            return self.async_update_and_abort(
+                self._get_entry(), subentry, title=self._pending_title, data=self._pending_config
+            )
+        return self.async_create_entry(title=self._pending_title, data=self._pending_config)
+
+
+def _states(raw: object) -> list[str]:
+    """Return the states chosen in a multiple select."""
+    if not isinstance(raw, Sequence) or isinstance(raw, str):
+        return []
+    return [str(state) for state in raw if str(state)]
 
 
 __all__ = [
-    "ElementFlowMixin",
+    "ElementSubentryFlow",
     "build_inclusion_map",
     "build_participant_selector",
     "filter_compatible_entities",

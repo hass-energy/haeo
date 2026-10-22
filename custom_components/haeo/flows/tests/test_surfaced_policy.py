@@ -12,7 +12,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
-from custom_components.haeo import _cleanup_policy_rules
+from custom_components.haeo import prune_element_references
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
@@ -63,6 +63,7 @@ from custom_components.haeo.core.schema.entity_value import EntityValue
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_surfaced_input_fields
 from custom_components.haeo.flows.conftest import create_flow
+from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
 from custom_components.haeo.flows.surfaced_policy import (
     POLICIES_TITLE,
@@ -682,6 +683,7 @@ def test_build_surfaced_schema_entries_uses_existing_rule_price(
         "Test Load",
         LOAD_SURFACED_PRICE_HINTS,
         surfaced_fields,
+        extract_entity_metadata(hass, hub_entry),
     )
 
     assert CONF_CONSUMPTION_COST in entries
@@ -830,7 +832,7 @@ def test_cleanup_removes_orphaned_rules(
         ],
     )
 
-    _cleanup_policy_rules(hass, hub_entry)
+    prune_element_references(hass, hub_entry)
 
     rules = _get_rules(hub_entry)
     assert len(rules) == 2
@@ -854,7 +856,7 @@ def test_cleanup_strips_deleted_from_multi_element_rules(
         ],
     )
 
-    _cleanup_policy_rules(hass, hub_entry)
+    prune_element_references(hass, hub_entry)
 
     rules = _get_rules(hub_entry)
     assert len(rules) == 1
@@ -878,7 +880,7 @@ def test_cleanup_removes_rule_when_either_side_empty(
         ],
     )
 
-    _cleanup_policy_rules(hass, hub_entry)
+    prune_element_references(hass, hub_entry)
 
     rules = _get_rules(hub_entry)
     assert len(rules) == 0
@@ -889,7 +891,7 @@ def test_cleanup_noop_when_no_policy(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Cleanup does nothing when no policy subentry exists."""
-    _cleanup_policy_rules(hass, hub_entry)
+    prune_element_references(hass, hub_entry)
     assert find_policy_subentry(hub_entry) is None
 
 
@@ -909,7 +911,7 @@ def test_cleanup_deduplicates_rules_after_stripping(
         ],
     )
 
-    _cleanup_policy_rules(hass, hub_entry)
+    prune_element_references(hass, hub_entry)
 
     rules = _get_rules(hub_entry)
     assert len(rules) == 1
@@ -936,7 +938,12 @@ def test_build_surfaced_schema_entries_includes_compatible_price_entities(
 
     surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
     _, selector = build_surfaced_schema_entries(
-        hass, hub_entry, "Test Load", LOAD_SURFACED_PRICE_HINTS, surfaced_fields
+        hass,
+        hub_entry,
+        "Test Load",
+        LOAD_SURFACED_PRICE_HINTS,
+        surfaced_fields,
+        extract_entity_metadata(hass, hub_entry),
     )[CONF_CONSUMPTION_COST]
 
     entity_choice = selector.config["choices"][CHOICE_ENTITY]

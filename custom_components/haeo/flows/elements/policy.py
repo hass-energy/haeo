@@ -12,7 +12,7 @@ Flow design:
 from collections.abc import Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures upstream; ChooseSelector.__call__ is Any-typed upstream
 
-from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import ConfigSubentry, SubentryFlowResult
 from homeassistant.helpers.selector import (
     BooleanSelector,
     BooleanSelectorConfig,
@@ -28,12 +28,10 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, ConfiguredRolesAdapter, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
-from custom_components.haeo.core.schema.elements.node import ELEMENT_TYPE as NODE_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_ENABLED,
     CONF_PRICE,
@@ -48,7 +46,7 @@ from custom_components.haeo.core.schema.entity_value import as_entity_value, is_
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_list_input_fields
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, localize_input_field
-from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map
+from custom_components.haeo.flows.element_flow import ElementSubentryFlow, build_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
@@ -57,6 +55,7 @@ from custom_components.haeo.flows.field_schema import (
     NormalizingChooseSelector,
     build_choose_selector,
 )
+from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE, find_policy_subentry
 
 CONF_ACTION: str = "action"
 CONF_RULE: str = "rule"
@@ -65,10 +64,8 @@ ACTION_DELETE: str = "delete"
 
 CHOICE_ELEMENTS: str = "elements"
 
-POLICIES_TITLE: str = "Policies"
 
-
-class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
+class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]  # registering a selector erases its config type parameter
     """ChooseSelector for policy endpoints that normalizes to list[str] or empty.
 
     - "none" choice (any element): normalizes to empty string
@@ -87,7 +84,7 @@ class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
                     msg = "At least one element must be selected"
                     raise vol.Invalid(msg)
                 return elements
-        return super().__call__(data)  # type: ignore[misc]
+        return super().__call__(data)  # type: ignore[misc]  # the erased base hides Selector.__call__
 
 
 def _as_str_list(value: object) -> list[str] | None:
@@ -97,8 +94,24 @@ def _as_str_list(value: object) -> list[str] | None:
     return None
 
 
-class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+def _element_roles(element_type: ElementType, config: Mapping[str, object]) -> tuple[bool, bool]:
+    """Return whether an element can source and can sink power."""
+    adapter = ELEMENT_TYPES[element_type]
+    if isinstance(adapter, ConfiguredRolesAdapter):
+        return adapter.roles(config)
+    return adapter.can_source, adapter.can_sink
+
+
+def _offers_roles(roles: tuple[bool, bool], *, can_source: bool, can_sink: bool) -> bool:
+    """Return whether an element with these roles fits an endpoint needing a source and or a sink."""
+    sources, sinks = roles
+    return (sources or sinks) and (sources or not can_source) and (sinks or not can_sink)
+
+
+class PolicySubentryFlowHandler(ElementSubentryFlow):
     """Handle policy element configuration flows."""
+
+    element_type = ELEMENT_TYPE
 
     def __init__(self) -> None:
         """Initialize the policy flow handler."""
@@ -114,59 +127,22 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> list[str]:
         """Return element names available as policy endpoints.
 
-        Filters by adapter capability: only elements whose adapter declares
-        can_source (for source endpoints) or can_sink (for target endpoints)
-        are included. For Node elements, additionally checks instance-specific
-        role flags from the subentry data.
+        An element is offered when it can source power (for source endpoints)
+        or sink it (for target endpoints), as its adapter declares or, for an
+        element choosing its roles in its config, as its config says.
         """
-        hub_entry = self._get_entry()
         current_id = self._get_current_subentry_id()
+        return [
+            subentry.title
+            for subentry in self._get_entry().subentries.values()
+            if subentry.subentry_id != current_id
+            and is_element_type(element_type := subentry.data.get(CONF_ELEMENT_TYPE))
+            and _offers_roles(_element_roles(element_type, subentry.data), can_source=can_source, can_sink=can_sink)
+        ]
 
-        result: list[str] = []
-        for subentry in hub_entry.subentries.values():
-            if subentry.subentry_id == current_id:
-                continue
-
-            try:
-                element_type = ElementType(subentry.data.get(CONF_ELEMENT_TYPE))
-            except (ValueError, KeyError):
-                continue
-
-            adapter = ELEMENT_TYPES.get(element_type)
-            if adapter is None:
-                continue
-
-            if not adapter.can_source and not adapter.can_sink:
-                continue
-
-            # Node elements have instance-specific capabilities via role flags
-            if element_type == NODE_ELEMENT_TYPE:
-                role = subentry.data.get(SECTION_ROLE, {})
-                node_can_source = role.get(CONF_IS_SOURCE, False)
-                node_can_sink = role.get(CONF_IS_SINK, False)
-                if can_source and not node_can_source:
-                    continue
-                if can_sink and not node_can_sink:
-                    continue
-                if not node_can_source and not node_can_sink:
-                    continue
-            else:
-                if can_source and not adapter.can_source:
-                    continue
-                if can_sink and not adapter.can_sink:
-                    continue
-
-            result.append(subentry.title)
-
-        return result
-
-    def _find_existing_policy_subentry(self) -> ConfigSubentry | None:
-        """Find the existing Policies subentry if one exists."""
-        hub_entry = self._get_entry()
-        for subentry in hub_entry.subentries.values():
-            if subentry.subentry_type == str(ELEMENT_TYPE):
-                return subentry
-        return None
+    def _target_subentry(self) -> ConfigSubentry | None:
+        """Return the single policy subentry, which every rule is saved to."""
+        return find_policy_subentry(self._get_entry())
 
     def _get_price_field_info(self) -> AnyInputFieldInfo:
         """Get the InputFieldInfo for the price field from list field hints."""
@@ -425,7 +401,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         target_options = self._get_participant_options(can_sink=True)
 
         if user_input is not None:
-            existing = self._find_existing_policy_subentry()
+            existing = self._target_subentry()
             if existing is not None and not self._rules:
                 self._rules = list(existing.data.get(CONF_RULES, []))
 
@@ -433,17 +409,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 rule = self._parse_rule_input(user_input)
                 self._rules.append(rule)
 
-                if existing is not None:
-                    return self.async_update_and_abort(
-                        self._get_entry(),
-                        existing,
-                        title=POLICIES_TITLE,
-                        data=self._build_entry_data(),
-                    )
-                return self.async_create_entry(
-                    title=POLICIES_TITLE,
-                    data=self._build_entry_data(),
-                )
+                return await self._async_save_entry(POLICIES_TITLE, self._build_entry_data())
 
         source_preferred_choice = CHOICE_NONE
         target_preferred_choice = CHOICE_NONE
@@ -486,12 +452,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 if 0 <= rule_index < len(self._rules):
                     self._rules.pop(rule_index)
                 if subentry is not None:
-                    return self.async_update_and_abort(
-                        self._get_entry(),
-                        subentry,
-                        title=POLICIES_TITLE,
-                        data=self._build_entry_data(),
-                    )
+                    return await self._async_save_entry(POLICIES_TITLE, self._build_entry_data())
 
             if action == ACTION_EDIT and 0 <= rule_index < len(self._rules):
                 self._editing_index = rule_index
@@ -528,14 +489,8 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 self._rules[idx] = rule
             self._editing_index = None
 
-            subentry = self._get_subentry()
-            if subentry is not None:
-                return self.async_update_and_abort(
-                    self._get_entry(),
-                    subentry,
-                    title=POLICIES_TITLE,
-                    data=self._build_entry_data(),
-                )
+            if self._get_subentry() is not None:
+                return await self._async_save_entry(POLICIES_TITLE, self._build_entry_data())
 
         if merged_input is not None:
             defaults = merged_input

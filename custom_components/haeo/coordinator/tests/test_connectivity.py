@@ -60,7 +60,7 @@ async def test_evaluate_network_connectivity_connected(
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a}
 
-    await evaluate_network_connectivity(hass, config_entry, participants=participants)
+    evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)
@@ -86,7 +86,7 @@ async def test_evaluate_network_connectivity_disconnected(
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
-    await evaluate_network_connectivity(hass, config_entry, participants=participants)
+    evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)
@@ -113,7 +113,7 @@ async def test_evaluate_network_connectivity_resolves_issue(
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
-    await evaluate_network_connectivity(hass, config_entry, participants=participants)
+    evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     # Connect the nodes and re-validate
     connection: ConnectionConfigData = {
@@ -129,7 +129,7 @@ async def test_evaluate_network_connectivity_resolves_issue(
     }
     participants["A to B"] = connection
 
-    await evaluate_network_connectivity(hass, config_entry, participants=participants)
+    evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)
@@ -170,7 +170,7 @@ async def test_evaluate_network_connectivity_flags_closed_endpoints(
     issue_id = f"invalid_connection_endpoints_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)
 
-    await evaluate_network_connectivity(hass, config_entry, participants=participants)
+    evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     issue = issue_registry.async_get_issue(DOMAIN, issue_id)
     assert issue is not None
@@ -178,6 +178,6 @@ async def test_evaluate_network_connectivity_flags_closed_endpoints(
     assert issue.translation_placeholders == {"connection_summary": "Bypass → Grid"}
 
     del participants["Bypass"]
-    await evaluate_network_connectivity(hass, config_entry, participants=participants)
+    evaluate_network_connectivity(hass, config_entry, participants=participants)
 
     assert issue_registry.async_get_issue(DOMAIN, issue_id) is None

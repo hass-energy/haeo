@@ -23,7 +23,7 @@ from custom_components.haeo.core.adapters.elements.policy import adapter as poli
 from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
-from custom_components.haeo.core.model.elements import FLOW_READER_ELEMENT_TYPES, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements import ELEMENTS
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.buffer import BufferRole
@@ -47,6 +47,15 @@ class ElementAdapter(Protocol):
     can_source: bool
 
     can_sink: bool
+
+    # Whether the element can be the switchboard: the central point other
+    # elements connect to, which a hub outside advanced mode always has
+    switchboard: bool
+
+    @property
+    def device_names(self) -> frozenset[str]:
+        """Names of the devices the element creates."""
+        ...
 
     # What a buffer can count the element as: a load it covers, generation
     # it covers, or storage that holds it
@@ -85,6 +94,19 @@ class ElementAdapter(Protocol):
         ...
 
 
+@runtime_checkable
+class ConfiguredRolesAdapter(Protocol):
+    """An adapter whose elements each choose in their config whether they produce or consume power.
+
+    Such an element sources or sinks power only when its config says so, so
+    can_source and can_sink only say what it may do.
+    """
+
+    def roles(self, config: Mapping[str, object]) -> tuple[bool, bool]:
+        """Return whether the configured element can source and can sink power."""
+        ...
+
+
 ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     ElementType.GRID: grid_adapter,
     ElementType.LOAD: load_adapter,
@@ -112,13 +134,6 @@ def is_element_type(value: object) -> TypeGuard[ElementType]:
     return value in ELEMENT_TYPES
 
 
-def _add_order(element_type: str) -> int:
-    """Return when an element is added: connections join the elements they link, and flow readers read both."""
-    if element_type == MODEL_ELEMENT_TYPE_CONNECTION:
-        return 1
-    return 2 if element_type in FLOW_READER_ELEMENT_TYPES else 0
-
-
 def collect_model_elements(
     participants: Mapping[str, ElementConfigData],
 ) -> list[ModelElementConfig]:
@@ -129,11 +144,12 @@ def collect_model_elements(
         model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)
         all_model_elements.extend(model_elements)
 
-    return sorted(all_model_elements, key=lambda e: _add_order(e["element_type"]))
+    return sorted(all_model_elements, key=lambda e: ELEMENTS[e["element_type"]].add_order)
 
 
 __all__ = [
     "ELEMENT_TYPES",
+    "ConfiguredRolesAdapter",
     "ElementAdapter",
     "collect_model_elements",
     "is_element_type",

@@ -4,18 +4,20 @@ from typing import (
     Any,  # noqa: TID251  # HA flow signatures upstream; voluptuous schema value types are heterogeneous by design
 )
 
-from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import SubentryFlowResult
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements.junction import ELEMENT_TYPE
-from custom_components.haeo.flows.element_flow import ElementFlowMixin
+from custom_components.haeo.flows.element_flow import ElementSubentryFlow
 from custom_components.haeo.flows.field_schema import as_str
-from custom_components.haeo.sections import build_common_fields
+from custom_components.haeo.flows.sections import build_common_fields
 
 
-class JunctionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+class JunctionSubentryFlowHandler(ElementSubentryFlow):
     """Handle junction element configuration flows."""
+
+    element_type = ELEMENT_TYPE
 
     def _build_schema(self) -> vol.Schema:
         """Build the voluptuous schema for junction configuration."""
@@ -38,9 +40,7 @@ class JunctionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = as_str(user_input.get(CONF_NAME))
             if self._validate_name(name, errors):
                 config: dict[str, object] = {CONF_ELEMENT_TYPE: ELEMENT_TYPE, CONF_NAME: name}
-                if subentry is not None:
-                    return self.async_update_and_abort(self._get_entry(), subentry, title=str(name), data=config)
-                return self.async_create_entry(title=str(name), data=config)
+                return await self._async_save_entry(str(name), config)
 
         schema = self._build_schema()
         if subentry is not None:

@@ -360,8 +360,6 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
             pricing.update(pricing_raw)
         convert_section_values(pricing, (CONF_PRICE_TARGET_SOURCE,))
 
-        if isinstance(curtailment_raw := data.get(SECTION_CURTAILMENT), dict):
-            curtailment.update(curtailment_raw)
         if (
             isinstance(shedding_raw := data.get("shedding"), dict)
             and CONF_CURTAILMENT not in curtailment

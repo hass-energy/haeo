@@ -13,14 +13,7 @@ from datetime import tzinfo
 from typing import Final
 
 from custom_components.haeo.core.schema import EntityValue
-from custom_components.haeo.core.state import EntityState, StateMachine
-
-# States Home Assistant uses for an entity without a reading, kept as they are
-_NO_READING: Final = frozenset({"unavailable", "unknown"})
-
-# States already read as on or off, kept as they are unless listed, so a
-# binary sensor beside a sensor reporting words still reads the same
-_ON_OFF: Final = frozenset({"on", "off", "true", "false"})
+from custom_components.haeo.core.state import NO_READING_STATES, ON_OFF_STATE_VALUES, EntityState, StateMachine
 
 # The state an entity reads when its word is in neither list
 _UNMATCHED: Final = "unknown"
@@ -31,16 +24,17 @@ def on_off_state(state: str, on_states: Sequence[str], off_states: Sequence[str]
 
     With only one list given, every other state means the opposite. With
     both, a state in neither has no reading, as Home Assistant's own
-    ``unknown`` does. A state that already reads as on or off keeps its
-    reading unless it is listed.
+    ``unknown`` does. A state without a reading is kept as it is. A state
+    that already reads as on or off keeps its reading unless it is listed, so
+    a binary sensor beside a sensor reporting words still reads the same.
     """
-    if state in _NO_READING:
+    if state in NO_READING_STATES:
         return state
     if state in on_states:
         return "on"
     if state in off_states:
         return "off"
-    if state.lower() in _ON_OFF:
+    if state.lower() in ON_OFF_STATE_VALUES:
         return state
     if on_states and not off_states:
         return "off"

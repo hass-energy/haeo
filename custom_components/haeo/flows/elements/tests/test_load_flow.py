@@ -136,7 +136,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
+    input_fields = get_input_fields(ELEMENT_TYPE)
     defaults = flow._build_defaults("Test Load", input_fields, dict(existing_subentry.data))
     assert defaults.get(SECTION_FORECAST, {}).get(CONF_FORECAST) == expected_forecast
 
