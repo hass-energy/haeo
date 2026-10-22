@@ -69,6 +69,7 @@ from custom_components.haeo.repairs import (
     sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_save_diagnostics
+from custom_components.haeo.util import network_subentry
 
 from .network import evaluate_network_connectivity
 
@@ -359,11 +360,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._network: Network | None = None
         self._element_updaters: dict[str, ElementUpdater] = {}
         # The network's outputs are keyed by its subentry's title, which its sensors look them up by
-        self._network_subentry_title = next(
-            subentry.title
-            for subentry in config_entry.subentries.values()
-            if subentry.subentry_type == ELEMENT_TYPE_NETWORK
-        )
+        self._network_subentry_title = network_subentry(config_entry).title
         self.topology: dict[str, JsonValueType] = {}  # Serialized topology for frontend
 
         # Snapshot the participant structure (which elements exist and the shape

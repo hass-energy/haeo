@@ -14,8 +14,8 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS
 from custom_components.haeo.elements import (
     collect_element_subentries,
-    is_element_config_schema,
 )
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.elements import battery, battery_section, connection, grid, inverter, load, solar
 from custom_components.haeo.core.schema.elements import node as node_schema
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value

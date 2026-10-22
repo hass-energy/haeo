@@ -565,7 +565,6 @@ __all__ = [
     "get_list_input_fields",
     "get_nested_config_value",
     "get_surfaced_input_fields",
-    "is_element_config_schema",
     "iter_input_field_paths",
     "set_nested_config_value",
     "set_nested_config_value_by_path",

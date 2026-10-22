@@ -21,8 +21,9 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.config_loader import element_inputs, input_value
 from custom_components.haeo.core.data.util.input_values import InputError
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
-from custom_components.haeo.elements import InputFieldPath, is_element_config_schema
+from custom_components.haeo.elements import InputFieldPath
 from custom_components.haeo.util import async_update_subentry_value
 
 if TYPE_CHECKING:

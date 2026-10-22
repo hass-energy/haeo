@@ -653,26 +653,6 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # The async_on_unload mechanism is tested separately via the HA test framework.
 
 
-async def test_async_setup_entry_returns_false_when_network_subentry_missing(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Setup returns False when network subentry cannot be found."""
-
-    # Patch _ensure_required_subentries to NOT create network subentry
-    async def mock_ensure(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
-        # Do nothing - don't create network subentry
-        pass
-
-    monkeypatch.setattr("custom_components.haeo._ensure_required_subentries", mock_ensure)
-
-    # Run setup - should return False
-    result = await async_setup_entry(hass, mock_hub_entry)
-
-    assert result is False
-
-
 async def test_setup_reentry_after_timeout_failure(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,

@@ -38,6 +38,7 @@ from custom_components.haeo.core.schema.elements import (
     node,
     solar,
 )
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.migrations import v1_3 as schema_migrations
@@ -59,7 +60,6 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.migrations import async_migrate_entry, v1_3
 

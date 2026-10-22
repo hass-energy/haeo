@@ -29,8 +29,8 @@ from custom_components.haeo.core.data.forecast_times import generate_forecast_ti
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import Network
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.state import EntityState
-from custom_components.haeo.elements import is_element_config_schema
 from tools.diag.cli import config_horizon_preset, migrate_batteries_for_diag
 
 # ---------------------------------------------------------------------------

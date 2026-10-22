@@ -49,6 +49,7 @@ from custom_components.haeo.input_stores import (
 from custom_components.haeo.repairs import async_dismiss_entry_issues, sync_unavailable_input_issues
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
+from custom_components.haeo.util import network_subentry
 
 from . import migrations as _migrations
 
@@ -395,17 +396,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
-    # Find network subentry for network device
-    network_subentry = next(
-        (s for s in entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
-        None,
-    )
-    if network_subentry is None:
-        _LOGGER.error("No network subentry found - cannot create network device")
-        return False
-
     # Create network device using centralized device creation
-    get_or_create_network_device(hass, entry, network_subentry)
+    get_or_create_network_device(hass, entry, network_subentry(entry))
 
     # Create horizon manager first - input entities and coordinator depend on it
     # This is a pure Python object, not an entity
