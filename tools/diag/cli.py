@@ -949,7 +949,7 @@ def run_diagnostics(
     Args:
         path: Path to diagnostics JSON file or directory with split files
         outputs_only: If True, skip optimization and display pre-computed outputs
-        preset: Override horizon preset for tier alignment
+        preset: Override the horizon preset
         compare: If True, show comparison table of diagnostics vs rerun outputs
         analyses: Analysis specs (``name`` or ``name:argument``) to run instead
             of the plan table
@@ -1002,7 +1002,7 @@ def run_diagnostics(
         print(table)
         return
 
-    # Determine the optimization start time for tier alignment.
+    # Determine the optimization start time that periods align to.
     # Priority: environment.horizon_start > inferred from outputs > environment.optimization_start_time > now
     horizon_start_raw = environment.get("horizon_start")
     horizon_start_str = horizon_start_raw if isinstance(horizon_start_raw, str) else None
@@ -1168,7 +1168,7 @@ Examples:
         "--preset",
         "-p",
         choices=list(HORIZON_PRESET_DAYS),
-        help="Override horizon preset for tier alignment (use when diagnostics lacks preset)",
+        help="Override the horizon preset (use when diagnostics lacks preset)",
     )
     parser.add_argument(
         "--analysis",
