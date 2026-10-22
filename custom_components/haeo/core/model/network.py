@@ -89,6 +89,8 @@ class SolveOptions:
     weight the secondary objective small enough to keep the cost exact, so the
     secondary's reduced costs must still register against this tolerance; at the
     HiGHS default of 1e-7 they can fall below it and leave ties unresolved.
+    time_limit: seconds one solve may take before HiGHS stops it, so a solve that
+    never finishes cannot hold the optimization up for good.
     """
 
     presolve: OnOffChoose = "choose"
@@ -96,6 +98,7 @@ class SolveOptions:
     simplex_strategy: int = 4
     simplex_scale_strategy: int = 0
     feasibility_tolerance: float = 1e-9
+    time_limit: float = 60.0
 
     def apply(self, h: Highs) -> None:
         """Apply the options to a solver."""
@@ -106,6 +109,7 @@ class SolveOptions:
         h.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
         h.setOptionValue("primal_feasibility_tolerance", self.feasibility_tolerance)
         h.setOptionValue("dual_feasibility_tolerance", self.feasibility_tolerance)
+        h.setOptionValue("time_limit", self.time_limit)
 
 
 @dataclass(frozen=True, slots=True)
@@ -416,6 +420,9 @@ class Network:
         status = h.getModelStatus()
         if status == HighsModelStatus.kUnboundedOrInfeasible:
             status = _status_without_presolve(h)
+        if status == HighsModelStatus.kTimeLimit:
+            # Another weight would only take as long again
+            raise SolverError(h.modelStatusToString(status))
         if status == HighsModelStatus.kInfeasible:
             if _infeasible_for_cost(h, all_col_indices, objectives.cost):
                 # Infeasibility does not depend on the objective, so no other weight can help

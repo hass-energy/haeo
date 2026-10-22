@@ -115,6 +115,7 @@ sequenceDiagram
 
 `signal_optimization_stale()` does nothing while the auto-optimize switch is off; `async_request_refresh()`, which an entity update calls, requests one either way.
 The debounce window, the hub's debounce seconds, starts when an optimization starts and again when it succeeds, which batches rapid input changes into one optimization.
+It is measured on the monotonic clock, so a wall clock set back does not stretch it.
 An input that changes while an optimization runs requests a follow-up through the same window.
 
 Turning the auto-optimize switch off cancels an optimization waiting out the debounce window and pauses the HorizonManager.

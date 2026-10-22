@@ -51,7 +51,7 @@ def test_signal_optimization_stale_schedules_timer_in_cooldown(
 ) -> None:
     """Trigger schedules timer when within cooldown period."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._last_optimization_time = time.time() - 0.5  # 0.5 seconds ago
+    coordinator._last_optimization_time = time.monotonic() - 0.5  # 0.5 seconds ago
     coordinator._debounce_seconds = 5.0  # 5 second cooldown
 
     with patch("custom_components.haeo.coordinator.coordinator.async_call_later") as mock_timer:
@@ -67,6 +67,26 @@ def test_signal_optimization_stale_schedules_timer_in_cooldown(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
+def test_debounce_window_holds_when_the_wall_clock_is_set_back(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A wall clock set back hours does not stretch the wait for the next optimization."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator._last_optimization_time = time.monotonic() - 0.5
+    coordinator._debounce_seconds = 5.0
+
+    with (
+        patch("custom_components.haeo.coordinator.coordinator.time.time", return_value=time.time() - 3 * 3600),
+        patch("custom_components.haeo.coordinator.coordinator.async_call_later") as mock_timer,
+    ):
+        coordinator.signal_optimization_stale()
+
+    assert 4.0 < mock_timer.call_args[0][1] < 5.0
+
+
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
 def test_signal_optimization_stale_reuses_existing_timer(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -74,7 +94,7 @@ def test_signal_optimization_stale_reuses_existing_timer(
 ) -> None:
     """Trigger reuses existing timer rather than scheduling new one."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._last_optimization_time = time.time() - 0.5
+    coordinator._last_optimization_time = time.monotonic() - 0.5
     coordinator._debounce_seconds = 5.0
     existing_timer = MagicMock()
     coordinator._debounce_timer = existing_timer

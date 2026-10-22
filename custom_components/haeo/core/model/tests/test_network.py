@@ -2,7 +2,7 @@
 
 import itertools
 import logging
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from highspy import HighsBasisStatus, HighsIis, HighsModelStatus, HighsStatus
 import numpy as np
@@ -647,12 +647,27 @@ def test_solve_options_defaults() -> None:
 
 def test_solve_options_apply() -> None:
     """SolveOptions.apply() sets all HiGHS options on the solver."""
-    opts = SolveOptions(simplex_strategy=4, presolve="on")
+    opts = SolveOptions(simplex_strategy=4, presolve="on", time_limit=12.5)
     h = Solver()
     h.setOptionValue("output_flag", False)
     opts.apply(h)
     assert h.getOptionValue("simplex_strategy")[1] == 4
     assert h.getOptionValue("presolve")[1] == "on"
+    assert h.getOptionValue("time_limit")[1] == 12.5
+
+
+def test_solve_that_reaches_the_time_limit_fails_without_trying_other_weights() -> None:
+    """A solve HiGHS stops at its time limit raises at once, rather than solving again at every other weight."""
+    network = _build_priced_network()
+    solver = network._solver
+    with (
+        patch.object(solver, "getModelStatus", return_value=HighsModelStatus.kTimeLimit),
+        patch.object(solver, "run", wraps=solver.run) as run,
+        pytest.raises(SolverError, match="Time limit reached"),
+    ):
+        network.optimize()
+
+    run.assert_called_once()
 
 
 def test_solve_options_propagated_to_network() -> None:
