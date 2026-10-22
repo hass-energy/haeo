@@ -389,6 +389,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         advanced_data = config_entry.data.get(HUB_SECTION_ADVANCED, {})
         self._debounce_seconds = float(advanced_data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
         self._relax_infeasible: bool = advanced_data.get(CONF_RELAX_INFEASIBLE, False)
+        # When the last optimization started or ended, on the monotonic clock, so the
+        # debounce window holds when the wall clock is set back
         self._last_optimization_time: float | None = None
         self._debounce_timer: CALLBACK_TYPE | None = None
         # Held while an optimization runs, so optimizations never overlap
@@ -610,12 +612,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # The running optimization requests the follow-up when it ends
         if self._optimization_lock.locked() or self._debounce_timer is not None:
             return
-        elapsed = time.time() - (self._last_optimization_time or 0.0)
-        if elapsed < self._debounce_seconds:
-            self._debounce_timer = async_call_later(
-                self.hass, self._debounce_seconds - elapsed, self._debounce_timer_callback
-            )
-            return
+        if self._last_optimization_time is not None:
+            elapsed = time.monotonic() - self._last_optimization_time
+            if elapsed < self._debounce_seconds:
+                self._debounce_timer = async_call_later(
+                    self.hass, self._debounce_seconds - elapsed, self._debounce_timer_callback
+                )
+                return
         self.hass.async_create_task(self._optimize())
 
     @callback
@@ -755,7 +758,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         start_time = time.time()
         started_at = dt_util.utc_from_timestamp(start_time).astimezone()
         # Mark the start at once, so the debounce window holds back requests while this runs
-        self._last_optimization_time = start_time
+        self._last_optimization_time = time.monotonic()
 
         horizon_manager = self._runtime_data.horizon_manager
         forecast_timestamps = horizon_manager.get_forecast_timestamps()
@@ -788,7 +791,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         cost = await self._solve(network, context, started_at, forecast_timestamps)
 
         end_time = time.time()
-        self._last_optimization_time = end_time
+        self._last_optimization_time = time.monotonic()
         _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
         await self._report_relaxations(network, context, started_at, forecast_timestamps)
 
