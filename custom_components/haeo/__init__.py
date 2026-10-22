@@ -45,6 +45,7 @@ from custom_components.haeo.input_stores import (
     unavailable_input_sources,
 )
 from custom_components.haeo.inputs.calendar_loader import CalendarInputLoader
+from custom_components.haeo.inputs.source_loader import SourceInputLoader
 from custom_components.haeo.repairs import async_dismiss_entry_issues, sync_unavailable_input_issues
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
@@ -382,6 +383,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     calendar_loader.start()
     entry.async_on_unload(calendar_loader.cleanup)
 
+    # Every other store is loaded from its sources, or its constant, by a loader
+    # that follows them and the horizon, so it loads even when its entity is disabled.
+    source_loader = SourceInputLoader(hass, runtime_data.input_stores, horizon_manager)
+    source_loader.start()
+    entry.async_on_unload(source_loader.cleanup)
+
     # Create the coordinator from the same subentry snapshot used to build the
     # input stores, before setting up platforms. Platform setup and store
     # readiness below yield to the event loop, during which a concurrent
@@ -393,9 +400,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     runtime_data.coordinator = coordinator
     entry.async_on_unload(coordinator.cleanup)
 
-    # Set up input platforms - entities wrap the prebuilt stores and trigger
-    # their initial load (driven stores from source entities, editable stores
-    # from their persisted value).
+    # Set up input platforms - entities show the prebuilt stores' values.
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
     try:
         await _async_first_refresh(hass, entry, runtime_data, coordinator)

@@ -260,7 +260,6 @@ async def test_mirror_entities_empty_without_policy_subentry(
         str(BATTERY_TYPE),
         device_entry,
         runtime_data,
-        horizon_manager,
         "$",
     )
 
@@ -297,7 +296,6 @@ async def test_mirror_entities_empty_for_element_without_surfaced_hints(
         GRID_TYPE,
         device_entry,
         runtime_data,
-        horizon_manager,
         "$",
     )
 
@@ -362,7 +360,6 @@ async def test_mirror_entities_skip_when_rule_does_not_match_element(
         str(BATTERY_TYPE),
         device_entry,
         runtime_data,
-        horizon_manager,
         "$",
     )
 
@@ -416,7 +413,6 @@ async def test_mirror_entities_skip_when_policy_store_missing(
         str(BATTERY_TYPE),
         device_entry,
         runtime_data,
-        horizon_manager,
         "$",
     )
 
@@ -473,7 +469,6 @@ async def test_mirror_entities_skip_when_surfaced_field_metadata_missing(
             str(BATTERY_TYPE),
             device_entry,
             runtime_data,
-            horizon_manager,
             "$",
         )
 
@@ -536,7 +531,6 @@ async def test_mirror_entities_share_policy_store_for_battery_costs(
         str(BATTERY_TYPE),
         device_entry,
         runtime_data,
-        horizon_manager,
         "$",
     )
 

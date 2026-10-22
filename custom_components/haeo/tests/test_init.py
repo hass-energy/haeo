@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, Mock
 
 from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, UrlManager
 from homeassistant.components.http import StaticPathConfig
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState, ConfigSubentry
 from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
@@ -591,6 +591,9 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
         def is_ready(self) -> bool:
             return False
 
+        def load(self, _sm: object) -> bool:
+            return False
+
     # Create mock horizon manager
     mock_horizon = _create_mock_horizon_manager()
 
@@ -687,6 +690,9 @@ async def test_setup_reentry_after_timeout_failure(
 
         def is_ready(self) -> bool:
             return self._ready
+
+        def load(self, _sm: object) -> bool:
+            return False
 
     # Create a runtime data factory that uses our conditional store
     store = ConditionalReadyStore()
@@ -1247,3 +1253,65 @@ async def test_removing_an_element_removes_its_entities(hass: HomeAssistant, moc
 
     remaining = er.async_entries_for_config_entry(entity_registry, mock_hub_entry.entry_id)
     assert not [entity.unique_id for entity in remaining if entity.unique_id.startswith(grid_prefix)]
+
+
+async def test_setup_succeeds_with_an_input_entity_disabled(hass: HomeAssistant) -> None:
+    """An input loads from its config even while its entity is disabled, so setup still finishes."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            HUB_SECTION_COMMON: {CONF_NAME: "Home", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS)},
+            HUB_SECTION_ADVANCED: {},
+        },
+        version=1,
+        minor_version=4,
+    )
+    entry.add_to_hass(hass)
+    elements: tuple[dict[str, object], ...] = (
+        {CONF_ELEMENT_TYPE: "junction", CONF_NAME: "Switchboard"},
+        {
+            CONF_ELEMENT_TYPE: "grid",
+            CONF_NAME: "Grid",
+            CONF_CONNECTION: as_connection_target("Switchboard"),
+            "power_limits": {
+                "max_power_source_target": as_constant_value(10.0),
+                "max_power_target_source": as_constant_value(5.0),
+            },
+            "pricing": {"price_source_target": as_constant_value(0.3), "price_target_source": as_constant_value(0.05)},
+        },
+        {
+            CONF_ELEMENT_TYPE: "load",
+            CONF_NAME: "Load",
+            CONF_CONNECTION: as_connection_target("Switchboard"),
+            "curtailment": {},
+            "forecast": {"forecast": as_constant_value(1.0)},
+            "pricing": {},
+        },
+    )
+    for data in elements:
+        hass.config_entries.async_add_subentry(
+            entry,
+            ConfigSubentry(
+                data=MappingProxyType(data),
+                subentry_type=str(data[CONF_ELEMENT_TYPE]),
+                title=str(data[CONF_NAME]),
+                unique_id=None,
+            ),
+        )
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.LOADED
+
+    registry = er.async_get(hass)
+    load_forecast = next(
+        reg_entry
+        for reg_entry in er.async_entries_for_config_entry(registry, entry.entry_id)
+        if reg_entry.domain == "number" and reg_entry.unique_id.endswith("forecast")
+    )
+    registry.async_update_entity(load_forecast.entity_id, disabled_by=er.RegistryEntryDisabler.USER)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert hass.states.get(load_forecast.entity_id) is None
