@@ -143,8 +143,8 @@ rules:
     status: exempt
     comment: No entity sets a custom icon; entities use their device class icons. Action icons are in icons.json.
   reconfiguration-flow:
-    status: todo
-    comment: Hub settings are edited through the options flow and elements through subentry reconfigure steps, but the hub config flow has no async_step_reconfigure.
+    status: done
+    comment: The hub config flow's reconfigure step edits the hub settings with the same form and validation as the options flow, and element subentry flows have their own reconfigure steps.
   repair-issues:
     status: done
     comment: repairs.py raises repair issues for disconnected networks, invalid connection endpoints, unavailable inputs, and optimization failures.

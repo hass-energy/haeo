@@ -25,6 +25,33 @@
             "name": "Common settings"
           }
         }
+      },
+      "reconfigure": {
+        "title": "HAEO settings",
+        "description": "Change the planning horizon and optimization settings. Choose a planning horizon that matches your forecast data availability.",
+        "sections": {
+          "advanced": {
+            "data": {
+              "advanced_mode": "Expose raw model elements",
+              "debounce_seconds": "Debounce window (seconds)",
+              "record_forecasts": "Record forecast data",
+              "relax_infeasible": "Relax impossible plans"
+            },
+            "data_description": {
+              "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
+              "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
+              "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
+            },
+            "name": "Advanced settings"
+          },
+          "common": {
+            "data": { "horizon": "Planning horizon" },
+            "data_description": {
+              "horizon": "A preset covering 2 to 7 days, or a sensor whose forecast times set the start and end of every period."
+            },
+            "name": "Common settings"
+          }
+        }
       }
     },
     "error": {
@@ -32,7 +59,7 @@
       "horizon_entity_invalid": "This sensor does not report a forecast with at least two increasing times.",
       "name_exists": "A system with this name already exists"
     },
-    "abort": { "already_configured": "HAEO already configured" }
+    "abort": { "already_configured": "HAEO already configured", "reconfigure_successful": "Settings saved" }
   },
   "options": {
     "step": {
