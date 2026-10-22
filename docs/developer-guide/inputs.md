@@ -58,6 +58,9 @@ Each field takes one of three values in the config flow, through the ChooseSelec
 - **Entity**: The store loads the selected sensors in **driven** mode, and the entity shows the loaded value read-only.
 - **None**: No store or entity is created, and the field is omitted from the model.
 
+Fields whose values are on or off, status and availability fields, become Switch entities, and every other field a Number entity.
+A switch over a time series is on when its current period is, and its `forecast` attribute holds each period's value.
+
 An element type with surfaced policy prices also gets mirror entities on its own device that wrap the policy rule's store, so editing either updates the one stored value.
 
 ## Loading
@@ -91,7 +94,7 @@ All input entities expose extra state attributes for debugging and automation:
 | `field_name`   | Configuration field name                                   |
 | `field_path`   | Path to the field within the element's config              |
 | `field_type`   | Output type of the field, such as power or price           |
-| `time_series`  | Whether values vary per period (Number entities)           |
+| `time_series`  | Whether values vary per period                             |
 | `direction`    | Power flow direction, when the field has one               |
 | `forecast`     | `{time, value}` points across the horizon, for time series |
 

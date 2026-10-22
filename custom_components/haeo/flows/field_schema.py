@@ -31,7 +31,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.const import ON_OFF_OUTPUT_TYPES
 from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
@@ -91,7 +91,7 @@ def entity_domains(field_info: AnyInputFieldInfo) -> list[str]:
         return [CALENDAR_DOMAIN]
     if accepts_calendar_forecast(field_info):
         return [*_ENTITY_DOMAINS, CALENDAR_DOMAIN]
-    if field_info.output_type is OutputType.STATUS:
+    if field_info.output_type in ON_OFF_OUTPUT_TYPES:
         return [*_ENTITY_DOMAINS, *_ON_OFF_DOMAINS]
     return list(_ENTITY_DOMAINS)
 

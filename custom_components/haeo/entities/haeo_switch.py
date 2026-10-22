@@ -14,9 +14,11 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
+from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.unique_id import element_unique_id
@@ -119,14 +121,18 @@ class HaeoInputSwitch(SwitchEntity):
         # Build base extra state attributes
         self._base_extra_attrs: dict[str, object] = {
             "config_mode": self._store.mode.value,
+            SOURCE_ROLE_KEY: classify_source_role(self._store.mode.value, field_info.field_name),
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
             "field_name": field_info.field_name,
             "field_path": field_path_key,
             "field_type": field_info.output_type,
+            "time_series": field_info.time_series,
         }
         if self._store.source_entity_ids:
             self._base_extra_attrs["source_entity"] = self._store.source_entity_ids[0]
+        if field_info.calendar is not None:
+            self._base_extra_attrs["calendar_projection"] = field_info.calendar.projection
         self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
         self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
@@ -146,15 +152,28 @@ class HaeoInputSwitch(SwitchEntity):
 
         extra_attrs = dict(self._base_extra_attrs)
         if self._attr_is_on is not None:
-            local_tz = dt_util.get_default_time_zone()
-            forecast_timestamps = self._horizon_manager.get_forecast_timestamps()
-            forecast = [
-                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_is_on}
-                for ts in forecast_timestamps
-            ]
-            extra_attrs["forecast"] = forecast
+            extra_attrs["forecast"] = self._build_forecast_attribute()
+            if self._field_info.time_series and not self._field_info.boundaries:
+                extra_attrs["interpolation_mode"] = InterpolationMode.PREVIOUS
 
         self._attr_extra_state_attributes = extra_attrs
+
+    def _build_forecast_attribute(self) -> list[dict[str, datetime | bool]]:
+        """Build the forecast attribute: each period's value, or the one value over the whole horizon."""
+        local_tz = dt_util.get_default_time_zone()
+        if not self._field_info.time_series:
+            return [
+                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": bool(self._attr_is_on)}
+                for ts in self._horizon_manager.get_forecast_timestamps()
+            ]
+        values = self._store.display_values or ()
+        timestamps = self._store.forecast_timestamps
+        if not self._field_info.boundaries:
+            timestamps = timestamps[:-1]
+        return [
+            {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": bool(value)}
+            for ts, value in zip(timestamps, values, strict=True)
+        ]
 
     async def async_added_to_hass(self) -> None:
         """Show the store's value, and follow it and the horizon as they change.

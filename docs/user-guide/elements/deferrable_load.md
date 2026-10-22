@@ -114,8 +114,8 @@ Their IDs combine the load's name with the entity's name, so a load named "Pool 
 
 | Input                                       | Unit   | Description                                                     |
 | ------------------------------------------- | ------ | --------------------------------------------------------------- |
-| `number.{name}_run_window`                  | -      | Whether each period is inside a window                          |
-| `number.{name}_window_start`                | -      | Where each window of overlapping events opens                   |
+| `switch.{name}_run_window`                  | -      | Whether each period is inside a window                          |
+| `switch.{name}_window_start`                | -      | Where each window of overlapping events opens                   |
 | `number.{name}_energy_opening`              | kWh    | Energy of the events starting at each time                      |
 | `number.{name}_energy_due`                  | kWh    | Energy of the events ending at each time                        |
 | `number.{name}_energy_since_window_started` | kWh    | Energy used since the current window opened (if a meter is set) |
