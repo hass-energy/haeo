@@ -41,7 +41,7 @@ EV = EvConfigData(
     name="ev",
     connection=as_connection_target("home"),
     vehicle={"capacity": np.full(3, 50.0), "energy_per_distance": 0.2, "current_soc": 0.1},
-    charging={"max_charge_rate": 10.0, "connected": np.array([1.0, 0.0])},
+    charging={"max_charge_rate": 10.0, "connected": True},
     trip={
         "away": np.array([0.0, 1.0]),
         "trip_start": np.array([0.0, 1.0, 0.0]),

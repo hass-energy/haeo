@@ -82,7 +82,7 @@ def _ev_config(*, plugged_in: bool = True, **overrides: object) -> EvConfigData:
         },
         "charging": {
             "max_charge_rate": 10.0,
-            "connected": np.full(N_PERIODS, 1.0 if plugged_in else 0.0),
+            "connected": plugged_in,
         },
         "efficiency": {},
         "advanced": {"charge_limit_cost": 100.0},
@@ -326,7 +326,7 @@ def test_optimizer_precharges_before_trip_in_cheap_period() -> None:
 def test_trips_stop_at_the_min_charge_and_leave_the_rest_to_public_charging() -> None:
     """A trip draws the pack down to its min charge, and the rest is a public top-up rather than draining past it."""
     config = _ev_config(
-        charging={"max_charge_rate": 0.0, "connected": np.ones(N_PERIODS)},
+        charging={"max_charge_rate": 0.0, "connected": True},
         trip=_trips((1, 2, 50.0)),
     )
     config["vehicle"]["current_soc"] = 0.3
@@ -341,7 +341,7 @@ def test_trips_stop_at_the_min_charge_and_leave_the_rest_to_public_charging() ->
 def test_trip_shortfall_is_left_to_public_charging() -> None:
     """When home charging cannot cover the trip, the rest is a shortfall rather than infeasible."""
     config = _ev_config(
-        charging={"max_charge_rate": 2.0, "connected": np.ones(N_PERIODS)},
+        charging={"max_charge_rate": 2.0, "connected": True},
         trip=_trips((2, 3, 100.0)),
         public_charging={"public_charging_price": 0.8},
     )
@@ -356,7 +356,7 @@ def test_trip_shortfall_is_left_to_public_charging() -> None:
 def test_home_charge_limit_binds_at_the_charger() -> None:
     """The charge limit and charge power are measured at the charger, before charging losses."""
     config = _ev_config(
-        charging={"max_charge_rate": 2.0, "connected": np.ones(N_PERIODS)},
+        charging={"max_charge_rate": 2.0, "connected": True},
         efficiency={"efficiency_target_source": 0.9},
         trip=_trips((2, 3, 100.0)),
     )
@@ -372,7 +372,7 @@ def test_home_charge_limit_binds_at_the_charger() -> None:
 
 def test_rate_limits_share_the_direction_of_the_power_they_limit() -> None:
     """Each rate limit carries the direction of the power it limits, so the forecast card draws it on that series."""
-    config = _ev_config(charging={"max_charge_rate": 2.0, "connected": np.ones(N_PERIODS)})
+    config = _ev_config(charging={"max_charge_rate": 2.0, "connected": True})
     network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
     outputs = adapter.outputs("ev", model_outputs, config=config, periods=network.periods)[EV_DEVICE_EV]
@@ -479,7 +479,7 @@ def _buffered_home_network(buffers: dict[str, _BufferSpec], *, trip_periods: tup
             }
         )
     config = _ev_config(
-        charging={"max_charge_rate": 10.0, "max_discharge_rate": 10.0, "connected": np.ones(n)},
+        charging={"max_charge_rate": 10.0, "max_discharge_rate": 10.0, "connected": True},
         trip=_trips((trip_periods[0], trip_periods[1], 50.0)),
     )
     for element in sorted(adapter.model_elements(config), key=lambda e: e["element_type"] != "node"):

@@ -20,7 +20,7 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import is_entity_value
 from custom_components.haeo.core.state import NO_READING_STATES, ON_OFF_STATE_VALUES
-from custom_components.haeo.elements.input_fields import InputFieldGroups, reads_calendar
+from custom_components.haeo.elements.input_fields import InputFieldGroups
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,8 +64,7 @@ def fields_reading_words(
         for field_name, field_info in fields.items():
             value = section.get(field_name)
             if (
-                field_info.output_type is OutputType.AVAILABILITY
-                and not reads_calendar(field_info)
+                field_info.output_type is OutputType.STATUS
                 and is_entity_value(value)
                 and any(_reads_words(hass.states.get(entity_id)) for entity_id in value["value"])
             ):

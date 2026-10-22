@@ -202,7 +202,7 @@ Their IDs combine the EV's name with the entity's name, so an EV named "Atto 2" 
 | `number.{name}_energy_per_distance`         | kWh/km   | Energy per distance                                      |
 | `number.{name}_max_charge_rate`             | kW       | Max charge rate                                          |
 | `number.{name}_max_discharge_rate`          | kW       | Max discharge rate (if configured)                       |
-| `number.{name}_plugged_in`                  | -        | Whether the EV is plugged in                             |
+| `switch.{name}_plugged_in`                  | -        | Whether the EV is plugged in                             |
 | `number.{name}_away`                        | -        | Whether each period is inside a trip                     |
 | `number.{name}_trip_start`                  | -        | Where each trip of overlapping events begins             |
 | `number.{name}_trip_distance_opening`       | km       | Distance of the trip events starting at each time        |

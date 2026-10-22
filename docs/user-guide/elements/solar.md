@@ -42,6 +42,8 @@ See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details o
 ## Curtailment
 
 Allow HAEO to reduce generation below the forecast level.
+To switch it from Home Assistant, choose an entity such as a binary sensor or input boolean.
+For a sensor that reports words, HAEO asks which of its states mean on and which mean off.
 
 **Default**: Enabled (HAEO can curtail generation when beneficial)
 
