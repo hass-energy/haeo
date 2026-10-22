@@ -683,7 +683,7 @@ async def test_loader_resolves_a_meter_input_with_its_totals_beside_the_events(
 async def test_loader_reads_meter_totals_again_until_the_recorder_answers(
     hass: HomeAssistant, horizon_manager: Mock
 ) -> None:
-    """A recorder read that fails at start is tried again on the next load, so the meter gets its recorded totals."""
+    """A recorder read that fails at start is retried after the next load, so the meter gets its recorded totals."""
     start = dt_util.utcnow().timestamp()
     timestamps = (start, start + 3600.0)
     horizon_manager.get_forecast_timestamps.return_value = timestamps
@@ -714,7 +714,50 @@ async def test_loader_reads_meter_totals_again_until_the_recorder_answers(
         await hass.async_block_till_done()
         assert store.value == pytest.approx(0.0)
 
+        # The next load starts a retry in the background, which resolves the store once it reads the totals
         await loader.async_load_all()
+        await hass.async_block_till_done()
 
     assert store.value == pytest.approx(2.5)
+    loader.cleanup()
+
+
+async def test_a_hung_recorder_does_not_hold_up_calendar_loads(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """While the meters' recorded totals cannot be read, calendar inputs still load on every reload without them."""
+    start = dt_util.utcnow().timestamp()
+    timestamps = (start, start + 3600.0)
+    horizon_manager.get_forecast_timestamps.return_value = timestamps
+    await _add_stub_calendar(hass, [_demand(start - 3600.0, start + 3600.0, "6 kWh")])
+    hass.config.components.add("recorder")
+    hass.states.async_set(METER_ID, "12.5", {"unit_of_measurement": "kWh", "device_class": "energy"})
+    sources = {"type": "entity", "value": [METER_ID, ENTITY_ID]}
+    store = create_input_store(
+        value=sources,
+        storage=_MemStorage(sources),
+        hint=FieldHint(output_type=OutputType.ENERGY, meter=MeterFieldHint(since="window_calendar")),
+        get_forecast_timestamps=lambda: timestamps,
+    )
+    loader = CalendarInputLoader(hass, "entry_id", {("Pump", ("schedule", "energy_meter")): store}, horizon_manager)
+    reads = 0
+
+    async def hang(_func: Callable[..., object], *_args: object) -> object:
+        nonlocal reads
+        reads += 1
+        if reads == 1:
+            msg = "database busy"
+            raise RuntimeError(msg)
+        await asyncio.Event().wait()
+        return None
+
+    recorder = Mock()
+    recorder.async_add_executor_job = hang
+    with patch("custom_components.haeo.inputs.meter_history.get_instance", return_value=recorder):
+        loader.start()
+        await hass.async_block_till_done(wait_background_tasks=False)
+        async with asyncio.timeout(1):
+            await loader.async_load_all()
+            await loader.async_load_all()
+
+    assert store.available
+    assert reads == 2
     loader.cleanup()

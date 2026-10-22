@@ -140,13 +140,24 @@ class MeterHistory:
         return self._recorded
 
     async def async_load(self) -> None:
-        """Read each meter's recorded totals over the lookback, then extend them with its live state.
+        """Read each meter's recorded totals, waiting at most ``RECORDER_READ_TIMEOUT`` for each.
 
-        A meter whose recorded totals cannot be read starts from its live
-        state, and :attr:`recorded` stays False so a later load reads them again.
+        A meter whose recorded totals cannot be read in time starts from its
+        live state, and :attr:`recorded` stays False so they can be read again.
         """
+        await self._async_read(RECORDER_READ_TIMEOUT)
+
+    async def async_retry(self) -> None:
+        """Read each meter's recorded totals again, however long the recorder takes to answer."""
+        await self._async_read(None)
+
+    async def _async_read(self, read_timeout: float | None) -> None:
+        """Read each meter's recorded totals over the lookback, then extend them with its live state."""
         found = await asyncio.gather(
-            *(self._async_recorded(entity_id, self._hass.states.get(entity_id)) for entity_id in self._entity_ids)
+            *(
+                self._async_recorded(entity_id, self._hass.states.get(entity_id), read_timeout)
+                for entity_id in self._entity_ids
+            )
         )
         self._meters = {
             entity_id: _MeterTotals(*(recorded or ([], None)))
@@ -181,19 +192,18 @@ class MeterHistory:
         }
 
     async def _async_recorded(
-        self, entity_id: str, state: State | None
+        self, entity_id: str, state: State | None, read_timeout: float | None
     ) -> tuple[list[MeterTotal], float | None] | None:
         """Return a meter's recorded totals over the lookback and its last recorded reading.
 
         Without a recorder there is nothing to read, so the meter has no recorded
-        totals. Returns None when the read fails or takes longer than
-        ``RECORDER_READ_TIMEOUT``.
+        totals. Returns None when the read fails or takes longer than ``read_timeout``.
         """
         if RECORDER_DOMAIN not in self._hass.config.components:
             return [], None
         start = dt_util.utcnow() - LOOKBACK
         try:
-            async with asyncio.timeout(RECORDER_READ_TIMEOUT):
+            async with asyncio.timeout(read_timeout):
                 return await get_instance(self._hass).async_add_executor_job(
                     recorded_totals, self._hass, entity_id, _unit(state), start, None
                 )

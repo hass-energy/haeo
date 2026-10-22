@@ -130,6 +130,9 @@ class CalendarInputLoader:
         self._unsubs: list[Callable[[], None]] = []
         self._load_lock = asyncio.Lock()
         self._tasks: set[asyncio.Task[None]] = set()
+        # Whether the meters' recorded totals have been tried, and the read retrying them after a failure
+        self._meters_tried = False
+        self._meters_retry: asyncio.Task[None] | None = None
 
     @callback
     def start(self) -> None:
@@ -157,16 +160,22 @@ class CalendarInputLoader:
         self._unsubs.append(async_track_state_change_event(self._hass, self._calendars, _on_calendar_change))
         if other_sources:
             self._unsubs.append(async_track_state_change_event(self._hass, other_sources, _on_source_change))
-        self._unsubs.append(self._horizon_manager.subscribe(lambda: self._schedule(self.async_load_all())))
+        self._unsubs.append(self._horizon_manager.subscribe(self._on_horizon_change))
 
         self._schedule(self.async_load_all())
 
     @callback
-    def _schedule(self, load: Coroutine[object, object, None]) -> None:
+    def _on_horizon_change(self) -> None:
+        """Fetch the calendars' events over the new horizon."""
+        self._schedule(self.async_load_all())
+
+    @callback
+    def _schedule(self, load: Coroutine[object, object, None]) -> asyncio.Task[None]:
         """Start a reload that cleanup cancels if it is still running."""
         task = self._hass.async_create_task(load)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
+        return task
 
     async def async_load_all(self) -> None:
         """Fetch events for every calendar, then reload all stores together.
@@ -180,19 +189,38 @@ class CalendarInputLoader:
         are only kept for the horizon they were fetched for: when the horizon
         moves during the fetch, the reload it scheduled replaces this one.
 
-        The meters' recorded totals are read first, under the same lock, so no
-        store resolves before its meters carry them. A read that fails is tried
-        again on the next load, until the totals are read.
+        The meters' recorded totals are read before the first load, under the
+        same lock, so no store resolves before its meters carry them. When that
+        read fails, each later load starts one retry in the background, which
+        resolves the stores again once the totals are read; loads never wait on
+        it, so a recorder that does not answer only leaves meters on their live
+        readings.
         """
         async with self._load_lock:
-            if not self._meters.recorded:
+            if not self._meters_tried:
+                self._meters_tried = True
                 await self._meters.async_load()
+            elif not self._meters.recorded and self._meters_retry is None:
+                self._meters_retry = self._schedule(self._async_retry_meters())
             timestamps = self._horizon_manager.get_forecast_timestamps()
             fetched = await asyncio.gather(*(self._async_fetch_events(entity_id) for entity_id in self._calendars))
             if self._horizon_manager.get_forecast_timestamps() == timestamps:
                 self._events = dict(zip(self._calendars, fetched, strict=True))
                 self._events_horizon = timestamps
                 self._resolve_stores()
+
+    async def _async_retry_meters(self) -> None:
+        """Read the meters' recorded totals again, then resolve the stores with them.
+
+        The read has no timeout, since nothing waits on it, so a recorder that
+        does not answer holds one read rather than one per load.
+        """
+        try:
+            await self._meters.async_retry()
+        finally:
+            self._meters_retry = None
+        if self._meters.recorded:
+            await self.async_resolve()
 
     async def async_resolve(self) -> None:
         """Reload all stores from the kept events, after another source changed.
