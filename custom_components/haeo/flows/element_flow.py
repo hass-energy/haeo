@@ -347,9 +347,13 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         value = section.get(field_name) if isinstance(section, Mapping) else None
         return value if is_entity_value(value) else None
 
+    def _target_subentry(self) -> ConfigSubentry | None:
+        """Return the subentry a save updates, or None when it creates a new one."""
+        return self._get_subentry()
+
     def _write_entry(self) -> SubentryFlowResult:
-        """Create the element, or update it when reconfiguring."""
-        subentry = self._get_subentry()
+        """Create the element, or update the subentry the save targets."""
+        subentry = self._target_subentry()
         if subentry is not None:
             return self.async_update_and_abort(
                 self._get_entry(), subentry, title=self._pending_title, data=self._pending_config
