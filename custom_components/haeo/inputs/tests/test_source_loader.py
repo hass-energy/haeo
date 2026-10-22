@@ -1,5 +1,6 @@
 """Tests for the loader that keeps entity-driven and constant input stores loaded."""
 
+import asyncio
 from collections.abc import Callable
 from unittest.mock import Mock
 
@@ -129,6 +130,8 @@ async def test_cleanup_stops_following_sources(hass: HomeAssistant) -> None:
     loader.start()
 
     hass.states.async_set("sensor.power", "2.0")
+    await asyncio.sleep(0)
+    assert loader._pending_reload is not None
     loader.cleanup()
     await hass.async_block_till_done()
     hass.states.async_set("sensor.power", "3.0")
