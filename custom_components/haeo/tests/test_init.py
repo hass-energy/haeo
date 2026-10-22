@@ -24,7 +24,9 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from conftest import add_participant
 from custom_components.haeo import (
     CARD_STATIC_DIR,
+    INPUT_PLATFORMS,
     MIGRATION_MINOR_VERSION,
+    OUTPUT_PLATFORMS,
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
     _cleanup_buffer_participants,
@@ -203,26 +205,23 @@ def _create_mock_runtime_data(coordinator: Mock) -> HaeoRuntimeData:
     return HaeoRuntimeData(horizon_manager=horizon, coordinator=coordinator)
 
 
-async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
-    """Test unloading a hub entry.
+@pytest.mark.parametrize("platforms_unloaded", [True, False], ids=["unloaded", "unload_failed"])
+async def test_unload_hub_entry_reports_platform_unload(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+    platforms_unloaded: bool,
+) -> None:
+    """Unloading unloads every input and output platform and reports whether that succeeded."""
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(Mock())
+    unload_platforms = AsyncMock(return_value=platforms_unloaded)
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", unload_platforms)
 
-    All cleanup is handled via async_on_unload callbacks which are triggered
-    by the Home Assistant config entry lifecycle, not by our async_unload_entry function.
-    This test verifies async_unload_entry returns True and clears runtime_data.
-    """
-
-    # Set up a mock runtime data with proper structure
-    mock_coordinator = Mock()
-    mock_coordinator.cleanup = Mock()
-    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
-
-    # Test that unload works
     result = await async_unload_entry(hass, mock_hub_entry)
 
-    assert result is True
-    # runtime_data should be cleared
-    assert mock_hub_entry.runtime_data is None
-    # Note: coordinator.cleanup is now called via async_on_unload, not directly in async_unload_entry
+    assert result is platforms_unloaded
+    unload_platforms.assert_awaited_once_with(mock_hub_entry, [*INPUT_PLATFORMS, *OUTPUT_PLATFORMS])
+    assert (mock_hub_entry.runtime_data is None) is platforms_unloaded
 
 
 async def test_remove_hub_entry_dismisses_its_repair_issues(
@@ -913,13 +912,8 @@ async def test_setup_preserves_config_entry_not_ready_exception(
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
 
-    # Track unload calls
-    original_unload_platforms = hass.config_entries.async_unload_platforms
-
-    async def tracked_unload_platforms(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> bool:
-        return await original_unload_platforms(entry, platforms)
-
-    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", tracked_unload_platforms)
+    unload_platforms = AsyncMock(return_value=True)
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", unload_platforms)
 
     # Mock coordinator that raises ConfigEntryNotReady with custom translation key
     class FailingCoordinator:
@@ -944,6 +938,8 @@ async def test_setup_preserves_config_entry_not_ready_exception(
 
     # Verify the original translation key is preserved (not wrapped in setup_failed_transient)
     assert exc_info.value.translation_key == "custom_coordinator_error"
+    # The input platforms forwarded before the failure are unloaded again
+    unload_platforms.assert_awaited_once_with(mock_hub_entry, INPUT_PLATFORMS)
 
 
 async def test_setup_preserves_config_entry_error_exception(

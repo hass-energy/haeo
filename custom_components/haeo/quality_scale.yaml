@@ -61,7 +61,7 @@ rules:
     comment: Both action handlers raise ServiceValidationError with translation keys.
   config-entry-unloading:
     status: done
-    comment: async_unload_entry is implemented; platform unloading and listener teardown are registered with entry.async_on_unload.
+    comment: async_unload_entry unloads the input and output platforms and returns whether that succeeded; other teardown is registered with entry.async_on_unload.
   docs-configuration-parameters:
     status: done
     comment: docs/user-guide/ documents the hub settings and every element field.
