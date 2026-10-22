@@ -16,7 +16,9 @@ You can create automations that:
 
 The examples use elements named "Battery" and "Solar".
 An element's entity IDs start with its name, so replace `battery` or `solar` in each entity ID with the name of your element.
-The optimization status sensor is on the **Optimizer** device, so its ID is `sensor.optimizer_status` whatever your hub is called.
+The optimization status sensor is on the hub's **Optimizer** device, so its ID is `sensor.optimizer_status` whatever your hub is called.
+If you have more than one hub, Home Assistant adds a suffix to the later hubs' optimizer entities, such as `sensor.optimizer_status_2`.
+Each hub optimizes on its own, so give each one its own trigger, and check the exact IDs under **Settings** → **Devices & services** → **Entities**.
 
 ## Example 1: Notification on optimization failure
 
