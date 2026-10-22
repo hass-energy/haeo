@@ -107,6 +107,7 @@ It calculates the next period boundary from current time, reschedules after each
 
 An entity horizon has no timer.
 Instead, the manager subscribes to the sensor with `async_track_state_change_event()`, recomputes the horizon on each state change, and notifies subscribers.
+The sensor can change how many periods the horizon has, and the coordinator then rebuilds the network for the new count before its next solve.
 Pausing and stopping the manager remove this listener in the same way they cancel the preset timer.
 
 ## Horizon sensor

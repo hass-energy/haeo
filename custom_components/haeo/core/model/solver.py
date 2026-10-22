@@ -32,6 +32,8 @@ class Solver(Highs):
         # First column and name of each group of variables, in column order
         self._group_starts: list[int] = []
         self._group_names: list[str] = []
+        # Seconds each solve may take before HiGHS stops it
+        self.time_limit = INF
 
     def add_variables(
         self,
@@ -83,8 +85,13 @@ class Solver(Highs):
         return self._solution
 
     def run(self) -> HighsStatus:
-        """Solve the model, discarding the cached solution of the previous solve."""
+        """Solve the model within ``time_limit``, discarding the cached solution of the previous solve.
+
+        HiGHS measures its time limit against the solver's total run time, which
+        keeps growing across solves, so the limit is renewed from it for each solve.
+        """
         self._discard_solution()
+        self.setOptionValue("time_limit", self.getRunTime() + self.time_limit)
         return super().run()
 
     @override

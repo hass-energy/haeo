@@ -2,7 +2,7 @@
 
 import itertools
 import logging
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from highspy import HighsBasisStatus, HighsIis, HighsModelStatus, HighsStatus
 import numpy as np
@@ -20,6 +20,7 @@ from custom_components.haeo.core.model.elements.connection import Connection, Co
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 from custom_components.haeo.core.model.elements.segments import PowerLimitSegment
+from custom_components.haeo.core.model.elements.segments.pricing import PricingSegment
 from custom_components.haeo.core.model.infeasibility import InfeasibleError, RelaxedRows, RowLabel
 from custom_components.haeo.core.model.linear import LinearArray
 from custom_components.haeo.core.model.network import BlendWeightSearch, SolveOptions, _bisect_boundary
@@ -647,12 +648,70 @@ def test_solve_options_defaults() -> None:
 
 def test_solve_options_apply() -> None:
     """SolveOptions.apply() sets all HiGHS options on the solver."""
-    opts = SolveOptions(simplex_strategy=4, presolve="on")
+    opts = SolveOptions(simplex_strategy=4, presolve="on", time_limit=12.5)
     h = Solver()
     h.setOptionValue("output_flag", False)
     opts.apply(h)
     assert h.getOptionValue("simplex_strategy")[1] == 4
     assert h.getOptionValue("presolve")[1] == "on"
+    assert h.time_limit == 12.5
+
+
+def _build_arbitrage_network(n_periods: int, options: SolveOptions) -> Network:
+    """Build a battery trading against a grid at varying prices, which takes the simplex real iterations."""
+    rng = np.random.default_rng(1)
+    network = Network(name="arbitrage", periods=np.full(n_periods, 0.5), options=options)
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0})
+    for name, source, target, price in (
+        ("import", "grid", "battery", rng.uniform(0.1, 0.5, n_periods)),
+        ("export", "battery", "grid", -rng.uniform(0.0, 0.4, n_periods)),
+    ):
+        network.add(
+            {
+                "element_type": ELEMENT_TYPE_CONNECTION,
+                "name": name,
+                "source": source,
+                "target": target,
+                "tags": {1},
+                "segments": {
+                    "power_limit": {"segment_type": "power_limit", "max_power": np.full(n_periods, 5.0)},
+                    "pricing": {"segment_type": "pricing", "price": price},
+                },
+            }
+        )
+    return network
+
+
+def test_time_limit_bounds_each_solve_not_the_solvers_lifetime() -> None:
+    """A network that has spent longer than the limit solving in total still solves.
+
+    HiGHS measures its time limit against the solver's total run time, which keeps
+    growing across solves of the same model, so the limit is renewed for each one.
+    """
+    network = _build_arbitrage_network(200, SolveOptions(time_limit=0.1))
+    import_pricing = network.elements["import"]["pricing"]
+    assert isinstance(import_pricing, PricingSegment)
+    rng = np.random.default_rng(2)
+
+    # New prices each time make every solve iterate, as new forecasts do
+    while network._solver.getRunTime() < 0.3:
+        import_pricing.price = rng.uniform(0.1, 0.5, 200)
+        network.optimize()
+
+
+def test_solve_that_reaches_the_time_limit_fails_without_trying_other_weights() -> None:
+    """A solve HiGHS stops at its time limit raises at once, rather than solving again at every other weight."""
+    network = _build_priced_network()
+    solver = network._solver
+    with (
+        patch.object(solver, "getModelStatus", return_value=HighsModelStatus.kTimeLimit),
+        patch.object(solver, "run", wraps=solver.run) as run,
+        pytest.raises(SolverError, match="Time limit reached"),
+    ):
+        network.optimize()
+
+    run.assert_called_once()
 
 
 def test_solve_options_propagated_to_network() -> None:

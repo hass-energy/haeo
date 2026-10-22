@@ -20,7 +20,8 @@ def normalize_forecast_cycle(forecast_series: ForecastSeries, current_time: floa
     start_time = forecast[0]["timestamp"]
 
     forecast_remainder = (end_time - start_time) % _SECONDS_PER_DAY
-    forecast_required = _SECONDS_PER_DAY - forecast_remainder
+    # A forecast already spanning whole days needs nothing added to complete its last day
+    forecast_required = (_SECONDS_PER_DAY - forecast_remainder) % _SECONDS_PER_DAY
 
     # This is the time that is earliest in the forecast at the same time of day as the end time
     extra_start = start_time + forecast_remainder
@@ -35,8 +36,13 @@ def normalize_forecast_cycle(forecast_series: ForecastSeries, current_time: floa
 
     # Now shift the entire forecast so that it starts from current_time and wraps around every cover_seconds
     start_offset = cover_seconds + (cover_seconds - (current_time % cover_seconds))
-    forecast_times = np.mod(periodic_forecast["timestamp"] + start_offset, cover_seconds) + current_time
-    forecast_idx = np.argsort(forecast_times)
+    shifted = periodic_forecast["timestamp"] + start_offset
+    forecast_times = np.mod(shifted, cover_seconds) + current_time
+    # Points that fold onto the same time keep their order: the end of one cycle
+    # (wrapped once more) before the start of the next, so the forecast reaches its
+    # last value before repeating, and otherwise in their original order
+    wraps = np.floor_divide(shifted, cover_seconds)
+    forecast_idx = np.lexsort((periodic_forecast["timestamp"], -wraps, forecast_times))
 
     output_forecast = np.empty_like(periodic_forecast)
     output_forecast["timestamp"] = forecast_times[forecast_idx]
