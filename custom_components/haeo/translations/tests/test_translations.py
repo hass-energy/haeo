@@ -1,33 +1,50 @@
 """Test that en.json translates every key the integration uses, and nothing else.
 
 Each case derives the keys the integration uses from the same registries that
-create its entities, devices, and flows, or from the forms its flows show, then
-compares them with en.json in both directions: a missing key shows a raw key to
-users, and an unused one is a string nobody reads.
+create its entities, devices, and flows, from the code its flows reach, or from
+the forms its flows show, then compares them with en.json: a missing key shows
+a raw key to users, and an unused one is a string nobody reads.
 """
 
-import ast
-from collections.abc import Iterator, Mapping
+from collections.abc import Awaitable, Callable, Iterator, Mapping
+from copy import deepcopy
+from dataclasses import dataclass
 from functools import cache
-import inspect
-import sys
+from importlib import import_module
 import types
+from types import MappingProxyType
 
 # Reflection over typing constructs (aliases, unions, generics); the typing
 # introspection API is inherently dynamic.
 from typing import Any, Union, get_args, get_origin, get_type_hints  # noqa: TID251
+from unittest.mock import Mock
 
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.config_entries import SOURCE_USER, ConfigSubentryFlow, OptionsFlow
+from homeassistant.config_entries import (
+    SOURCE_RECONFIGURE,
+    SOURCE_USER,
+    ConfigSubentry,
+    ConfigSubentryFlow,
+    OptionsFlow,
+)
 from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResult, FlowResultType
 from homeassistant.helpers.entity import Entity
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo import number, sensor, switch
+from custom_components.haeo import PLATFORMS
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.coordinator import STATUS_OPTIONS
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
+from custom_components.haeo.core.const import (
+    CONF_ADVANCED_MODE,
+    CONF_ELEMENT_TYPE,
+    CONF_HORIZON,
+    CONF_NAME,
+    HORIZON_PRESET_2_DAYS,
+)
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import ELEMENTS
 from custom_components.haeo.core.model.reactive import OutputMethod
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS
@@ -41,12 +58,12 @@ from custom_components.haeo.elements import (
     iter_input_field_paths,
 )
 from custom_components.haeo.elements.field_hints import build_list_input_fields
+from custom_components.haeo.elements.input_fields import reads_calendar
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, get_element_flow_classes
+from custom_components.haeo.flows.elements.policy import ACTION_EDIT, CONF_ACTION, CONF_RULE
 from custom_components.haeo.flows.hub import HubConfigFlow
+from custom_components.haeo.translations.tests.flow_messages import flow_messages
 from custom_components.haeo.translations.tests.runtime_checks import TranslationPath, form_labels, translation
-
-# The entity platforms define the entity classes this test inspects
-PLATFORM_MODULES = (number, sensor, switch)
 
 
 def _is_mapping_type(annotation: Any) -> bool:
@@ -109,6 +126,9 @@ def _class_attr(cls: type, name: str) -> object:
 
 def _entity_classes() -> dict[str, type[Entity]]:
     """Return the integration's entity classes that set their own translation key, by that key."""
+    # The platform modules define the entity classes
+    for platform in PLATFORMS:
+        import_module(f"custom_components.haeo.{platform}")
     return {
         str(_class_attr(cls, "translation_key")): cls
         for cls in _subclasses(Entity)
@@ -146,13 +166,18 @@ def _entity_keys() -> dict[str, set[str]]:
     return keys
 
 
-def _enum_sensor_states() -> dict[str, set[str]]:
-    """Return the states of every enum sensor, by translation key."""
+def _enum_sensor_states() -> set[str]:
+    """Return ``key.state`` for every state of every enum sensor whose class sets its translation key.
+
+    Every enum sensor reports an optimization status, so its states are the
+    status options. Output sensors only learn their type from the optimization,
+    so the runtime checks cover their states.
+    """
     return {
-        key: set(options)
+        f"{key}.{state}"
         for key, cls in _entity_classes().items()
         if _class_attr(cls, "device_class") == SensorDeviceClass.ENUM
-        and isinstance(options := _class_attr(cls, "options"), list)
+        for state in STATUS_OPTIONS
     }
 
 
@@ -166,72 +191,74 @@ def _flow_classes() -> dict[TranslationPath, type]:
     }
 
 
-@cache
-def _string_literals(module: types.ModuleType) -> set[str]:
-    tree = ast.parse(inspect.getsource(module))
-    literals = {node.value for node in ast.walk(tree) if isinstance(node, ast.Constant) and isinstance(node.value, str)}
-    return literals | {value for value in vars(module).values() if isinstance(value, str)}
-
-
-def _flow_strings(flow: type) -> set[str]:
-    """Return every string the modules a flow is built from could pass as an error or abort reason.
-
-    That is the module of each class the flow inherits from, and of each
-    integration function and class those modules import.
-    """
-    modules = {sys.modules[cls.__module__] for cls in flow.__mro__ if cls is not object}
-    imported = {
-        sys.modules[value.__module__]
-        for module in modules
-        for value in vars(module).values()
-        if (inspect.isfunction(value) or inspect.isclass(value)) and value.__module__.startswith("custom_components.")
-    }
-    return set().union(*(_string_literals(module) for module in modules | imported))
-
-
 def _keys(path: TranslationPath) -> set[str]:
     node = translation(path)
     return set(node) if isinstance(node, Mapping) else set()
 
 
-def _cases() -> Iterator[tuple[str, set[str], set[str]]]:
-    """Yield (en.json path, keys the integration uses there, keys en.json has there) for each comparison.
+@dataclass(frozen=True)
+class Comparison:
+    """Keys the integration uses under an en.json path, and the keys en.json has there."""
 
-    Which errors and aborts a flow shows is only known as it runs, so the
-    runtime checks report missing ones; here a flow uses a key under its
-    error or abort path when one of the modules it is built from names it.
-    """
-    entity_keys = _entity_keys()
-    for platform in sorted(set(entity_keys) | _keys(("entity",))):
-        yield f"entity.{platform}", entity_keys.get(platform, set()), _keys(("entity", platform))
-    yield (
+    used: set[str]
+    translated: set[str]
+    # Flow analysis over-approximates what a flow shows, so it can only find unused keys
+    report_missing: bool = True
+
+
+def _flow_prefixes() -> list[TranslationPath]:
+    return sorted(set(_flow_classes()) | {("config_subentries", key) for key in _keys(("config_subentries",))})
+
+
+FLOW_KINDS = {"error": "errors", "abort": "aborts", "step": "steps"}
+
+
+def _case_paths() -> list[str]:
+    """Return the en.json path of every comparison, without building any of them."""
+    platforms = {str(platform) for platform in PLATFORMS} | _keys(("entity",))
+    return [
+        *(f"entity.{platform}" for platform in sorted(platforms)),
         "entity.sensor.*.state",
-        {f"{key}.{state}" for key, states in _enum_sensor_states().items() for state in states},
+        "device",
+        *(".".join((*prefix, kind)) for prefix in _flow_prefixes() for kind in FLOW_KINDS),
+    ]
+
+
+@cache
+def _comparisons() -> dict[str, Comparison]:
+    entity_keys = _entity_keys()
+    comparisons = {
+        f"entity.{platform}": Comparison(entity_keys.get(platform, set()), _keys(("entity", platform)))
+        for platform in {str(platform) for platform in PLATFORMS} | _keys(("entity",))
+    }
+    comparisons["entity.sensor.*.state"] = Comparison(
+        _enum_sensor_states(),
         {
             f"{key}.{state}"
             for key in _keys(("entity", "sensor"))
             for state in _keys(("entity", "sensor", key, "state"))
         },
     )
-    yield "device", {str(name) for name in ELEMENT_DEVICE_NAMES}, _keys(("device",))
+    comparisons["device"] = Comparison({str(name) for name in ELEMENT_DEVICE_NAMES}, _keys(("device",)))
     flows = _flow_classes()
-    prefixes = set(flows) | {("config_subentries", key) for key in _keys(("config_subentries",))}
-    for prefix in sorted(prefixes):
-        flow_strings = _flow_strings(flows[prefix]) if prefix in flows else set()
-        for kind in ("error", "abort"):
+    for prefix in _flow_prefixes():
+        messages = flow_messages(flows[prefix]) if prefix in flows else None
+        for kind, attribute in FLOW_KINDS.items():
             path = (*prefix, kind)
-            yield ".".join(path), _keys(path) & flow_strings, _keys(path)
+            used: set[str] = getattr(messages, attribute) if messages is not None else set()
+            comparisons[".".join(path)] = Comparison(used, _keys(path), report_missing=False)
+    return comparisons
 
 
-CASES = list(_cases())
-
-
-@pytest.mark.parametrize(("path", "used", "translated"), CASES, ids=[case[0] for case in CASES])
-def test_translations_match_used_keys(path: str, used: set[str], translated: set[str]) -> None:
+@pytest.mark.parametrize("path", _case_paths())
+def test_translations_match_used_keys(path: str) -> None:
     """En.json translates every key the integration uses under a path, and no others."""
+    comparison = _comparisons()[path]
+    missing = comparison.used - comparison.translated if comparison.report_missing else set()
+
     assert {
-        "missing": sorted(used - translated),
-        "unused": sorted(translated - used),
+        "missing": sorted(missing),
+        "unused": sorted(comparison.translated - comparison.used),
     } == {"missing": [], "unused": []}, f"Translation keys under {path} do not match what the integration uses"
 
 
@@ -256,30 +283,99 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     return entry
 
 
-FLOWS = _flow_classes()
-
-
-@pytest.mark.parametrize("prefix", sorted(FLOWS), ids=".".join)
-async def test_first_form_strings_match_its_fields(
-    hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath
-) -> None:
-    """En.json labels every field and section of a flow's first form, and describes nothing the form lacks."""
-    flow = FLOWS[prefix]()
+def _create_flow(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath, source: str) -> Any:
+    """Return a flow handler wired to the hub as Home Assistant would start it."""
+    flow: Any = _flow_classes()[prefix]()
     flow.hass = hass
-    flow.context = {"source": SOURCE_USER}
+    flow.context = {"source": source}
     if isinstance(flow, ConfigSubentryFlow):
         flow.handler = (hub_entry.entry_id, prefix[-1])
     elif isinstance(flow, OptionsFlow):
         flow.handler = hub_entry.entry_id
     else:
         flow.handler = DOMAIN
+    return flow
+
+
+def _valid_config(prefix: TranslationPath) -> dict[str, Any]:
+    """Return the first valid configuration in an element flow's test data."""
+    module = import_module(f"custom_components.haeo.flows.tests.test_data.{prefix[-1]}")
+    return deepcopy(module.VALID_DATA[0]["config"])
+
+
+async def _first_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath) -> FlowResult:
+    flow = _create_flow(hass, hub_entry, prefix, SOURCE_USER)
     step_id = flow.init_step if isinstance(flow, OptionsFlow) else SOURCE_USER
+    return await getattr(flow, f"async_step_{step_id}")(None)
 
-    result = await getattr(flow, f"async_step_{step_id}")(None)
 
-    labels = set(form_labels(result["data_schema"]))
+async def _states_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath) -> FlowResult:
+    """Submit an element whose on/off input reads a sensor reporting words."""
+    section, field_name = next(
+        (section, field_name)
+        for section, fields in get_input_fields(prefix[-1]).items()
+        for field_name, info in fields.items()
+        if info.output_type is OutputType.AVAILABILITY and not reads_calendar(info)
+    )
+    hass.states.async_set("sensor.reports_words", "Idle", {"options": ["Idle", "Charging"]})
+    user_input = _valid_config(prefix)
+    user_input[section] = {**user_input.get(section, {}), field_name: ["sensor.reports_words"]}
+    return await _create_flow(hass, hub_entry, prefix, SOURCE_USER).async_step_user(user_input)
+
+
+async def _reconfigure_flow(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath) -> Any:
+    """Return a flow reconfiguring an element saved from its test data, showing its first form."""
+    config = {CONF_ELEMENT_TYPE: prefix[-1], CONF_NAME: prefix[-1], **_valid_config(prefix)}
+    subentry = ConfigSubentry(data=MappingProxyType(config), subentry_type=prefix[-1], title=prefix[-1], unique_id=None)
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    flow = _create_flow(hass, hub_entry, prefix, SOURCE_RECONFIGURE)
+    flow.context["subentry_id"] = subentry.subentry_id
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    await flow.async_step_reconfigure(None)
+    return flow
+
+
+async def _reconfigure_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath) -> FlowResult:
+    return await (await _reconfigure_flow(hass, hub_entry, prefix)).async_step_reconfigure(None)
+
+
+async def _edit_rule_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath) -> FlowResult:
+    flow = await _reconfigure_flow(hass, hub_entry, prefix)
+    return await flow.async_step_reconfigure({CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
+
+
+type FormRenderer = Callable[[HomeAssistant, MockConfigEntry, TranslationPath], Awaitable[FlowResult]]
+
+# How to reach each step, by step id
+STEP_RENDERERS: dict[str, FormRenderer] = {
+    "init": _first_form,
+    "user": _first_form,
+    "states": _states_form,
+    "reconfigure": _reconfigure_form,
+    "edit_rule": _edit_rule_form,
+}
+
+
+def _translated_steps() -> list[tuple[TranslationPath, str]]:
+    return [(prefix, step_id) for prefix in sorted(_flow_classes()) for step_id in sorted(_keys((*prefix, "step")))]
+
+
+@pytest.mark.parametrize(
+    ("prefix", "step_id"), _translated_steps(), ids=lambda value: ".".join(value) if isinstance(value, tuple) else value
+)
+async def test_step_strings_match_its_form(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath, step_id: str
+) -> None:
+    """En.json labels every field and section of a step's form, and describes nothing the form lacks."""
+    result = await STEP_RENDERERS[step_id](hass, hub_entry, prefix)
+
+    assert result.get("type") is FlowResultType.FORM
+    assert result.get("step_id") == step_id
+    schema = result.get("data_schema")
+    assert schema is not None
+    labels = set(form_labels(schema))
     descriptions = {(*path[:-2], "data_description", path[-1]) for path in labels if path[-2] == "data"}
-    translated = _leaf_paths(translation((*prefix, "step", result["step_id"]))) - {("title",), ("description",)}
+    translated = _leaf_paths(translation((*prefix, "step", step_id))) - {("title",), ("description",)}
     assert {
         "missing": sorted(".".join(path) for path in labels - translated),
         "unused": sorted(".".join(path) for path in translated - labels - descriptions),

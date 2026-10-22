@@ -28,7 +28,10 @@
       "horizon_entity_invalid": "This sensor does not report a forecast with at least two increasing times.",
       "name_exists": "A system with this name already exists"
     },
-    "abort": { "already_configured": "HAEO already configured" }
+    "abort": {
+      "already_configured": "HAEO already configured",
+      "already_in_progress": "Setup of this system is already in progress"
+    }
   },
   "options": {
     "step": {

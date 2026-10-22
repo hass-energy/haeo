@@ -25,8 +25,6 @@ class HaeoStatusSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntit
     _attr_has_entity_name = True
     _attr_translation_key = OUTPUT_NAME_OPTIMIZATION_STATUS
     _attr_device_class = SensorDeviceClass.ENUM
-    # Declared on the class so the translation tests can read the states without an instance
-    _attr_options = list(STATUS_OPTIONS)  # noqa: RUF012 (Home Assistant declares _attr_options as an instance attribute, so it cannot be a ClassVar)
     # The topology only serves the frontend card, so it is not recorded
     _unrecorded_attributes = frozenset({"topology"})
 
@@ -42,6 +40,7 @@ class HaeoStatusSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntit
         self.device_entry = device_entry
         self._network_title = network_subentry.title
         self._attr_unique_id = unique_id
+        self._attr_options = list(STATUS_OPTIONS)
 
     @property
     def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]

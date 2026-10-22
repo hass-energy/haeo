@@ -101,7 +101,13 @@ from custom_components.haeo.input_stores import build_input_stores
 from custom_components.haeo.repairs import create_optimization_infeasible_issue, create_optimization_relaxed_issue
 
 # Placeholders of an issue raised by an earlier optimization
-EARLIER_ISSUE = {"elements": "Earlier Load", "minutes": "45"}
+EARLIER_ISSUE = {
+    "elements": "Earlier Load",
+    "minutes": "45",
+    "planned_at": "08:00",
+    "relaxed_elements": "Earlier Load",
+    "relaxed_periods": "1",
+}
 EARLIER_DIAGNOSTICS = "/config/haeo/diagnostics/earlier.json"
 
 
