@@ -557,3 +557,49 @@ async def test_entity_update_requests_wait_out_the_debounce_window(
 
     assert solves.calls == 2
     coordinator.cleanup()
+
+
+async def test_horizon_roll_runs_one_optimization(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, live_runtime_data: HaeoRuntimeData, solves: BlockingSolves
+) -> None:
+    """A horizon roll optimizes once, although both the reloaded inputs and the horizon itself request it.
+
+    Input stores subscribe to the horizon before the coordinator, so their reload
+    for the new horizon starts the optimization before the coordinator hears of
+    the roll.
+    """
+    horizon_manager = live_runtime_data.horizon_manager
+    coordinator: HaeoDataUpdateCoordinator | None = None
+
+    def store_reloaded() -> None:
+        if coordinator is not None:
+            coordinator.signal_optimization_stale()
+
+    horizon_manager.subscribe(store_reloaded)
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    horizon_manager._async_scheduled_update(dt_util.utcnow())
+    await _settle(hass, solves)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=DEFAULT_DEBOUNCE_SECONDS + 1))
+    await hass.async_block_till_done()
+
+    assert solves.calls == 1
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_horizon_roll_without_reloaded_inputs_optimizes(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """A horizon roll optimizes even when no input reloads for it, since the periods themselves changed."""
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+    with patch.object(
+        coordinator._runtime_data.horizon_manager, "get_forecast_timestamps", return_value=(time.time() + 1800.0,)
+    ):
+        coordinator._runtime_data.horizon_manager._async_scheduled_update(dt_util.utcnow())
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=DEFAULT_DEBOUNCE_SECONDS + 1))
+        await hass.async_block_till_done()
+
+    assert solves.calls == 2
+    coordinator.cleanup()
