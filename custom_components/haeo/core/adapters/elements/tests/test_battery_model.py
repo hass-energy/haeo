@@ -22,13 +22,13 @@ from custom_components.haeo.core.adapters.elements.battery import (
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare, segment_order
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
-from custom_components.haeo.core.model import battery as battery_model
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
     connection,
 )
+from custom_components.haeo.core.model.elements import battery as battery_model
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType

@@ -932,8 +932,8 @@ async def test_setup_preserves_config_entry_not_ready_exception(
         async def async_initialize(self) -> None:
             raise ConfigEntryNotReady(
                 translation_domain=DOMAIN,
-                translation_key="custom_coordinator_error",
-                translation_placeholders={"detail": "sensor unavailable"},
+                translation_key="horizon_entity_not_ready",
+                translation_placeholders={"entity_id": "sensor.horizon"},
             )
 
     monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", FailingCoordinator)
@@ -943,7 +943,7 @@ async def test_setup_preserves_config_entry_not_ready_exception(
         await async_setup_entry(hass, mock_hub_entry)
 
     # Verify the original translation key is preserved (not wrapped in setup_failed_transient)
-    assert exc_info.value.translation_key == "custom_coordinator_error"
+    assert exc_info.value.translation_key == "horizon_entity_not_ready"
 
 
 async def test_setup_preserves_config_entry_error_exception(
@@ -995,8 +995,14 @@ async def test_setup_preserves_config_entry_error_exception(
         async def async_initialize(self) -> None:
             raise ConfigEntryError(
                 translation_domain=DOMAIN,
-                translation_key="custom_config_error",
-                translation_placeholders={"detail": "invalid configuration"},
+                translation_key="input_unit_incompatible",
+                translation_placeholders={
+                    "field": "capacity",
+                    "element": "Battery",
+                    "expected": "kWh",
+                    "entities": "sensor.capacity",
+                    "unit": "kW",
+                },
             )
 
     monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", FailingCoordinator)
@@ -1006,7 +1012,7 @@ async def test_setup_preserves_config_entry_error_exception(
         await async_setup_entry(hass, mock_hub_entry)
 
     # Verify the original translation key is preserved (not wrapped in setup_failed_permanent)
-    assert exc_info.value.translation_key == "custom_config_error"
+    assert exc_info.value.translation_key == "input_unit_incompatible"
 
 
 # ---------------------------------------------------------------------------

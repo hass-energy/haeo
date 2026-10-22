@@ -19,6 +19,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import is_entity_value
+from custom_components.haeo.core.state import NO_READING_STATES, ON_OFF_STATE_VALUES
 from custom_components.haeo.elements.input_fields import InputFieldGroups, reads_calendar
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,10 +30,6 @@ CONF_OFF_STATES: Final = "off_states"
 
 # Domains whose states already read as on or off
 _ON_OFF_DOMAINS: Final = frozenset({"binary_sensor", "input_boolean", "switch"})
-
-# States that already read as on or off, or as no reading
-_ON_OFF_STATES: Final = frozenset({"on", "off", "true", "false"})
-_NO_READING: Final = frozenset({"unavailable", "unknown"})
 
 # How far back the recorder is read for states to suggest
 _SUGGESTION_LOOKBACK: Final = timedelta(days=7)
@@ -46,7 +43,7 @@ def _reads_words(state: State | None) -> bool:
         return False
     if isinstance(state.attributes.get("options"), Sequence):
         return True
-    if state.state.lower() in _ON_OFF_STATES:
+    if state.state.lower() in ON_OFF_STATE_VALUES:
         return False
     try:
         float(state.state)
@@ -91,7 +88,7 @@ async def async_state_suggestions(hass: HomeAssistant, entity_ids: Sequence[str]
         found.extend(await _async_recorded_states(hass, entity_id))
         if state is not None:
             found.append(state.state)
-    return list(dict.fromkeys(state for state in found if state not in _NO_READING))
+    return list(dict.fromkeys(state for state in found if state not in NO_READING_STATES))
 
 
 async def _async_recorded_states(hass: HomeAssistant, entity_id: str) -> list[str]:

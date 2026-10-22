@@ -141,6 +141,16 @@ async def test_create_node_replaced_by_junction_issue(hass: HomeAssistant) -> No
     assert not issue.is_fixable
 
 
+# Placeholders of an impossible or relaxed plan issue
+PLAN_PLACEHOLDERS = {
+    "elements": "Load",
+    "minutes": "30",
+    "planned_at": "12:00",
+    "relaxed_elements": "Load",
+    "relaxed_periods": "1",
+}
+
+
 async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant, tmp_path: Path) -> None:
     """Dismissing an entry's issues deletes their saved diagnostics and leaves other entries' issues in place."""
     hass.config.config_dir = str(tmp_path)
@@ -148,9 +158,9 @@ async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant,
     kept = _saved_file(hass, "infeasible_2.json")
     create_node_replaced_by_junction_issue(hass, "entry123", "Switchboard")
     create_disconnected_network_issue(hass, "entry123", [{"Battery"}, {"Grid"}])
-    create_optimization_infeasible_issue(hass, "entry123", "optimization_infeasible", {}, str(saved))
+    create_optimization_infeasible_issue(hass, "entry123", "optimization_infeasible", PLAN_PLACEHOLDERS, str(saved))
     create_node_replaced_by_junction_issue(hass, "entry456", "Switchboard")
-    create_optimization_infeasible_issue(hass, "entry456", "optimization_infeasible", {}, str(kept))
+    create_optimization_infeasible_issue(hass, "entry456", "optimization_infeasible", PLAN_PLACEHOLDERS, str(kept))
 
     await async_dismiss_entry_issues(hass, "entry123")
 
@@ -199,14 +209,14 @@ async def test_impossible_plan_issues_stay_until_the_user_resolves_them(
     """Impossible and relaxed plans raise persistent issues; resolving one deletes the diagnostics saved for it."""
     hass.config.config_dir = str(tmp_path)
     saved = _saved_file(hass, "failure.json")
-    create(hass, "entry", "optimization_infeasible", {"elements": "Load"}, str(saved))
+    create(hass, "entry", "optimization_infeasible", PLAN_PLACEHOLDERS, str(saved))
 
     issue = async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert issue is not None
     assert issue.severity == severity
     assert issue.is_fixable
     assert issue.is_persistent
-    assert issue.translation_placeholders == {"elements": "Load", "diagnostics": str(saved)}
+    assert issue.translation_placeholders == {**PLAN_PLACEHOLDERS, "diagnostics": str(saved)}
 
     flow = await async_create_fix_flow(hass, issue.issue_id, issue.data)
     assert isinstance(flow, ConfirmRepairFlow)

@@ -101,6 +101,7 @@ def _efficient_connection(name: str, source: str, target: str, efficiency: float
 def _network(
     periods: Sequence[float],
     *,
+    capacity: float = 10.0,
     initial_charge: float = 5.0,
     min_charge: float | None = None,
     max_charge: float | None = None,
@@ -121,7 +122,7 @@ def _network(
     battery: BatteryElementConfig = {
         "element_type": MODEL_ELEMENT_TYPE_BATTERY,
         "name": "battery",
-        "capacity": 10.0,
+        "capacity": capacity,
         "initial_charge": initial_charge,
         "charge_limit_cost": 100.0,
     }
@@ -389,6 +390,34 @@ def test_storage_counts_the_lowest_efficiency_of_its_connections_for_its_kind(
     outputs = network.elements["buffer"].outputs()
 
     np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), required, atol=1e-9)
+
+
+@pytest.mark.parametrize("kind", ["reserve", "headroom"])
+def test_storage_without_capacity_holds_nothing(kind: BufferKind) -> None:
+    """A battery with no capacity, as a sensor can report, holds none of the buffer, so all of it falls short."""
+    network = _network(
+        [1.0, 1.0],
+        capacity=0.0,
+        initial_charge=0.0,
+        house=[1.0, 1.0] if kind == "reserve" else None,
+        solar=[1.0, 1.0] if kind == "headroom" else None,
+        kind=kind,
+    )
+    network.add(
+        _buffer(
+            kind=kind,
+            loads=["house"] if kind == "reserve" else [],
+            generation=["solar"] if kind == "headroom" else [],
+        )
+    )
+
+    network.optimize()
+    outputs = network.elements["buffer"].outputs()
+
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), [1.0, 1.0, 0.0], atol=1e-9)
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_SHORTFALL]), [1.0, 1.0, 0.0], atol=1e-9)
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_AVAILABLE]), 0.0, atol=1e-9)
+    np.testing.assert_allclose(_values(outputs[BUFFER_STATE_OF_CHARGE]), 0.0)
 
 
 def test_storage_without_connections_counts_without_losses() -> None:

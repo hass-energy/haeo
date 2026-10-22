@@ -90,7 +90,7 @@ def curtailment_field_info() -> InputFieldInfo[SwitchEntityDescription]:
         field_name="allow_curtailment",
         entity_description=SwitchEntityDescription(
             key="allow_curtailment",
-            translation_key="allow_curtailment",
+            translation_key="solar_curtailment",
         ),
         output_type=OutputType.STATUS,
     )
@@ -622,23 +622,6 @@ async def test_translation_key_from_field_info(
     assert entity.entity_description.translation_key == "custom_translation"
 
 
-async def test_translation_key_defaults_to_field_name(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """Translation key defaults to field_name when not specified."""
-    subentry = _create_subentry("Test", {"allow_curtailment": True})
-    config_entry.runtime_data = None
-
-    entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
-
-    # Field has no translation_key, so it uses field_name
-    assert entity.entity_description.translation_key == "allow_curtailment"
-
-
 async def test_translation_placeholders_include_rule_name_for_list_field(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -1006,7 +989,7 @@ async def test_editable_mode_uses_defaults_value_when_none(
         field_name="optional_toggle",
         entity_description=SwitchEntityDescription(
             key="optional_toggle",
-            translation_key="optional_toggle",
+            translation_key="load_curtailment",
         ),
         output_type=OutputType.STATUS,
         defaults=InputFieldDefaults(value=True),  # Default value

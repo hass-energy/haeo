@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 import logging
 import math
 from typing import (
@@ -25,17 +26,8 @@ from .elements.buffer import Buffer, BufferElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfig
 from .elements.node import Node, NodeElementConfig
-from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
-from .infeasibility import (
-    RELAXATION_TOLERANCE,
-    InfeasibleError,
-    Relaxation,
-    RowLabel,
-    conflicting_rows,
-    listing,
-    relaxed_rows,
-    row_labels,
-)
+from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
+from .infeasibility import InfeasibleError, Relaxation, RowLabel, conflicting_rows, listing, row_labels, solve_relaxed
 from .linear import LinearArray, total
 from .solver import Solver
 from .util.solver_rows import RowIndices
@@ -116,6 +108,47 @@ class SolveOptions:
         h.setOptionValue("dual_feasibility_tolerance", self.feasibility_tolerance)
 
 
+@dataclass(frozen=True, slots=True)
+class Objective:
+    """A linear objective as a dense cost per column and a constant offset.
+
+    Dense costs switch the objective in a single ``changeColsCost`` call
+    instead of the expression-based ``setObjective``, which zeros all columns
+    then sets non-zero ones (two FFI round-trips per objective switch).
+    """
+
+    costs: NDArray[np.float64]
+    offset: float
+
+    @classmethod
+    def of(cls, expr: LinearArray, n_columns: int) -> "Objective":
+        """Return the objective that sums every row of an expression."""
+        return cls(expr.column_coefficients(n_columns), float(expr.constant.sum()))
+
+    def value(self, column_values: NDArray[np.float64]) -> float:
+        """Return the objective's value at the given column values."""
+        return float(self.costs @ column_values) + self.offset
+
+
+@dataclass(frozen=True, slots=True)
+class Objectives:
+    """The cost the plan minimizes, and the secondary objective that breaks ties between equally cheap plans."""
+
+    cost: Objective
+    secondary: Objective
+
+    @classmethod
+    def of(cls, cost: LinearArray, secondary: LinearArray, n_columns: int) -> "Objectives":
+        """Return the dense objectives of the cost and secondary expressions."""
+        return cls(Objective.of(cost, n_columns), Objective.of(secondary, n_columns))
+
+    def blend(self, weight: float) -> Objective:
+        """Return the cost plus ``weight`` times the secondary."""
+        return Objective(
+            self.cost.costs + weight * self.secondary.costs, self.cost.offset + weight * self.secondary.offset
+        )
+
+
 class Network:
     """Network class for electrical system modeling.
 
@@ -189,14 +222,8 @@ class Network:
         """
         self.periods = np.asarray(new_periods, dtype=float)
 
-        # Propagate to all elements (triggers TrackedParam invalidation)
         for element in self.elements.values():
-            element.periods = self.periods
-
-            # For Connection elements, also update their segments
-            if isinstance(element, Connection):
-                for segment in element.segments.values():
-                    segment.periods = self.periods
+            element.update_periods(self.periods)
 
     @overload
     def add(self, element_config: BatteryElementConfig) -> Battery: ...
@@ -223,8 +250,8 @@ class Network:
         modify the element's TrackedParam attributes directly - this will
         automatically invalidate dependent constraints for the next optimization.
 
-        For PolicyPricingElementConfig, resolves connection/tag references to
-        LP power flow variables from already-added Connection elements.
+        Elements that refer to others by name, such as a buffer's batteries or a
+        policy price's connections, resolve them from the elements already added.
 
         Args:
             element_config: Typed model element configuration dictionary
@@ -234,21 +261,10 @@ class Network:
 
         """
         name = element_config["name"]
-
-        if element_config["element_type"] == "policy_pricing":
-            return self._add_policy_pricing(element_config)
-
-        if element_config["element_type"] == "buffer":
-            return self._add_buffer(element_config)
-
-        element_type = element_config["element_type"]
-        kwargs = {key: value for key, value in element_config.items() if key not in ("element_type", "name")}
-
-        # Create new element using registry
-        element_spec = ELEMENTS[element_type]
-        element_instance: Element[Any] = element_spec.factory(
-            name=name, periods=self.periods, solver=self._solver, **kwargs
-        )
+        spec = ELEMENTS[element_config["element_type"]]
+        # The spec registered for a config's element type is the one built for that config
+        arguments = spec.arguments(element_config, self.elements)  # type: ignore[arg-type]  # (spec matches config type)
+        element_instance: Element[Any] = spec.factory(name=name, periods=self.periods, solver=self._solver, **arguments)
         self.elements[name] = element_instance
 
         # Register connections immediately when adding Connection elements
@@ -271,129 +287,10 @@ class Network:
 
         return element_instance
 
-    def _device_elements(self, buffer_name: str, device: str) -> list[NetworkElement[Any]]:
-        """Return the network elements of a device a buffer names, raising when there are none.
-
-        A device's elements are the one named after it and those named with
-        its name as a prefix, such as an EV's ``EV:trip`` load.
-        """
-        elements = [
-            element
-            for name, element in self.elements.items()
-            if (name == device or name.startswith(f"{device}:")) and isinstance(element, NetworkElement)
-        ]
-        if not elements:
-            msg = f"Buffer '{buffer_name}' references unknown element '{device}'"
-            raise TypeError(msg)
-        return elements
-
-    def _buffer_role(
-        self, buffer_name: str, devices: list[str], *, source: bool, sink: bool
-    ) -> list[NetworkElement[Any]]:
-        """Return the elements of the named devices that only produce or only consume power.
-
-        A device takes part through whichever of its elements fit the role, so
-        an EV counts its trips as a load while its pack can hold the buffer.
-        """
-        return [
-            element
-            for device in devices
-            for element in self._device_elements(buffer_name, device)
-            if element.is_source == source and element.is_sink == sink
-        ]
-
-    def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
-        """Create a PolicyPricing element by resolving connection/tag references."""
-        name = config["name"]
-        priced_flows: list[tuple[MeasuredFlows, int]] = []
-        for term in config["terms"]:
-            conn_name = term["connection"]
-            tag = term["tag"]
-            conn_element = self.elements.get(conn_name)
-            if not isinstance(conn_element, Connection):
-                msg = f"PolicyPricing '{name}' references unknown connection '{conn_name}'"
-                raise TypeError(msg)
-            if tag not in conn_element.measured_power:
-                msg = f"PolicyPricing '{name}' references tag {tag} not on connection '{conn_name}'"
-                raise ValueError(msg)
-            priced_flows.append((conn_element, tag))
-
-        element = PolicyPricing(
-            name=name,
-            periods=self.periods,
-            solver=self._solver,
-            price=config["price"],
-            priced_flows=priced_flows,
-            terms=config["terms"],
-        )
-        element.label = config.get("label", "")
-        self.elements[name] = element
-        return element
-
-    def _add_buffer(self, config: BufferElementConfig) -> Buffer:
-        """Create a Buffer element by resolving its loads, generation, and storage by name.
-
-        The buffer reads what it needs from the elements and their connections,
-        so any element can take part in a buffer.
-        """
-        name = config["name"]
-        loads = self._buffer_role(name, config["loads"], source=False, sink=True)
-        generation = self._buffer_role(name, config["generation"], source=True, sink=False)
-        storage: list[Battery] = []
-        for device in config["storage"]:
-            batteries = [
-                element
-                for element_name, element in self.elements.items()
-                if (element_name == device or element_name.startswith(f"{device}:")) and isinstance(element, Battery)
-            ]
-            if not batteries:
-                msg = f"Buffer '{name}' references '{device}', which is not a battery"
-                raise TypeError(msg)
-            storage.extend(batteries)
-
-        element = Buffer(
-            name=name,
-            periods=self.periods,
-            solver=self._solver,
-            kind=config["kind"],
-            loads=loads,
-            generation=generation,
-            storage=storage,
-            window=config["window"],
-            level=config["level"],
-            price=config["price"],
-        )
-        self.elements[name] = element
-        return element
-
-    def cost(self) -> tuple[LinearArray | None, LinearArray | None] | None:
-        """Aggregate (primary, secondary) costs from all elements.
-
-        Elements return either a single expression (primary only) or a
-        (primary, secondary) tuple. Single expressions are promoted to
-        the primary slot.
-        """
-        primaries: list[LinearArray] = []
-        secondaries: list[LinearArray] = []
-
-        for element in self.elements.values():
-            element_cost = element.cost()
-            if element_cost is None:
-                continue
-            if isinstance(element_cost, tuple):
-                pri, sec = element_cost
-                if pri is not None:
-                    primaries.append(pri)
-                if sec is not None:
-                    secondaries.append(sec)
-            else:
-                primaries.append(element_cost)
-
-        if not primaries and not secondaries:
-            return None
-
-        primary = total(primaries)
-        secondary = total(secondaries)
+    def cost(self) -> tuple[LinearArray | None, LinearArray | None]:
+        """Aggregate the (primary, secondary) costs of all elements, each None when no element has one."""
+        primary = total(element.cost() for element in self.elements.values())
+        secondary = total(element.secondary_cost() for element in self.elements.values())
         return (primary, secondary)
 
     def optimize(self) -> float:
@@ -421,12 +318,7 @@ class Network:
                 msg = f"Failed to apply constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        objectives = self.cost()
-        if objectives is None:
-            msg = "Network has no cost objectives — add connections with pricing segments"
-            raise ValueError(msg)
-
-        primary, secondary = objectives
+        primary, secondary = self.cost()
         if primary is None:
             msg = "Network has no primary cost — add pricing to connections or nodes"
             raise ValueError(msg)
@@ -436,12 +328,12 @@ class Network:
 
         n_vars = h.numVariables
         all_col_indices = np.arange(n_vars, dtype=np.int32)
-        cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
+        objectives = Objectives.of(primary, secondary, n_vars)
 
         self.conflicts = ()
         self.relaxations = ()
         try:
-            return self._solve(all_col_indices, cost_vectors)
+            return self._solve(all_col_indices, objectives)
         except InfeasibleError:
             balance_rows = {
                 row
@@ -451,40 +343,26 @@ class Network:
             }
             labels = row_labels(self.constraints(), self.n_periods, balance_rows)
             self.conflicts = conflicting_rows(h, labels)
-            if not self.relax_infeasible or (relaxed := relaxed_rows(h, labels)) is None:
+            if not self.relax_infeasible:
                 raise InfeasibleError(self.conflicts) from None
 
-        rows, values, lower, upper = relaxed
-        h.changeRowsBounds(len(rows), rows, np.minimum(lower, values), np.maximum(upper, values))
-        try:
-            cost = self._solve(all_col_indices, cost_vectors)
-            # Read the plan before the bounds return, since changing them discards the solution
-            h.column_values()
-            h.row_duals()
-        except InfeasibleError:
-            raise InfeasibleError(self.conflicts) from None
-        finally:
-            h.changeRowsBounds(len(rows), rows, lower, upper)
-        self.relaxations = tuple(
-            Relaxation(labels[row], amount)
-            for row, value, low, high in zip(
-                rows.tolist(), values.tolist(), lower.tolist(), upper.tolist(), strict=True
-            )
-            if abs(amount := value - min(max(value, low), high)) > RELAXATION_TOLERANCE
-        )
+        relaxed = solve_relaxed(h, labels, partial(self._solve, all_col_indices, objectives))
+        if relaxed is None:
+            raise InfeasibleError(self.conflicts)
+        cost, self.relaxations = relaxed
         _LOGGER.debug("Relaxed constraints to find a plan: %s", listing(map(str, self.relaxations)))
         return cost
 
-    def _solve(self, all_col_indices: NDArray[np.int32], cost_vectors: list[NDArray[np.float64]]) -> float:
+    def _solve(self, all_col_indices: NDArray[np.int32], objectives: Objectives) -> float:
         """Solve the blended objective, calibrating its weight on the first solve."""
         if self._blend_weight is None:
-            self._blend_weight = self._calibrate_blend_weight(all_col_indices, cost_vectors)
-        return self._solve_blended(all_col_indices, cost_vectors, self._blend_weight)
+            self._blend_weight = self._calibrate_blend_weight(all_col_indices, objectives)
+        return self._solve_blended(all_col_indices, objectives, self._blend_weight)
 
     def _solve_blended(
         self,
         all_col_indices: NDArray[np.int32],
-        cost_vectors: list[NDArray[np.float64]],
+        objectives: Objectives,
         weight: float,
     ) -> float:
         """Solve primary + weight * secondary, moving the weight until the plan is cost-optimal and then in order.
@@ -498,7 +376,7 @@ class Network:
         plan_cost, cost_optimal, order_optimal = 0.0, False, True
         while next_weight is not None:
             weight = next_weight
-            plan_cost, cost_optimal, order_optimal = self._solve_at(all_col_indices, cost_vectors, weight)
+            plan_cost, cost_optimal, order_optimal = self._solve_at(all_col_indices, objectives, weight)
             next_weight = search.next_weight(weight, cost_optimal=cost_optimal, order_optimal=order_optimal)
             if next_weight is not None:
                 _LOGGER.debug("Blended plan at weight %.2e needs another solve; trying %.2e", weight, next_weight)
@@ -506,7 +384,7 @@ class Network:
         if not cost_optimal:
             # Keep the previous weight, and take the cheapest plan without the order
             _LOGGER.warning("No blend weight gives a cost-optimal plan; solving for the cost alone")
-            _set_cost_vector(h, all_col_indices, cost_vectors[0])
+            _set_objective(h, all_col_indices, objectives.cost)
             h.run()
             return _ensure_optimal(h)
 
@@ -518,7 +396,7 @@ class Network:
     def _solve_at(
         self,
         all_col_indices: NDArray[np.int32],
-        cost_vectors: list[NDArray[np.float64]],
+        objectives: Objectives,
         weight: float,
     ) -> tuple[float, bool, bool]:
         """Solve primary + weight * secondary, and return the plan's cost, whether it is cost-optimal, and in order.
@@ -533,23 +411,23 @@ class Network:
         cost-optimal, so the weight is lowered.
         """
         h = self._solver
-        _set_cost_vector(h, all_col_indices, cost_vectors[0] + weight * cost_vectors[1])
+        _set_objective(h, all_col_indices, objectives.blend(weight))
         h.run()
         status = h.getModelStatus()
         if status == HighsModelStatus.kUnboundedOrInfeasible:
             status = _status_without_presolve(h)
         if status == HighsModelStatus.kInfeasible:
-            if _infeasible_for_cost(h, all_col_indices, cost_vectors[0]):
+            if _infeasible_for_cost(h, all_col_indices, objectives.cost):
                 # Infeasibility does not depend on the objective, so no other weight can help
                 raise InfeasibleError
             return math.nan, False, True
         if status != HighsModelStatus.kOptimal:
             return math.nan, False, True
-        plan_cost = float(cost_vectors[0] @ h.column_values())
+        plan_cost = objectives.cost.value(h.column_values())
         solution = h.getSolution()
         blended = np.concatenate([solution.col_dual, solution.row_dual])
 
-        _set_cost_vector(h, all_col_indices, cost_vectors[0])
+        _set_objective(h, all_col_indices, objectives.cost)
         h.setOptionValue("simplex_iteration_limit", 0)
         try:
             h.run()
@@ -565,15 +443,8 @@ class Network:
         moves = np.flatnonzero(
             (np.abs(cost) <= _REDUCED_COST_TOLERANCE) & (np.abs(secondary) > _REDUCED_COST_TOLERANCE)
         )
-        lp = h.getLp()
-        value, lower, upper = (
-            np.array([entries[i] for i in moves.tolist()], dtype=np.float64)
-            for entries in (
-                solution.col_value + solution.row_value,
-                lp.col_lower_ + lp.row_lower_,
-                lp.col_upper_ + lp.row_upper_,
-            )
-        )
+        value = np.concatenate([solution.col_value, solution.row_value])[moves]
+        lower, upper = _bounds(h, len(all_col_indices), moves)
         # A move lowers the secondary by raising a variable below its upper bound, or lowering one above its lower bound
         rises = (secondary[moves] < -_REDUCED_COST_TOLERANCE) & (value < upper - _BOUND_TOLERANCE)
         falls = (secondary[moves] > _REDUCED_COST_TOLERANCE) & (value > lower + _BOUND_TOLERANCE)
@@ -582,7 +453,7 @@ class Network:
     def _calibrate_blend_weight(
         self,
         all_col_indices: NDArray[np.int32],
-        cost_vectors: list[NDArray[np.float64]],
+        objectives: Objectives,
     ) -> float:
         """Return a weight ``_CAL_MARGIN`` decades below the largest whose plan is cost-optimal.
 
@@ -592,7 +463,7 @@ class Network:
         lo, hi = _CAL_LOG_LO, _CAL_LOG_HI
 
         def _cost_optimal(log_w: float) -> bool:
-            return self._solve_at(all_col_indices, cost_vectors, 10.0**log_w)[1]
+            return self._solve_at(all_col_indices, objectives, 10.0**log_w)[1]
 
         if _cost_optimal(hi):
             upper = hi
@@ -645,32 +516,14 @@ def _bisect_boundary(
     return lo
 
 
-def _build_cost_vectors(
-    objectives: tuple[LinearArray | None, LinearArray | None],
-    n_vars: int,
-) -> list[NDArray[np.float64]]:
-    """Convert objective expressions to dense cost vectors.
-
-    Pre-computing dense arrays enables single-call objective switching via
-    ``changeColsCost`` instead of the expression-based ``setObjective``
-    which zeros all columns then sets non-zero ones (two FFI round-trips
-    per objective switch).
-    """
-    return [np.zeros(n_vars) if obj is None else obj.column_coefficients(n_vars) for obj in objectives]
-
-
-def _set_cost_vector(
-    solver: Highs,
-    col_indices: NDArray[np.int32],
-    costs: NDArray[np.float64],
-) -> None:
-    """Set the full objective cost vector in a single C call.
+def _set_objective(solver: Highs, col_indices: NDArray[np.int32], objective: Objective) -> None:
+    """Set the full objective, its costs in a single C call and its offset.
 
     col_indices covers ALL variables (np.arange(n_vars)), so every column's
     cost is replaced — no stale costs from a previous objective can persist.
     """
-    solver.changeColsCost(len(col_indices), col_indices, costs)
-    solver.changeObjectiveOffset(0.0)
+    solver.changeColsCost(len(col_indices), col_indices, objective.costs)
+    solver.changeObjectiveOffset(objective.offset)
 
 
 @dataclass
@@ -717,14 +570,30 @@ class BlendWeightSearch:
         return None
 
 
-def _infeasible_for_cost(solver: Highs, all_col_indices: NDArray[np.int32], cost_vector: NDArray[np.float64]) -> bool:
+def _bounds(solver: Highs, n_cols: int, entries: NDArray[np.intp]) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Return the lower and upper bounds of sorted columns and rows, with rows numbered after the columns.
+
+    Each column and row is read from HiGHS by index, so the cost follows the number of entries asked for.
+    """
+    cols = entries[entries < n_cols].astype(np.int32)
+    rows = (entries[entries >= n_cols] - n_cols).astype(np.int32)
+    # HiGHS returns one placeholder value when asked for none, so each result is cut to the count it reports
+    _, n_read_cols, _, col_lower, col_upper, _ = solver.getCols(len(cols), cols)
+    _, n_read_rows, row_lower, row_upper, _ = solver.getRows(len(rows), rows)
+    return (
+        np.concatenate([col_lower[:n_read_cols], row_lower[:n_read_rows]]),
+        np.concatenate([col_upper[:n_read_cols], row_upper[:n_read_rows]]),
+    )
+
+
+def _infeasible_for_cost(solver: Highs, all_col_indices: NDArray[np.int32], cost: Objective) -> bool:
     """Confirm an infeasible blended solve by solving for the cost alone.
 
     A badly scaled blend can be reported infeasible when the model is not, and a
     lower weight then finds the plan, so only a model infeasible for the cost too
     is treated as impossible.
     """
-    _set_cost_vector(solver, all_col_indices, cost_vector)
+    _set_objective(solver, all_col_indices, cost)
     solver.run()
     return solver.getModelStatus() == HighsModelStatus.kInfeasible
 

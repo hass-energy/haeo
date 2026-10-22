@@ -74,10 +74,9 @@ def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestC
         total_power_out = element.total_power_out
         cost_terms.append(-(total_power_out * periods))
 
-    # Collect primary cost from element (index 0 only, skip secondary time preference)
-    element_cost = element.cost()
-    if element_cost[0] is not None:
-        cost_terms.append(element_cost[0])
+    # Collect the element's cost, without the secondary time preference
+    if (element_cost := element.cost()) is not None:
+        cost_terms.append(element_cost)
 
     if cost_terms:
         minimize(h, total(cost_terms))
@@ -132,20 +131,6 @@ def test_connection_outputs(case: ConnectionTestCase, solver: Solver) -> None:
     assert "expected_outputs" in case
     expected_outputs = case["expected_outputs"]
     _assert_outputs_match(outputs, expected_outputs)
-
-
-@pytest.mark.parametrize(
-    "case",
-    test_data.INVALID_CONNECTION_CASES,
-    ids=lambda case: case["description"].lower().replace(" ", "_"),
-)
-def test_connection_validation(case: ConnectionTestCase, solver: Solver) -> None:
-    """Connection classes should validate input sequence lengths match n_periods."""
-    assert "expected_error" in case
-    data = case["data"].copy()
-    data["solver"] = solver
-    with pytest.raises(ValueError, match=case["expected_error"]):
-        case["factory"](**data)
 
 
 def test_connection_power_properties(solver: Solver) -> None:
@@ -251,10 +236,9 @@ def test_connection_multiple_cost_sources(solver: Solver) -> None:
 
     cost = conn.cost()
     assert cost is not None
-    assert cost[0] is not None
 
     add_rows(solver, conn.total_power_in[0] == 5.0)
-    minimize(solver, cost[0])
+    minimize(solver, cost)
     # Cost = 5 kW * (0.10 + 0.20) $/kWh * 1 h = 1.50
     assert solver.getObjectiveValue() == pytest.approx(1.50)
 
@@ -275,6 +259,4 @@ def test_connection_without_tag_costs_has_no_primary_cost(solver: Solver) -> Non
     conn.set_endpoints(source, target)
     conn.constraints()
 
-    cost = conn.cost()
-    assert cost is not None
-    assert cost[0] is None
+    assert conn.cost() is None

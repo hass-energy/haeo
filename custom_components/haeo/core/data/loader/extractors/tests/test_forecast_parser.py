@@ -6,7 +6,9 @@ from homeassistant.core import HomeAssistant, State
 import numpy as np
 import pytest
 
+from conftest import FakeEntityState
 from custom_components.haeo.core.data.loader import extractors
+from custom_components.haeo.core.data.loader.extractors import emhass
 from custom_components.haeo.core.data.loader.extractors.tests.test_data.sensors import (
     ALL_INVALID_SENSORS,
     ALL_VALID_SENSORS,
@@ -355,3 +357,11 @@ class TestInterpolationModeExtraction:
         # Simple value extraction, not affected by interpolation_mode
         assert isinstance(result.data, float)
         assert result.data == 42.0
+
+
+def test_emhass_extract_without_a_forecast_raises() -> None:
+    """Extracting EMHASS data from a state without a forecast fails loudly rather than reading nothing."""
+    state = FakeEntityState("sensor.p_load_forecast", "1", {"forecasts": []})
+
+    with pytest.raises(ValueError, match="no EMHASS forecast"):
+        emhass.Parser.extract(state, UTC)  # type: ignore[arg-type]  # a state detect() rejects, which extract() must refuse

@@ -142,18 +142,14 @@ def event_windows(events: Sequence[CalendarEventData], output_type: OutputType) 
 def open_window_start(events: Sequence[CalendarEventData], at: datetime) -> float | None:
     """Return the POSIX time the window open at *at* began, or None when no window is open then.
 
-    Windows are formed as for every calendar input: every event is a window,
-    overlapping events chain into one, and events that only touch stay
-    separate. Calendars are read from the horizon start, so the window begins
-    at the earliest start among the events open then.
+    *at* is the horizon start. Windows are formed as for every calendar
+    input, from the events in the horizon: events that overlap there chain
+    into one window, and every event open at the horizon start is in the
+    window covering its first period. That window began at the earliest
+    start among them. An event that ended by the horizon start is not part
+    of it, even when it overlapped one of them, as no input reads it.
     """
-    windows: list[tuple[datetime, datetime]] = []
-    for event in sorted((e for e in events if e.end > e.start), key=lambda e: e.start):
-        if windows and event.start < windows[-1][1]:
-            windows[-1] = (windows[-1][0], max(windows[-1][1], event.end))
-        else:
-            windows.append((event.start, event.end))
-    return next((start.timestamp() for start, end in windows if start <= at < end), None)
+    return min((event.start.timestamp() for event in events if event.start <= at < event.end), default=None)
 
 
 def rejected_events(

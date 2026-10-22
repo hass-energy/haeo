@@ -121,6 +121,8 @@ def test_events_the_input_cannot_use_are_ignored() -> None:
     assert [value for _, value in data[1:-1]] == [0.0, 2.0, 2.0, 0.0]
 
 
-def test_calendar_without_injected_events_is_not_detected() -> None:
-    """A plain calendar state without injected events is not read as a calendar forecast."""
-    assert not Parser.detect(FakeEntityState(ENTITY_ID, "off", {}))
+@pytest.mark.parametrize("state", [pytest.param("on", id="on"), pytest.param("off", id="off")])
+def test_calendar_without_injected_events_has_no_data(state: str) -> None:
+    """A calendar state without injected events is refused, rather than its on or off read as a number."""
+    with pytest.raises(ValueError, match="no injected events"):
+        extractors.extract(FakeEntityState(ENTITY_ID, state, {}), time_zone=UTC, output_type=OutputType.POWER)
