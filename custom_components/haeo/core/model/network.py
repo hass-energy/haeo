@@ -100,7 +100,7 @@ class SolveOptions:
     feasibility_tolerance: float = 1e-9
     time_limit: float = 60.0
 
-    def apply(self, h: Highs) -> None:
+    def apply(self, h: Solver) -> None:
         """Apply the options to a solver."""
         h.setOptionValue("solver", "simplex")
         h.setOptionValue("presolve", self.presolve)
@@ -109,7 +109,7 @@ class SolveOptions:
         h.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
         h.setOptionValue("primal_feasibility_tolerance", self.feasibility_tolerance)
         h.setOptionValue("dual_feasibility_tolerance", self.feasibility_tolerance)
-        h.setOptionValue("time_limit", self.time_limit)
+        h.time_limit = self.time_limit
 
 
 @dataclass(frozen=True, slots=True)

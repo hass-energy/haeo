@@ -67,26 +67,6 @@ def test_signal_optimization_stale_schedules_timer_in_cooldown(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-def test_debounce_window_holds_when_the_wall_clock_is_set_back(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
-) -> None:
-    """A wall clock set back hours does not stretch the wait for the next optimization."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    coordinator._last_optimization_time = time.monotonic() - 0.5
-    coordinator._debounce_seconds = 5.0
-
-    with (
-        patch("custom_components.haeo.coordinator.coordinator.time.time", return_value=time.time() - 3 * 3600),
-        patch("custom_components.haeo.coordinator.coordinator.async_call_later") as mock_timer,
-    ):
-        coordinator.signal_optimization_stale()
-
-    assert 4.0 < mock_timer.call_args[0][1] < 5.0
-
-
-@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
 def test_signal_optimization_stale_reuses_existing_timer(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -576,6 +556,25 @@ async def test_entity_update_requests_wait_out_the_debounce_window(
     await hass.async_block_till_done()
 
     assert solves.calls == 2
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_debounce_window_holds_when_the_wall_clock_is_set_back(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """A wall clock set back hours after an optimization does not stretch the wait for the next one."""
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+
+    with (
+        patch("custom_components.haeo.coordinator.coordinator.time.time", return_value=time.time() - 3 * 3600),
+        patch("custom_components.haeo.coordinator.coordinator.async_call_later") as wait,
+    ):
+        coordinator.signal_optimization_stale()
+
+    assert 0 < wait.call_args[0][1] <= coordinator._debounce_seconds
     coordinator.cleanup()
 
 
