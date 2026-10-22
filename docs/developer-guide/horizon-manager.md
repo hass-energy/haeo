@@ -31,8 +31,8 @@ The HorizonManager is created during `async_setup_entry()` before platform setup
 
 1. Hub entry loaded
 2. **HorizonManager created** and stored in `runtime_data`
-3. Input stores built, and the calendar loader subscribes
-4. Input platforms (Number, Switch) set up, and their entities subscribe
+3. Input stores built, and the source and calendar loaders subscribe
+4. Input platforms (Number, Switch) set up, and Switch entities subscribe to redraw their forecast
 5. Coordinator subscribes, so each horizon change marks the plan stale
 6. Output platforms (Sensor) set up
 
@@ -75,14 +75,15 @@ The diagnostic `HaeoHorizonEntity` in `custom_components/haeo/entities/haeo_hori
 
 ## Subscription pattern
 
-Input entities, the calendar loader, the horizon sensor, and the coordinator subscribe to receive notifications when the horizon changes.
-The subscription returns an unsubscribe callable that entities register for automatic cleanup during removal.
+The input loaders, Switch entities, the horizon sensor, and the coordinator subscribe to receive notifications when the horizon changes.
+Subscribers are called in the order they subscribed, so the loaders reload the stores before the coordinator hears of the change.
+The subscription returns an unsubscribe callable, which the loaders call during unload and entities register for cleanup during removal.
 
 ### Subscription lifecycle
 
-1. **Subscribe**: Entity calls `subscribe()` during `async_added_to_hass()`
+1. **Subscribe**: A loader calls `subscribe()` when it starts, and an entity during `async_added_to_hass()`
 2. **Receive updates**: Manager calls subscriber callbacks whenever the horizon updates
-3. **Unsubscribe**: Cleanup function called during entity removal
+3. **Unsubscribe**: Cleanup function called during unload or entity removal
 
 ## Update scheduling
 
@@ -120,7 +121,7 @@ This sensor is diagnostic only and does not participate in optimization.
 
 ## Alignment with input stores
 
-Input entities reload their store's forecast for the new boundaries each time the horizon changes.
+The input loaders reload each store's forecast for the new boundaries each time the horizon changes.
 Each time-series input store records the `horizon_start` it was loaded for.
 
 Before optimizing, the coordinator checks that every available time-series store's `horizon_start` matches the first of `get_forecast_timestamps()`.

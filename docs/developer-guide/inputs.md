@@ -40,7 +40,8 @@ An `InputStore` ([`core/data/input_store.py`](https://github.com/hass-energy/hae
 `build_input_stores` in [`input_stores.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/input_stores.py) creates the stores during setup, before any entity exists, and keeps them in `runtime_data.input_stores` keyed by `(element_name, field_path)`.
 Each store is bound to a `SubentryStorage`, so an edited constant is written back to the element's subentry.
 
-The Number and Switch entities wrap the stores for display and trigger their loads.
+Two loaders in [`inputs/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/inputs) keep the stores loaded, and the Number and Switch entities only display them, following each store through `add_listener`.
+A store therefore loads whether or not its entity is enabled.
 The coordinator reads each store's resolved `value` and subscribes to changes with `add_listener`, rather than reading sensors itself.
 
 ## Input fields
@@ -64,12 +65,14 @@ An element type with surfaced policy prices also gets mirror entities on its own
 Driven stores resolve their sources with `resolve_field`, which extracts, combines, and fuses forecast data.
 See the [Data loading guide](data-loading.md) for the pipeline.
 
-Stores load when their source sensors change and when the [HorizonManager](horizon-manager.md) advances.
+Stores load at setup, when their source sensors change, and when the [HorizonManager](horizon-manager.md) advances.
 A source update that resolves to the same value, timestamps, and availability as before does not notify the coordinator.
 
 The Home Assistant side of reading inputs lives in [`inputs/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/inputs):
 
 - `ha_state_machine.py` adapts Home Assistant's state machine to the `StateMachine` protocol the core loaders read through.
+- `source_loader.py` loads every other store, from its source sensors or its constant.
+    Sensors that change together in one pass share one reload.
 - `calendar_loader.py` loads stores that read calendars, since a calendar's state carries only its current event.
     It fetches events over the horizon and hands them to the core loader as a state attribute.
 - `meter_history.py` keeps the running totals of meter fields through resets, from recorder statistics and later state changes.

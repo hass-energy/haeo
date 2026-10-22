@@ -101,7 +101,7 @@ class InputStore:
         self._listeners: list[Callable[[], None]] = []
 
         if mode == InputMode.EDITABLE and initial_value is not None:
-            self._resolve_from_constant(mark_ready=False)
+            self._resolve_value_from_constant()
 
     # --- Identity / metadata ---
 
@@ -211,10 +211,6 @@ class InputStore:
         """Source states captured from the last data load."""
         return self._captured_source_states
 
-    def capture_state(self, entity_id: str, state: EntityState) -> None:
-        """Capture a single source entity state (e.g., from a state change event)."""
-        self._captured_source_states = {entity_id: state}
-
     # --- Readiness ---
 
     def is_ready(self) -> bool:
@@ -228,11 +224,6 @@ class InputStore:
     async def wait_settled(self) -> None:
         """Wait until the store has data or has rejected its source's value."""
         await self._settled.wait()
-
-    def mark_ready(self) -> None:
-        """Explicitly mark the store as ready."""
-        self._data_ready.set()
-        self._settled.set()
 
     # --- Change notification ---
 
@@ -263,26 +254,23 @@ class InputStore:
         value changed. Persistence is performed separately via :meth:`persist`.
         """
         self._constant = value
-        self._resolve_from_constant(mark_ready=True)
+        if self._resolve_from_constant():
+            self.notify_listeners()
 
     async def persist(self, schema_value: object) -> None:
         """Persist a schema value through the bound storage."""
         await self._storage.write(schema_value)
 
-    def refresh(self) -> None:
-        """Re-resolve editable values (e.g., after a horizon change) and mark ready."""
-        if self._mode == InputMode.EDITABLE:
-            self._resolve_from_constant(mark_ready=True)
+    def load(self, sm: StateMachine) -> bool:
+        """Resolve the value over the current horizon without notifying listeners.
 
-    async def async_load(self, sm: StateMachine) -> bool:
-        """Resolve data from source entities and notify listeners if it changed.
-
-        Returns True if data was successfully loaded, False otherwise. Does not
-        modify state on failure (keeps previous values).
+        An editable store resolves its constant and a driven store reads its
+        sources, as :meth:`resolve_from_sources` does. Returns True when
+        listeners should be notified.
         """
-        if self.resolve_from_sources(sm):
-            self.notify_listeners()
-        return self._available
+        if self._mode == InputMode.EDITABLE:
+            return self._resolve_from_constant()
+        return self.resolve_from_sources(sm)
 
     def resolve_from_sources(self, sm: StateMachine) -> bool:
         """Resolve data from source entities without notifying listeners.
@@ -355,23 +343,24 @@ class InputStore:
         self._settled.set()
         return changed
 
-    def _resolve_from_constant(self, *, mark_ready: bool) -> None:
-        """Resolve the stored constant into the optimization value."""
+    def _resolve_from_constant(self) -> bool:
+        """Resolve the stored constant, mark the store ready, and return whether consumers should be told."""
+        changed = self._resolve_value_from_constant()
+        self._data_ready.set()
+        self._settled.set()
+        return changed
+
+    def _resolve_value_from_constant(self) -> bool:
+        """Resolve the stored constant into the optimization value and return whether consumers should be told."""
         if self._constant is None:
             changed = self._mark_unavailable(())
             self._value = None
             self._loaded_timestamps = ()
-        else:
-            forecast_timestamps = self._get_forecast_timestamps()
-            changed = self._commit(
-                resolve_constant(self._constant, self._hint, list(forecast_timestamps)), forecast_timestamps
-            )
-
-        if mark_ready:
-            self._data_ready.set()
-            self._settled.set()
-            if changed:
-                self.notify_listeners()
+            return changed
+        forecast_timestamps = self._get_forecast_timestamps()
+        return self._commit(
+            resolve_constant(self._constant, self._hint, list(forecast_timestamps)), forecast_timestamps
+        )
 
     def _commit(self, value: InputValue, forecast_timestamps: tuple[float, ...]) -> bool:
         """Store a resolved value and return whether consumers should be told."""

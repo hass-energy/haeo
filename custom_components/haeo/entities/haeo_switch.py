@@ -6,10 +6,9 @@ from typing import Any  # noqa: TID251  # HA SwitchEntity.async_turn_on/off are 
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.const import STATE_ON, EntityCategory
-from homeassistant.core import Event, callback
+from homeassistant.const import EntityCategory
+from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
@@ -132,10 +131,7 @@ class HaeoInputSwitch(SwitchEntity):
 
         self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
 
-        # Initialize forecast for editable mode with a value
-        if self._store.mode == InputMode.EDITABLE and self._store.native_value is not None:
-            self._store.mark_ready()
-            self._sync_from_store()
+        self._sync_from_store()
 
     def _bool_from_store(self) -> bool | None:
         """Convert the store's value to a bool, or None when unset."""
@@ -161,33 +157,16 @@ class HaeoInputSwitch(SwitchEntity):
         self._attr_extra_state_attributes = extra_attrs
 
     async def async_added_to_hass(self) -> None:
-        """Set up state tracking and load initial data."""
+        """Show the store's value, and follow it and the horizon as they change.
+
+        The input loaders load the store, so this entity only displays it.
+        """
         await super().async_added_to_hass()
         self._apply_recorder_attribute_filtering()
-
-        # Subscribe to horizon changes
-        self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
-
-        if self._store.mode == InputMode.EDITABLE:
-            # Use defaults if no config value
-            defaults = self._field_info.defaults
-            if self._store.native_value is None and defaults is not None and defaults.value is not None:
-                self._store.set_value(bool(defaults.value))
-            self._store.mark_ready()
-            self._sync_from_store()
-        else:
-            # Subscribe to source entity changes for driven mode
-            source_ids = self._store.source_entity_ids
-            if source_ids:
-                self.async_on_remove(
-                    async_track_state_change_event(
-                        self.hass,
-                        source_ids[:1],
-                        self._handle_source_state_change,
-                    )
-                )
-            # Load initial state from source
-            self._load_source_state()
+        self.async_on_remove(self._store.add_listener(self._handle_change))
+        # The forecast attribute spans the horizon, which moves without the value changing
+        self.async_on_remove(self._horizon_manager.subscribe(self._handle_change))
+        self._sync_from_store()
 
     def _apply_recorder_attribute_filtering(self) -> None:
         """Apply recorder filtering to this entity's runtime state info."""
@@ -196,39 +175,15 @@ class HaeoInputSwitch(SwitchEntity):
         self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
 
     @callback
-    def _handle_horizon_change(self) -> None:
-        """Handle horizon change - refresh with new time windows."""
-        if self._store.mode == InputMode.EDITABLE:
-            self._store.refresh()
-            self._sync_from_store()
-            self.async_write_ha_state()
-        else:
-            self._load_source_state()
-            self.async_write_ha_state()
+    def _handle_change(self) -> None:
+        """Show the store's value over the current horizon."""
+        self._sync_from_store()
+        self.async_write_ha_state()
 
-    @callback
-    def _handle_source_state_change(self, event: Event[EventStateChangedData]) -> None:
-        """Handle source entity state change."""
-        new_state = event.data["new_state"]
-        if new_state is not None:
-            source_ids = self._store.source_entity_ids
-            if source_ids:
-                self._store.capture_state(source_ids[0], new_state)
-            self._store.set_value(new_state.state == STATE_ON)
-            self._sync_from_store()
-            self.async_write_ha_state()
-
-    def _load_source_state(self) -> None:
-        """Load current state from source entity."""
-        source_ids = self._store.source_entity_ids
-        if not source_ids:
-            return
-
-        state = self.hass.states.get(source_ids[0])
-        if state is not None:
-            self._store.capture_state(source_ids[0], state)
-            self._store.set_value(state.state == STATE_ON)
-            self._sync_from_store()
+    @property
+    def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]  # Entity declares available as a cached_property
+        """Return whether the input holds a value the optimization can use."""
+        return self._store.available
 
     def is_ready(self) -> bool:
         """Return True if data has been loaded and entity is ready."""
@@ -244,12 +199,9 @@ class HaeoInputSwitch(SwitchEntity):
             self.async_write_ha_state()
             return
 
-        self._store.set_value(value=True)
-        self._sync_from_store()
-
+        # Persist first, so the config holds the new value by the time the store notifies
         await self._store.persist(as_constant_value(value=True))
-
-        self.async_write_ha_state()
+        self._store.set_value(value=True)
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
         """Handle user turning switch off."""
@@ -257,12 +209,9 @@ class HaeoInputSwitch(SwitchEntity):
             self.async_write_ha_state()
             return
 
-        self._store.set_value(value=False)
-        self._sync_from_store()
-
+        # Persist first, so the config holds the new value by the time the store notifies
         await self._store.persist(as_constant_value(value=False))
-
-        self.async_write_ha_state()
+        self._store.set_value(value=False)
 
 
 __all__ = ["HaeoInputSwitch"]

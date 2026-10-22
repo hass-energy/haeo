@@ -27,7 +27,6 @@ from custom_components.haeo.elements.input_fields import is_number_field_info, l
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry
-from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,7 +40,6 @@ def _build_surfaced_mirror_entities(
     element_type: str,
     device_entry: DeviceEntry,
     runtime_data: HaeoRuntimeData,
-    horizon_manager: HorizonManager,
     currency: str,
 ) -> list[HaeoInputNumber]:
     """Build mirror entities for an element's surfaced policy prices.
@@ -86,7 +84,6 @@ def _build_surfaced_mirror_entities(
                 field_info=localize_input_field(field_info, currency),
                 field_path=(field_name,),
                 device_entry=device_entry,
-                horizon_manager=horizon_manager,
                 store=store,
                 negate=hint.negate,
             )
@@ -111,7 +108,6 @@ async def async_setup_entry(
         raise RuntimeError(msg)
 
     runtime_data = config_entry.runtime_data
-    horizon_manager = runtime_data.horizon_manager
     currency = currency_symbol(hass.config.currency)
 
     for subentry in config_entry.subentries.values():
@@ -159,7 +155,6 @@ async def async_setup_entry(
                 field_info=localize_input_field(field_info, currency),
                 field_path=field_path,
                 device_entry=device_entry,
-                horizon_manager=horizon_manager,
                 store=store,
             )
             entities.append(entity)
@@ -171,7 +166,6 @@ async def async_setup_entry(
                 element_type,
                 device_entry,
                 runtime_data,
-                horizon_manager,
                 currency,
             )
         )

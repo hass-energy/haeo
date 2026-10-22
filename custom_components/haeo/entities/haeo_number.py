@@ -1,16 +1,13 @@
 """Number entity for HAEO input configuration."""
 
-import asyncio
-from collections.abc import Iterator, Mapping
-from contextlib import contextmanager
+from collections.abc import Mapping
 from datetime import datetime
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
-from homeassistant.core import Event, callback
+from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
@@ -23,9 +20,6 @@ from custom_components.haeo.elements import InputFieldPath, find_nested_config_p
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
-from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.inputs.calendar_loader import is_calendar_driven
-from custom_components.haeo.inputs.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.unique_id import element_unique_id
 
 # Attributes to exclude from recorder when forecast recording is disabled
@@ -53,8 +47,9 @@ class HaeoInputNumber(NumberEntity):
     """Number entity representing a configurable input parameter.
 
     Thin HA binding layer around an InputStore. The store (in core/) handles
-    all data management. This entity handles HA lifecycle: device registration,
-    unique_id, state attributes, event subscriptions, and config persistence.
+    all data management, and the input loaders load it. This entity handles HA
+    lifecycle: device registration, unique_id, state attributes, following the
+    store, and config persistence.
     """
 
     _attr_should_poll = False
@@ -67,7 +62,6 @@ class HaeoInputNumber(NumberEntity):
         subentry: ConfigSubentry,
         field_info: InputFieldInfo[NumberEntityDescription],
         device_entry: DeviceEntry,
-        horizon_manager: HorizonManager,
         store: InputStore,
         field_path: InputFieldPath | None = None,
         *,
@@ -79,19 +73,11 @@ class HaeoInputNumber(NumberEntity):
         self._field_path = (
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
         )
-        self._horizon_manager = horizon_manager
         self._uses_forecast = field_info.time_series
 
         # When True the entity surfaces the running (positive) value while the
         # backing store holds its negative. Used by surfaced policy mirrors.
         self._negate = negate
-
-        # Suppresses reacting to store change notifications this entity itself
-        # triggered, so only sibling entities sharing the store react.
-        self._suppress_store_change = False
-
-        # A reload from source entities queued but not yet started
-        self._pending_reload: asyncio.Task[None] | None = None
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
@@ -174,50 +160,17 @@ class HaeoInputNumber(NumberEntity):
             return None
         return -value if self._negate else value
 
-    @contextmanager
-    def _suppress_self_notifications(self) -> Iterator[None]:
-        """Suppress reacting to store notifications fired by this entity's own mutation."""
-        self._suppress_store_change = True
-        try:
-            yield
-        finally:
-            self._suppress_store_change = False
-
     async def async_added_to_hass(self) -> None:
-        """Set up state tracking and load initial data."""
+        """Show the store's value, and follow it as it changes.
+
+        The input loaders load the store, so this entity only displays it.
+        Entities sharing a store, such as a policy rule surfaced on both the
+        policy device and an element device, stay in step through it.
+        """
         await super().async_added_to_hass()
         self._apply_recorder_attribute_filtering()
-
-        # Track store changes so entities sharing a store (e.g. a policy rule
-        # surfaced on both the policy device and an element device) stay in sync.
         self.async_on_remove(self._store.add_listener(self._handle_store_change))
-
-        # Subscribe to horizon manager for consistent time windows
-        if self._uses_forecast:
-            self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
-
-        if is_calendar_driven(self._store):
-            # The calendar loader fetches events and loads inputs with a
-            # calendar source; a calendar's own state carries no events, so
-            # this entity only shows what the store holds.
-            self._sync_from_store()
-        elif self._store.mode == InputMode.EDITABLE:
-            # Refresh to signal readiness (mirrors previous _update_editable_forecast path)
-            with self._suppress_self_notifications():
-                self._store.refresh()
-            self._sync_from_store()
-        else:
-            # Subscribe to source entity changes for DRIVEN mode
-            self.async_on_remove(self._cancel_pending_reload)
-            self.async_on_remove(
-                async_track_state_change_event(
-                    self.hass,
-                    self._store.source_entity_ids,
-                    self._handle_source_state_change,
-                )
-            )
-            # Load initial data
-            await self._async_load_and_sync()
+        self._sync_from_store()
 
     def _apply_recorder_attribute_filtering(self) -> None:
         """Apply recorder filtering to this entity's runtime state info."""
@@ -226,71 +179,10 @@ class HaeoInputNumber(NumberEntity):
         self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
 
     @callback
-    def _handle_horizon_change(self) -> None:
-        """Handle horizon change - refresh with new time windows."""
-        if not self._uses_forecast or is_calendar_driven(self._store):
-            return
-        if self._store.mode == InputMode.EDITABLE:
-            with self._suppress_self_notifications():
-                self._store.refresh()
-            self._sync_from_store()
-            self.async_write_ha_state()
-        else:
-            # Reload at once so the store is never left on the previous horizon
-            self.hass.async_create_task(self._async_load_sync_and_update())
-
-    @callback
     def _handle_store_change(self) -> None:
-        """Handle a value change made through another entity sharing this store."""
-        if self._suppress_store_change:
-            return
+        """Show the store's new value."""
         self._sync_from_store()
         self.async_write_ha_state()
-
-    @callback
-    def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
-        """Handle source entity state change."""
-        self._schedule_reload()
-
-    @callback
-    def _schedule_reload(self) -> None:
-        """Queue one reload from source entities for the next event loop iteration.
-
-        Forecast integrations write all of their entities in a single pass, and a
-        field reads every one of its sources on each reload. Deferring the reload
-        lets every change in that pass arrive first, so they share one reload
-        rather than each re-reading all of the sources.
-        """
-        if self._pending_reload is None:
-            self._pending_reload = self.hass.async_create_task(self._async_pending_reload(), eager_start=False)
-
-    async def _async_pending_reload(self) -> None:
-        """Run the queued reload, letting later source changes queue another."""
-        self._pending_reload = None
-        await self._async_load_sync_and_update()
-
-    @callback
-    def _cancel_pending_reload(self) -> None:
-        """Cancel a queued reload so it does not run after the entity is removed."""
-        if self._pending_reload is not None:
-            self._pending_reload.cancel()
-            self._pending_reload = None
-
-    async def _async_load_sync_and_update(self) -> None:
-        """Load data, sync attributes, and write state."""
-        await self._async_load_and_sync()
-        self.async_write_ha_state()
-
-    async def _async_load_and_sync(self) -> None:
-        """Load data from store via HA state machine and sync entity attributes.
-
-        A failed load keeps the previous value, and the entity shows as
-        unavailable until a load succeeds.
-        """
-        sm = HomeAssistantStateMachine(self.hass)
-        with self._suppress_self_notifications():
-            await self._store.async_load(sm)
-        self._sync_from_store()
 
     def _sync_from_store(self) -> None:
         """Synchronize HA entity attributes from the store's current state."""
@@ -349,14 +241,10 @@ class HaeoInputNumber(NumberEntity):
             return
 
         store_value = -value if self._negate else value
-        with self._suppress_self_notifications():
-            self._store.set_value(store_value)
-        self._sync_from_store()
-
-        # Persist through the store's storage binding
+        # Persist first, so the config holds the new value by the time the store
+        # tells the coordinator and this entity it changed
         await self._store.persist(as_constant_value(store_value))
-
-        self.async_write_ha_state()
+        self._store.set_value(store_value)
 
 
 __all__ = ["HaeoInputNumber"]

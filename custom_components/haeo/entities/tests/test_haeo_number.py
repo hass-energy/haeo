@@ -5,14 +5,13 @@ from datetime import timedelta
 import logging
 from types import MappingProxyType
 from typing import Any  # noqa: TID251  # captures HA's Any-typed extra_state_attributes property for later assertions
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import EntityPlatform
 from homeassistant.util import dt as dt_util
 import pytest
@@ -43,6 +42,7 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputNumber
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.inputs.source_loader import SourceInputLoader
 from custom_components.haeo.util import async_update_subentry_value
 
 # --- Fixtures ---
@@ -266,15 +266,21 @@ def _make_entity(
         subentry=subentry,
         field_info=field_info,
         device_entry=device_entry,
-        horizon_manager=horizon_manager,
         store=store,
         field_path=field_path,
         negate=negate,
     )
 
 
-async def _add_entity_to_hass(hass: HomeAssistant, entity: Entity) -> None:
-    """Add entity to Home Assistant via a real EntityPlatform."""
+def _reload(entity: HaeoInputNumber) -> None:
+    """Reload the entity's store over the current horizon and notify, as the source loader does on a horizon move."""
+    if entity._store.load(FakeStateMachine({})):
+        entity._store.notify_listeners()
+
+
+async def _add_entity_to_hass(hass: HomeAssistant, entity: HaeoInputNumber) -> None:
+    """Load the entity's store as setup does, then add the entity via a real EntityPlatform."""
+    SourceInputLoader(hass, {("Element", ("field",)): entity._store}, Mock(spec=HorizonManager)).start()
     platform = EntityPlatform(
         hass=hass,
         logger=logging.getLogger(__name__),
@@ -539,7 +545,7 @@ async def test_editable_mode_set_native_value(
     ("reload_state", "available"),
     [pytest.param("12.0", True, id="loads"), pytest.param("unavailable", False, id="fails")],
 )
-async def test_async_load_sync_and_update_writes_state(
+async def test_source_change_writes_state(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
@@ -548,7 +554,7 @@ async def test_async_load_sync_and_update_writes_state(
     reload_state: str,
     available: bool,
 ) -> None:
-    """A driven reload writes entity state whether or not the load succeeds, so availability shows."""
+    """A source change writes entity state whether or not the load succeeds, so availability shows."""
     hass.states.async_set("sensor.power", "10.0")
     subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
     config_entry.runtime_data = None
@@ -559,7 +565,7 @@ async def test_async_load_sync_and_update_writes_state(
     entity.async_write_ha_state.reset_mock()
 
     hass.states.async_set("sensor.power", reload_state)
-    await entity._async_load_sync_and_update()
+    await hass.async_block_till_done()
 
     entity.async_write_ha_state.assert_called_once()
     assert entity.available is available
@@ -582,12 +588,12 @@ async def test_driven_entity_is_unavailable_while_its_source_has_no_reading(
     assert entity.available is True
 
     hass.states.async_set("sensor.capacity", "unavailable")
-    await entity._async_load_sync_and_update()
+    await hass.async_block_till_done()
     assert entity.available is False
     assert entity.native_value == 12.0
 
     hass.states.async_set("sensor.capacity", "13.0")
-    await entity._async_load_sync_and_update()
+    await hass.async_block_till_done()
     assert entity.available is True
     assert entity.native_value == 13.0
 
@@ -1050,7 +1056,7 @@ async def test_horizon_change_updates_forecast_timestamps_editable(
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """Horizon change re-resolves the editable forecast against the new timestamps."""
+    """A store reloaded for a new horizon shows its forecast at the new timestamps."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
     config_entry.runtime_data = None
 
@@ -1070,7 +1076,7 @@ async def test_horizon_change_updates_forecast_timestamps_editable(
 
     # Change horizon and trigger update
     horizon_manager.get_forecast_timestamps.return_value = (100.0, 400.0, 700.0)
-    entity._handle_horizon_change()
+    _reload(entity)
 
     assert len(state_writes) == 1, "Horizon change should trigger state write"
     written_forecast = state_writes[0]["forecast"]
@@ -1100,14 +1106,14 @@ async def test_async_added_to_hass_editable_uses_config_value(
     assert entity.native_value == 15.0
 
 
-async def test_async_added_to_hass_driven_subscribes_to_source(
+async def test_driven_entity_shows_source_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """async_added_to_hass subscribes to and loads from source entity in DRIVEN mode."""
+    """A driven entity shows the value its store loaded from the source entity."""
     hass.states.async_set("sensor.power", "10.0")
     subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
     config_entry.runtime_data = None
@@ -1157,76 +1163,7 @@ async def test_driven_missing_source_keeps_value_none(
     assert entity.is_ready() is False
 
 
-# --- Tests for horizon and source state change handlers ---
-
-
-@pytest.mark.parametrize(
-    ("handler", "event"),
-    [
-        pytest.param("horizon", None, id="horizon_change"),
-        pytest.param("source_state", Mock(), id="source_state_change"),
-    ],
-)
-async def test_driven_mode_triggers_reload_task(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-    handler: str,
-    event: Mock | None,
-) -> None:
-    """Driven-mode handlers schedule data reload tasks."""
-    hass.states.async_set("sensor.power", "10.0")
-    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
-    config_entry.runtime_data = None
-
-    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
-    entity._async_load_sync_and_update = AsyncMock()
-    await _add_entity_to_hass(hass, entity)
-
-    if handler == "horizon":
-        entity._handle_horizon_change()
-    else:
-        mock_event = event or Mock()
-        mock_event.data = {"new_state": Mock(state="20.0")}
-        entity._handle_source_state_change(mock_event)
-
-    await hass.async_block_till_done()
-
-    entity._async_load_sync_and_update.assert_awaited_once()
-
-
-async def test_source_changes_in_one_pass_share_one_reload(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """Source entities written together trigger one reload that sees all of their values."""
-    hass.states.async_set("sensor.power_a", "1.0")
-    hass.states.async_set("sensor.power_b", "2.0")
-    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power_a", "sensor.power_b"]})
-    config_entry.runtime_data = None
-
-    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
-    await _add_entity_to_hass(hass, entity)
-    load = AsyncMock(wraps=entity._store.async_load)
-    entity._store.async_load = load
-
-    hass.states.async_set("sensor.power_a", "3.0")
-    hass.states.async_set("sensor.power_b", "4.0")
-    await hass.async_block_till_done()
-
-    load.assert_awaited_once()
-    assert entity.native_value == pytest.approx(7.0)
-
-    hass.states.async_set("sensor.power_a", "5.0")
-    await hass.async_block_till_done()
-
-    assert load.await_count == 2
-    assert entity.native_value == pytest.approx(9.0)
+# --- Tests for source changes ---
 
 
 async def test_unchanged_source_reload_does_not_notify_store_listeners(
@@ -1258,72 +1195,6 @@ async def test_unchanged_source_reload_does_not_notify_store_listeners(
     assert entity.native_value == pytest.approx(12.0)
 
 
-async def test_horizon_change_reloads_before_returning(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """A horizon change reloads at once, so the store never lags the horizon an optimization reads."""
-    hass.states.async_set("sensor.power", "10.0")
-    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
-    config_entry.runtime_data = None
-
-    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
-    await _add_entity_to_hass(hass, entity)
-    load = AsyncMock(wraps=entity._store.async_load)
-    entity._store.async_load = load
-
-    entity._handle_horizon_change()
-
-    load.assert_awaited_once()
-
-
-async def test_removal_cancels_queued_reload(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """A reload queued by a source change does not run once the entity is removed."""
-    hass.states.async_set("sensor.power", "10.0")
-    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
-    config_entry.runtime_data = None
-
-    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
-    await _add_entity_to_hass(hass, entity)
-    load = AsyncMock(wraps=entity._store.async_load)
-    entity._store.async_load = load
-
-    entity._handle_source_state_change(Mock())
-    await entity.async_remove()
-    await hass.async_block_till_done()
-
-    load.assert_not_awaited()
-
-
-async def test_scalar_horizon_change_noop(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    scalar_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """Horizon changes do not trigger reloads for scalar fields."""
-    subentry = _create_subentry("Test Battery", {"capacity": ["sensor.capacity"]})
-    config_entry.runtime_data = None
-
-    entity = _make_entity(hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager)
-    entity._async_load_sync_and_update = AsyncMock()
-
-    entity._handle_horizon_change()
-    await hass.async_block_till_done()
-
-    entity._async_load_sync_and_update.assert_not_awaited()
-
-
 # --- Tests for readiness ---
 
 
@@ -1334,7 +1205,7 @@ async def test_is_ready_after_added_to_hass(
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """is_ready() becomes True once the editable entity is added and refreshed."""
+    """is_ready() becomes True once the editable store is loaded at setup."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
     config_entry.runtime_data = None
 
@@ -1356,7 +1227,7 @@ async def test_wait_ready_blocks_until_data_loaded(
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """wait_ready() blocks until the store is marked ready."""
+    """wait_ready() blocks until the store is loaded."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
     config_entry.runtime_data = None
 
@@ -1374,8 +1245,8 @@ async def test_wait_ready_blocks_until_data_loaded(
     # Task should not complete yet
     assert not wait_task.done()
 
-    # Mark the store ready
-    entity._store.mark_ready()
+    # Load the store
+    entity._store.load(FakeStateMachine({}))
 
     # Now wait_ready should complete
     await asyncio.wait_for(wait_task, timeout=1.0)
@@ -1470,7 +1341,6 @@ async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
 
     # The calendar's own state carries no events; it must not reload the store
     hass.states.async_set("calendar.trips", "off")
-    entity._handle_horizon_change()
     await hass.async_block_till_done()
 
     assert entity._store.available
