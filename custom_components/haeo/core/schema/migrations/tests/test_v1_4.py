@@ -25,8 +25,8 @@ from custom_components.haeo.core.schema import (
 from custom_components.haeo.core.schema.elements import connection, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_4 import (
+    HubHorizonMigration,
     junction_config,
-    merge_reverse_into_existing,
     migrate_connection_config,
     migrate_hub_horizon,
     node_is_junction,
@@ -72,7 +72,7 @@ def test_migrate_strips_segment_order() -> None:
         efficiency={},
     )
 
-    forward, _ = migrate_connection_config(data)
+    forward, _ = migrate_connection_config(data, existing_names=set(), routes=set())
 
     assert "segment_order" not in forward
 
@@ -92,7 +92,7 @@ def test_migrate_without_reverse_settings_creates_no_reverse(reverse_power: dict
         efficiency={},
     )
 
-    forward, reverse = migrate_connection_config(data)
+    forward, reverse = migrate_connection_config(data, existing_names=set(), routes=set())
 
     assert _section(forward, SECTION_POWER_LIMITS) == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0)}
     assert reverse is None
@@ -110,7 +110,7 @@ def test_migrate_zero_reverse_power_blocks_reverse(zero: float) -> None:
         efficiency={CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(0.9)},
     )
 
-    forward, reverse = migrate_connection_config(data)
+    forward, reverse = migrate_connection_config(data, existing_names=set(), routes=set())
 
     assert reverse is None
     assert _section(forward, SECTION_POWER_LIMITS) == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0)}
@@ -126,7 +126,7 @@ def test_migrate_entity_reverse_power_creates_reverse() -> None:
         efficiency={},
     )
 
-    _, reverse = migrate_connection_config(data)
+    _, reverse = migrate_connection_config(data, existing_names=set(), routes=set())
 
     assert reverse is not None
     assert _section(reverse, SECTION_POWER_LIMITS) == {
@@ -151,7 +151,7 @@ def test_migrate_splits_reverse_fields() -> None:
         },
     )
 
-    forward, reverse = migrate_connection_config(data)
+    forward, reverse = migrate_connection_config(data, existing_names=set(), routes=set())
 
     assert reverse is not None
     assert forward[CONF_NAME] == "Inverter link"
@@ -166,44 +166,79 @@ def test_migrate_splits_reverse_fields() -> None:
     assert get_connection_target_name(reverse_endpoints[connection.CONF_TARGET]) == "DC Bus"
 
 
-def test_migrate_unique_reverse_name() -> None:
-    """Reverse connection names avoid collisions with existing subentry titles."""
+def test_migrate_reverse_records_name() -> None:
+    """Reverse connection names avoid existing subentry titles, and the new name is recorded."""
     data = _connection_config(
         power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0)},
         pricing={},
         efficiency={},
     )
+    existing_names = {"Inverter link", "Inverter link (AC Bus to DC Bus)"}
+    routes = {("DC Bus", "AC Bus")}
 
-    _, reverse = migrate_connection_config(
-        data,
-        existing_names={"Inverter link (AC Bus to DC Bus)"},
-    )
+    _, reverse = migrate_connection_config(data, existing_names=existing_names, routes=routes)
 
     assert reverse is not None
     assert reverse[CONF_NAME] == "Inverter link (AC Bus to DC Bus) 2"
+    assert existing_names == {"Inverter link", "Inverter link (AC Bus to DC Bus)", "Inverter link (AC Bus to DC Bus) 2"}
+    assert routes == {("DC Bus", "AC Bus")}
 
 
-def test_merge_reverse_into_existing() -> None:
-    """Reverse values merge only into unset fields on an existing reverse connection."""
-    existing = _connection_config(
-        power_limits={CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(6.0)},
+def test_migrate_creates_no_reverse_where_another_connection_carries_it() -> None:
+    """A connection already carrying power the other way keeps doing so, so the reverse settings are dropped."""
+    data = _connection_config(
+        power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0)},
+        pricing={CONF_PRICE_TARGET_SOURCE: as_constant_value(0.2)},
+        efficiency={},
+    )
+    existing_names = {"Inverter link", "Charger"}
+    routes = {("DC Bus", "AC Bus"), ("AC Bus", "DC Bus")}
+
+    forward, reverse = migrate_connection_config(data, existing_names=existing_names, routes=routes)
+
+    assert reverse is None
+    assert _section(forward, SECTION_POWER_LIMITS) == {}
+    assert _section(forward, SECTION_PRICING) == {}
+    assert existing_names == {"Inverter link", "Charger"}
+    assert routes == {("DC Bus", "AC Bus"), ("AC Bus", "DC Bus")}
+
+
+def test_migrate_gives_parallel_connections_their_own_reverse() -> None:
+    """Reverse connections the migration creates do not count as connections already carrying power the other way."""
+    data = _connection_config(
+        power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0)},
         pricing={},
         efficiency={},
     )
-    existing[connection.SECTION_ENDPOINTS] = {
+    existing_names = {"Inverter link", "Inverter link 2"}
+    routes = {("DC Bus", "AC Bus")}
+
+    _, first = migrate_connection_config(data, existing_names=existing_names, routes=routes)
+    _, second = migrate_connection_config(
+        {**data, CONF_NAME: "Inverter link 2"}, existing_names=existing_names, routes=routes
+    )
+
+    assert first is not None
+    assert second is not None
+    assert first[CONF_NAME] == "Inverter link (AC Bus to DC Bus)"
+    assert second[CONF_NAME] == "Inverter link 2 (AC Bus to DC Bus)"
+
+
+def test_migrate_self_loop_is_not_its_own_reverse() -> None:
+    """A connection from an element to itself does not count as already carrying its own reverse flow."""
+    data = _connection_config(
+        power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0)},
+        pricing={},
+        efficiency={},
+    )
+    data[connection.SECTION_ENDPOINTS] = {
         connection.CONF_SOURCE: as_connection_target("AC Bus"),
-        connection.CONF_TARGET: as_connection_target("DC Bus"),
-    }
-    reverse_data = {
-        SECTION_POWER_LIMITS: {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(8.0)},
-        SECTION_PRICING: {CONF_PRICE_SOURCE_TARGET: as_constant_value(0.2)},
-        SECTION_EFFICIENCY: {},
+        connection.CONF_TARGET: as_connection_target("AC Bus"),
     }
 
-    merged = merge_reverse_into_existing(existing, reverse_data)
+    _, reverse = migrate_connection_config(data, existing_names={"Inverter link"}, routes={("AC Bus", "AC Bus")})
 
-    assert _section(merged, SECTION_POWER_LIMITS)[CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(6.0)
-    assert _section(merged, SECTION_PRICING)[CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.2)
+    assert reverse is not None
 
 
 @pytest.mark.parametrize(
@@ -234,21 +269,40 @@ def test_junction_config_keeps_only_the_name() -> None:
 
 
 @pytest.mark.parametrize(
-    ("stored_preset", "expected_preset"),
+    ("stored_preset", "expected_preset", "tiers_replaced_by"),
     [
-        pytest.param(HORIZON_PRESET_3_DAYS, HORIZON_PRESET_3_DAYS, id="preset_kept"),
-        pytest.param("custom", HORIZON_PRESET_5_DAYS, id="custom_tiers_use_default"),
-        pytest.param(None, HORIZON_PRESET_5_DAYS, id="no_preset_uses_default"),
+        pytest.param(HORIZON_PRESET_3_DAYS, HORIZON_PRESET_3_DAYS, None, id="preset_kept"),
+        pytest.param("custom", HORIZON_PRESET_5_DAYS, HORIZON_PRESET_5_DAYS, id="custom_tiers_use_default"),
+        pytest.param(None, HORIZON_PRESET_5_DAYS, None, id="no_preset_uses_default"),
     ],
 )
-def test_migrate_hub_horizon(stored_preset: str | None, expected_preset: str) -> None:
-    """The horizon preset becomes a horizon choice, and custom tiers are dropped for the default preset."""
+def test_migrate_hub_horizon_from_preset(
+    stored_preset: str | None, expected_preset: str, tiers_replaced_by: str | None
+) -> None:
+    """The horizon preset becomes a horizon choice, and custom tiers are reported replaced by the default preset."""
     common: dict[str, object] = {CONF_NAME: "Hub"}
     if stored_preset is not None:
         common[CONF_HORIZON_PRESET] = stored_preset
     data = {HUB_SECTION_COMMON: common, HUB_SECTION_TIERS: {"tier_1_count": 5}, HUB_SECTION_ADVANCED: {}}
 
-    assert migrate_hub_horizon(data) == {
-        HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: as_horizon_preset_value(expected_preset)},
+    assert migrate_hub_horizon(data) == HubHorizonMigration(
+        {
+            HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: as_horizon_preset_value(expected_preset)},
+            HUB_SECTION_ADVANCED: {},
+        },
+        tiers_replaced_by,
+    )
+
+
+def test_migrate_hub_horizon_keeps_existing_horizon() -> None:
+    """A hub that already chose a horizon keeps it, whatever preset it still stores."""
+    horizon = as_entity_value(["input_select.horizon"])
+    data = {
+        HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: horizon, CONF_HORIZON_PRESET: "custom"},
         HUB_SECTION_ADVANCED: {},
     }
+
+    assert migrate_hub_horizon(data) == HubHorizonMigration(
+        {HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: horizon}, HUB_SECTION_ADVANCED: {}},
+        None,
+    )

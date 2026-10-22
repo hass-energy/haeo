@@ -20,6 +20,7 @@ from custom_components.haeo.core.const import (
     CONF_HORIZON_PRESET,
     CONF_NAME,
     HORIZON_PRESET_3_DAYS,
+    HORIZON_PRESET_5_DAYS,
     HUB_SECTION_ADVANCED,
     HUB_SECTION_COMMON,
     HUB_SECTION_TIERS,
@@ -155,14 +156,17 @@ async def test_async_migrate_entry_creates_no_reverse_when_unset(hass: HomeAssis
     assert [s.title for s in entry.subentries.values()] == ["Sub board"]
 
 
-async def test_async_migrate_entry_zero_reverse_power_blocks_reverse(hass: HomeAssistant) -> None:
-    """A constant 0 reverse max power creates no reverse connection and removes the reverse entity."""
+async def test_async_migrate_entry_zero_reverse_power_blocks_reverse(
+    hass: HomeAssistant, haeo_caplog: pytest.LogCaptureFixture
+) -> None:
+    """A constant 0 reverse max power creates no reverse connection, logs the settings it drops, and removes them."""
     entry = _add_hub(hass)
     forward = _legacy_connection(
         "Line",
         "A",
         "B",
         power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(0.0)},
+        pricing={CONF_PRICE_TARGET_SOURCE: as_constant_value(0.2)},
     )
     hass.config_entries.async_add_subentry(entry, forward)
     reverse_entity_id = _register_number(hass, entry, forward, CONF_MAX_POWER_TARGET_SOURCE)
@@ -172,61 +176,20 @@ async def test_async_migrate_entry_zero_reverse_power_blocks_reverse(hass: HomeA
     assert [s.title for s in entry.subentries.values()] == ["Line"]
     assert entry.subentries[forward.subentry_id].data[SECTION_POWER_LIMITS] == {}
     assert er.async_get(hass).async_get(reverse_entity_id) is None
+    assert (
+        "Connection Line blocked reverse flow with a max power of 0, so no reverse connection was created "
+        "and its reverse settings were dropped: max_power_target_source, price_target_source"
+    ) in haeo_caplog.messages
 
 
-async def test_async_migrate_entry_merges_into_existing_reverse(hass: HomeAssistant) -> None:
-    """v1.4 migration merges reverse values into an existing reverse connection."""
-    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=3)
-    entry.add_to_hass(hass)
+async def test_async_migrate_entry_keeps_existing_reverse_connection(hass: HomeAssistant) -> None:
+    """A connection already carrying power the other way keeps behaving as it did.
 
-    forward_subentry = _create_subentry(
-        {
-            CONF_ELEMENT_TYPE: connection.ELEMENT_TYPE,
-            CONF_NAME: "DC to AC",
-            connection.SECTION_ENDPOINTS: {
-                connection.CONF_SOURCE: as_connection_target("DC Bus"),
-                connection.CONF_TARGET: as_connection_target("AC Bus"),
-            },
-            SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(8.0),
-            },
-            SECTION_PRICING: {},
-            SECTION_EFFICIENCY: {},
-        },
-        subentry_type=connection.ELEMENT_TYPE,
-    )
-    reverse_subentry = _create_subentry(
-        {
-            CONF_ELEMENT_TYPE: connection.ELEMENT_TYPE,
-            CONF_NAME: "DC to AC (AC Bus to DC Bus)",
-            connection.SECTION_ENDPOINTS: {
-                connection.CONF_SOURCE: as_connection_target("AC Bus"),
-                connection.CONF_TARGET: as_connection_target("DC Bus"),
-            },
-            SECTION_POWER_LIMITS: {},
-            SECTION_PRICING: {
-                CONF_PRICE_SOURCE_TARGET: as_constant_value(0.05),
-            },
-            SECTION_EFFICIENCY: {},
-        },
-        subentry_type=connection.ELEMENT_TYPE,
-    )
-    hass.config_entries.async_add_subentry(entry, forward_subentry)
-    hass.config_entries.async_add_subentry(entry, reverse_subentry)
-
-    result = await v1_4.async_migrate_entry(hass, entry)
-    assert result is True
-
-    connections = [s for s in entry.subentries.values() if s.subentry_type == connection.ELEMENT_TYPE]
-    assert len(connections) == 2
-
-    reverse = next(s for s in connections if s.title == "DC to AC (AC Bus to DC Bus)")
-    assert reverse.data[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(8.0)
-    assert reverse.data[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.05)
-
-
-async def test_async_migrate_entry_removes_entities_when_merging_into_existing_reverse(hass: HomeAssistant) -> None:
-    """Merging into a hand-made reverse connection removes the old reverse-field entities and keeps its own."""
+    Reverse-direction settings had no effect before connections were split, so
+    the legacy connection's reverse settings are dropped rather than capping or
+    pricing the flow the other connection carries. Their entities are removed
+    and the other connection's own entities are kept.
+    """
     entry = _add_hub(hass)
     forward = _legacy_connection(
         "Line",
@@ -249,30 +212,31 @@ async def test_async_migrate_entry_removes_entities_when_merging_into_existing_r
 
     assert await v1_4.async_migrate_entry(hass, entry)
 
+    assert list(entry.subentries) == [forward.subentry_id, existing_reverse.subentry_id]
+    assert entry.subentries[forward.subentry_id].data[SECTION_POWER_LIMITS] == {}
+    assert entry.subentries[forward.subentry_id].data[SECTION_PRICING] == {}
+    kept = entry.subentries[existing_reverse.subentry_id].data
+    assert kept[SECTION_POWER_LIMITS] == {}
+    assert kept[SECTION_PRICING] == {CONF_PRICE_SOURCE_TARGET: as_constant_value(0.05)}
     registry = er.async_get(hass)
     assert registry.async_get(old_power_entity_id) is None
     assert registry.async_get(old_price_entity_id) is None
     assert registry.async_get(existing_price_entity_id) is not None
-    merged = entry.subentries[existing_reverse.subentry_id].data
-    assert merged[SECTION_POWER_LIMITS] == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(8.0)}
-    assert merged[SECTION_PRICING] == {CONF_PRICE_SOURCE_TARGET: as_constant_value(0.05)}
 
 
-async def test_async_migrate_entry_pairs_opposing_legacy_connections(hass: HomeAssistant) -> None:
-    """Two legacy connections in opposite directions absorb each other's reverse settings."""
+async def test_async_migrate_entry_keeps_opposing_legacy_connections(hass: HomeAssistant) -> None:
+    """Two legacy connections in opposite directions each keep carrying only their own direction."""
     entry = _add_hub(hass)
     a_to_b = _legacy_connection("A to B", "A", "B", power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(3.0)})
-    b_to_a = _legacy_connection("B to A", "B", "A")
+    b_to_a = _legacy_connection("B to A", "B", "A", power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(4.0)})
     hass.config_entries.async_add_subentry(entry, a_to_b)
     hass.config_entries.async_add_subentry(entry, b_to_a)
 
     assert await v1_4.async_migrate_entry(hass, entry)
 
-    assert len(entry.subentries) == 2
+    assert list(entry.subentries) == [a_to_b.subentry_id, b_to_a.subentry_id]
     assert entry.subentries[a_to_b.subentry_id].data[SECTION_POWER_LIMITS] == {}
-    assert entry.subentries[b_to_a.subentry_id].data[SECTION_POWER_LIMITS] == {
-        CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(3.0),
-    }
+    assert entry.subentries[b_to_a.subentry_id].data[SECTION_POWER_LIMITS] == {}
 
 
 async def test_async_migrate_entry_removes_reverse_field_entities(hass: HomeAssistant) -> None:
@@ -437,13 +401,26 @@ async def test_async_migrate_entry_keeps_source_node_in_advanced_mode(hass: Home
     assert entry.subentries[grid_node.subentry_id] == grid_node
 
 
-async def test_async_migrate_entry_replaces_horizon_preset_and_tiers(hass: HomeAssistant) -> None:
-    """A v1.3 hub's horizon preset and tiers become a horizon choice holding the preset."""
+@pytest.mark.parametrize(
+    ("stored_preset", "expected_preset", "warned"),
+    [
+        pytest.param(HORIZON_PRESET_3_DAYS, HORIZON_PRESET_3_DAYS, False, id="preset"),
+        pytest.param("custom", HORIZON_PRESET_5_DAYS, True, id="custom_tiers"),
+    ],
+)
+async def test_async_migrate_entry_replaces_horizon_preset_and_tiers(
+    hass: HomeAssistant,
+    haeo_caplog: pytest.LogCaptureFixture,
+    stored_preset: str,
+    expected_preset: str,
+    warned: bool,
+) -> None:
+    """A v1.3 hub's horizon preset and tiers become a horizon choice, and a hub losing custom tiers is told so."""
     entry = MockConfigEntry(
         domain=DOMAIN,
-        title="Hub",
+        title="Home",
         data={
-            HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS},
+            HUB_SECTION_COMMON: {CONF_NAME: "Home", CONF_HORIZON_PRESET: stored_preset},
             HUB_SECTION_TIERS: {"tier_1_count": 5, "tier_1_duration": 1},
             HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: False},
         },
@@ -455,9 +432,13 @@ async def test_async_migrate_entry_replaces_horizon_preset_and_tiers(hass: HomeA
     assert await v1_4.async_migrate_entry(hass, entry)
 
     assert dict(entry.data) == {
-        HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_3_DAYS)},
+        HUB_SECTION_COMMON: {CONF_NAME: "Home", CONF_HORIZON: as_horizon_preset_value(expected_preset)},
         HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: False},
     }
+    warning = "Hub Home planned over custom horizon tiers, which are no longer supported; it now plans 5 days ahead"
+    assert (warning in haeo_caplog.messages) is warned
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"horizon_tiers_replaced_{entry.entry_id}")
+    assert (issue is not None) is warned
 
 
 def _partitioned_battery(*, limits: dict[str, object]) -> ConfigSubentry:

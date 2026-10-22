@@ -9,9 +9,9 @@ import numpy as np
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
-from custom_components.haeo.core.model import battery as model_battery
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements import battery as model_battery
 from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
@@ -187,7 +187,7 @@ class BatteryAdapter:
 
         aggregate_outputs[BATTERY_POWER_ACTIVE] = replace(
             power_discharge,
-            values=[d - c for d, c in zip(power_discharge.values, power_charge.values, strict=True)],
+            values=tuple(d - c for d, c in zip(power_discharge.values, power_charge.values, strict=True)),
             direction=None,
             type=OutputType.POWER,
         )
@@ -209,10 +209,11 @@ adapter = BatteryAdapter()
 
 
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
-    """Calculate SOC ratio from stored energy and capacity."""
+    """Calculate SOC ratio from stored energy and capacity, reading 0 where the battery has no capacity."""
     # Capacity is already boundaries (n+1 values), same as energy
-    capacity = config[SECTION_STORAGE][CONF_CAPACITY]
-    soc_values = np.asarray(total_energy.values, dtype=float) / capacity
+    energy = np.asarray(total_energy.values, dtype=float)
+    capacity = np.broadcast_to(np.asarray(config[SECTION_STORAGE][CONF_CAPACITY], dtype=float), energy.shape)
+    soc_values = np.divide(energy, capacity, out=np.zeros_like(energy), where=capacity > 0.0)
 
     return OutputData(
         type=OutputType.STATE_OF_CHARGE,

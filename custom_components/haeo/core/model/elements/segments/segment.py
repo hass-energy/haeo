@@ -25,19 +25,12 @@ from typing import (
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.core.model.component import ModelComponent
 from custom_components.haeo.core.model.element import Element
-from custom_components.haeo.core.model.linear import LinearArray, total
+from custom_components.haeo.core.model.linear import LinearArray
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.model.reactive import (
-    OutputMethod,
-    ReactiveConstraint,
-    ReactiveCost,
-    TrackedParam,
-    applied_constraint,
-    cost,
-)
+from custom_components.haeo.core.model.reactive import TrackedParam
 from custom_components.haeo.core.model.solver import Solver
-from custom_components.haeo.core.model.util.solver_rows import RowIndices
 
 
 class FlowProvider(Protocol):
@@ -56,7 +49,7 @@ class FlowVariables:
     power_out: dict[int, LinearArray]
 
 
-class Segment:
+class Segment(ModelComponent):
     """A single-direction transform on power flow.
 
     Reads its input flow from its upstream and exposes an output flow.
@@ -136,52 +129,13 @@ class Segment:
         """Sum of all tag output flows."""
         return LinearArray.sum_of(self.power_out.values())
 
-    def constraints(self) -> dict[str, RowIndices]:
-        """Return all constraints from this segment."""
-        result: dict[str, RowIndices] = {}
-        for name in dir(type(self)):
-            attr = getattr(type(self), name, None)
-            if isinstance(attr, ReactiveConstraint):
-                method = getattr(self, name)
-                method()
-                if (cons := applied_constraint(self, name)) is not None:
-                    result[name] = cons
-        return result
-
     def outputs(self) -> dict[str, OutputData]:
-        """Return output data from output and constraint methods."""
+        """Return the segment's outputs that currently have a value, keyed by output name."""
         result: dict[str, OutputData] = {}
-        for name in dir(type(self)):
-            attr = getattr(type(self), name, None)
-            if isinstance(attr, OutputMethod):
-                output_name = attr.output_name
-            elif isinstance(attr, ReactiveConstraint):
-                output_name = name
-            else:
-                continue
-            output_data = attr.get_output(self)
-            if isinstance(output_data, OutputData):
+        for output_name, method in self.declared_outputs():
+            if isinstance(output_data := method.get_output(self), OutputData):
                 result[output_name] = output_data
         return result
-
-    @cost
-    def cost(self) -> LinearArray | None:
-        """Return aggregated primary cost expression from this segment."""
-        # Access decorator's internal name to skip self in dir() loop
-        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (_name is set by ReactiveCost.__set_name__, not part of public API)
-
-        costs: list[LinearArray] = []
-        for name in dir(type(self)):
-            if name == this_method_name:
-                continue
-            attr = getattr(type(self), name, None)
-            if not isinstance(attr, ReactiveCost):
-                continue
-            method = getattr(self, name)
-            if (cost_value := method()) is not None:
-                costs.append(cost_value)
-
-        return total(costs)
 
 
 __all__ = ["Segment"]

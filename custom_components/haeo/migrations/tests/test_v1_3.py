@@ -1179,6 +1179,52 @@ async def test_async_migrate_entry_skips_default_policy_prices(hass: HomeAssista
     assert all(s.subentry_type != "policy" for s in entry.subentries.values())
 
 
+async def test_async_migrate_entry_drops_disabled_charge_price_quietly(
+    hass: HomeAssistant, haeo_caplog: pytest.LogCaptureFixture
+) -> None:
+    """A disabled charge price creates no policy rule and no warning about negating it."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+    battery_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {CONF_PRICE_TARGET_SOURCE: {"type": "none"}},
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    assert await v1_3.async_migrate_entry(hass, entry)
+
+    assert all(s.subentry_type != "policy" for s in entry.subentries.values())
+    assert not [record for record in haeo_caplog.records if record.levelname == "WARNING"]
+
+
+async def test_async_migrate_entry_rejects_non_numeric_constant_charge_price(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A constant charge price that holds no number cannot be negated, so the migration fails loudly."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+    battery_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {CONF_PRICE_TARGET_SOURCE: {"type": "constant", "value": "0.2"}},
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+    monkeypatch.setattr(v1_3, "migrate_subentry_data", lambda subentry: dict(subentry.data))
+
+    with pytest.raises(TypeError, match="Cannot negate charge price"):
+        await v1_3.async_migrate_entry(hass, entry)
+
+
 async def test_async_migrate_entry_handles_non_mapping_battery_pricing(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,

@@ -15,13 +15,13 @@ from custom_components.haeo.core.adapters.elements.battery import (
     BATTERY_SOC_MIN,
     BATTERY_STATE_OF_CHARGE,
 )
-from custom_components.haeo.core.model import battery as battery_model
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
     connection,
 )
+from custom_components.haeo.core.model.elements import battery as battery_model
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType

@@ -41,7 +41,7 @@ def connection_power(
     carrying no flow rather than failing output extraction.
     """
     if connection_outputs is None:
-        return OutputData(type=OutputType.POWER_FLOW, unit="kW", values=[0.0] * period_count, direction="+")
+        return OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.0,) * period_count, direction="+")
     return expect_output_data(connection_outputs[CONNECTION_POWER])
 
 
