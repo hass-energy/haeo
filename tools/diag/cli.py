@@ -47,6 +47,7 @@ from custom_components.haeo.core.schema.elements import ElementConfigData, Eleme
 from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.horizon_value import is_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
+from custom_components.haeo.core.schema.migrations.v1_4 import MINOR_VERSION as MIGRATED_MINOR_VERSION
 from custom_components.haeo.core.schema.migrations.v1_4 import migrate_hub_horizon, migrate_participants
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
@@ -187,6 +188,33 @@ def normalize_participant_config_for_diag(element_config: dict[str, object]) -> 
 
     migrated = migrate_element_config(element_config)
     return migrated if migrated is not None else element_config
+
+
+def config_advanced_mode(config: Mapping[str, JsonValueType]) -> bool:
+    """Return whether a diagnostics config's hub exposes raw model elements.
+
+    Hubs exported before v1.3 kept the setting at the top level rather than in
+    the advanced section.
+    """
+    advanced = config.get(HUB_SECTION_ADVANCED)
+    if isinstance(advanced, Mapping):
+        return advanced.get(CONF_ADVANCED_MODE) is True
+    return config.get(CONF_ADVANCED_MODE) is True
+
+
+def migrate_participants_for_diag(
+    config: Mapping[str, JsonValueType], participants: Mapping[str, Mapping[str, object]]
+) -> dict[str, dict[str, object]]:
+    """Apply the v1.4 element migrations to participants exported before v1.4, as upgrading does.
+
+    Exports from v1.4 or later already hold current configs and pass through.
+    An export without a minor version predates the diagnostics format, so it is
+    migrated.
+    """
+    minor_version = config.get("minor_version")
+    if isinstance(minor_version, int) and minor_version >= MIGRATED_MINOR_VERSION:
+        return {name: dict(participant) for name, participant in participants.items()}
+    return migrate_participants(participants, advanced_mode=config_advanced_mode(config)).participants
 
 
 def config_horizon_preset(config: Mapping[str, JsonValueType]) -> str:
@@ -1080,9 +1108,11 @@ def run_diagnostics(
         normalized_participants[element_name] = normalize_participant_config_for_diag(element_config_obj)
 
     state_provider = DiagnosticsStateProvider(diag.inputs, time_zone)
-    advanced = config.get(HUB_SECTION_ADVANCED)
-    advanced_mode = isinstance(advanced, dict) and advanced.get(CONF_ADVANCED_MODE) is True
-    normalized_participants = migrate_participants(normalized_participants, advanced_mode=advanced_mode)
+    invalid = [name for name, participant in normalized_participants.items() if CONF_ELEMENT_TYPE not in participant]
+    if invalid:
+        print(f"Error: {', '.join(invalid)} has no element type")
+        sys.exit(1)
+    normalized_participants = migrate_participants_for_diag(config, normalized_participants)
 
     participants: dict[str, ElementConfigSchema] = {}
     for element_name, element_config in normalized_participants.items():
@@ -1104,6 +1134,7 @@ def run_diagnostics(
 
     # Create network and run optimization
     print("\nCreating network...")
+    advanced = config.get(HUB_SECTION_ADVANCED)
     relax_infeasible = isinstance(advanced, dict) and advanced.get(CONF_RELAX_INFEASIBLE) is True
     network = build_network("diag", loaded_participants, periods_seconds, relax_infeasible=relax_infeasible)
     print(f"Network elements: {list(network.elements.keys())}")

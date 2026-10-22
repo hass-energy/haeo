@@ -310,6 +310,14 @@ def test_migrate_hub_horizon_keeps_existing_horizon() -> None:
     )
 
 
+def _node(name: str, *, is_source: bool) -> dict[str, object]:
+    return {
+        CONF_ELEMENT_TYPE: node.ELEMENT_TYPE,
+        CONF_NAME: name,
+        node.SECTION_ROLE: {"is_source": as_constant_value(is_source), "is_sink": as_constant_value(False)},
+    }
+
+
 @pytest.mark.parametrize(
     ("name", "is_source", "advanced_mode", "expected"),
     [
@@ -321,13 +329,7 @@ def test_migrate_hub_horizon_keeps_existing_horizon() -> None:
 )
 def test_node_becomes_junction(name: str, is_source: bool, advanced_mode: bool, expected: bool) -> None:
     """A node is replaced by a junction unless advanced mode keeps a node that sources or sinks power."""
-    data = {
-        CONF_ELEMENT_TYPE: node.ELEMENT_TYPE,
-        CONF_NAME: name,
-        node.SECTION_ROLE: {"is_source": as_constant_value(is_source), "is_sink": as_constant_value(False)},
-    }
-
-    assert node_becomes_junction(data, advanced_mode=advanced_mode) is expected
+    assert node_becomes_junction(name, _node(name, is_source=is_source), advanced_mode=advanced_mode) is expected
 
 
 def test_migrate_participants_applies_every_element_step() -> None:
@@ -341,33 +343,56 @@ def test_migrate_participants_applies_every_element_step() -> None:
         "limits": {"min_charge_percentage": as_constant_value(10.0)},
         "undercharge": {"percentage": as_constant_value(5.0), "cost": as_constant_value(0.03)},
     }
-    bus = {CONF_ELEMENT_TYPE: node.ELEMENT_TYPE, CONF_NAME: "DC Bus", node.SECTION_ROLE: {"is_source": False}}
     grid_config: dict[str, object] = {CONF_ELEMENT_TYPE: grid.ELEMENT_TYPE, CONF_NAME: "Grid"}
 
-    migrated = migrate_participants(
-        {"Inverter link": link, "Battery": battery_config, "DC Bus": bus, "Grid": grid_config},
+    migration = migrate_participants(
+        {
+            "Battery": battery_config,
+            "Inverter link": link,
+            "DC Bus": _node("DC Bus", is_source=False),
+            "Grid": grid_config,
+        },
         advanced_mode=False,
     )
 
-    assert list(migrated) == [
-        "Inverter link",
-        "Inverter link (AC Bus to DC Bus)",
+    assert list(migration.participants) == [
         "Battery",
         "Battery reserve",
+        "Inverter link",
+        "Inverter link (AC Bus to DC Bus)",
         "DC Bus",
         "Grid",
     ]
-    assert _section(migrated["Inverter link (AC Bus to DC Bus)"], SECTION_POWER_LIMITS) == {
+    assert migration.created_from == {
+        "Inverter link (AC Bus to DC Bus)": "Inverter link",
+        "Battery reserve": "Battery",
+    }
+    assert migration.junctions == ("DC Bus",)
+    assert _section(migration.participants["Inverter link (AC Bus to DC Bus)"], SECTION_POWER_LIMITS) == {
         CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0)
     }
-    assert "undercharge" not in migrated["Battery"]
-    assert migrated["Battery reserve"][CONF_ELEMENT_TYPE] == buffer.ELEMENT_TYPE
-    assert migrated["DC Bus"] == {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: "DC Bus"}
-    assert migrated["Grid"] == grid_config
+    assert "undercharge" not in migration.participants["Battery"]
+    assert migration.participants["Battery reserve"][CONF_ELEMENT_TYPE] == buffer.ELEMENT_TYPE
+    assert migration.participants["DC Bus"] == {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: "DC Bus"}
+    assert migration.participants["Grid"] == grid_config
 
 
-def test_migrate_participants_leaves_current_configs_unchanged() -> None:
-    """Configs already in the current format migrate to themselves."""
-    current = migrate_participants({"Inverter link": _connection_config()}, advanced_mode=True)
+@pytest.mark.parametrize(
+    ("advanced_mode", "junctions"),
+    [
+        pytest.param(True, ("Switchboard",), id="advanced_mode_keeps_source_nodes"),
+        pytest.param(False, ("Switchboard", "Generator bus"), id="every_node_outside_advanced_mode"),
+    ],
+)
+def test_migrate_participants_replaces_nodes_by_mode(advanced_mode: bool, junctions: tuple[str, ...]) -> None:
+    """Advanced mode keeps nodes that source or sink power, except the Switchboard."""
+    migration = migrate_participants(
+        {
+            "Switchboard": _node("Switchboard", is_source=True),
+            "Generator bus": _node("Generator bus", is_source=True),
+        },
+        advanced_mode=advanced_mode,
+    )
 
-    assert migrate_participants(current, advanced_mode=True) == current
+    assert migration.junctions == junctions
+    assert migration.created_from == {}

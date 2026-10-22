@@ -373,3 +373,41 @@ def test_diag_follows_the_hub_relax_setting(
             run_diagnostics(tmp_path)
 
     assert expected in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("config", "expected"),
+    [
+        pytest.param({"advanced": {"advanced_mode": True}}, True, id="sectioned_on"),
+        pytest.param({"advanced": {"advanced_mode": False}}, False, id="sectioned_off"),
+        pytest.param({"advanced_mode": True}, True, id="flat_before_v1_3"),
+        pytest.param({}, False, id="unset"),
+    ],
+)
+def test_config_advanced_mode(config: dict[str, JsonValueType], expected: bool) -> None:
+    """Advanced mode is read from the hub's advanced section, or the top level for hubs before v1.3."""
+    assert diag.config_advanced_mode(config) is expected
+
+
+@pytest.mark.parametrize(
+    ("minor_version", "becomes_junction"),
+    [
+        pytest.param(3, True, id="before_v1_4_is_migrated"),
+        pytest.param(None, True, id="no_minor_version_is_migrated"),
+        pytest.param(4, False, id="current_export_passes_through"),
+    ],
+)
+def test_migrate_participants_for_diag_only_migrates_older_exports(
+    minor_version: int | None, becomes_junction: bool
+) -> None:
+    """A source node outside advanced mode becomes a junction only in exports from before v1.4."""
+    source_node: dict[str, object] = {
+        "element_type": ElementType.NODE,
+        "name": "Generator bus",
+        "role": {"is_source": as_constant_value(True), "is_sink": as_constant_value(False)},
+    }
+    config: dict[str, JsonValueType] = {} if minor_version is None else {"minor_version": minor_version}
+
+    migrated = diag.migrate_participants_for_diag(config, {"Generator bus": source_node})
+
+    assert (migrated["Generator bus"]["element_type"] == ElementType.JUNCTION) is becomes_junction

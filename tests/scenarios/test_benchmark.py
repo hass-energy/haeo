@@ -30,15 +30,13 @@ from custom_components.haeo.core.adapters.network_builder import (
     build_network,
     periods_in_hours,
 )
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, HUB_SECTION_ADVANCED
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import Network
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
-from custom_components.haeo.core.schema.migrations.v1_4 import migrate_participants
 from custom_components.haeo.core.state import EntityState
-from tools.diag.cli import config_horizon_preset
+from tools.diag.cli import config_horizon_preset, migrate_participants_for_diag
 
 # ---------------------------------------------------------------------------
 # Lightweight StateMachine backed by scenario inputs.json
@@ -115,9 +113,7 @@ def _participants_from_config(config: Mapping[str, JsonValueType]) -> dict[str, 
             raise TypeError(msg)
         raw_configs[name] = dict(participant_config)
     participants: dict[str, ElementConfigSchema] = {}
-    advanced = config.get(HUB_SECTION_ADVANCED)
-    advanced_mode = isinstance(advanced, dict) and advanced.get(CONF_ADVANCED_MODE) is True
-    for name, participant_config in migrate_participants(raw_configs, advanced_mode=advanced_mode).items():
+    for name, participant_config in migrate_participants_for_diag(config, raw_configs).items():
         if not is_element_config_schema(participant_config):
             msg = f"Scenario participant {name!r} is not a valid element config"
             raise TypeError(msg)
