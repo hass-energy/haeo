@@ -46,6 +46,17 @@ test_cases = [
         expected_cycle_length=24,
     ),
     ForecastCycleTestCase(
+        description="24 hour forecast including its closing midnight",
+        expectation="Reaches its last value at the seam before repeating from its first, with no point added twice",
+        now=6,
+        forecast=_block(time_range=(0, 25), start_value=0.0),
+        expected=[
+            *_block(time_range=(6, 25), start_value=6.0),
+            *_block(time_range=(24, 30), start_value=0.0),
+        ],
+        expected_cycle_length=24,
+    ),
+    ForecastCycleTestCase(
         description="48 hour forecast starting from now",
         expectation="First 48 hours are identical",
         now=0,
