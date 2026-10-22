@@ -28,6 +28,7 @@ from custom_components.haeo import (
     MIGRATION_MINOR_VERSION,
     OUTPUT_PLATFORMS,
     HaeoRuntimeData,
+    _async_first_refresh,
     _async_register_static_frontend_resources,
     _element_flow_in_progress,
     _ensure_required_subentries,
@@ -650,6 +651,45 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # When testing directly (not via hass.config_entries.async_setup), the HA
     # lifecycle that calls _async_process_on_unload is not exercised.
     # The async_on_unload mechanism is tested separately via the HA test framework.
+
+
+async def test_first_refresh_continues_when_the_last_input_settles_as_the_wait_times_out(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An input that becomes ready while the timed-out wait is being cancelled lets setup carry on.
+
+    The timeout cancels the wait, and the input's sensor can report in the loop
+    iteration before the cancellation lands, so no input is left to report.
+    """
+
+    class SettlesOnCancelStore:
+        source_entity_ids: ClassVar[list[str]] = ["sensor.solar_forecast"]
+        unavailable_sources = ()
+        error = None
+
+        def __init__(self) -> None:
+            self.ready = False
+
+        async def wait_settled(self) -> None:
+            try:
+                await asyncio.sleep(100)
+            except asyncio.CancelledError:
+                self.ready = True
+                raise
+
+        def is_ready(self) -> bool:
+            return self.ready
+
+    runtime_data = Mock(input_stores={("Solar", ("forecast", "forecast")): SettlesOnCancelStore()})
+    coordinator = Mock(async_initialize=AsyncMock(), async_refresh=AsyncMock())
+    original_timeout = asyncio.timeout
+    monkeypatch.setattr("asyncio.timeout", lambda _seconds: original_timeout(0.01))
+
+    await _async_first_refresh(hass, mock_hub_entry, runtime_data, coordinator)
+
+    coordinator.async_refresh.assert_awaited_once()
 
 
 async def test_setup_reentry_after_timeout_failure(
