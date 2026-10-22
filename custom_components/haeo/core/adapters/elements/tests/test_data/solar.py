@@ -1,15 +1,8 @@
-"""Tests for solar element model mapping."""
-
-from collections.abc import Mapping, Sequence
-from typing import TypedDict
+"""Adapter mapping cases for the solar element."""
 
 import numpy as np
-import pytest
 
 from custom_components.haeo.core.adapters.elements.solar import SOLAR_DEVICE_SOLAR, SOLAR_FORECAST_LIMIT, SOLAR_POWER
-from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
-from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
-from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
@@ -21,26 +14,9 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
 
+from . import CreateCase, OutputsCase
 
-class CreateCase(TypedDict):
-    """Test case for model_elements."""
-
-    description: str
-    data: SolarConfigData
-    model: list[dict[str, object]]
-
-
-class OutputsCase(TypedDict):
-    """Test case for outputs mapping."""
-
-    description: str
-    name: str
-    config: SolarConfigData
-    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
-    outputs: Mapping[str, Mapping[str, OutputData]]
-
-
-CREATE_CASES: Sequence[CreateCase] = [
+CREATE_CASES: list[CreateCase] = [
     {
         "description": "Solar with production price",
         "data": SolarConfigData(
@@ -77,11 +53,10 @@ CREATE_CASES: Sequence[CreateCase] = [
 ]
 
 
-OUTPUTS_CASES: Sequence[OutputsCase] = [
+OUTPUTS_CASES: list[OutputsCase] = [
     {
         "description": "Solar with forecast limit",
-        "name": "pv_main",
-        "config": SolarConfigData(
+        "data": SolarConfigData(
             element_type=ElementType.SOLAR,
             name="pv_main",
             connection=as_connection_target("network"),
@@ -100,6 +75,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 },
             }
         },
+        "periods": np.array([1.0]),
         "outputs": {
             SOLAR_DEVICE_SOLAR: {
                 SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="+"),
@@ -109,8 +85,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     },
     {
         "description": "Solar with shadow price output",
-        "name": "pv_with_price",
-        "config": SolarConfigData(
+        "data": SolarConfigData(
             element_type=ElementType.SOLAR,
             name="pv_with_price",
             connection=as_connection_target("network"),
@@ -129,6 +104,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 },
             }
         },
+        "periods": np.array([1.0]),
         "outputs": {
             SOLAR_DEVICE_SOLAR: {
                 SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.5,), direction="+"),
@@ -138,8 +114,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     },
     {
         "description": "Solar connection pruned - solar carries no flow",
-        "name": "pv_main",
-        "config": SolarConfigData(
+        "data": SolarConfigData(
             element_type=ElementType.SOLAR,
             name="pv_main",
             connection=as_connection_target("network"),
@@ -147,6 +122,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             curtailment={"curtailment": True},
         ),
         "model_outputs": {},
+        "periods": np.array([1.0, 1.0]),
         "outputs": {
             SOLAR_DEVICE_SOLAR: {
                 SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(0.0, 0.0), direction="+"),
@@ -154,19 +130,3 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
     },
 ]
-
-
-@pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
-def test_model_elements(case: CreateCase) -> None:
-    """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES[ElementType.SOLAR]
-    result = entry.model_elements(case["data"])
-    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
-
-
-@pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
-def test_outputs_mapping(case: OutputsCase) -> None:
-    """Verify adapter maps model outputs to device outputs."""
-    entry = ELEMENT_TYPES[ElementType.SOLAR]
-    result = entry.outputs(case["name"], case["model_outputs"], config=case["config"])
-    assert result == case["outputs"]

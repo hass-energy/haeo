@@ -26,6 +26,7 @@ from custom_components.haeo.core.adapters.elements.load import (
     LOAD_NEXT_24H_MARGINAL_COST,
     LOAD_NEXT_24H_RUNTIME,
     LoadAdapter,
+    LoadOutputName,
 )
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -155,133 +156,105 @@ def test_next_24h_sensors_clip_to_first_24_hours() -> None:
     assert tuple(daily_avg.values)[24:] == pytest.approx((0.0,) * 6)
 
 
-def test_next_24h_window_with_30min_periods_picks_48_steps() -> None:
-    """Half-hour periods: next 24h spans 48 steps exactly."""
-    adapter = LoadAdapter()
-    n = 60  # 30h horizon at 30-min steps
-    power = (1.0,) * n
-    dual = (0.05,) * n
-    periods = (0.5,) * n
-
-    result = adapter.outputs(
+@pytest.mark.parametrize(
+    ("power", "dual", "periods", "sheddable", "expected_states", "expected_values"),
+    [
+        pytest.param(
+            (1.0,) * 60,
+            (0.05,) * 60,
+            (0.5,) * 60,
+            True,
+            # 48 steps of 1 kW * 0.5 h; cost is energy-weighted: 48 * 0.5 kWh * 0.05
+            {LOAD_NEXT_24H_ENERGY: 24.0, LOAD_NEXT_24H_MARGINAL_COST: 1.20, LOAD_NEXT_24H_RUNTIME: 24.0},
+            {},
+            id="half_hour_periods_span_48_steps",
+        ),
+        pytest.param(
+            (2.0, 3.0, 1.0),
+            (0.10, 0.20, 0.05),
+            (1.0, 1.0, 1.0),
+            True,
+            # Every step fits inside 24 h, so the next 24 h equals the horizon
+            {
+                LOAD_HORIZON_ENERGY: 6.0,
+                LOAD_HORIZON_MARGINAL_COST: 0.85,
+                LOAD_HORIZON_RUNTIME: 3.0,
+                LOAD_NEXT_24H_ENERGY: 6.0,
+                LOAD_NEXT_24H_MARGINAL_COST: 0.85,
+                LOAD_NEXT_24H_RUNTIME: 3.0,
+            },
+            {},
+            id="short_horizon_uses_all_periods",
+        ),
+        pytest.param(
+            (1.0,) * 3,
+            (0.10,) * 3,
+            (20.0, 20.0, 20.0),
+            True,
+            # Steps end at 20 h, 40 h, 60 h: the second counts (24 - 20) / 20 = 0.2 of itself, the third none
+            {
+                LOAD_NEXT_24H_ENERGY: 24.0,
+                LOAD_NEXT_24H_RUNTIME: 24.0,
+                LOAD_NEXT_24H_MARGINAL_COST: 2.40,
+                LOAD_NEXT_24H_AVERAGE_MARGINAL_PRICE: 0.10,
+            },
+            # Per step: all of the first, 0.2 of the second, none of the third
+            {LOAD_NEXT_24H_ENERGY: (20.0, 4.0, 0.0), LOAD_NEXT_24H_RUNTIME: (20.0, 4.0, 0.0)},
+            id="straddling_step_counts_its_in_window_fraction",
+        ),
+        pytest.param(
+            (0.0, 0.0),
+            (0.20, 0.30),
+            (1.0, 1.0),
+            True,
+            {LOAD_HORIZON_AVERAGE_MARGINAL_PRICE: 0.0, LOAD_NEXT_24H_AVERAGE_MARGINAL_PRICE: 0.0},
+            {LOAD_HORIZON_AVERAGE_MARGINAL_PRICE: (0.0, 0.0), LOAD_NEXT_24H_AVERAGE_MARGINAL_PRICE: (0.0, 0.0)},
+            id="average_price_is_zero_without_energy",
+        ),
+        pytest.param(
+            (1.0, 0.0, 1.0, 0.0),
+            (0.10, 0.20, 0.10, 0.20),
+            (0.25, 0.5, 1.0, 2.0),
+            True,
+            # Runtime sums only the periods where the load draws power
+            {LOAD_HORIZON_RUNTIME: 1.25},
+            {LOAD_HORIZON_RUNTIME: (0.25, 0.0, 1.0, 0.0)},
+            id="runtime_excludes_shed_steps",
+        ),
+        pytest.param(
+            (1.0, 2.0),
+            (0.10, 0.20),
+            (1.0, 1.0),
+            False,
+            {
+                LOAD_HORIZON_MARGINAL_COST: 0.50,
+                LOAD_HORIZON_ENERGY: 3.0,
+                LOAD_HORIZON_AVERAGE_MARGINAL_PRICE: 0.50 / 3.0,
+            },
+            {LOAD_HORIZON_AVERAGE_MARGINAL_PRICE: (0.10, 0.20)},
+            id="fixed_load_also_emits_stats",
+        ),
+    ],
+)
+def test_stats(
+    power: tuple[float, ...],
+    dual: tuple[float, ...],
+    periods: tuple[float, ...],
+    sheddable: bool,
+    expected_states: Mapping[LoadOutputName, float],
+    expected_values: Mapping[LoadOutputName, tuple[float, ...]],
+) -> None:
+    """Each statistics sensor carries its per-step values and its total over the horizon or the next 24 hours."""
+    result = LoadAdapter().outputs(
         "load",
         _outputs_with_dual(power=power, dual=dual, periods=periods),
-        config=_config(n=n),
-        periods=tuple(periods),
+        config=_config(sheddable=sheddable, n=len(power)),
+        periods=periods,
     )
     load_outputs = result[LOAD_DEVICE_LOAD]
 
-    # 48 steps of (1kW * 0.5h) = 24 kWh total; cost = 48 * (0.5 kWh * 0.05) = 1.20 $.
-    # NB: cost integration is energy-weighted ($/kWh dual), NOT power-weighted.
-    assert load_outputs[LOAD_NEXT_24H_ENERGY].state == pytest.approx(24.0)
-    assert load_outputs[LOAD_NEXT_24H_MARGINAL_COST].state == pytest.approx(1.20)
-    assert load_outputs[LOAD_NEXT_24H_RUNTIME].state == pytest.approx(24.0)
-
-
-def test_next_24h_window_with_short_horizon_uses_all_periods() -> None:
-    """Horizon shorter than 24h: next-24h sensors equal horizon sensors."""
-    adapter = LoadAdapter()
-    power = (2.0, 3.0, 1.0)
-    dual = (0.10, 0.20, 0.05)
-    periods = (1.0, 1.0, 1.0)  # 3h total
-
-    result = adapter.outputs(
-        "load",
-        _outputs_with_dual(power=power, dual=dual, periods=periods),
-        config=_config(n=3),
-        periods=tuple(periods),
-    )
-    load_outputs = result[LOAD_DEVICE_LOAD]
-
-    # Horizon totals (state) and next-24h totals (state) must match when
-    # every step fits inside the 24h window.
-    horizon_energy_total = load_outputs[LOAD_HORIZON_ENERGY].state
-    horizon_cost_total = load_outputs[LOAD_HORIZON_MARGINAL_COST].state
-    horizon_runtime_total = load_outputs[LOAD_HORIZON_RUNTIME].state
-
-    assert load_outputs[LOAD_NEXT_24H_ENERGY].state == pytest.approx(horizon_energy_total)
-    assert load_outputs[LOAD_NEXT_24H_MARGINAL_COST].state == pytest.approx(horizon_cost_total)
-    assert load_outputs[LOAD_NEXT_24H_RUNTIME].state == pytest.approx(horizon_runtime_total)
-
-
-def test_next_24h_window_pro_rata_clips_straddling_step() -> None:
-    """Boundary-straddling step contributes only its in-window fraction.
-
-    Three 20h steps cover a 60h horizon:
-
-    * step 0 starts at t=0h,  ends at t=20h: fraction = 1.0
-    * step 1 starts at t=20h, ends at t=40h: fraction = (24-20)/20 = 0.2
-    * step 2 starts at t=40h, ends at t=60h: fraction = 0.0
-
-    With constant 1 kW power and 0.10 $/kWh dual:
-
-    * energy:  1*1*20 + 0.2*1*20 + 0     = 24 kWh        (clips exactly)
-    * runtime: 1*20   + 0.2*20    + 0    = 24 h          (clips exactly)
-    * cost:    24 kWh * 0.10 $/kWh        = 2.40 $
-    * avg:     2.40 / 24                  = 0.10 $/kWh
-
-    Without pro-rata clipping the straddling step would be included whole,
-    overstating energy and runtime by the leftover 16 h of that step.
-
-    """
-    adapter = LoadAdapter()
-    n = 3
-    power = (1.0,) * n
-    dual = (0.10,) * n
-    periods = (20.0, 20.0, 20.0)
-
-    result = adapter.outputs(
-        "load",
-        _outputs_with_dual(power=power, dual=dual, periods=periods),
-        config=_config(n=n),
-        periods=tuple(periods),
-    )
-    load_outputs = result[LOAD_DEVICE_LOAD]
-
-    assert load_outputs[LOAD_NEXT_24H_ENERGY].state == pytest.approx(24.0)
-    assert load_outputs[LOAD_NEXT_24H_RUNTIME].state == pytest.approx(24.0)
-    assert load_outputs[LOAD_NEXT_24H_MARGINAL_COST].state == pytest.approx(2.40)
-    assert load_outputs[LOAD_NEXT_24H_AVERAGE_MARGINAL_PRICE].state == pytest.approx(0.10)
-
-
-def test_average_cost_is_zero_when_energy_is_zero() -> None:
-    """Average cost falls back to 0 (not a division-by-zero error) when no energy is consumed."""
-    adapter = LoadAdapter()
-    power = (0.0, 0.0)
-    dual = (0.20, 0.30)
-    periods = (1.0, 1.0)
-
-    result = adapter.outputs(
-        "load",
-        _outputs_with_dual(power=power, dual=dual, periods=periods),
-        config=_config(n=2),
-        periods=tuple(periods),
-    )
-    load_outputs = result[LOAD_DEVICE_LOAD]
-
-    assert load_outputs[LOAD_HORIZON_AVERAGE_MARGINAL_PRICE].state == pytest.approx(0.0)
-    assert tuple(load_outputs[LOAD_HORIZON_AVERAGE_MARGINAL_PRICE].values) == pytest.approx((0.0, 0.0))
-    assert load_outputs[LOAD_NEXT_24H_AVERAGE_MARGINAL_PRICE].state == pytest.approx(0.0)
-
-
-def test_runtime_excludes_shed_timesteps() -> None:
-    """Runtime is the sum of period durations for timesteps where power > 0."""
-    adapter = LoadAdapter()
-    power = (1.0, 0.0, 1.0, 0.0)
-    dual = (0.10, 0.20, 0.10, 0.20)
-    periods = (0.25, 0.5, 1.0, 2.0)
-
-    result = adapter.outputs(
-        "load",
-        _outputs_with_dual(power=power, dual=dual, periods=periods),
-        config=_config(n=4),
-        periods=tuple(periods),
-    )
-    load_outputs = result[LOAD_DEVICE_LOAD]
-
-    # Per-interval runtime: dt[t] when p[t] > 0 else 0. Sum = 1.25h.
-    assert tuple(load_outputs[LOAD_HORIZON_RUNTIME].values) == pytest.approx((0.25, 0.0, 1.0, 0.0))
-    assert load_outputs[LOAD_HORIZON_RUNTIME].state == pytest.approx(1.25)
+    assert {name: load_outputs[name].state for name in expected_states} == pytest.approx(expected_states)
+    assert {name: tuple(load_outputs[name].values) for name in expected_values} == pytest.approx(expected_values)
 
 
 def test_stats_omitted_when_source_node_has_no_dual() -> None:
@@ -313,24 +286,3 @@ def test_stats_omitted_when_source_node_has_no_dual() -> None:
         LOAD_NEXT_24H_AVERAGE_MARGINAL_PRICE,
     ):
         assert missing not in load_outputs
-
-
-def test_fixed_load_also_emits_stats_when_source_dual_is_present() -> None:
-    """Stats sensors are emitted for fixed loads too (cost is well-defined either way)."""
-    adapter = LoadAdapter()
-    power = (1.0, 2.0)
-    dual = (0.10, 0.20)
-    periods = (1.0, 1.0)
-
-    result = adapter.outputs(
-        "load",
-        _outputs_with_dual(power=power, dual=dual, periods=periods),
-        config=_config(sheddable=False, n=2),
-        periods=tuple(periods),
-    )
-    load_outputs = result[LOAD_DEVICE_LOAD]
-
-    # Cost: 1*0.10 + 2*0.20 = 0.50; energy: 3 kWh; avg: 0.50/3
-    assert load_outputs[LOAD_HORIZON_MARGINAL_COST].state == pytest.approx(0.50)
-    assert load_outputs[LOAD_HORIZON_ENERGY].state == pytest.approx(3.0)
-    assert load_outputs[LOAD_HORIZON_AVERAGE_MARGINAL_PRICE].state == pytest.approx(0.50 / 3.0)

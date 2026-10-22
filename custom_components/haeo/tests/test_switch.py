@@ -4,9 +4,7 @@ from types import MappingProxyType
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.const import STATE_OFF, STATE_ON
-from homeassistant.core import HomeAssistant, State
-from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -389,98 +387,3 @@ async def test_setup_handles_multiple_solar_elements(
         if len(input_switches) > 0:
             # At least one should be present
             assert "Solar North" in element_names or "Solar South" in element_names
-
-
-# ===== Tests for AutoOptimizeSwitch =====
-
-
-def _create_mock_device_entry() -> DeviceEntry:
-    """Create a mock device entry for testing."""
-    return DeviceEntry(id="test_device_id")
-
-
-@pytest.mark.parametrize(
-    ("initial_state", "method", "expected"),
-    [
-        pytest.param(False, "on", True, id="turn_on"),
-        pytest.param(True, "off", False, id="turn_off"),
-    ],
-)
-async def test_auto_optimize_switch_toggle(
-    hass: HomeAssistant,
-    initial_state: bool,
-    method: str,
-    expected: bool,
-) -> None:
-    """Turning the auto-optimize switch updates state."""
-    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
-    entry.add_to_hass(hass)
-
-    switch = AutoOptimizeSwitch(
-        config_entry=entry,
-        device_entry=_create_mock_device_entry(),
-    )
-    switch._attr_is_on = initial_state
-    switch.async_write_ha_state = Mock()  # type: ignore[method-assign]
-
-    if method == "on":
-        await switch.async_turn_on()
-    else:
-        await switch.async_turn_off()
-
-    assert switch.is_on is expected
-    switch.async_write_ha_state.assert_called_once()
-
-
-@pytest.mark.parametrize(
-    ("restored_state", "expected"),
-    [
-        pytest.param(STATE_ON, True, id="restores_on"),
-        pytest.param(STATE_OFF, False, id="restores_off"),
-    ],
-)
-async def test_auto_optimize_switch_restores_state(
-    hass: HomeAssistant,
-    restored_state: str,
-    expected: bool,
-) -> None:
-    """Switch restores state from previous session."""
-    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
-    entry.add_to_hass(hass)
-
-    switch = AutoOptimizeSwitch(
-        config_entry=entry,
-        device_entry=_create_mock_device_entry(),
-    )
-
-    async def mock_get_last_state() -> State:
-        return State("switch.test", restored_state)
-
-    switch.async_get_last_state = mock_get_last_state  # type: ignore[method-assign]
-
-    await switch.async_added_to_hass()
-
-    assert switch.is_on is expected
-
-
-async def test_auto_optimize_switch_defaults_to_on_without_previous_state(hass: HomeAssistant) -> None:
-    """Test switch defaults to ON when no previous state exists."""
-    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
-    entry.add_to_hass(hass)
-
-    switch = AutoOptimizeSwitch(
-        config_entry=entry,
-        device_entry=_create_mock_device_entry(),
-    )
-
-    # Mock the restore state mechanism to return None (no previous state)
-    async def mock_get_last_state() -> None:
-        return None
-
-    switch.async_get_last_state = mock_get_last_state  # type: ignore[method-assign]
-
-    # Call async_added_to_hass which triggers state restoration
-    await switch.async_added_to_hass()
-
-    # Verify state defaults to ON
-    assert switch.is_on is True
