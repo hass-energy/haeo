@@ -603,3 +603,22 @@ async def test_horizon_roll_without_reloaded_inputs_optimizes(
 
     assert solves.calls == 2
     coordinator.cleanup()
+
+
+async def test_turning_auto_optimize_on_within_a_period_catches_up(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, live_runtime_data: HaeoRuntimeData, solves: BlockingSolves
+) -> None:
+    """Turning auto-optimize back on before the horizon moves still optimizes once to catch up on changes."""
+    switch: Any = live_runtime_data.auto_optimize_switch
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+    switch.is_on = False
+    coordinator._handle_auto_optimize_switch_change(_switch_event(STATE_OFF))
+    switch.is_on = True
+    coordinator._handle_auto_optimize_switch_change(_switch_event(STATE_ON))
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=DEFAULT_DEBOUNCE_SECONDS + 1))
+    await hass.async_block_till_done()
+
+    assert solves.calls == 2
+    coordinator.cleanup()
