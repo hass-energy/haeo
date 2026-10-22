@@ -42,12 +42,14 @@ from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import (
     InputStoreMap,
     build_input_stores,
-    input_error_placeholders,
+    raise_for_rejected_input,
     unavailable_input_placeholders,
+    unavailable_input_sources,
 )
 from custom_components.haeo.repairs import async_dismiss_entry_issues, sync_unavailable_input_issues
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
+from custom_components.haeo.util import network_subentry
 
 from . import migrations as _migrations
 
@@ -378,17 +380,6 @@ def _cleanup_buffer_participants(hass: HomeAssistant, entry: ConfigEntry) -> Non
             )
 
 
-def _raise_for_rejected_inputs(input_stores: InputStoreMap) -> None:
-    """Raise ConfigEntryNotReady with the reason if any input store rejected its source's value."""
-    for key, store in input_stores.items():
-        if (error := store.error) is not None:
-            raise ConfigEntryNotReady(
-                translation_domain=DOMAIN,
-                translation_key=error.translation_key,
-                translation_placeholders=input_error_placeholders(key, error, store),
-            )
-
-
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry.
 
@@ -405,17 +396,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
-    # Find network subentry for network device
-    network_subentry = next(
-        (s for s in entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
-        None,
-    )
-    if network_subentry is None:
-        _LOGGER.error("No network subentry found - cannot create network device")
-        return False
-
     # Create network device using centralized device creation
-    get_or_create_network_device(hass, entry, network_subentry)
+    get_or_create_network_device(hass, entry, network_subentry(entry))
 
     # Create horizon manager first - input entities and coordinator depend on it
     # This is a pure Python object, not an entity
@@ -467,12 +449,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
             await asyncio.gather(*[store.wait_settled() for store in runtime_data.input_stores.values()])
     except TimeoutError:
-        _raise_for_rejected_inputs(runtime_data.input_stores)
-        not_ready = {
-            key: store.unavailable_sources or tuple(store.source_entity_ids)
-            for key, store in runtime_data.input_stores.items()
-            if not store.is_ready()
-        }
+        raise_for_rejected_input(runtime_data.input_stores, ConfigEntryNotReady)
+        not_ready = unavailable_input_sources(runtime_data.input_stores, lambda store: not store.is_ready())
         sync_unavailable_input_issues(hass, entry.entry_id, not_ready)
         key, entities = next(iter(not_ready.items()))
         raise ConfigEntryNotReady(
@@ -480,7 +458,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
             translation_key="input_unavailable",
             translation_placeholders=unavailable_input_placeholders(key, entities),
         ) from None
-    _raise_for_rejected_inputs(runtime_data.input_stores)
+    raise_for_rejected_input(runtime_data.input_stores, ConfigEntryNotReady)
     _LOGGER.debug("All input entities ready")
 
     # Wrap coordinator operations to provide meaningful HA error messages

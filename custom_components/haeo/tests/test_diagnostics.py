@@ -1290,18 +1290,6 @@ def test_get_duration_sensor_entity_id_found(hass: HomeAssistant) -> None:
     assert OUTPUT_NAME_OPTIMIZATION_DURATION in result
 
 
-def test_get_duration_sensor_entity_id_no_network_subentry(hass: HomeAssistant) -> None:
-    """get_duration_sensor_entity_id returns None when no network subentry exists."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data=_hub_entry_data(),
-        entry_id="hub_entry",
-    )
-    entry.add_to_hass(hass)
-
-    assert get_duration_sensor_entity_id(hass, entry) is None
-
-
 def test_get_horizon_sensor_entity_id_found(hass: HomeAssistant) -> None:
     """get_horizon_sensor_entity_id returns entity_id when horizon sensor exists."""
     entry = MockConfigEntry(

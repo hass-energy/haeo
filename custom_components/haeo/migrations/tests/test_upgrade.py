@@ -34,6 +34,7 @@ from custom_components.haeo.core.const import (
 )
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value
 from custom_components.haeo.core.schema.elements import battery, buffer, connection, grid, junction, node
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.sections import (
@@ -48,7 +49,6 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.elements import is_element_config_schema
 
 SOURCE_NODE = "Generator bus"
 

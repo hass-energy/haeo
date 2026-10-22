@@ -7,18 +7,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
-from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.elements import (
-    get_input_fields,
-    get_list_input_fields,
-    is_element_config_schema,
-    iter_input_field_paths,
-)
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
+from custom_components.haeo.elements import get_input_fields, get_list_input_fields, iter_input_field_paths
 from custom_components.haeo.elements.input_fields import is_switch_field_info
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.entities.device import get_or_create_element_device, get_or_create_network_device
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
+from custom_components.haeo.util import network_subentry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,13 +93,12 @@ async def async_setup_entry(
         async_add_entities(entities, config_subentry_id=subentry.subentry_id)
 
     # Create auto-optimize switch for the network device
-    network_subentry = next(s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)
-
-    network_device = get_or_create_network_device(hass, config_entry, network_subentry)
+    network = network_subentry(config_entry)
+    network_device = get_or_create_network_device(hass, config_entry, network)
     auto_optimize_switch = AutoOptimizeSwitch(
         config_entry=config_entry,
         device_entry=network_device,
     )
     runtime_data.auto_optimize_switch = auto_optimize_switch
-    async_add_entities([auto_optimize_switch], config_subentry_id=network_subentry.subentry_id)
+    async_add_entities([auto_optimize_switch], config_subentry_id=network.subentry_id)
     _LOGGER.debug("Created auto-optimize switch for network")
