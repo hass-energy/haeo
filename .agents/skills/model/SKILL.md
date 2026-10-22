@@ -26,15 +26,25 @@ This scaling keeps values in the ideal range for LP solvers.
 The adapter layer handles conversion between model time (hours) and Home Assistant time (seconds).
 See [units.md](../../../docs/developer-guide/units.md) for rationale and conversion utilities.
 
-`periods` is an array of variable-width interval durations, because the planning horizon is tiered.
+`periods` is an array of variable-width interval durations, because a horizon's periods need not all be the same length.
 Never assume a constant period length — multiply by `periods` element-wise.
 
 ## Model elements
 
-The device layer's element types compile down to a small set of model elements, registered in `core/model/elements/__init__.py`.
+The device layer's element types compile down to a small set of model elements, registered in `ELEMENTS` in [`core/model/elements/__init__.py`](../../../custom_components/haeo/core/model/elements/__init__.py).
+Each `ElementSpec` gives the class, its output names, an `add_order`, and an `arguments` hook.
 Network elements produce, consume, or store power and join connections; flow readers read other elements' planned flows to price or constrain them.
-Code that needs to tell them apart reads the registry, such as whether an element's class subclasses `NetworkElement`, rather than listing element types.
+`collect_model_elements()` in `core/adapters/registry.py` sorts elements by `add_order`, so flow readers are added after the connections they read.
+`Network.add()` builds each element's constructor arguments with its spec's `arguments`, which resolves the elements a flow reader names.
+A new flow reader needs only its registry entry, not a branch in `Network`.
+Code that needs to tell model elements apart reads the registry, such as whether an element's class subclasses `NetworkElement`, rather than listing element types.
 A single device element expands into several model elements through its adapter's `model_elements()`, with sub-elements named `{main_element}:{subname}`.
+
+Elements and connection segments share the `ModelComponent` base in `core/model/component.py`, which discovers their `@constraint`, `@cost`, and `@output` methods.
+A connection reports each segment's constraints as `{segment}_{constraint}`, which is how they appear in infeasibility reports.
+
+A network element's roles (`is_source`, `is_sink`) and tags are fixed when it is constructed, because they shape power balance rows and per-tag variables created once.
+Change them by building a new network, not by assigning to an existing element.
 
 Adding a physical behavior rarely means a new model element type.
 Connections are composed of **segments**, so a new kind of loss, limit, or charge is a new `Segment` subclass added to the chain rather than a branch inside `Connection`.
@@ -53,6 +63,7 @@ The cost of rebuilding the LP then stays flat as the horizon grows, which is wha
     Combine several blocks with `Rows.concat([...])`.
 - Return `expr.free()` for rows that do not currently apply, so the LP keeps its shape and the rows can bind later.
 - A `@cost` method returns a single row: `(power * price * self.periods).total()`.
+    Constant terms in a cost are allowed; they go to the objective's offset rather than to any column.
 - Start a sum that may have no terms from `LinearArray.zeros(count)`; `LinearArray.sum_of([])` is an error.
 
 Per-period differences are expressed as values, not as different code per period:
@@ -110,6 +121,7 @@ The period update and warm start tests are the ones that notice.
 ## Optimization
 
 `Network.optimize()` minimizes cost, then breaks ties between equally cheap plans with a time-preference secondary objective.
+Each element contributes to it through `secondary_cost()`, which only `Connection` overrides.
 It does this with a blended objective, cost plus a calibrated weight times the secondary, checked after each solve.
 This exists so repeated solves warm-start cleanly and shadow prices come from the same basis as the plan.
 Degenerate LPs have many optimal solutions; the secondary objective is what stops sensor values jittering between equally optimal plans.
@@ -132,6 +144,7 @@ Degenerate LPs have many optimal solutions; the secondary objective is what stop
 
 - An infeasible solve raises `InfeasibleError` at once, since no blend weight can make it feasible.
     `core/model/infeasibility.py` names the conflicting rows from HiGHS's irreducible infeasible subsystem, and relaxes the model when the network is built with `relax_infeasible`.
+    The relaxed amounts it reports are read from the plan the relaxed solve delivers, not from the relaxation's own values, since the plan can stay inside a widened bound.
 
 - Log solver diagnostics at debug level.
 
@@ -140,16 +153,14 @@ Degenerate LPs have many optimal solutions; the secondary objective is what stop
 `core/adapters/policy_compilation.py` implements source-to-destination pricing by tagging power with VLAN-like tags.
 `compile_policies()` mutates element configs in place, adding tag fields, and generates policy pricing elements.
 
-It is a required step, not an optional one: connections take their tags as a required argument, so anything building a network must run `compile_policies()` before adding elements.
-Both the coordinator and the diagnostics CLI do this; any new network builder must too.
+It is a required step, not an optional one: connections take their tags as a required argument, so elements must be compiled before they are added.
+Build networks with `build_network()` in `core/adapters/network_builder.py`, which collects every adapter's model elements, compiles policies, and adds the result; the coordinator and the diagnostics CLI both use it.
 
 ## Testing
 
 Model tests are data-driven.
-Add cases to `core/model/tests/test_data/` rather than writing per-element test functions:
-
-- `VALID_CASES` — inputs plus `expected_outputs`, with LP variables fixed to known values by the factory
-- `INVALID_CASES` — inputs plus an `expected_error` regex
+Add cases to `core/model/tests/test_data/` rather than writing per-element test functions.
+Each element module defines `VALID_CASES`, each with a `factory`, its `data`, the `inputs` that fix or bound its power, and the `expected_outputs`; `__init__.py` gathers them, with the segment and connection scenarios, for the parametrized tests.
 
 Test each element type independently, verify constraints are satisfied in solutions, and cover edge cases such as zero power and full or empty batteries.
 If a line cannot be covered by any input case, that is evidence it is unreachable — delete it rather than testing it.

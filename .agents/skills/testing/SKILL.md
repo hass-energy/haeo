@@ -1,9 +1,16 @@
 ---
 name: testing
-description: Test standards for HAEO — coverage decision tree, bug-fix TDD, function-style and parametrized tests, fixtures, snapshots, and config flow testing. Use when writing, fixing, or reorganizing tests, or when deciding how to cover new code.
+description: Test standards for HAEO — where tests live (colocated tests/ directories), coverage decision tree, bug-fix TDD, function-style and parametrized tests, registry-driven element test data, shared fixtures in conftest.py, the runtime translation checker, scenario and guide tests, and config flow testing. Use when writing, fixing, or reorganizing tests, or when deciding how to cover new code.
 ---
 
 # Testing standards
+
+## Where tests live
+
+Tests are colocated with the code they test, in a `tests/` directory inside each package, such as `core/model/tests/` or `flows/elements/tests/`.
+The top-level `tests/` directory holds only scenario tests in `tests/scenarios/`, guide tests in `tests/guides/`, and tests of the CLI tools.
+
+Every test runs under `timeout = 5` and `filterwarnings = ["error"]`, so a new warning fails it and a hang surfaces as a timeout.
 
 ## Coverage requirements
 
@@ -78,13 +85,23 @@ def test_element_outputs(case: ElementTestCase) -> None:
 
 Model element tests use a data-driven pattern in `core/model/tests/test_data/`:
 
-- Each element module defines `VALID_CASES` and `INVALID_CASES` lists
+- Each element module defines a `VALID_CASES` list
 - Cases are aggregated in `__init__.py` for parametrized tests
-- Factory functions create element instances with fixed LP variable values
-- Test cases specify inputs and expected outputs
+- A case's `factory` builds the element and its `inputs` fix or bound the element's power
+- Cases specify `expected_outputs`
 
 If lines cannot be covered by exercising input data, it implies those lines are unreachable.
 Add test cases to the data modules rather than creating element-specific test files.
+
+## Element test data
+
+Suites that cover every element type iterate the adapter registry `ELEMENT_TYPES` and import one data module per type, so a new type fails them until its data exists:
+
+- `core/adapters/elements/tests/test_data/{type}.py` defines `CREATE_CASES` and `OUTPUTS_CASES`, which `test_mapping.py` runs through each adapter's `model_elements()` and `outputs()`.
+- `flows/tests/test_data/{type}.py` defines `VALID_DATA` and `INVALID_DATA`.
+    Each `VALID_DATA` config is in the shape the subentry stores, so the flow tests submit it and the schema tests in `elements/tests/` validate it as a stored config.
+
+Add a case to these modules rather than writing a per-type test.
 
 ## Property access in tests
 
@@ -103,51 +120,30 @@ if battery is not None:
 
 None checks reduce readability and make tests fragile to passing unexpectedly.
 
-## Fixture patterns
+## Fixtures
 
-```python
-@pytest.fixture
-def mock_config_entry() -> MockConfigEntry:
-    """Return mocked config entry."""
-    return MockConfigEntry(
-        title="Test Network",
-        domain=DOMAIN,
-        data={...},
-        unique_id="test_unique_id",
-    )
+Shared fixtures and helpers live in the root `conftest.py`, such as `hub_entry` for a hub config entry, `add_participant()` for an element subentry to connect to, and `added_entities()` for the entities a platform added.
+Reuse them before writing a new fixture.
 
+## Translations in tests
 
-@pytest.fixture
-async def init_integration(
-    hass: HomeAssistant,
-    mock_config_entry: MockConfigEntry,
-) -> MockConfigEntry:
-    """Set up integration for testing."""
-    mock_config_entry.add_to_hass(hass)
-    await hass.config_entries.async_setup(mock_config_entry.entry_id)
-    await hass.async_block_till_done()
-    return mock_config_entry
-```
+The pytest plugin `custom_components/haeo/translations/tests/runtime_checks.py` runs in every test.
+It fails a test that shows a flow form, abort, repair issue, translated error, entity name, or enum state whose string or placeholder `en.json` lacks.
+Use real translation keys in tests, never invented ones; see the `translations` skill.
 
-## Snapshot testing
+## Scenario and guide tests
 
-Use snapshots for complex data structures and entity states:
+Scenario tests in `tests/scenarios/` run whole optimizations and compare them with snapshots.
+Select them with `-m scenario`; `uv run check` runs them as their own gate and CI runs them in its scenario job.
+The `scenarios` skill covers them.
 
-```python
-@pytest.mark.usefixtures("init_integration")
-async def test_entities(
-    hass: HomeAssistant,
-    snapshot: SnapshotAssertion,
-    entity_registry: er.EntityRegistry,
-    mock_config_entry: MockConfigEntry,
-) -> None:
-    """Test sensor entities."""
-    await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry.entry_id)
-```
+Guide tests in `tests/guides/` render the user guide screenshots in Playwright Firefox and are selected with `-m guide`.
+They run in the `guides.yml` workflow, not in `uv run check`.
+Run them in parallel with `uv run pytest -m guide -n 8`.
 
 ## Config flow testing
 
-Test both success paths and error handling:
+Test both success paths and error handling, asserting the real error keys the flow sets:
 
 ```python
 async def test_user_flow_success(hass):
@@ -159,9 +155,9 @@ async def test_user_flow_success(hass):
     assert result["type"] == FlowResultType.CREATE_ENTRY
 
 
-async def test_flow_connection_error(hass, mock_api_error):
-    """Test connection error handling."""
+async def test_user_flow_duplicate_name(hass):
+    """Test that a name already in use is rejected."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={...})
-    assert result["errors"] == {"base": "cannot_connect"}
+    assert result["errors"] == {"name": "name_exists"}
 ```

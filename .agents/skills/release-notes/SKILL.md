@@ -3,53 +3,55 @@ name: release-notes
 description: Generate structured release notes from the pull requests between two versions, split into user-facing and developer-facing changes. Use when preparing a GitHub release or when asked for a changelog.
 ---
 
-Generate comprehensive release notes for a software release.
+# Release notes
+
+Generate release notes for a HAEO release.
 
 ## Process
 
 1. **Gather context**: Identify the version being released and the previous version to compare against
-2. **Collect PR information**: Use GitHub's auto-generated release notes or git log to identify all changes between versions
+2. **Collect PR information**: Pull requests are squash merged with the PR number in the subject, so `git log --oneline <previous-tag>..<target>` lists them (tags look like `v0.4.1`); GitHub's auto-generated release notes give the same list with authors
 3. **Analyze key PRs**: For major features, examine PR descriptions and file changes to understand the scope and user impact
 4. **Categorize changes**: Group into user-facing vs. developer-facing, features vs. fixes vs. improvements
 
-## Output Structure
+## Output structure
 
 Use this structure for the release notes:
 
-### Highlights (User-Facing)
+### Highlights
 
 - 2-4 bullet points with emoji icons summarizing the most impactful changes
 - Focus on what users will experience and benefit from
 - Describe outcomes, not implementation details (e.g., "5x faster" not "refactored to declarative architecture")
-- If there are significant developer-facing changes, add a separate **Developer Highlights** subsection within Developer-Facing Changes
+- If there are significant developer-facing changes, add a separate **Developer highlights** subsection within Developer-facing changes
 
-### Breaking Changes (if any)
+### Breaking changes
 
-- Place immediately after Highlights, before User-Facing Changes
+- Include only when there are any, immediately after Highlights and before User-facing changes
 - Use ⚠️ emoji in section header for visibility
 - Clearly describe what changed and why it might affect users
 - Provide migration instructions: what users need to do to adapt
 - Be specific about entity names, API changes, or configuration format changes
 
-### User-Facing Changes
+### User-facing changes
 
-- **New Features**: Visible functionality users can interact with
-- **Configuration Improvements**: UX/workflow improvements
-- **Bug Fixes**: Issues that affected users
+- **New features**: Visible functionality users can interact with
+- **Configuration improvements**: UX/workflow improvements
+- **Bug fixes**: Issues that affected users
 
-### Developer-Facing Changes
+### Developer-facing changes
 
-- **Developer Highlights**: Major architectural achievements that developers will appreciate (optional, only for significant changes)
+- **Developer highlights**: Major architectural achievements that developers will appreciate (optional, only for significant changes)
 - **Architecture**: Internal refactors, performance improvements, structural changes
-- **Schema/API Changes**: Changes to internal systems developers work with
-- **Testing & Documentation**: Improvements to developer experience
+- **Schema and API changes**: Changes to internal systems developers work with
+- **Testing and documentation**: Improvements to developer experience
 
 ### Contributors
 
 - List all contributors with GitHub handles
 - Highlight first-time contributors with 🎉
 
-### Full Changelog
+### Full changelog
 
 - Include the complete list of PRs with links
 - Use GitHub's auto-generated format with PR numbers and author attributions

@@ -1,57 +1,50 @@
 ---
 name: documentation
-description: Documentation standards for docs/ — semantic line breaks, sentence case headings, mermaid diagrams, Next steps grid cards, and the link-don't-duplicate rule. Use when writing or updating any user guide, developer guide, or modeling page.
+description: Documentation standards for docs/ and the zensical site built from mkdocs.yml — semantic line breaks, sentence case headings, mermaid diagrams, Next steps grid cards on user pages, link-don't-duplicate, and checking links by hand because the build does not. Use when writing or updating any user guide, developer guide, walkthrough, or modeling page.
 ---
 
 # Documentation standards
 
-See [documentation-guidelines.md](../../../docs/developer-guide/documentation-guidelines.md) for comprehensive guidelines.
+[documentation-guidelines.md](../../../docs/developer-guide/documentation-guidelines.md) is the full guide; this is the checklist.
 
-## Formatting tools
+## Building
 
-- **Markdown**: mdformat for consistent formatting
-- **JSON**: Prettier for consistent formatting
+The site is built by [zensical](https://zensical.org/), which reads `mkdocs.yml`:
 
-## Core principles
-
-- **DRY**: Link to source code instead of duplicating implementation details
-- **Guide, don't duplicate**: Explain concepts and locations, not line-by-line code
-- **Link to Home Assistant**: Reference [HA docs](https://developers.home-assistant.io/) for standard concepts
-
-## Semantic line breaks
-
-Use one sentence per line following [SemBr specification](https://sembr.org/):
-
-```markdown
-All human beings are born free and equal in dignity and rights.
-They are endowed with reason and conscience.
+```bash
+uv run zensical serve   # live preview
+uv run zensical build   # what the docs gate runs
 ```
 
-Break lines at semantic boundaries:
+**The build does not check links or anchors.**
+A passing build says nothing about whether a relative link or `#anchor` resolves, so confirm every one you write: check the target file exists and the anchor matches its heading slug.
 
-- **Required**: After sentences (., !, ?)
-- **Recommended**: After independent clauses (,, ;, :, —)
-- **Optional**: After dependent clauses for clarity
+Markdown is formatted by mdformat and JSON by Prettier; `uv run check --fix` applies both.
 
-**Never break lines based on column count.**
+## Writing
 
-## Formatting
+- One sentence per line ([semantic line breaks](https://sembr.org/)); never wrap by column count.
+- Sentence case for every heading.
+- American English.
+- Backticks for file paths, names, and field keys.
+- Describe the docs as things are, never what they used to be.
 
-- Use backticks for: file paths, filenames, variable names, field entries
-- Sentence case for all headings
-- American English spelling
+## Link, don't duplicate
+
+- Describe a module by its role and link to the source file rather than reproducing code or long file lists that drift.
+- Link to the [Home Assistant developer docs](https://developers.home-assistant.io/) for standard concepts.
+- Do not enumerate element kinds or build per-element tables outside an element's own page.
+    Describe the pattern and point at the registry; each element's page covers itself.
+- Make no quantitative performance claim without a benchmark.
 
 ## Diagrams
 
-Use mermaid for all diagrams:
+Use mermaid: flowcharts for topology, XY charts for time series, state diagrams for modes.
 
-- Flowcharts for network topology
-- XY charts for time series data
-- State diagrams for operational modes
+## Next steps
 
-## Next steps sections
-
-All user-facing pages must end with a **Next steps** section (heading `## Next steps`) using Material grid cards:
+User-facing pages end with a `## Next steps` section of Material grid cards.
+Developer pages may omit it, but any that exist must link to real pages.
 
 ```markdown
 ## Next steps
@@ -68,16 +61,3 @@ All user-facing pages must end with a **Next steps** section (heading `## Next s
 
 </div>
 ```
-
-## Cross-references
-
-- Use descriptive link text: "See the [Forecasts guide](forecasts.md)"
-- Reference specific sections when helpful
-- User guides link to reference docs, not vice versa
-
-## What to avoid
-
-- Duplicating implementation details from code
-- Quantitative performance claims without benchmarks
-- Line-by-line code explanations
-- Plain text file names without links when mentioning specific files

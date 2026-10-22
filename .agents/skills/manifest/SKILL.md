@@ -1,12 +1,13 @@
 ---
 name: manifest
-description: Home Assistant manifest.json requirements — required fields, config_flow, iot_class, dependencies, and HACS compatibility. Use when editing manifest.json or changing integration metadata, requirements, or version.
+description: Home Assistant manifest requirements for custom_components/haeo/manifest.json and hacs.json — required fields, key order, config_flow, iot_class, dependencies and after_dependencies, requirements, and HACS compatibility. Use when editing manifest.json or hacs.json, or changing integration metadata, requirements, dependencies, or version.
 ---
 
 # Manifest requirements
 
-The manifest.json defines integration metadata for Home Assistant.
-When this instruction activates, the current manifest content is visible for reference.
+[`custom_components/haeo/manifest.json`](../../../custom_components/haeo/manifest.json) defines integration metadata for Home Assistant.
+Read it before changing it, and run hassfest afterwards as the `lint` skill describes.
+Hassfest requires `domain` and `name` first and the remaining keys in alphabetical order.
 
 ## Required fields
 
@@ -18,7 +19,7 @@ All integrations must include:
 - **integration_type**: Integration category (hub, device, service, etc.)
 - **documentation**: URL to documentation
 - **requirements**: Python package dependencies with version constraints
-- **version**: Semantic version string (MAJOR.MINOR.PATCH)
+- **version**: The release version, which must equal `version` in `pyproject.toml`; change it only through the `update-version` skill
 
 ## Config flow
 
@@ -39,14 +40,16 @@ Choose the class that best represents the primary data source.
 
 ## Dependencies
 
-List other Home Assistant integrations this integration depends on.
-Use an empty array if there are no dependencies.
+`dependencies` lists integrations that must be set up before HAEO; use an empty array if there are none.
+`after_dependencies` lists integrations HAEO uses when present and must load after, without requiring them.
+Add an integration there when HAEO starts importing from it.
 
 ## HACS compatibility
 
 For HACS distribution:
 
-- Version field must be present and follow semantic versioning
+- Version field must be present
 - Requirements must use valid PyPI package names
+- `hacs.json` `homeassistant` is the minimum Home Assistant version and must equal the `homeassistant>=` pin in `pyproject.toml`; the version gate checks this
 - Documentation URL must be accessible
 - Issue tracker URL is recommended

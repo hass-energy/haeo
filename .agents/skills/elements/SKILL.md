@@ -1,6 +1,6 @@
 ---
 name: elements
-description: Element type development across the schema, adapter, and flow packages — config fields, output sensors, model element construction, and the registries every element type must be added to. Element types are battery, battery_section, connection, grid, inverter, load, node, policy, and solar. Use when adding a new element type or changing an existing one's fields, sensors, or model elements.
+description: Element type development for every type registered in ElementType — the schema module in core/schema/elements/, the adapter in core/adapters/elements/, the subentry flow in flows/elements/, config fields and field hints, output sensors and devices, model element construction, and the registries every element type must join. Use when adding a new element type, or changing an existing one's config fields, sensors, devices, or the model elements it builds.
 ---
 
 # Elements layer development
@@ -28,12 +28,12 @@ The `elements/` package holds shared infrastructure that works the same for ever
 
 ```
 elements/
-├── __init__.py          # Type unions, registries keyed by element type, config accessors
+├── __init__.py          # Output and device name unions, config accessors, input field lookups
 ├── field_hints.py       # Turns schema field hints into HA entity descriptions
-└── input_fields.py      # Input field metadata types
+└── input_fields.py      # Input field metadata types, including FieldSchemaInfo
 ```
 
-The adapter registry itself lives in `core/adapters/registry.py` and is re-exported from `elements/__init__.py`.
+The adapter registry `ELEMENT_TYPES` lives in `core/adapters/registry.py`.
 
 ## Schema module (`core/schema/elements/{type}.py`)
 
@@ -71,13 +71,28 @@ class GridConfigSchema(ConnectedCommonConfig):
 Declare defaults on the `FieldHint`, never in a separate constant or a comment.
 Reuse the shared field groups in `core/schema/sections/` rather than redeclaring common fields.
 
+Whether a field is optional comes from the TypedDict itself: mark it `NotRequired`.
+`get_input_field_schema_info()` in `elements/__init__.py` reads that into `FieldSchemaInfo`, so there is no separate list of optional fields to keep in step.
+
+A schema module may also export hooks that only some element types need.
+Each is registered in a mapping in `core/schema/elements/__init__.py`, and code looks the type up there rather than naming it:
+
+- `SURFACED_PRICE_HINTS` go in `ELEMENT_SURFACED_PRICE_HINTS` when the element's form shows policy pricing fields.
+    Each `SurfacedPriceHint` names the form `section` it shows in.
+- `prune_references` goes in `ELEMENT_REFERENCE_PRUNERS` when the config names other elements, so a deleted element is dropped from it.
+
+`is_element_config_schema()` in `core/schema/elements/conformance.py` checks a stored mapping against the schema registered for its type.
+
 ## Adapter module (`core/adapters/elements/{type}.py`)
 
 The `ElementAdapter` protocol in `core/adapters/registry.py` requires:
 
-- Attributes `element_type`, `advanced`, `connectivity`, `can_source`, `can_sink`, `can_store`
+- Attributes `element_type`, `advanced`, `connectivity`, `can_source`, `can_sink`, `switchboard`, `buffer_roles`, and `device_names`
 - `model_elements(config)` — transform loaded config into model element params
 - `outputs(name, model_outputs, **kwargs)` — map model outputs to device outputs
+
+Shared code branches on these attributes, never on the element type.
+`ELEMENT_DEVICE_NAMES_BY_TYPE` in `elements/__init__.py` is built from each adapter's `device_names`.
 
 Availability and input field derivation are deliberately **not** adapter methods.
 Input stores decide availability field by field, and `input_fields.py` derives input fields generically from the schema, so every element type behaves identically.
@@ -85,10 +100,14 @@ When a per-element hook seems necessary for either, express the difference in th
 
 The module also declares the element's output and device name literals plus matching frozensets, and exposes a module-level `adapter` instance.
 
+An adapter builds configs for the model element types registered in `ELEMENTS` (`core/model/elements/__init__.py`).
+When a new model element reads other elements' flows, give its `ElementSpec` a later `add_order` and an `arguments` hook that resolves the elements it names; the network builder needs no change.
+
 ## Flow module (`flows/elements/{type}.py`)
 
-A `ConfigSubentryFlow` subclass using `ElementFlowMixin`.
-The element-specific part is `_get_sections()`; the rest is shared boilerplate driven by that sections tuple.
+A subclass of `ElementSubentryFlow` (`flows/element_flow.py`).
+An element that connects to one other element subclasses `ConnectedElementSubentryFlow` (`flows/connected_flow.py`) and declares only `element_type` and `sections` as class attributes; the shared flow drives the form, validation, surfaced pricing fields, and saving from them.
+Build sections from the helpers in `flows/sections/`.
 
 Defaults reach the form through `build_sectioned_choose_defaults()`, which reads them from the schema's field hints.
 Do not hand-maintain a defaults dict in the flow.
@@ -98,23 +117,26 @@ Do not hand-maintain a defaults dict in the flow.
 Adding an element type means updating every registry that enumerates types explicitly.
 Pyright catches most omissions; the parametrized tests catch the rest.
 
-| File                                   | What to add                                                                                                                              |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `core/schema/elements/element_type.py` | `ElementType` enum member                                                                                                                |
-| `core/schema/elements/{type}.py`       | `ELEMENT_TYPE`, `{Type}ConfigSchema`, `{Type}ConfigData`, `OPTIONAL_INPUT_FIELDS`                                                        |
-| `core/schema/elements/__init__.py`     | Config schema and data unions, plus the schema-by-type mapping                                                                           |
-| `core/adapters/elements/{type}.py`     | Output and device name literals, adapter class, `adapter` instance                                                                       |
-| `core/adapters/registry.py`            | Entry in `ELEMENT_TYPES`                                                                                                                 |
-| `elements/__init__.py`                 | `ElementOutputName` / `ElementDeviceName` unions, `ELEMENT_DEVICE_NAMES_BY_TYPE`, `ELEMENT_CONFIG_DATA`, `ELEMENT_OPTIONAL_INPUT_FIELDS` |
-| `flows/elements/{type}.py`             | `{Type}SubentryFlowHandler`                                                                                                              |
-| `flows/__init__.py`                    | Entry in the subentry flow handler map                                                                                                   |
-| `translations/en.json`                 | Device, subentry, and entity strings for the new type and its outputs                                                                    |
+| File                                   | What to add                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `core/schema/elements/element_type.py` | `ElementType` enum member                                                            |
+| `core/schema/elements/{type}.py`       | `ELEMENT_TYPE`, `{Type}ConfigSchema`, `{Type}ConfigData`, and any optional hooks     |
+| `core/schema/elements/__init__.py`     | Schema and data unions, `ELEMENT_CONFIG_SCHEMAS`, and the hook mappings it needs     |
+| `core/adapters/elements/{type}.py`     | Output and device name literals, adapter class, `adapter` instance                   |
+| `core/adapters/registry.py`            | Entry in `ELEMENT_TYPES`                                                             |
+| `elements/__init__.py`                 | `ElementOutputName` / `ElementDeviceName` unions and the output and device name sets |
+| `flows/elements/{type}.py`             | `{Type}SubentryFlowHandler`                                                          |
+| `flows/__init__.py`                    | Entry in `get_element_flow_classes()`                                                |
+| `translations/en.json`                 | Device, subentry, and entity strings for the new type and its outputs                |
 
 Tests and documentation are part of the same change:
 
-- Adapter tests in `core/adapters/elements/tests/`
-- Flow tests in `flows/elements/tests/` and flow test data in `flows/tests/test_data/{type}.py`
-- Model element cases in `core/model/tests/test_data/` if the element introduces one
+- Adapter mapping cases in `core/adapters/elements/tests/test_data/{type}.py`, defining `CREATE_CASES` and `OUTPUTS_CASES`.
+    The suite imports one module per type registered in `ELEMENT_TYPES`, so a missing module fails collection.
+- Flow test data in `flows/tests/test_data/{type}.py`.
+    Its `VALID_DATA` configs are in the shape the subentry stores, and the schema tests in `elements/tests/` validate them against the registered schema too.
+- Flow tests in `flows/elements/tests/` for behavior specific to the type
+- Model element cases in `core/model/tests/test_data/` if the element introduces a model element
 - User guide in `docs/user-guide/elements/` and modeling docs in `docs/modeling/device-layer/`
 
 The fastest way to find every touchpoint is to grep for an existing element of a similar shape:
@@ -124,11 +146,7 @@ grep -rln "ElementType.GRID\|GridConfigSchema\|GridConfigData\|GridSubentryFlowH
     custom_components/haeo --include="*.py"
 ```
 
-Pick the closest analogue to copy: `grid` connects to one participant with directional pricing and power limits,
-`load` and `solar` are single-direction elements driven by forecasts,
-`battery` is stateful and expands into several model elements,
-`node` and `connection` are advanced-mode topology primitives,
-and `policy` has no physical model element at all.
+Pick the closest analogue to copy by comparing adapter attributes such as `connectivity`, `advanced`, and `buffer_roles`, and the model elements each adapter's `model_elements()` builds.
 
 ## Working order
 
@@ -137,7 +155,7 @@ The registries reference each other, so this order keeps the type checker useful
 1. `ElementType` member and the schema module — nothing else compiles without them.
 2. Adapter module and its registry entry.
     Run `uv run pyright` here; it names every union and mapping still missing the type.
-3. Flow module and its handler map entry.
+3. Flow module and its entry in `get_element_flow_classes()`.
 4. Translations for the device, subentry, and every new output.
 5. Test data.
     The parametrized suites iterate the registry, so they start failing once step 2 lands and stay failing until the data exists.
@@ -148,4 +166,4 @@ Steps 4 through 6 are part of the change, not follow-up work, and CI checks all 
 Run `uv run check --fast` between steps and `uv run check` before finishing.
 Pyright catches missing registry entries, the flow and adapter tests catch missing test data,
 the output completeness test catches an output name declared but never produced,
-and the translation tests catch strings missing for a registered type.
+and the translation tests catch strings missing or unused for a registered type.

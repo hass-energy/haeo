@@ -1,6 +1,6 @@
 ---
 name: translations
-description: User-facing strings in translations/en.json — sensor and device display names, entity translation keys, config flow errors, exception and repair issue messages. Use when adding or renaming any user-visible string, entity name, or output sensor.
+description: User-facing strings in translations/en.json — sensor and device display names and their naming patterns, entity translation keys and placeholders, config flow labels and errors, exception and repair issue messages, and the translation tests that require every used key and no unused ones. Use when adding, renaming, or removing any user-visible string, entity name, or output sensor, or when a translation test fails.
 ---
 
 # Translation and user-facing text
@@ -20,51 +20,59 @@ HAEO uses `translations/en.json` as a custom integration (not `strings.json` lik
 - Use backticks for: file paths, filenames, variable names, field entries
 - Example: "Check the `config.json` file"
 
-## strings.json structure
+## en.json structure
+
+The top-level groups are `config` (hub flow), `options` (hub options flow), `config_subentries` (one group per element type and the network), `device`, `entity`, `exceptions`, `issues`, `selector`, `services`, and `common` (strings HAEO reads itself).
+Read an existing entry in [`en.json`](../../../custom_components/haeo/translations/en.json) for the shape of each, for example:
 
 ```json
 {
-  "config": {
-    "step": {
-      "user": {
-        "title": "Configure HAEO",
-        "description": "Set up your energy network",
-        "data": {
-          "name": "Network name"
+  "config_subentries": {
+    "grid": {
+      "step": {
+        "user": {
+          "title": "Grid configuration",
+          "data": {
+            "connection": "Connection",
+            "name": "Grid name"
+          },
+          "sections": {
+            "pricing": {
+              "name": "Pricing",
+              "data": {
+                "price_source_target": "Import price",
+                "price_target_source": "Export price"
+              }
+            }
+          }
         }
-      }
-    },
-    "error": {
-      "cannot_connect": "Failed to connect to the device",
-      "invalid_auth": "Invalid authentication credentials"
-    },
-    "abort": {
-      "already_configured": "This device is already configured"
-    }
-  },
-  "entity": {
-    "sensor": {
-      "battery_power": {
-        "name": "Battery power"
       },
-      "grid_import": {
-        "name": "Grid import"
+      "error": {
+        "name_exists": "A device with this name already exists"
       }
     }
   },
   "exceptions": {
-    "invalid_config": {
-      "message": "The configuration is invalid: {reason}"
-    }
-  },
-  "issues": {
-    "outdated_version": {
-      "title": "Firmware update required",
-      "description": "Your device firmware is outdated. To update: 1) Open the app, 2) Go to settings, 3) Select update."
+    "inputs_not_aligned": {
+      "message": "The forecast inputs are still loading for the new planning horizon. Try again in a moment."
     }
   }
 }
 ```
+
+An element flow's `name` and `connection` labels sit in the step's top-level `data`, because those fields are outside every section.
+Labels for sectioned fields sit under `sections.{section}.data`.
+
+## Checking translations
+
+Two checks keep `en.json` and the code in step, and both fail CI:
+
+- `test_translations_match_used_keys` in `translations/tests/test_translations.py` requires every key the integration uses to be present, and every key present to be used.
+    Delete a string in the same change that stops using it.
+- The pytest plugin [`translations/tests/runtime_checks.py`](../../../custom_components/haeo/translations/tests/runtime_checks.py) runs in every test.
+    It fails a test that shows a flow form, abort, repair issue, translated error, entity name, or enum state whose string or placeholder `en.json` lacks.
+
+So tests must use real translation keys, never placeholders such as `"test_error"`.
 
 ## Repair issues
 
@@ -85,40 +93,27 @@ Use translation keys for entity names:
 ```python
 class MySensor(SensorEntity):
     _attr_has_entity_name = True
-    _attr_translation_key = "battery_power"
+    _attr_translation_key = "battery_power_charge"
 ```
+
+Output sensors use the output name as their translation key.
+Input entities use `{element_type}_{field_name}`, which `elements/field_hints.py` builds from the schema.
 
 ## Exception translations
 
 Use translation keys for user-facing exceptions:
 
 ```python
-raise ServiceValidationError(
+raise HomeAssistantError(
     translation_domain=DOMAIN,
-    translation_key="invalid_config",
-    translation_placeholders={"reason": "missing battery"},
+    translation_key="input_unavailable",
+    translation_placeholders={"field": field, "element": element, "entities": entities},
 )
 ```
 
-## Icon translations
+## Icons
 
-Support dynamic icons based on state:
-
-```json
-{
-  "entity": {
-    "sensor": {
-      "battery_level": {
-        "default": "mdi:battery",
-        "state": {
-          "low": "mdi:battery-low",
-          "charging": "mdi:battery-charging"
-        }
-      }
-    }
-  }
-}
-```
+Icons live in `icons.json`, not `en.json`.
 
 ## Sensor naming conventions
 
@@ -127,11 +122,7 @@ These patterns affect both the UI display and the generated entity IDs.
 
 ### Translation key patterns (entity_id generation)
 
-Translation keys use subject-first ordering with underscores:
-
-- `power_import`, `power_export`, `power_charge`, `power_discharge`
-- `power_max_import`, `state_of_charge`
-- Element prefix pattern: `{element}_{property}_{qualifier}` (e.g., `battery_power_charge`, `grid_price_import`)
+Output names, and so translation keys, use subject-first ordering with an element prefix: `{element}_{property}_{qualifier}`, such as `battery_power_charge`, `grid_power_import`, and `battery_state_of_charge`.
 
 ### Display name patterns (UI strings)
 
@@ -141,11 +132,11 @@ Display names follow these patterns for consistency, using sentence case (capita
 
     - ✓ Correct: "Import power", "Export power", "Charge power", "Discharge power", "Active power"
     - ✗ Incorrect: "Power import", "Power export", "Power charge", "Power active"
-    - Qualified variants: "\{Qualifier} \{action} power" (e.g., "Normal charge power", "Max import power")
+    - Qualified variants: "\{Qualifier} \{action} power" (e.g., "Max charge power", "Max discharge power")
 
-2. **Price sensors**: Qualifier + price pattern
+2. **Price entities**: Qualifier + price pattern
 
-    - ✓ Correct: "Import price", "Export price", "Production price"
+    - ✓ Correct: "Import price", "Export price", "Shortfall price"
     - ✗ Incorrect: "Price (Import)", "Price import"
 
 3. **Shadow price sensors**: Constraint description + "shadow price"
@@ -156,7 +147,7 @@ Display names follow these patterns for consistency, using sentence case (capita
 
 4. **State/status sensors**: Noun phrase
 
-    - "State of charge", "Energy stored", "Optimization status"
+    - "State of charge", "Energy stored", "Status"
 
 ### Avoid special characters
 
@@ -166,52 +157,25 @@ These characters can interfere with entity ID generation and cause issues.
 ❌ Bad: "Power (Source to Target)", "Max Import Price (Shadow)"
 ✅ Good: "\{source} to \{target} power", "Max import power shadow price"
 
-### Connection sensor parameterized translations
+### Parameterized translations
 
-Connection sensors use `{source}` and `{target}` placeholders to display actual element names:
+Connection sensors use `{source}` and `{target}` placeholders to display the names of the elements they join:
 
 ```json
 {
   "entity": {
     "sensor": {
-      "connection_power_source_target": {
+      "connection_power": {
         "name": "{source} to {target} power"
-      },
-      "connection_power_target_source": {
-        "name": "{target} to {source} power"
-      },
-      "connection_shadow_power_max_source_target": {
-        "name": "Max {source} to {target} power shadow price"
       }
     }
   }
 }
 ```
 
-The sensor class must set `_attr_translation_placeholders` with the subentry configuration data.
-All subentry.data fields are passed as placeholders (converted to strings), making any configuration value available for use in translations:
-
-```python
-# In sensors/__init__.py - all subentry.data fields become available as placeholders
-translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
-
-# For connections, this includes: source, target, max_power_source_target, etc.
-# For batteries: capacity, efficiency, min_charge_percentage, etc.
-# For grids: import_limit, export_limit, import_price, etc.
-```
-
-The HaeoSensor class accepts these placeholders:
-
-```python
-class HaeoSensor(SensorEntity):
-    def __init__(
-        self,
-        coordinator: DataUpdateCoordinator,
-        translation_placeholders: dict[str, str] | None = None,
-    ):
-        if translation_placeholders is not None:
-            self._attr_translation_placeholders = translation_placeholders
-```
+Every entity of an element gets its placeholders from `build_translation_placeholders()` in [`entities/translation_placeholders.py`](../../../custom_components/haeo/entities/translation_placeholders.py).
+Every configured field is available by its name, including fields inside sections, and `name` defaults to the element's title.
+Parameterize a string with these placeholders rather than writing one string per element type.
 
 ## Home Assistant entity naming requirements
 
