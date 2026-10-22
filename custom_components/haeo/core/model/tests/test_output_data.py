@@ -1,24 +1,24 @@
 """Tests for OutputData class."""
 
-import numpy as np
+from dataclasses import replace
+
+import pytest
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.output_data import OutputData
 
 
-def test_single_value() -> None:
-    """Single value is wrapped in a tuple."""
-    output = OutputData(type=OutputType.POWER, unit="kW", values=5.0)
-    assert output.values == (5.0,)
+@pytest.mark.parametrize(
+    "values",
+    [
+        pytest.param([1.0, 2.0], id="list"),
+        pytest.param("ok", id="str"),
+        pytest.param(1.0, id="float"),
+    ],
+)
+def test_values_that_are_not_a_tuple_are_rejected(values: object) -> None:
+    """Values replaced with anything but a tuple fail at once, rather than being split or stored as given."""
+    output = OutputData(type=OutputType.STATUS, unit=None, values=("ok",))
 
-
-def test_sequence() -> None:
-    """Sequence values are extracted correctly."""
-    output = OutputData(type=OutputType.POWER, unit="kW", values=[1.0, 2.0, 3.0])
-    assert output.values == (1.0, 2.0, 3.0)
-
-
-def test_numpy_array() -> None:
-    """Numpy arrays are flattened to tuple."""
-    output = OutputData(type=OutputType.POWER, unit="kW", values=np.array([1.0, 2.0, 3.0]))
-    assert output.values == (1.0, 2.0, 3.0)
+    with pytest.raises(TypeError, match="must be a tuple"):
+        replace(output, values=values)

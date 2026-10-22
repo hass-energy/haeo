@@ -69,6 +69,9 @@ def test_a_meter_without_totals_has_no_rise() -> None:
     assert rise_since([], 100.0) is None
 
 
+_TOTALS = [(100.0, 1.0), (200.0, 3.0), (300.0, 5.0)]
+
+
 @pytest.mark.parametrize(
     ("since", "expected"),
     [
@@ -76,15 +79,16 @@ def test_a_meter_without_totals_has_no_rise() -> None:
         pytest.param(200.0, [(200.0, 3.0), (300.0, 5.0)], id="from_the_total_at"),
         pytest.param(50.0, [(100.0, 1.0), (300.0, 5.0)], id="from_the_earliest_when_they_start_later"),
         pytest.param(350.0, [(300.0, 5.0)], id="the_latest_alone_when_it_is_the_start"),
-        pytest.param(None, [(300.0, 5.0)], id="only_the_latest_with_no_window"),
     ],
 )
-def test_totals_since(since: float | None, expected: list[tuple[float, float]]) -> None:
+def test_totals_since(since: float, expected: list[tuple[float, float]]) -> None:
     """Only the total a rise starts from and the latest are kept, and they give the same rise."""
-    totals = [(100.0, 1.0), (200.0, 3.0), (300.0, 5.0)]
-
-    kept = totals_since(totals, since)
+    kept = totals_since(_TOTALS, since)
 
     assert kept == expected
-    if since is not None:
-        assert rise_since(kept, since) == rise_since(totals, since)
+    assert rise_since(kept, since) == rise_since(_TOTALS, since)
+
+
+def test_totals_since_no_window_keeps_only_the_latest() -> None:
+    """With no window open there is no rise to read, so only the latest total is kept."""
+    assert totals_since(_TOTALS, None) == [(300.0, 5.0)]

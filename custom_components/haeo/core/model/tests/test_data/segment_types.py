@@ -33,18 +33,6 @@ class SegmentScenario(TypedDict):
     endpoint_factory: NotRequired[SegmentEndpointFactory]
 
 
-class SegmentErrorScenario(TypedDict):
-    """Scenario describing segment initialization errors."""
-
-    description: str
-    factory: type
-    spec: SegmentSpec
-    periods: NDArray[np.float64]
-    error: type[Exception]
-    match: str | None
-    endpoint_factory: NotRequired[SegmentEndpointFactory]
-
-
 class ConnectionScenarioInputs(TypedDict, total=False):
     """Inputs for connection scenarios."""
 

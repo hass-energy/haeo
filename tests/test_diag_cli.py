@@ -63,31 +63,23 @@ def test_load_element_config_unwraps_constant_wrappers() -> None:
     assert loaded.get("connection") == {"type": "connection_target", "value": "Inverter"}
 
 
-def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Entity-backed scalar fields use present value, not fused horizons."""
+def test_load_element_config_uses_present_value_for_scalar_entities() -> None:
+    """Entity-backed scalar fields read the captured state, not the forecast it carries."""
     config = _base_battery_config()
     config["storage"] = {
         "capacity": {"type": "constant", "value": 13.5},
         "initial_charge_percentage": {"type": "entity", "value": ["sensor.battery_soc"]},
     }
+    captured: dict[str, JsonValueType] = {
+        "entity_id": "sensor.battery_soc",
+        "state": "75",
+        "attributes": {
+            "unit_of_measurement": "%",
+            "forecast": [{"time": "1970-01-01T00:00:00+00:00", "value": 74.0}],
+        },
+    }
 
-    monkeypatch.setattr(
-        cl,
-        "load_sensors",
-        lambda _provider, entity_ids, **_kwargs: {entity_ids[0]: 75.0},
-    )
-    monkeypatch.setattr(
-        cl,
-        "split_sensor_payloads",
-        lambda _payloads: (75.0, [[(0.0, 74.0)]]),
-    )
-    monkeypatch.setattr(
-        cl,
-        "fuse_sensor_payloads",
-        lambda *_args, **_kwargs: pytest.fail("fuse_sensor_payloads should not run for scalar fields"),
-    )
-
-    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([], UTC), (0.0, 1800.0, 3600.0))
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([captured], UTC), (0.0, 1800.0, 3600.0))
 
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.75)
 

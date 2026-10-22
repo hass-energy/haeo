@@ -2,7 +2,13 @@
 
 from collections.abc import Mapping
 from datetime import tzinfo
-from typing import Protocol
+from typing import Final, Protocol
+
+# States Home Assistant uses for an entity without a reading
+NO_READING_STATES: Final = frozenset({"unavailable", "unknown"})
+
+# States that read as on or off, as binary sensors and booleans report them, with the number each reads as
+ON_OFF_STATE_VALUES: Final[Mapping[str, float]] = {"on": 1.0, "true": 1.0, "off": 0.0, "false": 0.0}
 
 
 class EntityState(Protocol):
@@ -41,4 +47,4 @@ class StateMachine(Protocol):
         ...
 
 
-__all__ = ["EntityState", "StateMachine"]
+__all__ = ["NO_READING_STATES", "ON_OFF_STATE_VALUES", "EntityState", "StateMachine"]

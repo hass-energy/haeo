@@ -249,7 +249,7 @@ class LinearArray:
         expr = self - other
         return Rows(expr.without_constant(), -expr.constant, np.full(len(expr), INF))
 
-    def __eq__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]
+    def __eq__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]  # == builds rows, see __hash__
         """Return rows fixing each expression."""
         expr = self - other
         return Rows(expr.without_constant(), -expr.constant, -expr.constant)

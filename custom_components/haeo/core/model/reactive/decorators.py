@@ -4,6 +4,7 @@ from collections.abc import Callable
 from functools import partial
 from typing import TypeVar, overload
 
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.linear import Rows
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.model.util.solver_rows import RowIndices, add_rows, update_rows
@@ -64,7 +65,7 @@ class ReactiveMethod[R]:
 
         # Return cached if not invalidated
         if not state["invalidated"]:
-            return state["result"]  # type: ignore[return-value]
+            return state["result"]  # type: ignore[return-value]  # the cached result is the one this method returned
 
         result = self._compute(obj, state)
         state["result"] = result
@@ -130,9 +131,6 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         if not self.output:
             return None
 
-        # Import here to avoid circular dependency
-        from custom_components.haeo.core.model.const import OutputType  # noqa: PLC0415
-
         cons = applied_constraint(obj, self._name)
         if cons is None:
             return None
@@ -157,7 +155,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
 
         # Check if we need to recompute
         if not state["invalidated"]:
-            return state["result"]  # type: ignore[return-value]
+            return state["result"]  # type: ignore[return-value]  # the cached result is the one this method returned
 
         result = self._compute(obj, state)
         if not isinstance(result, Rows):
