@@ -15,11 +15,13 @@ def test_feasibility_relaxation_replaces_the_cached_solution() -> None:
     add_rows(solver, x <= 4.0)
     solver.run()
     before = solver.column_values().copy()
+    solver.row_values()
     solver.row_duals()
 
     solver.feasibilityRelaxation(1.0, 1.0, 1.0, None, None, None)
 
     solution = solver.getSolution()
     np.testing.assert_allclose(solver.column_values(), solution.col_value)
+    np.testing.assert_allclose(solver.row_values(), solution.row_value)
     np.testing.assert_allclose(solver.row_duals(), solution.row_dual)
     assert not np.allclose(solver.column_values(), before)

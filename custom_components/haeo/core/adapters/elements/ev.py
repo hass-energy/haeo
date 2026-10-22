@@ -303,7 +303,7 @@ class EvAdapter:
         # Active power (discharge - charge)
         ev_outputs[EV_POWER_ACTIVE] = replace(
             power_discharge,
-            values=[d - c for d, c in zip(power_discharge.values, power_charge.values, strict=True)],
+            values=tuple(d - c for d, c in zip(power_discharge.values, power_charge.values, strict=True)),
             direction=None,
             type=OutputType.POWER,
         )

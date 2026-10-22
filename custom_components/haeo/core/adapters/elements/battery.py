@@ -187,7 +187,7 @@ class BatteryAdapter:
 
         aggregate_outputs[BATTERY_POWER_ACTIVE] = replace(
             power_discharge,
-            values=[d - c for d, c in zip(power_discharge.values, power_charge.values, strict=True)],
+            values=tuple(d - c for d, c in zip(power_discharge.values, power_charge.values, strict=True)),
             direction=None,
             type=OutputType.POWER,
         )
@@ -209,10 +209,11 @@ adapter = BatteryAdapter()
 
 
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
-    """Calculate SOC ratio from stored energy and capacity."""
+    """Calculate SOC ratio from stored energy and capacity, reading 0 where the battery has no capacity."""
     # Capacity is already boundaries (n+1 values), same as energy
-    capacity = config[SECTION_STORAGE][CONF_CAPACITY]
-    soc_values = np.asarray(total_energy.values, dtype=float) / capacity
+    energy = np.asarray(total_energy.values, dtype=float)
+    capacity = np.broadcast_to(np.asarray(config[SECTION_STORAGE][CONF_CAPACITY], dtype=float), energy.shape)
+    soc_values = np.divide(energy, capacity, out=np.zeros_like(energy), where=capacity > 0.0)
 
     return OutputData(
         type=OutputType.STATE_OF_CHARGE,

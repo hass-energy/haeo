@@ -52,7 +52,9 @@ class PolicyPricingElementConfig(TypedDict):
     terms: list[PolicyPricingTerm]
 
 
-def policy_pricing_arguments(config: PolicyPricingElementConfig, elements: Mapping[str, object]) -> dict[str, object]:
+def policy_pricing_arguments(
+    config: PolicyPricingElementConfig, elements: Mapping[str, object], /
+) -> dict[str, object]:
     """Return a policy pricing's constructor arguments, with each term resolved to the connection it prices."""
     name = config["name"]
     priced_flows: list[tuple[MeasuredFlows, int]] = []

@@ -76,7 +76,7 @@ class Element[OutputNameT: str](ModelComponent):
         self._solver = solver
         self._output_names = output_names
 
-    def __getitem__(self, key: str) -> object:
+    def __getitem__(self, key: str | int) -> object:
         """Get a value by name.
 
         Args:
@@ -86,10 +86,13 @@ class Element[OutputNameT: str](ModelComponent):
             The current value of the parameter
 
         Raises:
-            KeyError: If the element has no value with this name
+            KeyError: If the element has no value with this name, or the key is an index
             AttributeError: If the TrackedParam has not been set
 
         """
+        if isinstance(key, int):
+            msg = f"{type(self).__name__!r} does not support indexed access"
+            raise KeyError(msg)
         if isinstance(getattr(type(self), key, None), TrackedParam) or hasattr(self, key):
             return getattr(self, key)
         msg = f"{type(self).__name__!r} has no attribute {key!r}"
@@ -101,23 +104,21 @@ class Element[OutputNameT: str](ModelComponent):
         Setting a value triggers invalidation of dependent constraints/costs.
 
         Args:
-            key: Name of the TrackedParam
+            key: Name of the TrackedParam or attribute
             value: New value to set
 
         Raises:
-            KeyError: If no TrackedParam with this name exists
+            KeyError: If the element has no value with this name that can be set
 
         """
-        # Look up the descriptor on the class
-        descriptor = getattr(type(self), key, None)
-        if isinstance(descriptor, TrackedParam):
+        if not isinstance(getattr(type(self), key, None), TrackedParam) and not hasattr(self, key):
+            msg = f"{type(self).__name__!r} has no attribute {key!r}"
+            raise KeyError(msg)
+        try:
             setattr(self, key, value)
-            return
-        if hasattr(self, key):
-            setattr(self, key, value)
-            return
-        msg = f"{type(self).__name__!r} has no attribute {key!r}"
-        raise KeyError(msg)
+        except AttributeError as err:
+            msg = f"{type(self).__name__!r} attribute {key!r} cannot be set"
+            raise KeyError(msg) from err
 
     @property
     def n_periods(self) -> int:
