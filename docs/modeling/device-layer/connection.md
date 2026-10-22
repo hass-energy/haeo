@@ -53,8 +53,8 @@ If a field is omitted, the corresponding segment defaults apply.
 Power limits and pricing are skipped when values are `None`.
 Efficiency defaults to 100% via the efficiency segment.
 
-Because efficiency is the first segment, the power limit and price act on power after losses, which is the power delivered to the target.
-The reported connection power is the power entering the chain at the source, before losses.
+Because efficiency is the last segment, the power limit and price act on power before losses, which is the power leaving the source.
+The reported connection power is measured at the same point, so the target receives that power reduced by the efficiency.
 
 ## Sensors created
 
