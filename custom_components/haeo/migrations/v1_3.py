@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.core.schema import is_constant_value
+from custom_components.haeo.core.schema import is_constant_value, is_entity_value, is_none_value
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.migrations import section_dict
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config, migrate_hub_config
@@ -89,28 +89,27 @@ def _policy_subentry(*, rules: list[dict[str, object]]) -> dict[str, object]:
 
 
 def _negate_price_value(price: object) -> object:
+    """Return a charge price negated, or as it is when it is disabled or read from an entity."""
     if is_constant_value(price):
         return {**price, "value": -price["value"]}
-    _LOGGER.warning(
-        "Cannot negate non-constant charge price during migration; "
-        "a positive entity price will behave as a cost in the new policy system. "
-        "To preserve incentive semantics, use a template sensor that outputs a negated value: %s",
-        price,
-    )
-    return price
+    if is_none_value(price):
+        return price
+    if is_entity_value(price):
+        _LOGGER.warning(
+            "Cannot negate non-constant charge price during migration; "
+            "a positive entity price will behave as a cost in the new policy system. "
+            "To preserve incentive semantics, use a template sensor that outputs a negated value: %s",
+            price,
+        )
+        return price
+    msg = f"Cannot negate charge price {price!r}"
+    raise TypeError(msg)
 
 
 def _is_default_policy_price(element_type: str, field_name: str, price: object) -> bool:
     """Return True when a constant price matches a legacy default value."""
-    defaults = _DEFAULT_POLICY_PRICES.get((element_type, field_name))
-    if defaults is None:
-        return False
-    if not isinstance(price, dict) or price.get("type") != "constant":
-        return False
-    value = price.get("value")
-    if not isinstance(value, (int, float)):
-        return False
-    return float(value) in defaults
+    defaults = _DEFAULT_POLICY_PRICES.get((element_type, field_name), frozenset())
+    return is_constant_value(price) and float(price["value"]) in defaults
 
 
 def _extract_pricing_rules(data: dict[str, object], subentry: ConfigSubentry) -> list[dict[str, object]]:

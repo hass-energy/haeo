@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from types import MappingProxyType
 
 from homeassistant.config_entries import ConfigSubentry
@@ -43,14 +42,6 @@ from custom_components.haeo.core.schema.sections import (
 )
 from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.migrations import v1_4
-
-
-@pytest.fixture
-def haeo_caplog(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> pytest.LogCaptureFixture:
-    """Return caplog with HAEO's info logs, which otherwise go to the console only."""
-    monkeypatch.setattr(logging.getLogger("custom_components.haeo"), "propagate", True)
-    caplog.set_level(logging.INFO, logger="custom_components.haeo")
-    return caplog
 
 
 def _create_subentry(data: dict[str, object], *, subentry_type: str | None = None) -> ConfigSubentry:
