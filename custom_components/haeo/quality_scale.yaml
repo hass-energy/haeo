@@ -50,7 +50,7 @@ rules:
     comment: The hub config flow collects only local optimization settings; there is no device or service to connect to.
   test-before-setup:
     status: done
-    comment: async_setup_entry raises ConfigEntryNotReady until every input is available and ConfigEntryError for invalid configuration.
+    comment: async_setup_entry raises ConfigEntryNotReady until every input is available, and for any unexpected error with a repair issue, so setup always retries.
   unique-config-entry:
     status: done
     comment: The hub flow sets a unique ID from the network name and aborts duplicates.

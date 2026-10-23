@@ -77,8 +77,10 @@ Create devices through the helpers in `entities/device.py`, which register each 
 All exceptions that may reach the user must use Home Assistant exception types with translations.
 Never raise generic exceptions that would show "unknown error" in the UI.
 
-- `ConfigEntryNotReady`: Device offline or temporary failure
-- `ConfigEntryError`: Unresolvable setup problems
+Setup never fails permanently, so that HAEO recovers on its own once the conditions it depends on settle.
+`async_setup_entry` turns any unexpected error into `ConfigEntryNotReady` with a `setup_failed` repair issue; never raise `ConfigEntryError`.
+
+- `ConfigEntryNotReady`: Setup cannot finish yet; Home Assistant retries it
 - `UpdateFailed`: Data loading or optimization errors
 - `HomeAssistantError`: User-facing errors with translation support
 

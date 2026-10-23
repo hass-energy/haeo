@@ -195,6 +195,34 @@ def dismiss_invalid_connection_endpoints_issue(
     _LOGGER.debug("Dismissed invalid connection endpoints issue for entry %s", entry_id)
 
 
+def create_setup_failed_issue(hass: HomeAssistant, entry_id: str, error: str) -> None:
+    """Raise a repair issue for a setup that failed unexpectedly and will be retried."""
+    async_create_issue(
+        hass,
+        DOMAIN,
+        f"setup_failed_{entry_id}",
+        is_fixable=False,
+        is_persistent=False,
+        severity=IssueSeverity.ERROR,
+        translation_key="setup_failed",
+        translation_placeholders={"error": error},
+        learn_more_url=ISSUE_TRACKER_URL,
+    )
+
+
+def setup_failed_issue_error(hass: HomeAssistant, entry_id: str) -> str | None:
+    """Return the error the open setup failure issue reports, or None when there is none."""
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"setup_failed_{entry_id}")
+    if issue is None or issue.translation_placeholders is None:
+        return None
+    return issue.translation_placeholders.get("error")
+
+
+def dismiss_setup_failed_issue(hass: HomeAssistant, entry_id: str) -> None:
+    """Dismiss the setup failure issue once setup succeeds."""
+    async_delete_issue(hass, DOMAIN, f"setup_failed_{entry_id}")
+
+
 def create_optimization_persistent_failure_issue(
     hass: HomeAssistant,
     entry_id: str,

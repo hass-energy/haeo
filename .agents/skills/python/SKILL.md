@@ -54,9 +54,8 @@ See [typing philosophy](../../../docs/developer-guide/typing.md) for detailed pa
 - **Fail loudly**: Never log an error/warning and continue as if nothing happened.
     If something fails that should succeed, raise an exception. Silent failures hide bugs.
 - **Use HA-specific exceptions** in setup flows instead of generic Python exceptions:
-    - `ConfigEntryNotReady` - Transient error (network timeout, service unavailable). HA will retry setup.
-    - `ConfigEntryError` - Permanent failure (invalid config). User must fix configuration.
-    - `ConfigEntryAuthFailed` - Authentication failure. User must re-authenticate.
+    - `ConfigEntryNotReady` - Setup cannot finish yet. HA will retry setup.
+        HAEO setup never fails permanently: `async_setup_entry` turns any unexpected error into `ConfigEntryNotReady` with a repair issue, so do not raise `ConfigEntryError`.
     - `UpdateFailed` - Coordinator refresh failed. Used in `_async_update_data`.
     ```python
     # ❌ Bad - generic exception in async_setup_entry

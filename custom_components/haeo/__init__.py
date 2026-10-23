@@ -16,7 +16,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry, ConfigSubentryData
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
@@ -46,7 +46,13 @@ from custom_components.haeo.input_stores import (
 )
 from custom_components.haeo.inputs.calendar_loader import CalendarInputLoader
 from custom_components.haeo.inputs.source_loader import SourceInputLoader
-from custom_components.haeo.repairs import async_dismiss_entry_issues, sync_unavailable_input_issues
+from custom_components.haeo.repairs import (
+    async_dismiss_entry_issues,
+    create_setup_failed_issue,
+    dismiss_setup_failed_issue,
+    setup_failed_issue_error,
+    sync_unavailable_input_issues,
+)
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
 from custom_components.haeo.util import network_subentry
@@ -313,39 +319,49 @@ async def _async_first_refresh(
     raise_for_rejected_input(runtime_data.input_stores, ConfigEntryNotReady)
     _LOGGER.debug("All input entities ready")
 
-    # Wrap coordinator operations to provide meaningful HA error messages
-    try:
-        # Initialize the network and set up subscriptions
-        # This must happen before the first refresh
-        await coordinator.async_initialize()
+    # Initialize the network and set up subscriptions
+    # This must happen before the first refresh
+    await coordinator.async_initialize()
 
-        # Trigger initial optimization before output platform setup so the output
-        # sensors can be created with the platform. If it fails, the sensor platform
-        # adds them after the first successful optimization instead.
-        # Use async_refresh() instead of async_config_entry_first_refresh() to avoid
-        # retrying setup if optimization fails (e.g., missing sensor data)
-        await coordinator.async_refresh()
-    except (ConfigEntryNotReady, ConfigEntryError):
-        # Re-raise HA exceptions as-is to preserve translation keys
-        raise
-    except (ValueError, TypeError, KeyError) as err:
-        # Configuration or programming errors - permanent failure
-        raise ConfigEntryError(
-            translation_domain=DOMAIN,
-            translation_key="setup_failed_permanent",
-            translation_placeholders={"error": str(err)},
-        ) from err
-    except Exception as err:
-        # Transient errors (network, sensor availability) - retry
-        raise ConfigEntryNotReady(
-            translation_domain=DOMAIN,
-            translation_key="setup_failed_transient",
-            translation_placeholders={"error": str(err)},
-        ) from err
+    # Trigger initial optimization before output platform setup so the output
+    # sensors can be created with the platform. If it fails, the sensor platform
+    # adds them after the first successful optimization instead.
+    # Use async_refresh() instead of async_config_entry_first_refresh() to avoid
+    # retrying setup if optimization fails (e.g., missing sensor data)
+    await coordinator.async_refresh()
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry.
+
+    Setup never fails permanently: an unexpected error raises a repair issue and
+    ConfigEntryNotReady, so Home Assistant retries until the conditions it hit settle.
+    """
+    try:
+        await _async_setup_entry(hass, entry)
+    except ConfigEntryNotReady:
+        # Setup now waits on something it reports itself, so an earlier unexpected error is no longer the cause
+        dismiss_setup_failed_issue(hass, entry.entry_id)
+        raise
+    except Exception as err:
+        error = f"{type(err).__name__}: {err}"
+        # Home Assistant retries indefinitely, so a repeat of the error the issue shows is not logged in full again
+        if setup_failed_issue_error(hass, entry.entry_id) == error:
+            _LOGGER.warning("HAEO setup failed again with %s, Home Assistant will retry", error)
+        else:
+            _LOGGER.exception("HAEO setup failed, Home Assistant will retry")
+        create_setup_failed_issue(hass, entry.entry_id, error)
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="setup_failed",
+            translation_placeholders={"error": error},
+        ) from err
+    dismiss_setup_failed_issue(hass, entry.entry_id)
+    return True
+
+
+async def _async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
+    """Build the runtime data, forward the platforms and run the first optimization.
 
     Uses async_on_unload pattern for cleanup registration. Home Assistant
     automatically calls all registered async_on_unload callbacks when setup
@@ -418,7 +434,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     _LOGGER.info("HAEO integration setup complete")
-    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
