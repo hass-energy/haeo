@@ -375,6 +375,23 @@ def test_diag_follows_the_hub_relax_setting(
     assert expected in capsys.readouterr().out
 
 
+@pytest.mark.timeout(60)
+def test_diag_gives_an_ev_exported_without_a_public_charging_price_the_default(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An export from before v1.6 whose EV has no public charging price runs with the default, as upgrading does."""
+    for name in ("environment.json", "inputs.json"):
+        shutil.copy(SCENARIOS_DIR / "scenario7" / name, tmp_path / name)
+    config = json.loads((SCENARIOS_DIR / "scenario7" / "config.json").read_text())
+    del config["participants"]["Atto 2"]["public_charging"]
+    config["minor_version"] = 5
+    (tmp_path / "config.json").write_text(json.dumps(config))
+
+    run_diagnostics(tmp_path)
+
+    assert "Optimization complete" in capsys.readouterr().out
+
+
 @pytest.mark.parametrize(
     ("config", "expected"),
     [
