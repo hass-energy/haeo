@@ -49,6 +49,8 @@ from custom_components.haeo.core.schema.horizon_value import is_horizon_preset_v
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.schema.migrations.v1_4 import MINOR_VERSION as MIGRATED_MINOR_VERSION
 from custom_components.haeo.core.schema.migrations.v1_4 import migrate_hub_horizon, migrate_participants
+from custom_components.haeo.core.schema.migrations.v1_6 import MINOR_VERSION as PUBLIC_PRICE_MINOR_VERSION
+from custom_components.haeo.core.schema.migrations.v1_6 import migrate_element_config as migrate_public_charging_price
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
 
@@ -205,16 +207,22 @@ def config_advanced_mode(config: Mapping[str, JsonValueType]) -> bool:
 def migrate_participants_for_diag(
     config: Mapping[str, JsonValueType], participants: Mapping[str, Mapping[str, object]]
 ) -> dict[str, dict[str, object]]:
-    """Apply the v1.4 element migrations to participants exported before v1.4, as upgrading does.
+    """Apply the element migrations an export predates, as upgrading does.
 
-    Exports from v1.4 or later already hold current configs and pass through.
-    An export without a minor version predates the diagnostics format, so it is
-    migrated.
+    Exports from before v1.4 get the v1.4 element migrations, and exports from
+    before v1.6 give their EVs the default public charging price. An export
+    without a minor version predates the diagnostics format, so it gets both.
     """
     minor_version = config.get("minor_version")
-    if isinstance(minor_version, int) and minor_version >= MIGRATED_MINOR_VERSION:
-        return {name: dict(participant) for name, participant in participants.items()}
-    return migrate_participants(participants, advanced_mode=config_advanced_mode(config)).participants
+    version = minor_version if isinstance(minor_version, int) else 0
+    migrated = (
+        {name: dict(participant) for name, participant in participants.items()}
+        if version >= MIGRATED_MINOR_VERSION
+        else migrate_participants(participants, advanced_mode=config_advanced_mode(config)).participants
+    )
+    if version >= PUBLIC_PRICE_MINOR_VERSION:
+        return migrated
+    return {name: migrate_public_charging_price(participant) or participant for name, participant in migrated.items()}
 
 
 def config_horizon_preset(config: Mapping[str, JsonValueType]) -> str:
