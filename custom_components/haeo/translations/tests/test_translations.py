@@ -47,18 +47,19 @@ from custom_components.haeo.core.const import (
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import ELEMENTS
 from custom_components.haeo.core.model.reactive import OutputMethod
+from custom_components.haeo.core.schema import VALUE_TYPE_ENTITY, get_schema_value_kinds
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementType
 from custom_components.haeo.core.schema.field_hints import extract_list_field_hints
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.elements import (
     ELEMENT_DEVICE_NAMES,
     ELEMENT_OUTPUT_NAMES,
+    get_input_field_schema_info,
     get_input_fields,
     get_surfaced_input_fields,
     iter_input_field_paths,
 )
 from custom_components.haeo.elements.field_hints import build_list_input_fields
-from custom_components.haeo.elements.input_fields import reads_calendar
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, get_element_flow_classes
 from custom_components.haeo.flows.elements.policy import ACTION_EDIT, CONF_ACTION, CONF_RULE
 from custom_components.haeo.flows.hub import HubConfigFlow
@@ -311,11 +312,15 @@ async def _first_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: T
 
 async def _states_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath) -> FlowResult:
     """Submit an element whose on/off input reads a sensor reporting words."""
+    element_type = ElementType(prefix[-1])
+    input_fields = get_input_fields(element_type)
+    schema_info = get_input_field_schema_info(element_type, input_fields)
     section, field_name = next(
         (section, field_name)
-        for section, fields in get_input_fields(ElementType(prefix[-1])).items()
+        for section, fields in input_fields.items()
         for field_name, info in fields.items()
-        if info.output_type is OutputType.AVAILABILITY and not reads_calendar(info)
+        if info.output_type is OutputType.STATUS
+        and VALUE_TYPE_ENTITY in get_schema_value_kinds(schema_info[section][field_name].value_type)
     )
     hass.states.async_set("sensor.reports_words", "Idle", {"options": ["Idle", "Charging"]})
     user_input = _valid_config(prefix)

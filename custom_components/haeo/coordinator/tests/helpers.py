@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 import json
 from pathlib import Path
 from typing import Any  # noqa: TID251  # Mock-typed horizon manager and JSON read back from a diagnostics file
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 from homeassistant.core import HomeAssistant
 
@@ -19,6 +19,16 @@ EARLIER_ISSUE = {
     "relaxed_periods": "1",
 }
 EARLIER_DIAGNOSTICS = "/config/haeo/diagnostics/earlier.json"
+
+# Period lengths of the mock horizon, between its forecast timestamps
+MOCK_PERIODS_SECONDS = [1000, 1000]
+
+
+def network_double() -> MagicMock:
+    """Return a network double built for the mock horizon's periods."""
+    network = MagicMock()
+    network.n_periods = len(MOCK_PERIODS_SECONDS)
+    return network
 
 
 def run_jobs_but(hass: HomeAssistant, skipped: object, result: object) -> Callable[..., Awaitable[object]]:

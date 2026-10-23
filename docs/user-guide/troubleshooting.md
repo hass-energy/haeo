@@ -188,6 +188,7 @@ The shortfall is placed to be as small as possible rather than as cheap as possi
 ### Problem
 
 Optimization duration exceeds acceptable limits.
+HAEO stops a solve that runs for more than 60 seconds and reports the optimization as failed, so a slow solve never holds up the next one.
 
 ### Solutions
 

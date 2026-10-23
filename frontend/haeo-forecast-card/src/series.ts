@@ -252,7 +252,9 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
         const row = item as Record<string, unknown>;
         const timeRaw = row["time"] ?? row["timestamp"];
         const time = parseForecastTimeMs(timeRaw);
-        const value = asNumber(row["value"]);
+        // An on/off input, such as a calendar window, forecasts true and false
+        const rawValue = row["value"];
+        const value = typeof rawValue === "boolean" ? Number(rawValue) : asNumber(rawValue);
         if (time === null || value === null) {
           return null;
         }

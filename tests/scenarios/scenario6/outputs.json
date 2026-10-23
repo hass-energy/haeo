@@ -641,7 +641,7 @@
       "source_role": "limit",
       "step": 0.001,
       "time_series": true,
-      "unit_of_measurement": "\u20ac/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.battery_discharge_efficiency": {
@@ -1092,7 +1092,7 @@
       "source_role": "limit",
       "step": 0.001,
       "time_series": true,
-      "unit_of_measurement": "\u20ac/kWh/h"
+      "unit_of_measurement": "$/kWh/h"
     }
   },
   "number.battery_max_charge": {
@@ -2388,7 +2388,7 @@
       "source_role": "limit",
       "step": 0.001,
       "time_series": true,
-      "unit_of_measurement": "\u20ac/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.grid_import_limit": {
@@ -2820,7 +2820,7 @@
       "source_role": "limit",
       "step": 0.001,
       "time_series": true,
-      "unit_of_measurement": "\u20ac/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.inverter_max_ac_to_dc_power": {
@@ -3687,7 +3687,7 @@
       "step": 0.001,
       "target": ["Grid"],
       "time_series": true,
-      "unit_of_measurement": "\u20ac/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.policies_battery_wear_price": {
@@ -3904,7 +3904,7 @@
       "source_role": "limit",
       "step": 0.001,
       "time_series": true,
-      "unit_of_measurement": "\u20ac/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.policies_solar_minimum_sell_price": {
@@ -4122,7 +4122,7 @@
       "step": 0.001,
       "target": ["Grid"],
       "time_series": true,
-      "unit_of_measurement": "\u20ac/kWh"
+      "unit_of_measurement": "$/kWh"
     }
   },
   "number.solar_forecast": {
@@ -12695,7 +12695,9 @@
         { "time": "2026-04-26T21:00:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-26T21:58:00.000000+1000", "value": 1.0 }
       ],
-      "friendly_name": "Policies Battery min sell enabled"
+      "friendly_name": "Policies Battery min sell enabled",
+      "source_role": "limit",
+      "time_series": false
     }
   },
   "switch.policies_battery_wear_enabled": {
@@ -12902,7 +12904,9 @@
         { "time": "2026-04-26T21:00:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-26T21:58:00.000000+1000", "value": 1.0 }
       ],
-      "friendly_name": "Policies Battery Wear enabled"
+      "friendly_name": "Policies Battery Wear enabled",
+      "source_role": "limit",
+      "time_series": false
     }
   },
   "switch.policies_solar_minimum_sell_enabled": {
@@ -13109,7 +13113,9 @@
         { "time": "2026-04-26T21:00:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-26T21:58:00.000000+1000", "value": 1.0 }
       ],
-      "friendly_name": "Policies Solar Minimum Sell enabled"
+      "friendly_name": "Policies Solar Minimum Sell enabled",
+      "source_role": "limit",
+      "time_series": false
     }
   },
   "switch.solar_curtailment": {
@@ -13316,7 +13322,9 @@
         { "time": "2026-04-26T21:00:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-26T21:58:00.000000+1000", "value": 1.0 }
       ],
-      "friendly_name": "Solar Curtailment"
+      "friendly_name": "Solar Curtailment",
+      "source_role": "limit",
+      "time_series": false
     }
   }
 }

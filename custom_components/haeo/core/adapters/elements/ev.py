@@ -65,9 +65,6 @@ from custom_components.haeo.core.schema.sections import (
 # gated by the away mask, not by a physical charger.
 _UNLIMITED_POWER: Final = 1.0e6
 
-# Threshold above which a connected flag counts as plugged in.
-_CONNECTED_THRESHOLD: Final = 0.5
-
 # Default public charging price ($/kWh) when none is configured. High enough
 # that home charging always wins when physically possible, but finite so the
 # trip energy requirement can never make the optimization infeasible.
@@ -200,9 +197,10 @@ class EvAdapter:
             pack["min_charge"] = min_ratio * capacity
 
         trip = config.get(SECTION_TRIP, {})
-        plugged_in = bool(charging[CONF_CONNECTED][0] >= _CONNECTED_THRESHOLD)
+        plugged_in = bool(charging[CONF_CONNECTED])
         driven_energy = trip.get(CONF_ODOMETER, 0.0) * energy_per_distance
-        n_periods = len(charging[CONF_CONNECTED])
+        # The capacity is given at every period boundary
+        n_periods = len(capacity) - 1
 
         windows = _trip_windows(trip, energy_per_distance, n_periods)
         if plugged_in and driven_energy > 0.0:

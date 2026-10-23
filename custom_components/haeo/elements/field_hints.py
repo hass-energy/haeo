@@ -11,7 +11,7 @@ from typing import Final
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
-from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.const import ON_OFF_OUTPUT_TYPES, OutputType
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
 from custom_components.haeo.core.units import UnitOfMeasurement
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldDefaults, InputFieldInfo
@@ -196,7 +196,7 @@ def _build_field_info(
             value=hint.default_value,
         )
 
-    if hint.output_type == OutputType.STATUS:
+    if hint.output_type in ON_OFF_OUTPUT_TYPES:
         return InputFieldInfo(
             field_name=field_name,
             entity_description=SwitchEntityDescription(

@@ -49,6 +49,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+from custom_components.haeo.migrations import MIGRATION_MINOR_VERSION
 
 SOURCE_NODE = "Generator bus"
 
@@ -178,7 +179,7 @@ async def test_hub_from_0_4_upgrades_and_sets_up(
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.LOADED
-    assert entry.minor_version == 4
+    assert entry.minor_version == MIGRATION_MINOR_VERSION
     assert entry.data[HUB_SECTION_COMMON][CONF_HORIZON] == as_horizon_preset_value(expected_preset)
     subentries = {subentry.title: subentry for subentry in entry.subentries.values()}
     assert all(

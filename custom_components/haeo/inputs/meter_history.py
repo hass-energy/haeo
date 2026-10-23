@@ -33,6 +33,8 @@ from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 _LOGGER = logging.getLogger(__name__)
 
 RECORDER_DOMAIN: Final = "recorder"
+# Longest a meter's recorded totals are waited for, so a slow recorder does not hold up loading
+RECORDER_READ_TIMEOUT: Final = 30
 
 # How far back the totals reach. Short-term statistics are kept for ten days
 # by default, which a week stays inside; a window that began earlier is
@@ -130,16 +132,38 @@ class MeterHistory:
         self._hass = hass
         self._entity_ids = list(entity_ids)
         self._meters: dict[str, _MeterTotals] = {}
+        self._recorded = False
+
+    @property
+    def recorded(self) -> bool:
+        """Return whether every meter's recorded totals have been read."""
+        return self._recorded
 
     async def async_load(self) -> None:
+        """Read each meter's recorded totals, waiting at most ``RECORDER_READ_TIMEOUT`` for each.
+
+        A meter whose recorded totals cannot be read in time starts from its
+        live state, and :attr:`recorded` stays False so they can be read again.
+        """
+        await self._async_read(RECORDER_READ_TIMEOUT)
+
+    async def async_retry(self) -> None:
+        """Read each meter's recorded totals again, however long the recorder takes to answer."""
+        await self._async_read(None)
+
+    async def _async_read(self, read_timeout: float | None) -> None:
         """Read each meter's recorded totals over the lookback, then extend them with its live state."""
         found = await asyncio.gather(
-            *(self._async_recorded(entity_id, self._hass.states.get(entity_id)) for entity_id in self._entity_ids)
+            *(
+                self._async_recorded(entity_id, self._hass.states.get(entity_id), read_timeout)
+                for entity_id in self._entity_ids
+            )
         )
         self._meters = {
-            entity_id: _MeterTotals(totals, last_reading)
-            for entity_id, (totals, last_reading) in zip(self._entity_ids, found, strict=True)
+            entity_id: _MeterTotals(*(recorded or ([], None)))
+            for entity_id, recorded in zip(self._entity_ids, found, strict=True)
         }
+        self._recorded = all(recorded is not None for recorded in found)
         for entity_id in self._entity_ids:
             self.record(entity_id, self._hass.states.get(entity_id))
 
@@ -167,18 +191,25 @@ class MeterHistory:
             if not _carries_totals(self._hass.states.get(entity_id))
         }
 
-    async def _async_recorded(self, entity_id: str, state: State | None) -> tuple[list[MeterTotal], float | None]:
-        """Return a meter's recorded totals over the lookback and its last recorded reading."""
+    async def _async_recorded(
+        self, entity_id: str, state: State | None, read_timeout: float | None
+    ) -> tuple[list[MeterTotal], float | None] | None:
+        """Return a meter's recorded totals over the lookback and its last recorded reading.
+
+        Without a recorder there is nothing to read, so the meter has no recorded
+        totals. Returns None when the read fails or takes longer than ``read_timeout``.
+        """
         if RECORDER_DOMAIN not in self._hass.config.components:
             return [], None
         start = dt_util.utcnow() - LOOKBACK
         try:
-            return await get_instance(self._hass).async_add_executor_job(
-                recorded_totals, self._hass, entity_id, _unit(state), start, None
-            )
+            async with asyncio.timeout(read_timeout):
+                return await get_instance(self._hass).async_add_executor_job(
+                    recorded_totals, self._hass, entity_id, _unit(state), start, None
+                )
         except Exception:
             _LOGGER.warning("Failed to read recorder statistics for %s", entity_id, exc_info=True)
-            return [], None
+            return None
 
 
 async def async_meter_totals_at(

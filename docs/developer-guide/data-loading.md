@@ -121,7 +121,7 @@ Historical diagnostics read each meter's totals as of the run from the recorder 
 
 ### On and off states
 
-An on/off input reads binary sensors as `on` and `off`.
+An on/off input, a status or availability field shown as a switch, reads binary sensors and input booleans as `on` and `off`.
 When one of its entities reports words instead, the element flow's `states` step asks which states mean on and which mean off, and stores them in the entity value as `on_states` and `off_states`.
 `resolve_field` then reads those entities through `OnOffStateMachine`, which rewrites each state to `on` or `off` before the sensor loader parses it.
 With only one list, every other state is the opposite; with both, a state in neither reads as `unknown`, and states already reading as on or off keep their reading unless listed.
@@ -213,9 +213,12 @@ Boundary forecasts (stored energy and other states) publish a point at every bou
 ### Calendar events
 
 A calendar's state only shows its current or next event, so the calendar extractor cannot read a calendar directly.
-The calendar input loader ([`inputs/calendar_loader.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/calendar_loader.py)) fetches each calendar's events over the horizon and injects them into the calendar's state as the `haeo_events` attribute, which the extractor reads.
+The calendar input loader ([`inputs/calendar_loader.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/calendar_loader.py)) fetches each calendar's events from the horizon's start to a day past its end, and injects them into the calendar's state as the `haeo_events` attribute, which the extractor reads.
 Input stores capture their source states through the same injecting state machine, so diagnostics hold the events and replay loads them without a calendar to fetch from.
 A calendar without injected events reads as unavailable rather than as its plain state.
+Calendars change far less often than the horizon moves, so a horizon roll resolves calendar inputs at once from the events already fetched, and never waits on a calendar.
+Each roll then fetches the calendars again in the background, one fetch at a time, to pick up events added since, and a calendar that changes is fetched straight away.
+A fetch that fails or takes longer than five minutes keeps the events already fetched; once they no longer cover the horizon, the calendar reads as having no injected events and its inputs go unavailable until a fetch succeeds.
 A calendar with no events over the horizon gives a forecast with no points, which adds nothing to the input.
 
 Each event's value is a number typed with its unit.

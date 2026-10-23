@@ -389,6 +389,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         advanced_data = config_entry.data.get(HUB_SECTION_ADVANCED, {})
         self._debounce_seconds = float(advanced_data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
         self._relax_infeasible: bool = advanced_data.get(CONF_RELAX_INFEASIBLE, False)
+        # When the last optimization started or ended, on the monotonic clock, so the
+        # debounce window holds when the wall clock is set back
         self._last_optimization_time: float | None = None
         self._debounce_timer: CALLBACK_TYPE | None = None
         # Held while an optimization runs, so optimizations never overlap
@@ -440,6 +442,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
 
+        network = self._build_network(loaded_configs)
+
+        # Build topology for frontend card
+        element_types = {name: str(config[CONF_ELEMENT_TYPE]) for name, config in loaded_configs.items()}
+        self.topology = serialize_topology(network, element_types=element_types)
+        evaluate_network_connectivity(self.hass, self.config_entry, participants=loaded_configs)
+
+        self._subscribe_to_input_stores()
+
+    def _build_network(self, loaded_configs: dict[str, ElementConfigData]) -> Network:
+        """Build the network over the current horizon's periods from the loaded element configs."""
         self._network = build_network(
             f"haeo_network_{self.config_entry.entry_id}",
             loaded_configs,
@@ -447,13 +460,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             relax_infeasible=self._relax_infeasible,
         )
         self._element_updaters = build_element_updaters(self._network, loaded_configs)
-
-        # Build topology for frontend card
-        element_types = {name: str(config[CONF_ELEMENT_TYPE]) for name, config in loaded_configs.items()}
-        self.topology = serialize_topology(self._network, element_types=element_types)
-        evaluate_network_connectivity(self.hass, self.config_entry, participants=loaded_configs)
-
-        self._subscribe_to_input_stores()
+        return self._network
 
     def _subscribe_to_input_stores(self) -> None:
         """Subscribe to value changes from input stores.
@@ -605,12 +612,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # The running optimization requests the follow-up when it ends
         if self._optimization_lock.locked() or self._debounce_timer is not None:
             return
-        elapsed = time.time() - (self._last_optimization_time or 0.0)
-        if elapsed < self._debounce_seconds:
-            self._debounce_timer = async_call_later(
-                self.hass, self._debounce_seconds - elapsed, self._debounce_timer_callback
-            )
-            return
+        if self._last_optimization_time is not None:
+            elapsed = time.monotonic() - self._last_optimization_time
+            if elapsed < self._debounce_seconds:
+                self._debounce_timer = async_call_later(
+                    self.hass, self._debounce_seconds - elapsed, self._debounce_timer_callback
+                )
+                return
         self.hass.async_create_task(self._optimize())
 
     @callback
@@ -750,7 +758,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         start_time = time.time()
         started_at = dt_util.utc_from_timestamp(start_time).astimezone()
         # Mark the start at once, so the debounce window holds back requests while this runs
-        self._last_optimization_time = start_time
+        self._last_optimization_time = time.monotonic()
 
         horizon_manager = self._runtime_data.horizon_manager
         forecast_timestamps = horizon_manager.get_forecast_timestamps()
@@ -769,15 +777,21 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # inputs that changed, before the solve is handed to the executor, so the
         # network is never mutated while it is being solved
         network = self.network
-        network.update_periods(periods_in_hours(horizon_manager.periods_seconds))
-        for element_name in self._stale_elements:
-            self._element_updaters[element_name](loaded_configs[element_name])
+        if network.n_periods == len(horizon_manager.periods_seconds):
+            network.update_periods(periods_in_hours(horizon_manager.periods_seconds))
+            for element_name in self._stale_elements:
+                self._element_updaters[element_name](loaded_configs[element_name])
+        else:
+            # An entity horizon can change how many periods it has, and the network's
+            # variables are sized for the count it was built with
+            _LOGGER.debug("Rebuilding the network for %d periods", len(horizon_manager.periods_seconds))
+            network = self._build_network(loaded_configs)
         self._stale_elements.clear()
 
         cost = await self._solve(network, context, started_at, forecast_timestamps)
 
         end_time = time.time()
-        self._last_optimization_time = end_time
+        self._last_optimization_time = time.monotonic()
         _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
         await self._report_relaxations(network, context, started_at, forecast_timestamps)
 

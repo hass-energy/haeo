@@ -75,13 +75,15 @@ A config from an older export, such as one with `common.horizon_preset`, must ke
 
 ### environment.json
 
-Captured runtime context. The `optimization_start_time` is used as the test's freeze timestamp:
+Captured runtime context. The `optimization_start_time` is used as the test's freeze timestamp, and the `timezone` and `currency` are applied to Home Assistant.
+Diagnostics from before HAEO recorded the currency have none, so add the user's currency when creating a scenario from one:
 
 ```json
 {
   "ha_version": "2024.1.0",
   "haeo_version": "0.1.0",
   "timezone": "UTC",
+  "currency": "AUD",
   "diagnostic_request_time": "2024-01-15T12:00:00+00:00",
   "diagnostic_target_time": null,
   "optimization_start_time": "2024-01-15T12:00:00+00:00",

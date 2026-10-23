@@ -150,7 +150,8 @@ async def test_input_error_placeholders_describe_rejected_store(
     store = build_input_stores(hass, config_entry, horizon_manager)[key]
 
     sm = FakeStateMachine({"sensor.import_limit": FakeEntityState("sensor.import_limit", "-4.5", {})})
-    assert await store.async_load(sm) is False
+    store.load(sm)
+    assert not store.available
 
     assert store.error is not None
     assert input_error_placeholders(key, store.error, store) == {
@@ -216,7 +217,8 @@ async def test_build_input_stores_negates_entity_surfaced_price(
     sm = FakeStateMachine(
         {"sensor.cost": FakeEntityState("sensor.cost", "0.15", {"forecast": [0.15, 0.25, 0.35]})},
     )
-    assert await price_store.async_load(sm) is True
+    price_store.load(sm)
+    assert price_store.available
 
     assert isinstance(price_store.value, np.ndarray)
     assert np.all(price_store.value < 0)
@@ -276,7 +278,8 @@ async def test_build_input_stores_uses_the_full_field_hint(
     ]
 
     sm = FakeStateMachine({"sensor.charge_limit_cost": FakeEntityState("sensor.charge_limit_cost", "-5", {})})
-    await store.async_load(sm)
+    if store.load(sm):
+        store.notify_listeners()
 
     assert store.error is not None
     assert store.error.translation_key == "negative_input_value"

@@ -47,7 +47,7 @@ Scenario tests verify complete system integration with realistic Home Assistant 
 Each scenario folder contains:
 
 - `config.json` - The hub's configuration with its element subentries
-- `environment.json` - The captured environment, including `optimization_start_time` and `timezone`
+- `environment.json` - The captured environment, including `optimization_start_time`, `timezone`, and `currency`
 - `inputs.json` - The Home Assistant entity states HAEO read
 - `outputs.json` - The expected output sensors, which is the scenario's snapshot
 
@@ -69,7 +69,7 @@ The `test` gate in `tools/check.py` deselects them with `-m "not guide and not s
 
 ### Test behavior
 
-- Freezes time at the scenario's `optimization_start_time` in its `timezone`
+- Freezes time at the scenario's `optimization_start_time` in its `timezone`, and shows prices in its `currency`
 - Compares every output sensor with `outputs.json` through a custom syrupy extension that writes the snapshot as JSON
 - Generates visualizations in each scenario's `visualizations/` directory
 

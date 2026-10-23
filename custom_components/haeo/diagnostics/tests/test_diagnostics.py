@@ -1,5 +1,6 @@
 """Tests for HAEO diagnostics utilities."""
 
+import asyncio
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 import json
@@ -248,6 +249,7 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     assert "ha_version" in environment
     assert "haeo_version" in environment
     assert "timezone" in environment
+    assert environment["currency"] == hass.config.currency
     assert "diagnostic_request_time" in environment
     assert environment["diagnostic_target_time"] is None
     assert "optimization_start_time" in environment
@@ -1294,6 +1296,37 @@ async def test_fetch_inputs_at_injects_calendar_events_fetched_for_the_run(
         assert missing == []
         [captured] = inputs
         assert captured["attributes"] == {"friendly_name": "Trips", CALENDAR_EVENTS_ATTRIBUTE: fetched}
+
+
+async def test_fetch_inputs_at_gives_up_on_a_calendar_that_does_not_answer(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Saving diagnostics waits only briefly for a calendar, then reports it as missing."""
+    monkeypatch.setattr("custom_components.haeo.diagnostics.collector.HISTORICAL_CALENDAR_TIMEOUT", 0.01, raising=False)
+    entry = _calendar_hub(hass)
+    target_time = datetime(2024, 1, 1, tzinfo=UTC)
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+
+    async def never_answers(*_args: object) -> None:
+        await asyncio.Event().wait()
+
+    with (
+        patch("custom_components.haeo.diagnostics.collector.get_recorder_instance", return_value=mock_recorder),
+        patch(
+            "custom_components.haeo.diagnostics.collector._collect_entity_ids_from_entry",
+            return_value={"calendar.trips"},
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
+            return_value={"calendar.trips": [State("calendar.trips", "off", {"friendly_name": "Trips"})]},
+        ),
+        patch("custom_components.haeo.diagnostics.collector.async_fetch_calendar_events", never_answers),
+    ):
+        inputs, missing = await _fetch_inputs_at(hass, entry, target_time)
+
+    assert inputs == []
+    assert missing == ["calendar.trips"]
 
 
 async def test_fetch_inputs_at_keeps_only_the_meter_totals_the_open_window_reads(hass: HomeAssistant) -> None:

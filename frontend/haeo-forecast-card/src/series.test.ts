@@ -249,12 +249,12 @@ describe("normalizeSeries", () => {
   it("reads calendar window inputs as window series in their element's color", () => {
     const hass = withSingleHubRegistry({
       states: {
-        "number.pool_pump_run_window": {
-          entity_id: "number.pool_pump_run_window",
+        "switch.pool_pump_run_window": {
+          entity_id: "switch.pool_pump_run_window",
           attributes: {
             forecast: [
-              { time: "2026-03-14T00:00:00Z", value: 0 },
-              { time: "2026-03-14T01:00:00Z", value: 1 },
+              { time: "2026-03-14T00:00:00Z", value: false },
+              { time: "2026-03-14T01:00:00Z", value: true },
             ],
             field_type: "availability",
             field_name: "in_window",
@@ -265,14 +265,14 @@ describe("normalizeSeries", () => {
             friendly_name: "Pool pump Run window",
           },
         },
-        "number.ev_plugged_in": {
-          entity_id: "number.ev_plugged_in",
+        "switch.ev_plugged_in": {
+          entity_id: "switch.ev_plugged_in",
           attributes: {
             forecast: [
-              { time: "2026-03-14T00:00:00Z", value: 1 },
-              { time: "2026-03-14T01:00:00Z", value: 1 },
+              { time: "2026-03-14T00:00:00Z", value: true },
+              { time: "2026-03-14T01:00:00Z", value: true },
             ],
-            field_type: "availability",
+            field_type: "status",
             field_name: "connected",
             config_mode: "driven",
             element_type: "ev",
@@ -287,6 +287,7 @@ describe("normalizeSeries", () => {
     expect(output.map((series) => [series.label, series.lane, series.outputType])).toEqual([
       ["Pool pump Run window", "window", "window"],
     ]);
+    expect(Array.from(output[0]?.values ?? [])).toEqual([0, 1]);
   });
 
   it("puts a buffer held by a single battery with that battery", () => {

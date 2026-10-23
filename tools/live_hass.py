@@ -404,7 +404,8 @@ async def _setup_home_assistant_async(
     port: int,
     config_dir: str,
     *,
-    timezone: str = "UTC",
+    timezone: str,
+    currency: str,
 ) -> HomeAssistant:
     """Set up a Home Assistant instance with HTTP server and pre-authenticated user."""
     storage_dir = Path(config_dir) / ".storage"
@@ -425,6 +426,7 @@ async def _setup_home_assistant_async(
     hass.config.longitude = -117.22743
     hass.config.elevation = 0
     await hass.config.async_set_time_zone(timezone)
+    hass.config.currency = currency
     hass.config.skip_pip = True
     hass.config.skip_pip_packages = []
 
@@ -508,6 +510,7 @@ def _run_hass_thread(
     port: int,
     config_dir: str,
     timezone: str,
+    currency: str,
     hass_holder: list[HomeAssistant],
     loop_holder: list[asyncio.AbstractEventLoop],
     ready_event: threading.Event,
@@ -528,6 +531,7 @@ def _run_hass_thread(
                 port,
                 config_dir,
                 timezone=timezone,
+                currency=currency,
             )
             hass_holder.append(hass)
             ready_event.set()
@@ -558,7 +562,7 @@ class _Running:
     thread: threading.Thread
 
 
-def _launch(port: int, config_dir: Path, timezone: str, timeout: float) -> _Running:
+def _launch(port: int, config_dir: Path, timezone: str, currency: str, timeout: float) -> _Running:
     """Start Home Assistant in a background thread and wait until it is up."""
     hass_holder: list[HomeAssistant] = []
     loop_holder: list[asyncio.AbstractEventLoop] = []
@@ -572,6 +576,7 @@ def _launch(port: int, config_dir: Path, timezone: str, timeout: float) -> _Runn
             port,
             str(config_dir),
             timezone,
+            currency,
             hass_holder,
             loop_holder,
             ready_event,
@@ -645,6 +650,8 @@ def live_home_assistant(
     integration with config entries, so a restart sees the same inputs.
     """
     timezone = str(environment.get("timezone", "UTC"))
+    # Home Assistant defaults to euros, so a missing currency reads as Australian dollars
+    currency = str(environment.get("currency", "AUD"))
     now = parse_anchor_timestamp(str(environment["optimization_start_time"]))
 
     with _frozen_clock(now), tempfile.TemporaryDirectory(prefix="ha_live_") as tmp_dir:
@@ -669,13 +676,13 @@ def live_home_assistant(
                 msg = "Home Assistant did not stop within 15s, so its config directory is still in use"
                 raise RuntimeError(msg)
             prepare(config_dir)
-            running = _launch(port, config_dir, timezone, timeout)
+            running = _launch(port, config_dir, timezone, currency, timeout)
             instance.hass = running.hass
             instance.loop = running.loop
             instance._stop_event = running.stop_event  # noqa: SLF001 (the instance's own lifecycle)
             ready()
 
-        running = _launch(port, config_dir, timezone, timeout)
+        running = _launch(port, config_dir, timezone, currency, timeout)
         instance = LiveHomeAssistant(
             hass=running.hass,
             url=f"http://127.0.0.1:{port}",

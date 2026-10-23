@@ -60,7 +60,7 @@ def _make_store(
 
 
 def test_editable_constant_scalar() -> None:
-    """Editable scalar constant resolves to the value and is ready after refresh."""
+    """Editable scalar constant resolves to the value and is ready once loaded."""
     store = _make_store(storage_value=42.0, output_type=OutputType.ENERGY, time_series=False)
 
     assert store.mode == InputMode.EDITABLE
@@ -70,9 +70,9 @@ def test_editable_constant_scalar() -> None:
     assert store.display_values == (42.0,)
     assert store.available is True
 
-    # Resolved at construction but not marked ready until refresh/mark_ready.
+    # Resolved at construction but not ready until loaded.
     assert store.is_ready() is False
-    store.refresh()
+    store.load(FakeStateMachine({}))
     assert store.is_ready() is True
 
 
@@ -198,10 +198,10 @@ async def test_persist_writes_through_storage() -> None:
     assert storage.written == [as_constant_value(5.0)]
 
 
-# --- Driven async_load ---
+# --- Driven load ---
 
 
-async def test_driven_async_load_success() -> None:
+async def test_driven_load_success() -> None:
     """Driven scalar load resolves from the source entity and becomes ready."""
     store = _make_store(
         storage_value=as_entity_value(["sensor.x"]),
@@ -212,7 +212,8 @@ async def test_driven_async_load_success() -> None:
     assert store.mode == InputMode.DRIVEN
 
     sm = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "12.0", {})})
-    assert await store.async_load(sm) is True
+    store.load(sm)
+    assert store.available
 
     assert store.value == 12.0
     assert store.available is True
@@ -220,7 +221,7 @@ async def test_driven_async_load_success() -> None:
     assert store.is_ready() is True
 
 
-async def test_driven_async_load_negates_resolved_value() -> None:
+async def test_driven_load_negates_resolved_value() -> None:
     """A negated driven store flips the sign of values resolved from sources."""
     store = _make_store(
         storage_value=as_entity_value(["sensor.x"]),
@@ -230,13 +231,14 @@ async def test_driven_async_load_negates_resolved_value() -> None:
     )
 
     sm = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "0.15", {})})
-    assert await store.async_load(sm) is True
+    store.load(sm)
+    assert store.available
 
     assert store.value == pytest.approx(-0.15)
     assert store.native_value == pytest.approx(-0.15)
 
 
-async def test_driven_async_load_negates_time_series() -> None:
+async def test_driven_load_negates_time_series() -> None:
     """Negation applies element-wise to time-series source values."""
     store = _make_store(
         storage_value=as_entity_value(["sensor.x"]),
@@ -248,7 +250,8 @@ async def test_driven_async_load_negates_time_series() -> None:
     sm = FakeStateMachine(
         {"sensor.x": FakeEntityState("sensor.x", "0.2", {"forecast": [0.2, 0.3, 0.4]})},
     )
-    assert await store.async_load(sm) is True
+    store.load(sm)
+    assert store.available
 
     assert isinstance(store.value, np.ndarray)
     assert np.all(store.value < 0)
@@ -265,16 +268,14 @@ def test_editable_none_storage_stays_unavailable() -> None:
     """An editable store with no configured value has no resolved data."""
     store = _make_store(storage_value={"type": "none"})
 
-    store.refresh()
+    store.load(FakeStateMachine({}))
 
     assert store.value is None
     assert store.available is False
     assert store.display_values is None
 
 
-async def test_driven_async_load_resolve_failure(
-    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_driven_load_resolve_failure(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
     """An unexpected resolution exception leaves the store unavailable and is logged as a warning with its cause."""
     # HAEO's loggers write to the console only, so let this one reach caplog
     monkeypatch.setattr(logging.getLogger("custom_components.haeo"), "propagate", True)
@@ -289,7 +290,8 @@ async def test_driven_async_load_resolve_failure(
         "custom_components.haeo.core.data.input_store.resolve_field",
         side_effect=RuntimeError("boom"),
     ):
-        assert await store.async_load(sm) is False
+        store.load(sm)
+        assert not store.available
 
     assert store.available is False
     [record] = [record for record in caplog.records if record.levelno == logging.WARNING]
@@ -316,13 +318,14 @@ async def test_unexpected_load_error_is_logged_once_until_it_changes_or_the_stor
 
     with patch("custom_components.haeo.core.data.input_store.resolve_field", side_effect=outcomes):
         for _ in outcomes:
-            await store.async_load(sm)
+            if store.load(sm):
+                store.notify_listeners()
 
     warned = [record.exc_info[1] for record in caplog.records if record.levelno == logging.WARNING and record.exc_info]
     assert [repr(error) for error in warned] == ["RuntimeError('boom')", "KeyError('other')", "RuntimeError('boom')"]
 
 
-async def test_driven_async_load_rejects_empty_time_series() -> None:
+async def test_driven_load_rejects_empty_time_series() -> None:
     """An empty time-series result is treated as a failed load."""
     store = _make_store(
         storage_value=as_entity_value(["sensor.x"]),
@@ -335,23 +338,25 @@ async def test_driven_async_load_rejects_empty_time_series() -> None:
         "custom_components.haeo.core.data.input_store.resolve_field",
         return_value=np.array([]),
     ):
-        assert await store.async_load(sm) is False
+        store.load(sm)
+        assert not store.available
 
     assert store.available is False
 
 
-async def test_driven_async_load_without_source_entities() -> None:
+async def test_driven_load_without_source_entities() -> None:
     """A driven store with no source entity IDs cannot load."""
     storage = _MemStorage({"type": "entity", "value": []})
     hint = FieldHint(output_type=OutputType.PRICE, time_series=False)
     store = create_input_store(value=storage.value, storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
 
     sm = FakeStateMachine({})
-    assert await store.async_load(sm) is False
+    store.load(sm)
+    assert not store.available
     assert store.available is False
 
 
-async def test_driven_async_load_failure_keeps_unavailable() -> None:
+async def test_driven_load_failure_keeps_unavailable() -> None:
     """A missing source entity leaves the store unavailable and not ready."""
     store = _make_store(
         storage_value=as_entity_value(["sensor.x"]),
@@ -360,7 +365,8 @@ async def test_driven_async_load_failure_keeps_unavailable() -> None:
     )
 
     sm = FakeStateMachine({})
-    assert await store.async_load(sm) is False
+    store.load(sm)
+    assert not store.available
 
     assert store.available is False
     assert store.is_ready() is False
@@ -377,31 +383,31 @@ async def test_driven_async_load_failure_keeps_unavailable() -> None:
         pytest.param({"sensor.a": "1.0", "sensor.b": "not a number"}, (), id="unreadable_state"),
     ],
 )
-async def test_driven_async_load_names_sources_without_a_reading(
+async def test_driven_load_names_sources_without_a_reading(
     states: dict[str, str], expected_unavailable: tuple[str, ...]
 ) -> None:
     """A failed load names the sources with no reading, and the next good load clears them."""
     store = _make_store(storage_value=as_entity_value(["sensor.a", "sensor.b"]), output_type=OutputType.PRICE)
 
     sm = FakeStateMachine({eid: FakeEntityState(eid, state, {}) for eid, state in states.items()})
-    assert await store.async_load(sm) is False
+    store.load(sm)
+    assert not store.available
     assert store.unavailable_sources == expected_unavailable
 
     recovered = FakeStateMachine({eid: FakeEntityState(eid, "1.0", {}) for eid in ("sensor.a", "sensor.b")})
-    assert await store.async_load(recovered) is True
+    store.load(recovered)
+    assert store.available
     assert store.unavailable_sources == ()
 
 
-async def test_driven_async_load_records_input_error() -> None:
-    """A rejected source value is recorded, notified, and cleared by the next good load."""
+async def test_driven_load_records_input_error() -> None:
+    """A rejected source value is recorded, reported as a change, and cleared by the next good load."""
     storage = _MemStorage(as_entity_value(["sensor.x"]))
     hint = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True, min_value=0.0)
     store = create_input_store(value=storage.value, storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
-    notifications: list[None] = []
-    store.add_listener(lambda: notifications.append(None))
 
     bad = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "-3.0", {})})
-    assert await store.async_load(bad) is False
+    assert store.load(bad) is True
 
     assert store.available is False
     assert store.error is not None
@@ -409,11 +415,10 @@ async def test_driven_async_load_records_input_error() -> None:
     assert store.is_ready() is False
     await asyncio.wait_for(store.wait_settled(), timeout=1)
     assert store.error.translation_placeholders == {"value": "-3"}
-    assert len(notifications) == 1
 
     good = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "3.0", {})})
-    assert await store.async_load(good) is True
-
+    assert store.load(good) is True
+    assert store.available
     assert store.error is None
 
 
@@ -485,7 +490,7 @@ def _sensor(state: str, **attributes: object) -> FakeStateMachine:
         ),
     ],
 )
-async def test_driven_async_load_notifies_only_on_change(
+async def test_driven_load_notifies_only_on_change(
     time_series: bool,
     loads: list[tuple[FakeStateMachine, tuple[float, ...]]],
     expected_notifications: int,
@@ -502,7 +507,8 @@ async def test_driven_async_load_notifies_only_on_change(
 
     for sm, timestamps in loads:
         horizon[0] = timestamps
-        await store.async_load(sm)
+        if store.load(sm):
+            store.notify_listeners()
 
     assert len(notifications) == expected_notifications
 
@@ -530,7 +536,7 @@ def test_editable_notifies_only_on_change(
     store = create_input_store(
         value=storage.value, storage=storage, hint=hint, get_forecast_timestamps=lambda: horizon[0]
     )
-    store.refresh()
+    store.load(FakeStateMachine({}))
     notifications: list[None] = []
     store.add_listener(lambda: notifications.append(None))
 
@@ -567,7 +573,7 @@ def test_create_input_store_reads_any_real_constant(storage_value: object, expec
     """Any real number counts as a constant, as is_constant_value accepts, and booleans stay booleans."""
     store = _make_store(storage_value=storage_value)
 
-    store.refresh()
+    store.load(FakeStateMachine({}))
 
     assert store.value == expected
     assert type(store.value) is type(expected)
@@ -589,7 +595,7 @@ def test_horizon_start_time_series_returns_first_timestamp() -> None:
     """Time-series editable stores expose the first forecast timestamp."""
     store = _make_store(storage_value=1.0, output_type=OutputType.POWER, time_series=True)
 
-    store.refresh()
+    store.load(FakeStateMachine({}))
 
     assert store.horizon_start == FORECAST_TIMESTAMPS[0]
 
@@ -598,7 +604,7 @@ def test_horizon_start_scalar_returns_none() -> None:
     """Scalar stores have no loaded timestamps so horizon_start is None."""
     store = _make_store(storage_value=1.0, output_type=OutputType.ENERGY, time_series=False)
 
-    store.refresh()
+    store.load(FakeStateMachine({}))
 
     assert store.horizon_start is None
 
@@ -632,7 +638,8 @@ async def test_calendar_store_resolves_injected_events_like_a_sensor() -> None:
     )
 
     assert store.mode == InputMode.DRIVEN
-    assert await store.async_load(sm)
+    store.load(sm)
+    assert store.available
     assert store.available
     assert store.display_values == (1.0, 0.0)
     assert store.forecast_timestamps == FORECAST_TIMESTAMPS
@@ -649,7 +656,9 @@ async def test_calendar_store_without_injected_events_is_unavailable(states: dic
     """A calendar input whose state is missing or carries no events fails to load."""
     store = _make_calendar_store()
 
-    assert not await store.async_load(FakeStateMachine(states))
+    store.load(FakeStateMachine(states))
+
+    assert not store.available
     assert not store.available
 
 
@@ -661,9 +670,9 @@ async def test_driven_store_reads_listed_states_as_on_and_off() -> None:
         time_series=True,
     )
 
-    await store.async_load(FakeStateMachine({"sensor.charger": FakeEntityState("sensor.charger", "Charging", {})}))
+    store.load(FakeStateMachine({"sensor.charger": FakeEntityState("sensor.charger", "Charging", {})}))
     np.testing.assert_allclose(np.asarray(store.value), [1.0, 1.0])
 
-    await store.async_load(FakeStateMachine({"sensor.charger": FakeEntityState("sensor.charger", "Idle", {})}))
+    store.load(FakeStateMachine({"sensor.charger": FakeEntityState("sensor.charger", "Idle", {})}))
     np.testing.assert_allclose(np.asarray(store.value), [0.0, 0.0])
     assert store.captured_source_states["sensor.charger"].state == "Idle"
