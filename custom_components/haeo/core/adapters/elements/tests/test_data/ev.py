@@ -48,6 +48,7 @@ EV = EvConfigData(
         "trip_opened": np.array([0.0, 20.0, 0.0]),
         "trip_due": np.array([0.0, 0.0, 20.0]),
     },
+    public_charging={"public_charging_price": 0.6},
     efficiency={},
     advanced={"charge_limit_cost": 100.0},
 )

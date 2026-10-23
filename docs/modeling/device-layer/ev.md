@@ -125,7 +125,7 @@ The optimizer chooses between:
 - Leaving a shortfall to be topped up publicly during the trip at the configured price
 
 The optimizer selects the cheaper option based on current and forecast prices.
-Without a configured price the default \$0.60/kWh applies, a typical fast charging price.
+The price starts at \$0.60/kWh, a typical fast charging price.
 The shortfall keeps trips from making the optimization infeasible.
 The expected public top-up is exposed as the trip energy shortfall output.
 
@@ -164,7 +164,7 @@ The EV element creates a single Home Assistant device:
 | `connected`                | Connections                   | Home and away masks           | Pins the current interval               |
 | `energy_per_distance`      | Trip energy calculation       | Multiplied by distance        | Wh/km and kWh/100km converted to kWh/km |
 | `odometer`                 | Deferrable load `{name}:trip` | `initial_energy`              | Distance since the trip began × rate    |
-| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`               | Defaults to \$0.60/kWh                  |
+| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`               | Starts at \$0.60/kWh                    |
 | `public_charging_price`    | Battery `{name}`              | `salvage_value`               | 90% of the price at the horizon end     |
 | `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment            | Discharge direction                     |
 | `efficiency_target_source` | Connection `{name}:charge`    | Efficiency segment            | Charge direction                        |

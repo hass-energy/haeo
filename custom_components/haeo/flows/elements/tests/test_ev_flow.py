@@ -63,7 +63,7 @@ def _user_input(trip: dict[str, object] | None = None) -> dict[str, object]:
             CONF_CONNECTED: ["binary_sensor.ev_plugged_in"],
         },
         SECTION_TRIP: trip or {},
-        SECTION_PUBLIC_CHARGING: {},
+        SECTION_PUBLIC_CHARGING: {CONF_PUBLIC_CHARGING_PRICE: 0.6},
         SECTION_EFFICIENCY: {},
         SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: 100.0},
     }
@@ -139,7 +139,7 @@ async def test_reconfigure_defaults_surface_calendar_entity(
         SECTION_TRIP: {
             CONF_TRIP_CALENDAR: as_entity_value(["calendar.ev_trips"]),
         },
-        SECTION_PUBLIC_CHARGING: {},
+        SECTION_PUBLIC_CHARGING: {CONF_PUBLIC_CHARGING_PRICE: as_constant_value(0.6)},
         SECTION_EFFICIENCY: {},
         SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
     }
@@ -315,7 +315,7 @@ async def test_reconfigure_suggests_the_stored_states(
                     CONF_CONNECTED: as_entity_value([CHARGER], off_states=["Idle"]),
                 },
                 SECTION_TRIP: {},
-                SECTION_PUBLIC_CHARGING: {},
+                SECTION_PUBLIC_CHARGING: {CONF_PUBLIC_CHARGING_PRICE: as_constant_value(0.6)},
                 SECTION_EFFICIENCY: {},
             }
         ),

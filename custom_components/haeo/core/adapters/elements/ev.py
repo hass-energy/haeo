@@ -65,12 +65,6 @@ from custom_components.haeo.core.schema.sections import (
 # gated by the away mask, not by a physical charger.
 _UNLIMITED_POWER: Final = 1.0e6
 
-# Default public charging price ($/kWh) when none is configured, a typical
-# fast charging price. It prices both a trip's shortfall and the energy left
-# in the pack at the horizon end, so it must be realistic rather than a
-# deterrent: a deterrent would value leftover energy above any home price.
-DEFAULT_PUBLIC_CHARGING_PRICE: Final = 0.6
-
 # Share of the public charging price that energy left in the pack at the
 # horizon end is worth. It saves charging for the trips after the horizon, at
 # most the public price, so home charging below this tops the pack up. Below
@@ -358,8 +352,8 @@ adapter = EvAdapter()
 
 
 def _public_price(config: EvConfigData, n_periods: int) -> NDArray[np.float64]:
-    """Return the public charging price at each boundary, the high default when none is configured."""
-    price = config.get(SECTION_PUBLIC_CHARGING, {}).get(CONF_PUBLIC_CHARGING_PRICE, DEFAULT_PUBLIC_CHARGING_PRICE)
+    """Return the public charging price at each boundary."""
+    price = config[SECTION_PUBLIC_CHARGING][CONF_PUBLIC_CHARGING_PRICE]
     return np.broadcast_to(np.asarray(price, dtype=np.float64), n_periods + 1).copy()
 
 

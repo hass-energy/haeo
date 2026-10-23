@@ -8,7 +8,6 @@ import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.adapters.elements.ev import (
-    DEFAULT_PUBLIC_CHARGING_PRICE,
     EV_DEVICE_EV,
     EV_ENERGY_STORED,
     EV_POWER_CHARGE,
@@ -84,6 +83,7 @@ def _ev_config(*, plugged_in: bool = True, **overrides: object) -> EvConfigData:
             "max_charge_rate": 10.0,
             "connected": plugged_in,
         },
+        "public_charging": {"public_charging_price": 0.6},
         "efficiency": {},
         "advanced": {"charge_limit_cost": 100.0},
     }
@@ -136,20 +136,11 @@ def test_no_trip_config_yields_an_inert_trip_load() -> None:
     np.testing.assert_array_equal(trip["due"], np.zeros(N_PERIODS + 1))
 
 
-@pytest.mark.parametrize(
-    ("public_charging", "expected"),
-    [
-        pytest.param({}, DEFAULT_PUBLIC_CHARGING_PRICE, id="default"),
-        pytest.param({"public_charging_price": 0.6}, 0.6, id="configured"),
-    ],
-)
-def test_trip_shortfall_is_priced_at_the_public_charging_price(
-    public_charging: dict[str, float], expected: float
-) -> None:
-    """The trip's shortfall price is the public charging price, high by default, and overage is priced high."""
-    trip = _elements(_ev_config(public_charging=public_charging)).trip
+def test_trip_shortfall_is_priced_at_the_public_charging_price() -> None:
+    """The trip's shortfall price is the public charging price, and overage is priced high."""
+    trip = _elements(_ev_config(public_charging={"public_charging_price": 0.8})).trip
 
-    np.testing.assert_allclose(trip["deficit_price"], [expected] * (N_PERIODS + 1))
+    np.testing.assert_allclose(trip["deficit_price"], [0.8] * (N_PERIODS + 1))
     np.testing.assert_allclose(trip["overage_price"], [TRIP_OVERAGE_PRICE] * (N_PERIODS + 1))
 
 
@@ -263,6 +254,7 @@ def test_loads_an_open_trip_from_captured_states() -> None:
             "trip_calendar": as_entity_value(["calendar.trips"]),
             "odometer": as_entity_value(["sensor.odometer"]),
         },
+        "public_charging": {"public_charging_price": as_constant_value(0.6)},
         "efficiency": {},
         "advanced": {"charge_limit_cost": as_constant_value(100.0)},
     }

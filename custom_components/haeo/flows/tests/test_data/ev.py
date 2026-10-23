@@ -72,7 +72,7 @@ VALID_DATA = [
                 CONF_MAX_CHARGE_RATE: as_constant_value(3.6),
                 CONF_CONNECTED: as_entity_value(["binary_sensor.car_plugged_in"]),
             },
-            SECTION_PUBLIC_CHARGING: {},
+            SECTION_PUBLIC_CHARGING: {CONF_PUBLIC_CHARGING_PRICE: as_constant_value(0.6)},
             SECTION_EFFICIENCY: {},
             SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
         },
