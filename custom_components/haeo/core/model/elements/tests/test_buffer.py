@@ -10,6 +10,7 @@ from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_BUFFER,
     MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
     MODEL_ELEMENT_TYPE_NODE,
     BatteryElementConfig,
     BufferElementConfig,
@@ -468,6 +469,46 @@ def test_generation_counts_the_limits_on_every_connection_out_of_it(
     outputs = network.elements["buffer"].outputs()
 
     np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), required, atol=1e-9)
+
+
+@pytest.mark.parametrize("supply", [pytest.param(10.0, id="met"), pytest.param(0.0, id="unmet")])
+def test_loads_count_by_what_they_need_whether_or_not_it_is_met(supply: float) -> None:
+    """A load the plan leaves short still counts in full, so leaving it short cannot shrink a reserve.
+
+    The dishwasher needs 3 kWh by the end of the second hour, and its connection
+    can carry 10 kW or nothing.
+    """
+    network = _network([1.0, 1.0])
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+            "name": "dishwasher",
+            "is_source": False,
+            "is_sink": True,
+            "in_window": np.ones(2),
+            "window_start": np.zeros(3),
+            "opened": np.array([3.0, 0.0, 0.0]),
+            "due": np.array([0.0, 0.0, 3.0]),
+            "initial_energy": 0.0,
+            "deficit_price": np.full(3, 10.0),
+            "overage_price": np.full(3, 10.0),
+        }
+    )
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "dishwasher:connection",
+            "source": "bus",
+            "target": "dishwasher",
+            "tags": {0},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.full(2, supply)}},
+        }
+    )
+    network.add(_buffer(loads=["dishwasher"], window=2.0))
+
+    network.optimize()
+
+    assert _values(network.elements["buffer"].outputs()[BUFFER_ENERGY_REQUIRED])[0] == pytest.approx(3.0)
 
 
 def test_required_energy_is_computed_once_per_solution() -> None:

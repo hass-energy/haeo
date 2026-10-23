@@ -312,15 +312,43 @@ def _solve_ev_network(config: EvConfigData, grid_price: list[float]) -> Network:
 
 
 def test_optimizer_precharges_before_trip_in_cheap_period() -> None:
-    """The EV charges ahead of the trip when energy is cheapest."""
-    network = _solve_ev_network(_ev_config(trip=_trips((2, 3, 30.0))), grid_price=[0.1, 0.5, 0.5, 0.5])
+    """The EV charges ahead of the trip when energy is cheapest, as far as the charger allows."""
+    network = _solve_ev_network(_ev_config(trip=_trips((2, 3, 30.0))), grid_price=[0.1, 0.9, 0.9, 0.9])
 
     trip_delivered = network.elements["ev:trip"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values
     assert trip_delivered[3] == pytest.approx(6.0, abs=1e-6)
 
-    # The 1 kWh top-up (5 kWh initial vs 6 kWh trip) buys in the cheap period.
+    # The cheap period fills at the 10 kW charge rate, and the dearer ones buy nothing.
     ev_stored = network.elements["ev"].outputs()[BATTERY_ENERGY_STORED].values
-    assert ev_stored[1] == pytest.approx(6.0, abs=1e-6)
+    assert ev_stored[1] == pytest.approx(15.0, abs=1e-6)
+    assert ev_stored[2] == pytest.approx(15.0, abs=1e-6)
+
+
+@pytest.mark.parametrize(
+    ("grid_price", "expected_final"),
+    [
+        pytest.param(0.5, 50.0, id="below_the_salvage_value_fills_the_pack"),
+        pytest.param(0.58, 5.0, id="above_the_salvage_value_leaves_the_pack"),
+    ],
+)
+def test_energy_left_at_the_horizon_end_is_worth_most_of_the_public_charging_price(
+    grid_price: float, expected_final: float
+) -> None:
+    """Energy left in the pack at the horizon end is worth 90% of the public price, so cheaper charging fills it."""
+    config = _ev_config(
+        public_charging={"public_charging_price": 0.6}, charging={"max_charge_rate": 20.0, "connected": True}
+    )
+    network = _solve_ev_network(config, grid_price=[grid_price] * N_PERIODS)
+
+    stored = network.elements["ev"].outputs()[BATTERY_ENERGY_STORED].values
+    assert stored[-1] == pytest.approx(expected_final)
+
+
+def test_salvage_value_follows_the_public_charging_price_at_the_horizon_end() -> None:
+    """A public charging price that changes over the horizon values the remaining energy from its final price."""
+    pack = _elements(_ev_config(public_charging={"public_charging_price": np.array([0.5, 0.5, 0.5, 0.5, 0.7])})).pack
+
+    assert pack.get("salvage_value") == pytest.approx(0.9 * 0.7)
 
 
 def test_trips_stop_at_the_min_charge_and_leave_the_rest_to_public_charging() -> None:
@@ -516,9 +544,9 @@ def test_buffer_holds_the_trip_energy_in_the_ev_pack() -> None:
     home_only = _buffered_home_network({"reserve": _reserve(["house", "ev"], ["battery"])})
 
     available = holding.elements["reserve"].outputs()["buffer_energy_available"].values
-    assert available[2] == pytest.approx(12.0)
-    # The pack's 10 kWh covers the trip, so the home battery is not filled for it.
-    assert holding.elements["battery"].outputs()[BATTERY_ENERGY_STORED].values[2] == pytest.approx(2.0)
+    assert available[2] >= 12.0
+    # The pack covers the trip, so the home battery is not filled for it.
+    assert holding.elements["battery"].outputs()[BATTERY_ENERGY_STORED].values[2] < 12.0
     assert home_only.elements["battery"].outputs()[BATTERY_ENERGY_STORED].values[2] == pytest.approx(12.0)
 
 

@@ -39,7 +39,7 @@ It adds up what your loads use and what your generation produces through that wi
 - **A reserve** is the largest amount the batteries would need to supply at any time in the window.
 - **Headroom** is the largest amount the batteries would need to absorb at any time in the window.
 
-Loads count by the power HAEO plans for them, and generation by what it is forecast to produce.
+Loads count by the energy they need, at the times HAEO plans to run them, and generation by what it is forecast to produce.
 A surplus earlier in the window offsets demand that comes after it, and the other way round.
 
 Both are measured from a level.

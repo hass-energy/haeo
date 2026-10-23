@@ -125,9 +125,22 @@ The optimizer chooses between:
 - Leaving a shortfall to be topped up publicly during the trip at the configured price
 
 The optimizer selects the cheaper option based on current and forecast prices.
-Without a configured price the default \$10/kWh applies, which strongly discourages a shortfall without forbidding it.
-The shortfall still keeps trips from making the optimization infeasible, and if effective home charging costs more than \$10/kWh the optimizer can deliberately leave one.
+Without a configured price the default \$0.60/kWh applies, a typical fast charging price.
+The shortfall keeps trips from making the optimization infeasible.
 The expected public top-up is exposed as the trip energy shortfall output.
+
+### Energy left at the horizon end
+
+The trips after the horizon need charging too, so energy left in the pack at the horizon end has value.
+The pack's salvage value is 90% of the public charging price at the final boundary:
+
+$$
+v_{\text{salvage}} = 0.9 \, p_{\text{public}}(T)
+$$
+
+Energy left in the pack saves at most the public price, so the pack tops up whenever home charging, after its losses, costs less than $v_{\text{salvage}}$, in the cheapest periods it is plugged in.
+Below the whole public price, a trip still draws on the pack: driving on stored energy gives up $v_{\text{salvage}}$, while leaving the trip short costs $p_{\text{public}}$.
+Without the gap the two would tie, and the plan could keep the pack full and top every trip up publicly.
 
 ## Devices created
 
@@ -151,7 +164,8 @@ The EV element creates a single Home Assistant device:
 | `connected`                | Connections                   | Home and away masks           | Pins the current interval               |
 | `energy_per_distance`      | Trip energy calculation       | Multiplied by distance        | Wh/km and kWh/100km converted to kWh/km |
 | `odometer`                 | Deferrable load `{name}:trip` | `initial_energy`              | Distance since the trip began × rate    |
-| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`               | Defaults to \$10/kWh                    |
+| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`               | Defaults to \$0.60/kWh                  |
+| `public_charging_price`    | Battery `{name}`              | `salvage_value`               | 90% of the price at the horizon end     |
 | `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment            | Discharge direction                     |
 | `efficiency_target_source` | Connection `{name}:charge`    | Efficiency segment            | Charge direction                        |
 

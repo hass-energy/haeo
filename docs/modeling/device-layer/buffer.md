@@ -2,7 +2,7 @@
 
 The Buffer device creates a single Buffer model element, with its kind set to `reserve` or `headroom`.
 It has no connection of its own.
-Instead the element reads the planned power of its loads, the forecast power of its generation, and the stored energy of its batteries, which the network resolves by name.
+Instead the element reads the planned power and unmet energy of its loads, the forecast power of its generation, and the stored energy of its batteries, which the network resolves by name.
 
 ## Model elements created
 
@@ -11,6 +11,8 @@ Instead the element reads the planned power of its loads, the forecast power of 
 | Buffer        | `{name}` | kind, loads, generation, storage, window, level, shortfall cost |
 
 Loads count by the net power flowing into them, so a load whose timing the optimizer chooses moves the requirement with its schedule.
+A load that can fall short, such as a deferrable load or an EV's trip load, also counts the energy the plan leaves unmet, in the period where it falls due.
+Its need then counts whether or not the plan meets it, so leaving a load short cannot shrink a reserve that exists to cover it.
 Generation counts by the power limits on the connections out of it, the most the network lets it produce, which is its forecast.
 Curtailing it in the plan cannot shrink a headroom that exists to make room for it.
 
@@ -30,11 +32,11 @@ The buffer reads all of this from the elements and their connections, so any ele
 
 ### Running demand
 
-The running net demand $D$ starts at zero and accumulates the loads' planned power $p_l$ less the generation's forecast power $g_j$ over each period $\Delta t_k$.
+The running net demand $D$ starts at zero and accumulates the loads' planned power $p_l$ and unmet energy $u_l$ less the generation's forecast power $g_j$ over each period $\Delta t_k$.
 For headroom the sign is flipped, so $D$ tracks the running net surplus instead:
 
 $$
-D_0 = 0, \qquad D_{k+1} = D_k + \sigma \, \Delta t_k \left( \sum_l p_l(k) - \sum_j g_j(k) \right), \qquad \sigma = \begin{cases} 1 & \text{reserve} \\ -1 & \text{headroom} \end{cases}
+D_0 = 0, \qquad D_{k+1} = D_k + \sigma \, \Delta t_k \left( \sum_l \left( p_l(k) + \frac{u_l(k)}{\Delta t_k} \right) - \sum_j g_j(k) \right), \qquad \sigma = \begin{cases} 1 & \text{reserve} \\ -1 & \text{headroom} \end{cases}
 $$
 
 The network-side requirement at boundary $t$ is the largest rise in $D$ over the window $W$ that starts there:

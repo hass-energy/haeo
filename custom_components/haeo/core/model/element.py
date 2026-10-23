@@ -271,6 +271,16 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         """
         return None
 
+    def element_energy_unmet(self) -> LinearArray | None:
+        """Return the energy this element needs in each period that the plan leaves unmet.
+
+        A load that may fall short of what it needs, rather than make the
+        optimization infeasible, reports the shortfall here, so whatever covers
+        the load can count what it needs rather than what the plan gives it.
+        Override in subclasses.  Default returns None (every need is met).
+        """
+        return None
+
     # --- Connection power queries ---
 
     def connection_power(self) -> LinearArray:

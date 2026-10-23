@@ -14,9 +14,12 @@ At each boundary the requirement is the furthest the running net demand (for a
 reserve) or net surplus (for headroom) rises within the following window, the
 windowed maximum drawdown of the elements' energy balance. It is measured on the
 elements' planned power flows, so elements whose consumption the optimizer
-schedules move the requirement with their schedule. Generation counts by what
-it could produce, the limit on the power leaving it, so curtailing it in the
-plan cannot shrink a headroom that exists to keep room for it.
+schedules move the requirement with their schedule. Loads count by what they
+need, the power the plan gives them plus the energy it leaves unmet where that
+falls due, so planning to leave a load short cannot change the buffer that
+covers it. Generation counts by what it could produce, the limit on the power
+leaving it, so curtailing it in the plan cannot shrink a headroom that exists
+to keep room for it.
 
 The windowed maximum is built from fixed-shape rows. Time is cut into blocks
 one window long, so every window is the end of one block plus the start of the
@@ -330,10 +333,16 @@ class Buffer(Element[BufferOutputName]):
         )
 
     def _net_power(self) -> LinearArray:
-        """Return the loads' planned power less the generation's available power in each period."""
+        """Return the loads' needed power less the generation's available power in each period.
+
+        A load needs the power the plan gives it plus the energy the plan leaves
+        unmet, so planning to leave a load short cannot shrink a reserve.
+        """
         net = LinearArray.zeros(self.n_periods)
         for load in self._loads:
             net = net + load.connection_power()
+            if (unmet := load.element_energy_unmet()) is not None:
+                net = net + unmet * (1.0 / self.periods)
         return net - self._available_generation()
 
     @constraint
