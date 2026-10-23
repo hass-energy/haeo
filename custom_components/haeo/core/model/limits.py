@@ -28,6 +28,7 @@ nowhere, and a free move at the margin can turn costly further on.
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import IntEnum
+import math
 from typing import (
     TYPE_CHECKING,
     Any,  # noqa: TID251  # the network's elements and connections are invariant in their output-name
@@ -266,28 +267,45 @@ def _driven(prober: _Prober) -> list[int]:
     ]
 
 
-def _push_cost(prober: _Prober, index: int, capped: set[int]) -> tuple[float, NDArray[np.float64]] | None:
-    """Push a point that can rise as far as it will go and return what each extra kWh costs, or None when free.
+@dataclass(frozen=True, slots=True)
+class _Push:
+    """What pushing a point taught: infinite cost when it cannot rise, and the columns when it costs money."""
 
-    The point is pushed to its headroom, or as far short of it as bisection finds
-    feasible, so a free band at the margin does not hide the cost of going further.
+    cost: float
+    columns: NDArray[np.float64] | None = None
+
+
+def _push(prober: _Prober, index: int, capped: set[int]) -> _Push:
+    """Push a point and return what each extra kWh costs.
+
+    The shortest push settles a point that cannot rise or that costs money at
+    once. One that is free at the margin is pushed to its headroom, or as far
+    short of it as bisection finds feasible, so a free band does not hide the
+    cost of going further.
     """
+    columns = prober.push(index, PUSH, capped)
+    if columns is None:
+        return _Push(math.inf)
+    cost = (prober.probe.getObjectiveValue() - prober.plan_cost) / PUSH
+    if cost > COST_TOLERANCE:
+        return _Push(cost, columns)
     feasible, infeasible = PUSH, min(prober.headroom(index), FULL_PUSH)
-    columns = prober.push(index, infeasible, capped)
-    if columns is not None:
-        feasible = infeasible
+    further = prober.push(index, infeasible, capped)
+    if further is not None:
+        feasible, columns = infeasible, further
     else:
         for _ in range(BISECTIONS):
             middle = (feasible + infeasible) / 2
-            if prober.push(index, middle, capped) is None:
+            if (further := prober.push(index, middle, capped)) is None:
                 infeasible = middle
             else:
-                feasible = middle
-        columns = prober.push(index, feasible, capped)
-    if columns is None:
-        return None
+                feasible, columns = middle, further
+    if feasible <= PUSH:
+        return _Push(0.0)
+    # Bisection leaves the probe at its last push, which may not be the furthest feasible one
+    prober.push(index, feasible, capped)
     cost = (prober.probe.getObjectiveValue() - prober.plan_cost) / feasible
-    return (cost, columns) if cost > COST_TOLERANCE else None
+    return _Push(cost, columns) if cost > COST_TOLERANCE else _Push(0.0)
 
 
 def recommend_limits(
@@ -308,24 +326,18 @@ def recommend_limits(
         for i in _driven(prober):
             if i in capped or i in blocked:
                 continue
-            if prober.push(i, PUSH, set(capped)) is None:
+            pushed = _push(prober, i, set(capped))
+            if pushed.cost == math.inf:
                 blocked.add(i)
-                continue
-            pushed = _push_cost(prober, i, set(capped))
-            if pushed is None:
-                continue
-            cost, columns = pushed
-            capped[prober.blame(i, columns)] = cost
-            changed = True
+            elif pushed.columns is not None:
+                capped[prober.blame(i, pushed.columns)] = pushed.cost
+                changed = True
     # Drop any cap the others already make unnecessary, latest first; a lone cap is needed by construction
     if len(capped) > 1:
         for i in sorted(capped, reverse=True):
             others = set(capped) - {i}
             # Points blocked under every cap may rise once one is lifted, so each is pushed again
-            if all(
-                j in others or prober.push(j, PUSH, others) is None or _push_cost(prober, j, others) is None
-                for j in _driven(prober)
-            ):
+            if all(j in others or _push(prober, j, others).columns is None for j in _driven(prober)):
                 del capped[i]
     recommendations: dict[str, LimitRecommendation] = {}
     for i, point in enumerate(points):
