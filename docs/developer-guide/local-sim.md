@@ -9,7 +9,7 @@ The simulator loads scenario input data from `tests/scenarios/`, time-shifts for
 uv run sim scenario1
 ```
 
-By default it uses the repo `config/` directory on port 8123, applies the scenario timezone, skips onboarding, and opens your browser to `http://127.0.0.1:8123/`.
+By default it uses the repo `config/` directory on port 8123, applies the scenario timezone and currency, skips onboarding, and opens your browser to `http://127.0.0.1:8123/`.
 From there you can inspect entities, HAEO sensors, and the frontend while the simulator pushes updated input states on an interval.
 
 Login is automatic: the instance registers a `trusted_networks` auth provider that logs in the single dev user for any request from loopback, so the frontend completes its OAuth flow without any token bootstrap.
@@ -21,7 +21,7 @@ If auto-login does not take, `testuser` / `testpass` works as a fallback.
 Each scenario directory under `tests/scenarios/` provides:
 
 - `inputs.json` — Home Assistant entity states (including forecast attributes)
-- `environment.json` — anchor time (`optimization_start_time`) and timezone
+- `environment.json` — anchor time (`optimization_start_time`), timezone, and currency
 - `config.json` — HAEO hub and element configuration (used when HAEO setup is enabled)
 
 The simulator shifts all ISO 8601 timestamps in the input attributes so the scenario's captured "now" aligns with the simulated clock.

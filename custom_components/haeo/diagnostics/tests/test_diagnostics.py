@@ -248,6 +248,7 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     assert "ha_version" in environment
     assert "haeo_version" in environment
     assert "timezone" in environment
+    assert environment["currency"] == hass.config.currency
     assert "diagnostic_request_time" in environment
     assert environment["diagnostic_target_time"] is None
     assert "optimization_start_time" in environment

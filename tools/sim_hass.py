@@ -121,6 +121,7 @@ async def _setup_sim_home_assistant_async(
     config_dir: str,
     *,
     timezone: str,
+    currency: str,
 ) -> HomeAssistant:
     """Bootstrap Home Assistant for sim with loopback auto-login dev auth."""
     storage_dir = Path(config_dir) / ".storage"
@@ -141,6 +142,7 @@ async def _setup_sim_home_assistant_async(
     hass.config.longitude = -117.22743
     hass.config.elevation = 0
     await hass.config.async_set_time_zone(timezone)
+    hass.config.currency = currency
     hass.config.skip_pip = True
     hass.config.skip_pip_packages = []
 
@@ -216,6 +218,7 @@ def _run_sim_hass_thread(
     port: int,
     config_dir: str,
     timezone: str,
+    currency: str,
     hass_holder: list[HomeAssistant],
     loop_holder: list[asyncio.AbstractEventLoop],
     ready_event: threading.Event,
@@ -236,6 +239,7 @@ def _run_sim_hass_thread(
                 port,
                 config_dir,
                 timezone=timezone,
+                currency=currency,
             )
             hass_holder.append(hass)
             ready_event.set()
@@ -259,6 +263,7 @@ def _start_sim_home_assistant(
     timeout: float,
     port: int | None,
     timezone: str,
+    currency: str,
 ) -> tuple[LiveHomeAssistant, threading.Thread]:
     """Start sim HA in a background thread and return the live instance."""
     _ensure_haeo_symlink(config_dir)
@@ -275,6 +280,7 @@ def _start_sim_home_assistant(
             resolved_port,
             str(config_dir),
             timezone,
+            currency,
             hass_holder,
             loop_holder,
             ready_event,
@@ -323,6 +329,8 @@ def live_sim_home_assistant(
     """Context manager for a sim Home Assistant instance with optional persistent config."""
     scenario_environment = environment or {}
     timezone = str(scenario_environment.get("timezone", "UTC"))
+    # Home Assistant defaults to euros, so a missing currency reads as Australian dollars
+    currency = str(scenario_environment.get("currency", "AUD"))
 
     if config_dir is None:
         with tempfile.TemporaryDirectory(prefix="ha_live_") as tmp_dir:
@@ -331,6 +339,7 @@ def live_sim_home_assistant(
                 timeout=timeout,
                 port=port,
                 timezone=timezone,
+                currency=currency,
             )
             try:
                 yield instance
@@ -344,6 +353,7 @@ def live_sim_home_assistant(
             timeout=timeout,
             port=port,
             timezone=timezone,
+            currency=currency,
         )
         try:
             yield instance

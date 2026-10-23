@@ -1,4 +1,5 @@
 {
+  "currency": "AUD",
   "diagnostic_request_time": "2025-11-04T00:41:42.057378+00:00",
   "diagnostic_target_time": null,
   "ha_version": "2025.9.4",
