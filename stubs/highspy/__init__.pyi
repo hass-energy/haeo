@@ -72,6 +72,7 @@ class HighsBasis:
 class HighsModel: ...
 
 class HighsLp:
+    col_cost_: list[float]
     col_lower_: list[float]
     col_upper_: list[float]
     row_lower_: list[float]

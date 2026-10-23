@@ -1,40 +1,32 @@
 """Recommended hardware limits for the first period of a solved plan.
 
 The plan says how much power each connection carries, but not which of those
-flows the hardware must be stopped from exceeding. A flow is held back either by
-something else (a full battery, a capped export, nothing left to supply) or by
-the plan itself, which would pay more if the flow rose. Only the second needs a
-limit on the hardware; the first happens on its own.
+flows the hardware must be stopped from exceeding. Left alone, hardware running
+self-consumption pushes some flows on its own: generation runs up to what is
+available, and storage absorbs surplus and covers shortfalls. Where one of those
+pushes would cost the plan money, a limit is needed, and it belongs on the flow
+the cost lands on, not necessarily the one being pushed. More solar that could
+only go out through a negative-priced export is stopped by limiting export, so
+the solar is still free to cover a load that turns out larger than forecast.
 
-Each connection with a power limit is a control point. Its push cost is what one
-more kWh through it costs the plan. It is found by forcing a little more energy
-through the point on a copy of the solved model, warm-started from the plan's
-basis, so the plan and its solver are never touched. Reading it from the plan's
-simplex tableau alone is not enough: the plan's LP is primal degenerate, so the
-first pivot of a real move often goes nowhere and only further pivots price it.
+Each connection with a power limit is a control point. Each driven point
+(generation, or storage, which never trades with the grid or curtails generation
+under self-consumption) is pushed as far as it will go on a copy of the solved
+model, warm-started from the plan's basis, so the plan and its solver are never
+touched. When the push costs money, the cost is split by the elements whose cost
+terms it changed. A first-period point that rose with the push and carries that
+cost is limited; otherwise the pushed point itself is. Pushes repeat with the
+limits in place until none costs anything, and any limit the others make
+unnecessary is dropped.
 
-The other control points may only move the way the hardware would move them
-under a priority order, self-consumption unless another is given:
-
-- generation (a connection from a source-only element) runs up to its available power;
-- connections between two junctions, such as an inverter, carry whatever their ends need;
-- a point displaces a point of the same kind (a source or a sink) only when the
-  priority ranks it ahead of that point;
-- no other storage or external point rises, because each carries its own limit;
-- a connection idle in the plan stays idle while its reverse carries power, since
-  no hardware runs both directions at once and losses around the loop would
-  otherwise absorb any amount of energy.
-
-A point whose push cost is positive is limited to its planned power. One that
-can rise for free, or cannot rise at all, is unrestricted. So is one whose
-reverse connection carries power in the plan: more through it would first mean
-less through the reverse, which a floor on the reverse decides, not a cap here.
+Reading the same split from the plan's simplex tableau alone is not enough: the
+plan's LP is primal degenerate, so the first pivot of a real move often goes
+nowhere, and a free move at the margin can turn costly further on.
 """
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import IntEnum
-import math
 from typing import (
     TYPE_CHECKING,
     Any,  # noqa: TID251  # the network's elements and connections are invariant in their output-name
@@ -44,6 +36,7 @@ from typing import (
 
 from highspy import Highs, HighsModelStatus
 import numpy as np
+from numpy.typing import NDArray
 
 from .element import NetworkElement
 from .elements.connection import Connection
@@ -56,8 +49,14 @@ if TYPE_CHECKING:
 # Push costs at or below this are free, in $/kWh
 COST_TOLERANCE: Final = 1e-6
 
-# How far each probe pushes a point past its plan, in kWh over the first period
+# The shortest push worth probing, in kWh; anything that can move less is at its limit
 PUSH: Final = 1e-3
+
+# Halvings spent finding how far a point can go when its full headroom is out of reach
+BISECTIONS: Final = 6
+
+# The furthest a probe pushes a point without a max power, in kWh
+FULL_PUSH: Final = 1e3
 
 # Headroom below this, in kWh, leaves a point at its limit
 STEP_TOLERANCE: Final = 1e-9
@@ -77,24 +76,6 @@ class Role(IntEnum):
 
     PASS_THROUGH = 3
     """A connection between two junctions, which carries whatever its ends need."""
-
-
-@dataclass(frozen=True, slots=True)
-class Priority:
-    """The order in which the hardware draws on sources and serves sinks, first to last."""
-
-    sources: tuple[Role, ...]
-    sinks: tuple[Role, ...]
-
-    def rank(self, point: "ControlPoint") -> int:
-        """Return where a point stands among its kind, lower first."""
-        return (self.sources if point.is_source else self.sinks).index(point.role)
-
-
-SELF_CONSUMPTION: Final = Priority(
-    sources=(Role.OWN, Role.STORAGE, Role.EXTERNAL),
-    sinks=(Role.OWN, Role.STORAGE, Role.EXTERNAL),
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,7 +103,7 @@ class LimitRecommendation:
     """The limit to apply (kW), or None when the hardware can run unrestricted."""
 
     push_cost: float
-    """What one more kWh through the point costs the plan ($/kWh), infinite when it cannot rise."""
+    """What each kWh the limit stops would cost the plan ($/kWh), 0 when unrestricted."""
 
 
 def _is_junction(element: "Element[Any]") -> bool:
@@ -160,18 +141,9 @@ def control_points(
     return points
 
 
-def _may_rise(point: ControlPoint) -> bool:
-    return point.role == Role.PASS_THROUGH or (point.is_source and point.role == Role.OWN)
-
-
-def _may_fall(point: ControlPoint, pushed: ControlPoint, priority: Priority) -> bool:
-    if point.role == Role.PASS_THROUGH:
-        return True
-    if point.is_source and point.role == Role.OWN:
-        return False
-    if pushed.role == Role.PASS_THROUGH:
-        return point.role == Role.EXTERNAL
-    return point.is_source == pushed.is_source and priority.rank(pushed) < priority.rank(point)
+def _is_driven(point: ControlPoint) -> bool:
+    """Return whether the hardware pushes the point on its own: generation and storage."""
+    return point.role == Role.STORAGE or (point.is_source and point.role == Role.OWN)
 
 
 def _probe(solver: "Solver") -> Highs:
@@ -186,48 +158,177 @@ def _probe(solver: "Solver") -> Highs:
     return probe
 
 
+def _owner(column_name: str, names: list[str]) -> str | None:
+    """Return the element a column belongs to, from the ``element.quantity`` names the solver gives its columns."""
+    owners = [name for name in names if column_name.startswith(f"{name}.")]
+    return max(owners, key=len) if owners else None
+
+
+class _Prober:
+    """Pushes first-period flows on a copy of the plan and finds where the extra cost lands."""
+
+    def __init__(self, solver: "Solver", points: list[ControlPoint], element_names: list[str]) -> None:
+        self.solver = solver
+        self.points = points
+        self.element_names = element_names
+        self.rows = np.array([point.row for point in points], dtype=np.int32)
+        _, _, self.lower, self.upper, _ = solver.getRows(len(self.rows), self.rows)
+        self.activity = solver.row_values()[self.rows]
+        self.plan = solver.column_values()
+        self.plan_cost = solver.getObjectiveValue()
+        self.cost = np.asarray(solver.getLp().col_cost_)
+        self.probe = _probe(solver)
+        self.basis = self.probe.getBasis()
+        index_of = {point.ends: i for i, point in enumerate(points)}
+        # Each point's reverse connection, when that is a point too
+        self.reverse = [index_of.get((point.ends[1], point.ends[0])) for point in points]
+        active_ends = {point.ends for point, flow in zip(points, self.activity, strict=True) if flow > STEP_TOLERANCE}
+        self.reverse_active = np.array([(point.ends[1], point.ends[0]) in active_ends for point in points])
+
+    def headroom(self, index: int) -> float:
+        return float(self.upper[index] - self.activity[index])
+
+    def push(self, index: int, step: float, capped: set[int]) -> NDArray[np.float64] | None:
+        """Return the plan's columns with ``step`` more energy through a point, or None when it cannot rise.
+
+        No hardware runs a connection and its reverse at once, and losses around
+        such a loop would absorb any energy, so when a push runs both, the leg the
+        plan leaves idle is held idle and the push is solved again.
+        """
+        pushed = self.points[index]
+        upper = self.upper.copy()
+        lower = self.lower.copy()
+        # Self-consumption never trades storage with external connections, nor curtails generation for it
+        if pushed.role == Role.STORAGE:
+            external = np.array([point.role == Role.EXTERNAL for point in self.points])
+            generation = np.array([point.is_source and point.role == Role.OWN for point in self.points])
+            upper = np.where(external, np.minimum(upper, self.activity), upper)
+            lower = np.where(generation, self.activity, lower)
+        for i in capped:
+            upper[i] = self.activity[i]
+        lower[index], upper[index] = self.activity[index] + step, self.upper[index]
+        while True:
+            self.probe.changeRowsBounds(len(self.rows), self.rows, lower, upper)
+            self.probe.setBasis(self.basis)
+            self.probe.run()
+            if self.probe.getModelStatus() != HighsModelStatus.kOptimal:
+                return None
+            flow = np.asarray(self.probe.getSolution().row_value)[self.rows]
+            loops = [
+                (i, j)
+                for i, j in enumerate(self.reverse)
+                if j is not None
+                and i < j
+                and min(flow[i], flow[j]) > STEP_TOLERANCE
+                and min(self.activity[i], self.activity[j]) <= STEP_TOLERANCE
+            ]
+            if not loops:
+                return np.asarray(self.probe.getSolution().col_value)
+            for i, j in loops:
+                # Hold the leg the plan leaves idle; the pushed point is never the idle leg of an active pair
+                upper[i if self.activity[i] <= STEP_TOLERANCE and i != index else j] = 0.0
+
+    def blame(self, index: int, columns: NDArray[np.float64]) -> int:
+        """Return the point whose extra cost the push lands on: a first-period point that rose with it, or itself.
+
+        Cost on an element other than a connection, such as a battery's charge
+        penalty, is blamed on the risen points into or out of that element.
+        """
+        change = columns - self.plan
+        rows = self.probe.getSolution().row_value
+        risen = {
+            point.name: i
+            for i, point in enumerate(self.points)
+            if i != index and rows[point.row] > self.activity[i] + STEP_TOLERANCE
+        }
+        shares: dict[int, float] = {}
+        for column in np.flatnonzero(np.abs(self.cost * change) > COST_TOLERANCE * STEP_TOLERANCE):
+            owner = _owner(self.solver.column_name(int(column)), self.element_names)
+            # A connection's own cost is its own; an element's is shared by the risen points at its ends
+            blamed = [risen[owner]] if owner in risen else [i for i in risen.values() if owner in self.points[i].ends]
+            for i in blamed:
+                shares[i] = shares.get(i, 0.0) + float(self.cost[column] * change[column])
+        culprit = max(shares, key=lambda i: shares[i], default=None)
+        return index if culprit is None or shares[culprit] <= 0.0 else culprit
+
+
+def _driven(prober: _Prober) -> list[int]:
+    """Return the driven points that could carry more than planned."""
+    return [
+        i
+        for i, point in enumerate(prober.points)
+        if _is_driven(point) and not prober.reverse_active[i] and prober.headroom(i) > STEP_TOLERANCE
+    ]
+
+
+def _push_cost(prober: _Prober, index: int, capped: set[int]) -> tuple[float, NDArray[np.float64]] | None:
+    """Push a point that can rise as far as it will go and return what each extra kWh costs, or None when free.
+
+    The point is pushed to its headroom, or as far short of it as bisection finds
+    feasible, so a free band at the margin does not hide the cost of going further.
+    """
+    feasible, infeasible = PUSH, min(prober.headroom(index), FULL_PUSH)
+    columns = prober.push(index, infeasible, capped)
+    if columns is not None:
+        feasible = infeasible
+    else:
+        for _ in range(BISECTIONS):
+            middle = (feasible + infeasible) / 2
+            if prober.push(index, middle, capped) is None:
+                infeasible = middle
+            else:
+                feasible = middle
+        columns = prober.push(index, feasible, capped)
+    if columns is None:
+        return None
+    cost = (prober.probe.getObjectiveValue() - prober.plan_cost) / feasible
+    return (cost, columns) if cost > COST_TOLERANCE else None
+
+
 def recommend_limits(
     solver: "Solver",
     connections: Iterable[Connection[Any]],
     elements: Mapping[str, "Element[Any]"],
     period: float,
-    priority: Priority = SELF_CONSUMPTION,
 ) -> dict[str, LimitRecommendation]:
-    """Return the recommended first-period limit of each control point under a priority, by connection name."""
+    """Return the recommended first-period limit of each control point, by connection name."""
     points = control_points(connections, elements, period)
-    rows = np.array([point.row for point in points], dtype=np.int32)
-    _, _, lower, upper, _ = solver.getRows(len(rows), rows)
-    activity = solver.row_values()[rows]
-    plan_cost = solver.getObjectiveValue()
-    probe = _probe(solver)
-    basis = probe.getBasis()
-    # Points idle in the plan whose reverse connection is also a point
-    reversed_ends = {(point.ends[1], point.ends[0]) for point in points}
-    idle_pair = np.array([point.ends in reversed_ends for point in points]) & (activity <= STEP_TOLERANCE)
-    active_ends = {point.ends for point, flow in zip(points, activity, strict=True) if flow > STEP_TOLERANCE}
+    prober = _Prober(solver, points, list(elements))
+    capped: dict[int, float] = {}
+    # A point that cannot rise stays that way as caps are added, so it is pushed once
+    blocked: set[int] = set()
+    changed = True
+    while changed:
+        changed = False
+        for i in _driven(prober):
+            if i in capped or i in blocked:
+                continue
+            if prober.push(i, PUSH, set(capped)) is None:
+                blocked.add(i)
+                continue
+            pushed = _push_cost(prober, i, set(capped))
+            if pushed is None:
+                continue
+            cost, columns = pushed
+            capped[prober.blame(i, columns)] = cost
+            changed = True
+    # Drop any cap the others already make unnecessary, latest first; a lone cap is needed by construction
+    if len(capped) > 1:
+        for i in sorted(capped, reverse=True):
+            others = set(capped) - {i}
+            # Points blocked under every cap may rise once one is lifted, so each is pushed again
+            if all(
+                j in others or prober.push(j, PUSH, others) is None or _push_cost(prober, j, others) is None
+                for j in _driven(prober)
+            ):
+                del capped[i]
     recommendations: dict[str, LimitRecommendation] = {}
     for i, point in enumerate(points):
         # The limit rows are energy, so their activity over the period is the power
-        power = activity[i] / point.period
-        step = min(PUSH, upper[i] - activity[i])
-        if step <= STEP_TOLERANCE or (point.ends[1], point.ends[0]) in active_ends:
-            cost = math.inf
-        else:
-            # Hold the other points where the hardware's default behavior keeps them
-            probe_lower = np.where([_may_fall(p, point, priority) for p in points], lower, activity)
-            probe_upper = np.where([_may_rise(p) for p in points] & ~idle_pair, upper, activity)
-            probe_lower[i], probe_upper[i] = activity[i] + step, upper[i]
-            probe.changeRowsBounds(len(rows), rows, probe_lower, probe_upper)
-            probe.setBasis(basis)
-            probe.run()
-            if probe.getModelStatus() == HighsModelStatus.kOptimal:
-                cost = max((probe.getObjectiveValue() - plan_cost) / step, 0.0)
-            else:
-                cost = math.inf
-        limited = COST_TOLERANCE < cost < math.inf
+        power = float(prober.activity[i]) / point.period
         recommendations[point.name] = LimitRecommendation(
             power=power,
-            max_power=max(power, 0.0) if limited else None,
-            push_cost=cost,
+            max_power=max(power, 0.0) if i in capped else None,
+            push_cost=capped.get(i, 0.0),
         )
     return recommendations
