@@ -131,7 +131,9 @@ source exclusion prevents a tag from re-entering its origin via a return path, w
 
 For each policy, the pricing term is attached to the edges of the minimum s-t cut on that policy's tag subgraph between its sources and destinations.
 Unit edge capacities and the sink-side canonical cut jointly ensure every source-to-destination path crosses exactly one priced edge.
-The minimum-cardinality cut collapses naturally to intuitive placements — onto a single inbound edge when the destination has one inbound, onto a single outbound edge when the source has one outbound, and onto a shared bottleneck when sources and destinations converge through a narrower middle.
+Only edges whose flow can reach no sink but the policy's destinations may be cut, so every unit crossing a priced edge goes on to a destination.
+An inverter's AC to DC edge does not separate the grid from two batteries on the DC bus, since power can cross it and return over the DC to AC edge to the house; pricing it would charge, or with a negative price reward, flow that never reaches a battery.
+The minimum-cardinality cut collapses naturally to intuitive placements — onto a single inbound edge when the destination has one inbound, onto a single outbound edge when the source has one outbound, and onto a shared bottleneck when sources and destinations converge through a narrower middle that leads only to the destinations.
 
 ## Variable count
 
