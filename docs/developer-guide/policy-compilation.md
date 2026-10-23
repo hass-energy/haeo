@@ -97,9 +97,11 @@ Unit capacities and the sink-side choice together guarantee:
 
 - Every source-to-destination path on the VLAN crosses exactly one cut edge, so a unit of tagged flow pays the policy price exactly once.
     No stacking from overlapping sub-cuts, and no flows that bypass pricing.
+- Every unit crossing a cut edge ends at a destination.
+    An edge into a node whose flow can reach any other sink gets unbounded capacity, so it is never cut and the price never lands on flow the policy does not cover.
 - Minimum cut cardinality, so pricing is attached to the fewest connections possible.
     This extends cleanly to power-limit policies, which become a single $\sum_{e \in \text{cut}} P^{tag}_{e,t} \le X$ constraint.
-- Natural collapse to intuitive placements: target-inbound edges for a specific destination, source-outbound edges for a single-outbound source targeting a wildcard, and a shared bottleneck (e.g. an inverter) when many sources and many destinations converge through a narrower middle.
+- Natural collapse to intuitive placements: target-inbound edges for a specific destination, source-outbound edges for a single-outbound source targeting a wildcard, and a shared bottleneck (e.g. an inverter) when many sources and many destinations converge through a narrower middle that leads only to the destinations.
 
 A source that also appears in the destination set (e.g. a battery is both source and sink after wildcard expansion) has only the self-loop removed from the destination set; other destinations are still cut normally.
 Each injected segment's `tag` matches the source VLAN, and `price_source_target` and `price_target_source` map from the policy's directional prices.
