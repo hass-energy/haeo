@@ -818,3 +818,120 @@ async def test_a_hung_recorder_does_not_hold_up_calendar_loads(hass: HomeAssista
     assert store.available
     assert reads == 2
     loader.cleanup()
+
+
+async def test_an_unloaded_calendar_stops_feeding_its_inputs(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """Events are kept through a failed query, but not once the calendar's entity is gone."""
+    calendar = await _add_stub_calendar(hass, [_trip(0.0, 3600.0)])
+    store = _calendar_store()
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader.start()
+    await hass.async_block_till_done()
+    assert store.available
+
+    # Unloading a calendar's integration removes its entity and leaves its state unavailable
+    component: EntityComponent[CalendarEntity] = hass.data[CALENDAR_DOMAIN]
+    await component.async_remove_entity(calendar.entity_id)
+    hass.states.async_set(calendar.entity_id, "unavailable", {"restored": True})
+    await loader.async_load_all()
+
+    assert not store.available
+    loader.cleanup()
+
+
+async def test_loader_raises_no_repair_for_unusable_events_past_the_horizon(
+    hass: HomeAssistant, horizon_manager: Mock
+) -> None:
+    """An unusable event fetched ahead of the horizon raises no repair until the horizon reaches it."""
+    end = FORECAST_TIMESTAMPS[-1]
+    await _add_stub_calendar(hass, [_demand(end + 3600.0, end + 7200.0, "2")])
+    store = _forecast_store()
+    loader = CalendarInputLoader(hass, "entry_id", {("Load", ("forecast", "forecast")): store}, horizon_manager)
+    loader.start()
+    await hass.async_block_till_done()
+
+    assert store.available
+    assert ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID) is None
+    loader.cleanup()
+
+
+async def test_calendar_change_during_a_refresh_queues_one_more(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """Fetches run one at a time; a change while one runs fetches again once it ends, so it is not missed."""
+    calendar = _GatedCalendar()
+    await _add_stub_calendars(hass, calendar)
+    store = _calendar_store()
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    started = asyncio.Event()
+    started.set()
+    calendar.responses.append(([], started))
+    loader.start()
+    await hass.async_block_till_done()
+
+    slow = asyncio.Event()
+    calendar.responses.append(([], slow))
+    rerun = asyncio.Event()
+    rerun.set()
+    calendar.responses.append(([_trip(0.0, 3600.0)], rerun))
+    horizon_manager.subscribe.call_args.args[0]()
+    await asyncio.sleep(0)
+    hass.states.async_set(calendar.entity_id, "on")
+    for _ in range(5):
+        await asyncio.sleep(0)
+    assert len(calendar.responses) == 1
+
+    slow.set()
+    await hass.async_block_till_done()
+
+    assert calendar.responses == []
+    np.testing.assert_allclose(_presence(store), [1.0, 0.0])
+    loader.cleanup()
+
+
+def _meter_store(timestamps: tuple[float, ...]) -> InputStore:
+    """Build a meter input reading METER_ID since its window calendar's open window."""
+    sources = {"type": "entity", "value": [METER_ID, ENTITY_ID]}
+    return create_input_store(
+        value=sources,
+        storage=_MemStorage(sources),
+        hint=FieldHint(output_type=OutputType.ENERGY, meter=MeterFieldHint(since="window_calendar")),
+        get_forecast_timestamps=lambda: timestamps,
+    )
+
+
+async def test_a_roll_during_the_first_meter_read_starts_no_retry(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """The meters' totals are only retried once the first read has finished, so the two never race."""
+    start = dt_util.utcnow().timestamp()
+    timestamps = (start, start + 3600.0)
+    horizon_manager.get_forecast_timestamps.return_value = timestamps
+    await _add_stub_calendar(hass, [_demand(start - 3600.0, start + 3600.0, "6 kWh")])
+    hass.config.components.add("recorder")
+    hass.states.async_set(METER_ID, "12.5", {"unit_of_measurement": "kWh", "device_class": "energy"})
+    store = _meter_store(timestamps)
+    loader = CalendarInputLoader(hass, "entry_id", {("Pump", ("schedule", "energy_meter")): store}, horizon_manager)
+    reads = 0
+    answer = asyncio.Event()
+
+    async def slow_then_fail(_func: Callable[..., object], *_args: object) -> object:
+        nonlocal reads
+        reads += 1
+        await answer.wait()
+        msg = "database busy"
+        raise RuntimeError(msg)
+
+    recorder = Mock()
+    recorder.async_add_executor_job = slow_then_fail
+    with patch("custom_components.haeo.inputs.meter_history.get_instance", return_value=recorder):
+        loader.start()
+        await asyncio.sleep(0)
+        horizon_manager.subscribe.call_args.args[0]()
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert reads == 1
+
+        # A retry that fails again leaves the meters on their live readings, and the next load retries
+        answer.set()
+        await hass.async_block_till_done(wait_background_tasks=True)
+        assert reads == 2
+        assert store.available
+
+    loader.cleanup()

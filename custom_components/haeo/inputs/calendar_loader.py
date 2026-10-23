@@ -141,6 +141,7 @@ class CalendarInputLoader:
         self._fetches_started = 0
         self._fetch_applied = 0
         self._refreshing = False
+        self._refresh_again = False
         # The stores resolve once the meters' recorded totals have been read
         self._ready = False
         self._meters_retry: asyncio.Task[None] | None = None
@@ -163,7 +164,7 @@ class CalendarInputLoader:
 
         @callback
         def _on_calendar_change(_event: Event[EventStateChangedData]) -> None:
-            self._schedule(self.async_load_all())
+            self._request_refresh()
 
         @callback
         def _on_source_change(event: Event[EventStateChangedData]) -> None:
@@ -181,31 +182,49 @@ class CalendarInputLoader:
         """Read the meters' recorded totals, then fetch the calendars and load every store."""
         await self._meters.async_load()
         self._ready = True
-        await self.async_load_all()
+        self._request_refresh()
 
     @callback
     def _on_horizon_change(self) -> None:
-        """Resolve the stores over the new horizon from the kept events, then fetch again in the background.
-
-        Only one such refresh runs at a time, so a calendar that never answers
-        holds one fetch rather than one per horizon roll.
-        """
+        """Resolve the stores over the new horizon from the kept events, then fetch again in the background."""
         self.resolve()
-        if not self._refreshing:
-            self._schedule(self._async_refresh())
+        self._request_refresh()
+
+    @callback
+    def _request_refresh(self) -> None:
+        """Fetch the calendars in the background, or once more after the fetch already running.
+
+        Only one refresh runs at a time, so a calendar that never answers holds
+        one fetch rather than one per horizon roll or change, and a request made
+        while one runs is met by a single fetch after it.
+        """
+        if self._refreshing:
+            self._refresh_again = True
+            return
+        self._refreshing = True
+        self._schedule(self._async_refresh())
 
     async def _async_refresh(self) -> None:
-        """Fetch the calendars again in the background."""
-        self._refreshing = True
+        """Fetch the calendars until no request has arrived during the last fetch."""
         try:
-            await self.async_load_all()
+            self._refresh_again = True
+            while self._refresh_again:
+                self._refresh_again = False
+                await self.async_load_all()
         finally:
             self._refreshing = False
 
     @callback
-    def _schedule(self, load: Coroutine[object, object, None]) -> asyncio.Task[None]:
-        """Start a background load that cleanup cancels if it is still running."""
-        task = self._hass.async_create_task(load)
+    def _schedule(self, load: Coroutine[object, object, None], *, background: bool = False) -> asyncio.Task[None]:
+        """Start a load that cleanup cancels if it is still running.
+
+        A background task is one nothing waits for, such as Home Assistant's startup.
+        """
+        task = (
+            self._hass.async_create_background_task(load, f"haeo_calendar_loader_{self._entry_id}")
+            if background
+            else self._hass.async_create_task(load)
+        )
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return task
@@ -221,13 +240,10 @@ class CalendarInputLoader:
         starts one retry in the background, which resolves the stores again
         once the totals are read; loads never wait on it.
         """
-        if not self._meters.recorded and self._meters_retry is None:
+        # Retries start once the first read has finished, so the two never race
+        if self._ready and not self._meters.recorded and self._meters_retry is None:
             # Nothing waits on the retry, which has no timeout, so it runs as a background task
-            self._meters_retry = self._hass.async_create_background_task(
-                self._async_retry_meters(), f"haeo_meter_retry_{self._entry_id}"
-            )
-            self._tasks.add(self._meters_retry)
-            self._meters_retry.add_done_callback(self._tasks.discard)
+            self._meters_retry = self._schedule(self._async_retry_meters(), background=True)
         self._fetches_started += 1
         fetch = self._fetches_started
         timestamps = self._horizon_manager.get_forecast_timestamps()
@@ -240,6 +256,10 @@ class CalendarInputLoader:
             if events is not None:
                 self._events[entity_id] = events
                 self._covered[entity_id] = span
+            elif calendar_entity(self._hass, entity_id) is None:
+                # A calendar whose entity is gone, as when its integration unloads, has no events to keep
+                self._events.pop(entity_id, None)
+                self._covered.pop(entity_id, None)
         self.resolve()
 
     async def _async_retry_meters(self) -> None:
@@ -333,13 +353,22 @@ class CalendarInputLoader:
             and store.hint.meter is None
             and (store.hint.calendar is None or store.hint.calendar.projection == "event_due")
         }
+        # Events are fetched past the horizon, but only those it reaches are read yet
+        timestamps = self._horizon_manager.get_forecast_timestamps()
+        start = datetime.fromtimestamp(timestamps[0], tz=UTC)
+        end = datetime.fromtimestamp(timestamps[-1], tz=UTC)
         for (element_name, field_path), (store, unit) in reading_values.items():
             calendars = [eid for eid in store.source_entity_ids if is_calendar_entity(eid)]
             ignored = [
                 _ignored_event_line(event, value_text)
                 for eid in calendars
                 for event, value_text in rejected_events(
-                    load_calendar_events(sm.get(eid), sm.time_zone) or [], store.hint.output_type
+                    [
+                        event
+                        for event in load_calendar_events(sm.get(eid), sm.time_zone) or []
+                        if event.end > start and event.start < end
+                    ],
+                    store.hint.output_type,
                 )
             ]
             if ignored:
@@ -356,13 +385,18 @@ class CalendarInputLoader:
                 dismiss_calendar_event_values_issue(self._hass, self._entry_id, element_name, field_path)
 
     async def _async_fetch_events(self, entity_id: str, span: tuple[float, float]) -> list[CalendarEventDict] | None:
-        """Fetch the calendar's events over a span of time, or None when it cannot be queried."""
-        return await async_fetch_calendar_events(
-            self._hass,
-            entity_id,
-            datetime.fromtimestamp(span[0], tz=UTC),
-            datetime.fromtimestamp(span[1], tz=UTC),
-        )
+        """Fetch the calendar's events over a span of time, or None when it cannot be queried in time."""
+        try:
+            async with asyncio.timeout(CALENDAR_FETCH_TIMEOUT):
+                return await async_fetch_calendar_events(
+                    self._hass,
+                    entity_id,
+                    datetime.fromtimestamp(span[0], tz=UTC),
+                    datetime.fromtimestamp(span[1], tz=UTC),
+                )
+        except TimeoutError:
+            _LOGGER.warning("%s did not return its events within %s seconds", entity_id, CALENDAR_FETCH_TIMEOUT)
+            return None
 
     def cleanup(self) -> None:
         """Unsubscribe from all change sources and cancel running reloads."""
@@ -373,6 +407,15 @@ class CalendarInputLoader:
             task.cancel()
 
 
+def calendar_entity(hass: HomeAssistant, entity_id: str) -> CalendarEntity | None:
+    """Return a calendar's entity, or None when the calendar integration or the entity is not loaded."""
+    component = hass.data.get(CALENDAR_DOMAIN)
+    if not isinstance(component, EntityComponent):
+        return None
+    entity = component.get_entity(entity_id)
+    return entity if isinstance(entity, CalendarEntity) else None
+
+
 async def async_fetch_calendar_events(
     hass: HomeAssistant, entity_id: str, start: datetime, end: datetime
 ) -> list[CalendarEventDict] | None:
@@ -380,15 +423,11 @@ async def async_fetch_calendar_events(
 
     Calendars answer for past ranges as well as future ones, so the same fetch
     serves historical diagnostics. Returns None when the calendar entity cannot
-    be queried (integration not loaded, entity missing, or the query failed or
-    took longer than ``CALENDAR_FETCH_TIMEOUT``).
+    be queried (integration not loaded, entity missing, or the query failed).
+    Callers bound how long they wait for it.
     """
-    component = hass.data.get(CALENDAR_DOMAIN)
-    if not isinstance(component, EntityComponent):
-        _LOGGER.debug("Calendar integration not loaded; no events for %s", entity_id)
-        return None
-    entity = component.get_entity(entity_id)
-    if not isinstance(entity, CalendarEntity):
+    entity = calendar_entity(hass, entity_id)
+    if entity is None:
         _LOGGER.debug("Calendar entity %s not found; no events injected", entity_id)
         return None
 
@@ -397,8 +436,7 @@ async def async_fetch_calendar_events(
     # local time, which is what a floating time means in Home Assistant
     local_tz = dt_util.get_default_time_zone()
     try:
-        async with asyncio.timeout(CALENDAR_FETCH_TIMEOUT):
-            calendar_events = await entity.async_get_events(hass, start.astimezone(local_tz), end.astimezone(local_tz))
+        calendar_events = await entity.async_get_events(hass, start.astimezone(local_tz), end.astimezone(local_tz))
     except Exception:
         _LOGGER.warning("Failed to fetch events from %s", entity_id, exc_info=True)
         return None
@@ -419,5 +457,6 @@ async def async_fetch_calendar_events(
 __all__ = [
     "CalendarInputLoader",
     "async_fetch_calendar_events",
+    "calendar_entity",
     "is_calendar_driven",
 ]
