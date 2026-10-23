@@ -48,6 +48,7 @@ EV = EvConfigData(
         "trip_opened": np.array([0.0, 20.0, 0.0]),
         "trip_due": np.array([0.0, 0.0, 20.0]),
     },
+    public_charging={"public_charging_price": 0.6},
     efficiency={},
     advanced={"charge_limit_cost": 100.0},
 )
@@ -62,7 +63,7 @@ CREATE_CASES: list[CreateCase] = [
                 "name": "ev",
                 "capacity": [50.0, 50.0, 50.0],
                 "initial_charge": 5.0,
-                "salvage_value": 0.0,
+                "salvage_value": 0.54,
                 "charge_limit_cost": 100.0,
             },
             {
@@ -95,7 +96,7 @@ CREATE_CASES: list[CreateCase] = [
                 "opened": [0.0, 4.0, 0.0],
                 "due": [0.0, 0.0, 4.0],
                 "initial_energy": 0.0,
-                "deficit_price": [10.0, 10.0, 10.0],
+                "deficit_price": [0.6, 0.6, 0.6],
                 "overage_price": [10.0, 10.0, 10.0],
             },
             {

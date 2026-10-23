@@ -49,6 +49,7 @@ The other fields mean the same for both kinds, mirrored.
 The loads the buffer covers.
 A reserve keeps them running through an outage, and for headroom they use some of the generation before it reaches the batteries.
 Loads count by the power HAEO plans for them, so a load whose timing HAEO chooses moves the buffer with its schedule.
+A load that HAEO plans to leave short, such as an EV trip it expects you to top up publicly, still counts by the energy it needs, so leaving it short cannot shrink the buffer.
 
 ## Generation
 

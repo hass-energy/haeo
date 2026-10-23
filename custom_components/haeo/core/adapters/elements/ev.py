@@ -65,10 +65,12 @@ from custom_components.haeo.core.schema.sections import (
 # gated by the away mask, not by a physical charger.
 _UNLIMITED_POWER: Final = 1.0e6
 
-# Default public charging price ($/kWh) when none is configured. High enough
-# that home charging always wins when physically possible, but finite so the
-# trip energy requirement can never make the optimization infeasible.
-DEFAULT_PUBLIC_CHARGING_PRICE: Final = 10.0
+# Share of the public charging price that energy left in the pack at the
+# horizon end is worth. It saves charging for the trips after the horizon, at
+# most the public price, so home charging below this tops the pack up. Below
+# the whole price so a trip still drives on the pack rather than leaving its
+# energy unused and charging publicly instead.
+SALVAGE_PUBLIC_PRICE_SHARE: Final = 0.9
 
 # Price ($/kWh) of planning more trip energy than a trip needs. A trip's
 # energy is not the plan's to choose, so the plan never drives further than
@@ -177,10 +179,14 @@ class EvAdapter:
         target_name = extract_connection_target(config[CONF_CONNECTION])
 
         capacity = vehicle[CONF_CAPACITY]
+        # The capacity is given at every period boundary
+        n_periods = len(capacity) - 1
         # current_soc is already a 0-1 ratio (the loader converts percent
         # fields); clamp so a glitched sensor cannot make the model infeasible
         initial_charge = min(max(vehicle[CONF_CURRENT_SOC], 0.0), 1.0) * float(capacity[0])
         energy_per_distance = float(vehicle[CONF_ENERGY_PER_DISTANCE])
+
+        public_price = _public_price(config, n_periods)
 
         # EV pack, held above its min charge like a battery: falling below
         # it is allowed, so a car that comes home under it stays feasible, but
@@ -190,7 +196,7 @@ class EvAdapter:
             "name": name,
             "capacity": capacity,
             "initial_charge": initial_charge,
-            "salvage_value": 0.0,
+            "salvage_value": SALVAGE_PUBLIC_PRICE_SHARE * float(public_price[-1]),
             "charge_limit_cost": config[SECTION_ADVANCED][CONF_CHARGE_LIMIT_COST],
         }
         if (min_ratio := vehicle.get(CONF_MIN_CHARGE_PERCENTAGE)) is not None:
@@ -199,8 +205,6 @@ class EvAdapter:
         trip = config.get(SECTION_TRIP, {})
         plugged_in = bool(charging[CONF_CONNECTED])
         driven_energy = trip.get(CONF_ODOMETER, 0.0) * energy_per_distance
-        # The capacity is given at every period boundary
-        n_periods = len(capacity) - 1
 
         windows = _trip_windows(trip, energy_per_distance, n_periods)
         if plugged_in and driven_energy > 0.0:
@@ -258,7 +262,7 @@ class EvAdapter:
                 "opened": windows.opened,
                 "due": windows.due,
                 "initial_energy": 0.0 if plugged_in else min(driven_energy, float(windows.opened[0])),
-                "deficit_price": _public_price(config, n_periods),
+                "deficit_price": public_price,
                 "overage_price": np.full(n_periods + 1, TRIP_OVERAGE_PRICE),
             },
             # 5. Trip connection: EV → trip load. Driving power is not
@@ -348,8 +352,8 @@ adapter = EvAdapter()
 
 
 def _public_price(config: EvConfigData, n_periods: int) -> NDArray[np.float64]:
-    """Return the public charging price at each boundary, the high default when none is configured."""
-    price = config.get(SECTION_PUBLIC_CHARGING, {}).get(CONF_PUBLIC_CHARGING_PRICE, DEFAULT_PUBLIC_CHARGING_PRICE)
+    """Return the public charging price at each boundary."""
+    price = config[SECTION_PUBLIC_CHARGING][CONF_PUBLIC_CHARGING_PRICE]
     return np.broadcast_to(np.asarray(price, dtype=np.float64), n_periods + 1).copy()
 
 

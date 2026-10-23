@@ -27,6 +27,9 @@ SECTION_TRIP: Final = "trip"
 SECTION_PUBLIC_CHARGING: Final = "public_charging"
 SECTION_ADVANCED: Final = "advanced"
 
+# Public charging price ($/kWh) an EV starts with, a typical fast charging price
+DEFAULT_PUBLIC_CHARGING_PRICE: Final = 0.6
+
 # Vehicle section field names
 CONF_CAPACITY: Final = "capacity"
 CONF_ENERGY_PER_DISTANCE: Final = "energy_per_distance"
@@ -126,13 +129,13 @@ class TripData(TypedDict, total=False):
 # --- Public charging section ---
 
 
-class PublicChargingConfig(TypedDict, total=False):
+class PublicChargingConfig(TypedDict):
     """Public charging pricing configuration."""
 
-    public_charging_price: EntityValue | ConstantValue | NoneValue
+    public_charging_price: EntityValue | ConstantValue
 
 
-class PublicChargingData(TypedDict, total=False):
+class PublicChargingData(TypedDict):
     """Loaded public charging pricing values."""
 
     public_charging_price: NDArray[np.float64] | float
@@ -232,20 +235,20 @@ class EvConfigSchema(ConnectedCommonConfig):
             ),
         ]
     ]
-    public_charging: NotRequired[
-        Annotated[
-            PublicChargingConfig,
-            SectionHints(
-                {
-                    CONF_PUBLIC_CHARGING_PRICE: FieldHint(
-                        output_type=OutputType.PRICE,
-                        time_series=True,
-                        boundaries=True,
-                        min_value=0.0,
-                    ),
-                }
-            ),
-        ]
+    public_charging: Annotated[
+        PublicChargingConfig,
+        SectionHints(
+            {
+                CONF_PUBLIC_CHARGING_PRICE: FieldHint(
+                    output_type=OutputType.PRICE,
+                    time_series=True,
+                    boundaries=True,
+                    min_value=0.0,
+                    default_mode="value",
+                    default_value=DEFAULT_PUBLIC_CHARGING_PRICE,
+                ),
+            }
+        ),
     ]
     efficiency: Annotated[
         EfficiencyConfig,
@@ -291,7 +294,7 @@ class EvConfigData(ConnectedCommonData):
     vehicle: VehicleData
     charging: ChargingData
     trip: NotRequired[TripData]
-    public_charging: NotRequired[PublicChargingData]
+    public_charging: PublicChargingData
     efficiency: EfficiencyData
     advanced: AdvancedData
 
@@ -312,6 +315,7 @@ __all__ = [
     "CONF_TRIP_DUE",
     "CONF_TRIP_OPENED",
     "CONF_TRIP_START",
+    "DEFAULT_PUBLIC_CHARGING_PRICE",
     "ELEMENT_TYPE",
     "SECTION_ADVANCED",
     "SECTION_CHARGING",

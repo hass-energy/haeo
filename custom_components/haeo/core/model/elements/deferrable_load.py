@@ -303,6 +303,12 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         """Return power consumed by the load."""
         return self.power_consumption
 
+    def element_energy_unmet(self) -> LinearArray:
+        """Return the energy missed in each period: the shortfall's growth at the boundary that ends it."""
+        previous = np.maximum(np.arange(self.n_periods) - 1, 0)
+        carried = np.concatenate(([0.0], self._carry()[1:]))
+        return self.shortfall - self.shortfall[previous] * carried
+
     @cost
     def deferrable_load_shortfall_cost(self) -> LinearArray:
         """Cost: each kWh of shortfall priced at the boundary where its event is due."""

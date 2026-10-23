@@ -20,7 +20,7 @@ An EV in HAEO represents:
 - **Trip calendar** from a Home Assistant calendar entity with a distance in each event
 - **Plugged in sensor** indicating when the vehicle is connected to your home charger
 - **Optional odometer** telling how far the car has gone on the current trip
-- **Optional public charging price** for modeling away-from-home charging costs
+- **Public charging price** for modeling away-from-home charging costs
 
 ### Configuration process
 
@@ -49,7 +49,7 @@ Each field you configure creates an [input entity](#input-entities); those set t
 | **[Min charge level](#min-charge-level)**                | Percentage | No       | -            | Charge the battery is kept above                                                   |
 | **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -            | Maximum home charging power                                                        |
 | **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -            | Maximum V2G discharge power                                                        |
-| **[Public charging price](#public-charging-price)**      | Price      | No       | \$10/kWh     | Cost per kWh for public charging                                                   |
+| **[Public charging price](#public-charging-price)**      | Price      | No       | \$0.60/kWh   | Cost per kWh for public charging                                                   |
 | **[Charge efficiency](#efficiency)**                     | Percentage | No       | 95%          | Efficiency when charging                                                           |
 | **[Discharge efficiency](#efficiency)**                  | Percentage | No       | 95%          | Efficiency when discharging                                                        |
 | **[Limit cost](#limit-cost)**                            | Price      | No       | 100 \$/kWh/h | Holding cost per kWh below the min charge                                          |
@@ -173,9 +173,12 @@ Both are measured at the charger, before charging losses, so a 7.4 kW charger is
 
 Set the cost per kWh for public charging away from home.
 Trip requirements are not hard constraints: any shortfall against a trip's energy requirement is priced at this rate, modeling a public top-up during the trip, so a trip can never make the optimization infeasible.
-When this field is not set, a deliberately high default of \$10/kWh is used, which strongly discourages a shortfall.
-The optimizer still compares it against the effective cost of home charging, so if import prices or policy costs push that above \$10/kWh it can deliberately leave a shortfall rather than pre-charge.
-Set a realistic price to let the optimizer genuinely trade off pre-charging at home against topping up publicly; the expected top-up appears in the trip energy shortfall sensor.
+It starts at \$0.60/kWh, a typical fast charging price.
+Set your own, or a sensor that tracks it, so the optimizer trades off pre-charging at home against topping up publicly at the prices you pay; the expected top-up appears in the trip energy shortfall sensor.
+
+The price also values the energy left in the car at the end of the forecast at 90% of it, as that energy saves charging for the trips after the forecast ends.
+HAEO therefore plans to finish the forecast with the car charged, topping it up whenever home charging costs less than that value and preferring the cheapest times, while still driving its trips on the pack rather than charging publicly.
+The pack only holds so much, so this tops the car up rather than charging it at any price.
 
 ### Limit cost
 
@@ -208,7 +211,7 @@ Their IDs combine the EV's name with the entity's name, so an EV named "Atto 2" 
 | `number.{name}_trip_distance_opening`       | km       | Distance of the trip events starting at each time        |
 | `number.{name}_trip_distance_due`           | km       | Distance of the trip events ending at each time          |
 | `number.{name}_distance_since_trip_started` | km       | Distance driven on the open trip (if an odometer is set) |
-| `number.{name}_public_charging_price`       | \$/kWh   | Public charging price (if configured)                    |
+| `number.{name}_public_charging_price`       | \$/kWh   | Public charging price                                    |
 | `number.{name}_charge_efficiency`           | %        | Charge efficiency (if configured)                        |
 | `number.{name}_discharge_efficiency`        | %        | Discharge efficiency (if configured)                     |
 | `number.{name}_limit_cost`                  | \$/kWh/h | Limit cost                                               |

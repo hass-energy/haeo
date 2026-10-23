@@ -5,6 +5,7 @@ Deferrable loads are appliances that must consume a set amount of energy within 
 You schedule the windows with a Home Assistant calendar, and HAEO decides when inside each window to run the load so the energy lands in the cheapest periods.
 The requirement is not a hard rule: if an event physically cannot fit its energy, the shortfall is priced instead of breaking the optimization, and running past it is priced rather than forbidden.
 A [buffer](buffer.md) that counts a deferrable load among its loads follows its planned power, so where HAEO schedules the load also sets the reserve it needs.
+Energy HAEO plans to leave short still counts, at the end of the event it belongs to.
 
 For mathematical details, see [Deferrable Load Modeling](../../modeling/device-layer/deferrable_load.md).
 

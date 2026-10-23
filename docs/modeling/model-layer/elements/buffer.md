@@ -8,7 +8,7 @@ A **reserve** keeps the energy the batteries need to cover the net demand of a g
 
 Buffer is a flow reader.
 It produces and consumes nothing and has no connections of its own.
-Instead it reads the planned power of its loads, the power limits on the connections out of its generation, and the stored energy of its batteries.
+Instead it reads the planned power and unmet energy of its loads, the power limits on the connections out of its generation, and the stored energy of its batteries.
 
 The requirement at each boundary is the largest rise in the elements' running net demand (or surplus, for headroom) within the window that starts there.
 Any shortfall is priced rather than forbidden, so a buffer the batteries cannot hold never makes the optimization infeasible.
@@ -33,7 +33,7 @@ For each boundary $t \in \{0, 1, \ldots, T\}$:
 | Parameter    | Description                                                                          |
 | ------------ | ------------------------------------------------------------------------------------ |
 | `kind`       | `reserve` or `headroom`                                                              |
-| `loads`      | Elements whose planned consumption the buffer covers                                 |
+| `loads`      | Elements whose needed consumption the buffer covers                                  |
 | `generation` | Elements whose possible production the buffer covers                                 |
 | `storage`    | Batteries that hold the buffer                                                       |
 | `window`     | Window length (hours)                                                                |
@@ -53,6 +53,7 @@ D(0) = 0, \qquad D(t+1) = D(t) + \sigma \, \Delta t_t \, P_{\text{net}}(t)
 $$
 
 where $\sigma$ is $1$ for a reserve and $-1$ for headroom.
+$P_{\text{net}}$ is the loads' power, plus the energy they leave unmet in the period divided by its length, less the generation's possible power.
 
 #### Block peaks
 
