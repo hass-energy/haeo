@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
+import logging
 from typing import Final
 
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
@@ -53,7 +54,11 @@ DIAGNOSTICS_SCHEMA_VERSION = 2
 
 # Calendar events fetched for a historical run reach past the longest horizon preset;
 # events beyond the replayed horizon are ignored when it resolves them.
+_LOGGER = logging.getLogger(__name__)
+
 HISTORICAL_CALENDAR_LOOKAHEAD: Final = timedelta(days=8)
+# Longest saving diagnostics waits for a calendar's events, since the person asking waits on it
+HISTORICAL_CALENDAR_TIMEOUT: Final = 30
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,6 +211,20 @@ def _collect_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
     return all_entity_ids
 
 
+async def _async_fetch_historical_events(
+    hass: HomeAssistant, entity_id: str, target_time: datetime
+) -> list[CalendarEventDict] | None:
+    """Fetch a calendar's events around a past run, or None when it cannot be queried in time."""
+    try:
+        async with asyncio.timeout(HISTORICAL_CALENDAR_TIMEOUT):
+            return await async_fetch_calendar_events(
+                hass, entity_id, target_time, target_time + HISTORICAL_CALENDAR_LOOKAHEAD
+            )
+    except TimeoutError:
+        _LOGGER.warning("%s did not return its events within %s seconds", entity_id, HISTORICAL_CALENDAR_TIMEOUT)
+        return None
+
+
 async def _fetch_inputs_at(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
@@ -245,12 +264,7 @@ async def _fetch_inputs_at(
 
     found = [entity_states[eid] for eid in entity_id_list if eid in entity_states]
     calendars = [state.entity_id for state in found if state.entity_id.startswith(f"{CALENDAR_DOMAIN}.")]
-    fetched = await asyncio.gather(
-        *(
-            async_fetch_calendar_events(hass, eid, target_time, target_time + HISTORICAL_CALENDAR_LOOKAHEAD)
-            for eid in calendars
-        )
-    )
+    fetched = await asyncio.gather(*(_async_fetch_historical_events(hass, eid, target_time) for eid in calendars))
     events = dict(zip(calendars, fetched, strict=True))
     unqueryable = {eid for eid, calendar_events in events.items() if calendar_events is None}
 
