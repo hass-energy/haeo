@@ -402,7 +402,7 @@ async def test_loader_reloads_on_horizon_change(hass: HomeAssistant, horizon_man
 async def test_horizon_roll_resolves_from_the_events_already_fetched(
     hass: HomeAssistant, horizon_manager: Mock
 ) -> None:
-    """A horizon roll moves calendar inputs at once from the events fetched ahead, without asking the calendar."""
+    """A horizon roll moves calendar inputs at once from the events already fetched, then fetches in the background."""
     calendar = await _add_stub_calendar(hass, [_trip(3600.0, 7200.0)])
     store = _calendar_store(get_forecast_timestamps=horizon_manager.get_forecast_timestamps)
     loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
@@ -416,8 +416,13 @@ async def test_horizon_roll_resolves_from_the_events_already_fetched(
 
     assert store.forecast_timestamps == new_timestamps
     np.testing.assert_allclose(_presence(store), [1.0, 0.0])
-    await hass.async_block_till_done()
     assert calendar.fetches == 1
+
+    # The fetch the roll started picks up an event added since
+    calendar._events = [_trip(3600.0, 7200.0), _trip(7200.0, 10800.0)]
+    await hass.async_block_till_done()
+    assert calendar.fetches == 2
+    np.testing.assert_allclose(_presence(store), [1.0, 1.0])
     loader.cleanup()
 
 

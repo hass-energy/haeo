@@ -217,7 +217,7 @@ The calendar input loader ([`inputs/calendar_loader.py`](https://github.com/hass
 Input stores capture their source states through the same injecting state machine, so diagnostics hold the events and replay loads them without a calendar to fetch from.
 A calendar without injected events reads as unavailable rather than as its plain state.
 Calendars change far less often than the horizon moves, so a horizon roll resolves calendar inputs at once from the events already fetched, and never waits on a calendar.
-The calendars are fetched again in the background when one changes, every 15 minutes, or when the fetched events no longer reach half a day past the horizon.
+Each roll then fetches the calendars again in the background, one fetch at a time, to pick up events added since, and a calendar that changes is fetched straight away.
 A fetch that fails or takes longer than five minutes keeps the events already fetched; once they no longer cover the horizon, the calendar reads as having no injected events and its inputs go unavailable until a fetch succeeds.
 A calendar with no events over the horizon gives a forecast with no points, which adds nothing to the input.
 

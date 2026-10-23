@@ -14,7 +14,6 @@ import asyncio
 from collections.abc import Callable, Coroutine, Mapping
 from datetime import UTC, date, datetime
 import logging
-import time
 from typing import TYPE_CHECKING, Final
 
 from homeassistant.components.calendar import CalendarEntity
@@ -67,10 +66,6 @@ def _as_datetime(value: datetime | date) -> datetime:
 # the events already fetched rather than waiting on the calendar
 CALENDAR_FETCH_AHEAD: Final = 86400.0
 
-# How long fetched events are planned from before the calendars are asked
-# again, so edits to upcoming events are picked up
-CALENDAR_REFRESH_INTERVAL: Final = 15 * 60
-
 # Longest a calendar's events are waited for. Nothing waits on a fetch, so this
 # only bounds how long a backend that never answers holds one open
 CALENDAR_FETCH_TIMEOUT: Final = 300
@@ -102,13 +97,12 @@ class CalendarInputLoader:
     start to a day past its end, keeps them with the span they cover, and
     loads the inputs through a state machine that injects them.
 
-    Calendars change far less often than the horizon moves, so a horizon roll
-    resolves the inputs at once from the kept events, before the coordinator
-    hears of it, and never waits on a calendar. The calendars are fetched again
-    in the background when one of them changes, when the kept events are older
-    than ``CALENDAR_REFRESH_INTERVAL``, or when they no longer reach far enough
-    past the horizon. A calendar whose fetch fails keeps its events while they
-    still cover the horizon, and reads as unavailable once they do not.
+    A horizon roll resolves the inputs at once from the kept events, before the
+    coordinator hears of it, so it never waits on a calendar, and then fetches
+    the calendars again in the background to pick up any events added since.
+    They are also fetched when one of them changes. A calendar whose fetch
+    fails keeps its events while they still cover the horizon, and reads as
+    unavailable once they do not.
 
     A meter input reads its window calendar, so it loads here too. The loader
     keeps its meters' running totals and injects them beside the events, so
@@ -146,7 +140,6 @@ class CalendarInputLoader:
         # Fetches are numbered as they start, so an older one never overwrites a newer one's events
         self._fetches_started = 0
         self._fetch_applied = 0
-        self._last_fetch_at: float | None = None
         self._refreshing = False
         # The stores resolve once the meters' recorded totals have been read
         self._ready = False
@@ -192,23 +185,14 @@ class CalendarInputLoader:
 
     @callback
     def _on_horizon_change(self) -> None:
-        """Resolve the stores over the new horizon from the kept events, and refresh them when due."""
-        self.resolve()
-        if self._refresh_due():
-            self._schedule(self._async_refresh())
+        """Resolve the stores over the new horizon from the kept events, then fetch again in the background.
 
-    def _refresh_due(self) -> bool:
-        """Return whether the kept events are old, or no longer reach far enough past the horizon.
-
-        Only one refresh runs at a time, so a calendar that never answers holds
-        one fetch rather than one per horizon roll.
+        Only one such refresh runs at a time, so a calendar that never answers
+        holds one fetch rather than one per horizon roll.
         """
-        if self._refreshing or self._last_fetch_at is None:
-            return False
-        reach = self._horizon_manager.get_forecast_timestamps()[-1] + CALENDAR_FETCH_AHEAD / 2
-        return time.monotonic() - self._last_fetch_at >= CALENDAR_REFRESH_INTERVAL or any(
-            self._covered.get(eid, (0.0, 0.0))[1] < reach for eid in self._calendars
-        )
+        self.resolve()
+        if not self._refreshing:
+            self._schedule(self._async_refresh())
 
     async def _async_refresh(self) -> None:
         """Fetch the calendars again in the background."""
@@ -246,7 +230,6 @@ class CalendarInputLoader:
             self._meters_retry.add_done_callback(self._tasks.discard)
         self._fetches_started += 1
         fetch = self._fetches_started
-        self._last_fetch_at = time.monotonic()
         timestamps = self._horizon_manager.get_forecast_timestamps()
         span = (timestamps[0], timestamps[-1] + CALENDAR_FETCH_AHEAD)
         fetched = await asyncio.gather(*(self._async_fetch_events(entity_id, span) for entity_id in self._calendars))
