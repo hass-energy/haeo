@@ -63,8 +63,13 @@ class PowerLimitSegment(Segment):
             target_element=target_element,
             upstream=upstream,
         )
-        self._fixed = spec.get("fixed", False)
+        self._fixed = bool(spec.get("fixed"))
         self.max_power = broadcast_to_sequence(spec.get("max_power"), self._n_periods)
+
+    @property
+    def fixed(self) -> bool:
+        """Return whether the flow is held at its max power rather than limited by it."""
+        return self._fixed
 
     @constraint(output=True, unit="$/kWh")
     def power_limit(self) -> Rows:
