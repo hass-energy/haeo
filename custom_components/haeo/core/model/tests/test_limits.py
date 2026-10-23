@@ -40,10 +40,12 @@ class LimitCase:
     max_charge_power: float = 5.0
     max_export_power: float = 50.0
     salvage_value: float = 0.2
+    export_settable: bool = True
+    """Whether the hardware's export limit can be set, so it is a control point."""
 
 
-def _limit(max_power: NDArray[np.float64]) -> SegmentSpec:
-    return {"segment_type": "power_limit", "max_power": max_power}
+def _limit(max_power: NDArray[np.float64], *, control_point: bool = True) -> SegmentSpec:
+    return {"segment_type": "power_limit", "max_power": max_power, "control_point": control_point}
 
 
 def _network(case: LimitCase) -> Network:
@@ -84,7 +86,7 @@ def _network(case: LimitCase) -> Network:
             "grid",
             True,
             {
-                "power_limit": _limit(case.max_export_power * ones),
+                "power_limit": _limit(case.max_export_power * ones, control_point=case.export_settable),
                 "pricing": {"segment_type": "pricing", "price": -np.asarray(case.export_price)},
             },
         ),
@@ -144,6 +146,16 @@ CASES = [
         },
     ),
     LimitCase(
+        "an export limit the hardware cannot set moves the limit to solar",
+        solar=[20.0, 20.0],
+        load=[1.0, 1.0],
+        import_price=[0.30, 0.30],
+        export_price=[-0.05, -0.05],
+        initial_charge=10.0,
+        export_settable=False,
+        expected={"solar_output": "limited", "charge": "unrestricted", "import": "unrestricted"},
+    ),
+    LimitCase(
         "a battery at its max charge limits charging, not solar",
         solar=[20.0, 20.0],
         load=[1.0, 1.0],
@@ -201,6 +213,7 @@ def test_recommended_limits(case: LimitCase) -> None:
     """Each connection is limited to its planned power only where the plan resists more flow."""
     recommendations = _network(case).recommend_limits()
 
+    assert ("export" in recommendations) == case.export_settable
     verdicts = {
         name: "unrestricted" if recommendations[name].max_power is None else "limited" for name in case.expected
     }

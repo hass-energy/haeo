@@ -9,7 +9,8 @@ the cost lands on, not necessarily the one being pushed. More solar that could
 only go out through a negative-priced export is stopped by limiting export, so
 the solar is still free to cover a load that turns out larger than forecast.
 
-Each connection with a power limit is a control point. Each driven point
+Each connection power limit the hardware can be set to is a control point; limits
+that only model something, such as an EV being away driving, are left out. Each driven point
 (generation, or storage, which never trades with the grid or curtails generation
 under self-consumption) is pushed as far as it will go on a copy of the solved
 model, warm-started from the plan's basis, so the plan and its solver are never
@@ -53,7 +54,7 @@ COST_TOLERANCE: Final = 1e-6
 PUSH: Final = 1e-3
 
 # Halvings spent finding how far a point can go when its full headroom is out of reach
-BISECTIONS: Final = 6
+BISECTIONS: Final = 3
 
 # The furthest a probe pushes a point without a max power, in kWh
 FULL_PUSH: Final = 1e3
@@ -124,7 +125,11 @@ def control_points(
     """Return the first-period power limit of every connection that has one the plan can choose under."""
     points: list[ControlPoint] = []
     for connection in connections:
-        limits = [s for s in connection.segments.values() if isinstance(s, PowerLimitSegment) and not s.fixed]
+        limits = [
+            s
+            for s in connection.segments.values()
+            if isinstance(s, PowerLimitSegment) and s.control_point and not s.fixed
+        ]
         if not limits:
             continue
         source, target = elements[connection.source], elements[connection.target]

@@ -103,7 +103,9 @@ CREATE_CASES: list[CreateCase] = [
                 "name": "ev:trip_connection",
                 "source": "ev",
                 "target": "ev:trip",
-                "segments": {"power_limit": {"segment_type": "power_limit", "max_power": [0.0, 1e6]}},
+                "segments": {
+                    "power_limit": {"segment_type": "power_limit", "max_power": [0.0, 1e6], "control_point": False}
+                },
             },
         ],
     },
