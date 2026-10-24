@@ -51,6 +51,10 @@ See [Modeling documentation](../modeling/index.md) for detailed layer descriptio
 4. The input platforms (Number, Switch) wrap the stores as entities, and setup waits for every store to settle.
 5. `coordinator.async_initialize()` builds the network, then the first optimization runs.
 6. The output platform (Sensor) adds the optimization status sensor and the output sensors.
+7. The update listener is registered, so later config changes reload the hub.
+
+Setup never fails permanently: any error raises `ConfigEntryNotReady`, so Home Assistant retries on a backoff of up to about 80 seconds.
+A failed attempt also leaves a one-shot listener that retries at once when the config changes, so a fix made through a flow applies without waiting for the backoff.
 
 ```mermaid
 graph LR

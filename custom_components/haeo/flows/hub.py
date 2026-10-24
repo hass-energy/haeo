@@ -5,7 +5,6 @@ from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstr
 
 from homeassistant.config_entries import (
     ConfigEntry,
-    ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
     ConfigSubentryData,
@@ -123,13 +122,8 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             errors = validate_hub_settings(self.hass, entry, user_input)
             if not errors:
-                data = hub_settings_data(entry, user_input)
-                # A loaded hub's update listener reloads it when its data changes, so
-                # reloading here as well would reload it twice. A hub that has not set
-                # up has no listener, so it is reloaded here to apply the settings.
-                if entry.state is ConfigEntryState.LOADED:
-                    return self.async_update_and_abort(entry, data=data)
-                return self.async_update_reload_and_abort(entry, data=data)
+                # The hub's update listener reloads it, or retries its setup, when its data changes
+                return self.async_update_and_abort(entry, data=hub_settings_data(entry, user_input))
 
         data_schema = await async_hub_settings_schema(self.hass, entry)
         return self.async_show_form(step_id="reconfigure", data_schema=data_schema, errors=errors)
