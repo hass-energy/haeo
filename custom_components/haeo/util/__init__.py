@@ -1,5 +1,6 @@
 """Utility functions for HAEO."""
 
+from collections.abc import Callable
 import copy
 from typing import TYPE_CHECKING
 
@@ -7,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
+from custom_components.haeo.core.schema.elements import map_element_references
 from custom_components.haeo.elements import InputFieldPath, set_nested_config_value_by_path
 
 if TYPE_CHECKING:
@@ -21,6 +23,20 @@ def network_subentry(entry: ConfigEntry) -> ConfigSubentry:
 
     """
     return next(subentry for subentry in entry.subentries.values() if subentry.subentry_type == ELEMENT_TYPE_NETWORK)
+
+
+def update_element_references(hass: HomeAssistant, entry: ConfigEntry, resolve: Callable[[str], str | None]) -> None:
+    """Replace each element name every element's config holds with what resolve returns for it.
+
+    Names resolve returns None for are dropped where an element lists them,
+    and an element left with nothing to do is removed.
+    """
+    for subentry in list(entry.subentries.values()):
+        mapped = map_element_references(subentry.subentry_type, subentry.data, resolve)
+        if mapped is None:
+            hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
+        elif mapped != subentry.data:
+            hass.config_entries.async_update_subentry(entry, subentry, data=mapped)
 
 
 async def async_update_subentry_value(
@@ -70,4 +86,5 @@ async def async_update_subentry_value(
 
 __all__ = [
     "async_update_subentry_value",
+    "update_element_references",
 ]

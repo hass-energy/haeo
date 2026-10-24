@@ -7,6 +7,7 @@ from custom_components.haeo.core.schema.connection_target import (
     as_connection_target,
     get_connection_target_name,
     is_connection_target,
+    map_connection_targets,
     normalize_connection_target,
 )
 
@@ -43,3 +44,22 @@ def test_get_connection_target_name_rejects_invalid_type() -> None:
     """get_connection_target_name rejects unsupported input types."""
     with pytest.raises(TypeError, match="Unsupported connection target"):
         get_connection_target_name(123)  # type: ignore[arg-type]  # deliberate invalid input; TypeGuard would skip the runtime check under test
+
+
+def test_map_connection_targets_renames_nested_targets_and_keeps_dropped_ones() -> None:
+    """Targets anywhere in a config are renamed, and one the resolver drops is left unchanged."""
+    config = {
+        "name": "Bus",
+        "connection": as_connection_target("Bus"),
+        "endpoints": {"source": as_connection_target("Bus"), "target": as_connection_target("Gone")},
+        "list": [as_connection_target("Bus"), "Bus"],
+    }
+
+    mapped = map_connection_targets(config, {"Bus": "Main Bus"}.get)
+
+    assert mapped == {
+        "name": "Bus",
+        "connection": as_connection_target("Main Bus"),
+        "endpoints": {"source": as_connection_target("Main Bus"), "target": as_connection_target("Gone")},
+        "list": [as_connection_target("Main Bus"), "Bus"],
+    }

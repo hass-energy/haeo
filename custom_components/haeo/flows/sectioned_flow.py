@@ -53,6 +53,8 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
     # Placeholders the form's description reads
     description_placeholders: ClassVar[dict[str, str] | None] = None
 
+    _surfaced_input: Mapping[str, object]
+
     # --- Hooks for fields beyond the name and the sectioned inputs ---
 
     def _top_level_entries(self, subentry_data: Mapping[str, object] | None) -> FieldEntries:
@@ -143,7 +145,8 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
         errors = self._validate_user_input(user_input, input_fields)
 
         if user_input is not None and not errors:
-            return await self._async_finalize(self._build_config(user_input), user_input)
+            self._surfaced_input = user_input
+            return await self._async_save_entry(str(user_input[CONF_NAME]), self._build_config(user_input))
 
         schema = self._build_schema(input_fields, extract_entity_metadata(self.hass, self._get_entry()), subentry_data)
         defaults = (
@@ -230,21 +233,20 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
             **self._config_fields(user_input, sections),
         }
 
-    async def _async_finalize(self, config: dict[str, object], user_input: Mapping[str, object]) -> SubentryFlowResult:
-        """Save the surfaced pricing fields as policy rules, then create or update the entry."""
-        name = str(user_input[CONF_NAME])
+    def _write_linked_entries(self) -> None:
+        """Save the surfaced pricing fields as policy rules."""
+        name = self._pending_title
         is_new = self._get_subentry() is None
         for section, hints in self._surfaced_hints_by_section().items():
             save_surfaced_rules_from_input(
                 self.hass,
                 self._get_entry(),
                 name,
-                as_mapping(user_input.get(section)),
+                as_mapping(self._surfaced_input.get(section)),
                 hints,
                 {field_name: f"{name} {field_name.replace('_', ' ')}" for field_name in hints},
                 apply_defaults=is_new,
             )
-        return await self._async_save_entry(name, config)
 
 
 __all__ = ["FieldEntries", "SectionedElementSubentryFlow"]
