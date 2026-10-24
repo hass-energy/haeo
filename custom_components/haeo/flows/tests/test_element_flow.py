@@ -1,19 +1,28 @@
 """Tests for the shared element flow helpers."""
 
+from types import MappingProxyType
+
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.const import UnitOfEnergyDistance, UnitOfLength
 from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.util.unit_conversion import DistanceConverter
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
+from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
+from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, MeterFieldHint
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.core.units import UnitOfMeasurement, convert_to_base_unit
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
@@ -216,3 +225,74 @@ async def test_participant_names_exclude_elements_with_own_connections(
     flow = create_flow(hass, hub_entry, ElementType.CONNECTION)
 
     assert flow._get_participant_names() == expected
+
+
+def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, data: dict[str, object]) -> ConfigSubentry:
+    subentry = ConfigSubentry(
+        data=MappingProxyType(data),
+        subentry_type=str(data[CONF_ELEMENT_TYPE]),
+        title=str(data[CONF_NAME]),
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    return subentry
+
+
+async def test_renaming_an_element_renames_it_in_every_element_that_names_it(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """Connections, connected elements, and policy rules follow an element to its new name."""
+    bus = _add_subentry(
+        hass,
+        hub_entry,
+        {
+            CONF_ELEMENT_TYPE: ElementType.NODE,
+            CONF_NAME: "Bus",
+            SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        },
+    )
+    add_participant(hass, hub_entry, "Other", ElementType.NODE)
+    link = _add_subentry(
+        hass,
+        hub_entry,
+        {
+            CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+            CONF_NAME: "Link",
+            SECTION_ENDPOINTS: {CONF_SOURCE: as_connection_target("Bus"), CONF_TARGET: as_connection_target("Other")},
+        },
+    )
+    load = _add_subentry(
+        hass,
+        hub_entry,
+        {CONF_ELEMENT_TYPE: ElementType.LOAD, CONF_NAME: "House", CONF_CONNECTION: as_connection_target("Bus")},
+    )
+    policy = _add_subentry(
+        hass,
+        hub_entry,
+        {
+            CONF_ELEMENT_TYPE: ElementType.POLICY,
+            CONF_NAME: "Policies",
+            CONF_RULES: [{CONF_NAME: "Bus out", CONF_SOURCE: ["Bus", "Other"], CONF_PRICE: 0.1}],
+        },
+    )
+
+    form = await hass.config_entries.subentries.async_init(
+        (hub_entry.entry_id, ElementType.NODE),
+        context={"source": SOURCE_RECONFIGURE, "subentry_id": bus.subentry_id},
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        form["flow_id"],
+        {CONF_NAME: "Main Bus", SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False}},
+    )
+
+    assert result.get("type") == FlowResultType.ABORT
+    subentries = hub_entry.subentries
+    assert subentries[bus.subentry_id].title == "Main Bus"
+    assert subentries[link.subentry_id].data[SECTION_ENDPOINTS] == {
+        CONF_SOURCE: as_connection_target("Main Bus"),
+        CONF_TARGET: as_connection_target("Other"),
+    }
+    assert subentries[load.subentry_id].data[CONF_CONNECTION] == as_connection_target("Main Bus")
+    assert subentries[policy.subentry_id].data[CONF_RULES] == [
+        {CONF_NAME: "Bus out", CONF_SOURCE: ["Main Bus", "Other"], CONF_PRICE: 0.1}
+    ]

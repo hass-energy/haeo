@@ -32,7 +32,6 @@ from custom_components.haeo.const import (
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE
-from custom_components.haeo.core.schema.elements import ELEMENT_REFERENCE_PRUNERS
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.hub import async_network_subentry, async_switchboard_subentry
@@ -55,7 +54,7 @@ from custom_components.haeo.repairs import (
 )
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
-from custom_components.haeo.util import network_subentry
+from custom_components.haeo.util import network_subentry, update_element_references
 
 from . import migrations as _migrations
 
@@ -272,22 +271,11 @@ def _element_flow_in_progress(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 def prune_element_references(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Remove references to deleted elements from the elements that name them.
 
-    Each element type that names other elements declares how it drops names
+    Each element type that lists other elements declares how it drops names
     that no longer exist; an element left with nothing to do is removed.
     """
-    subentries = list(entry.subentries.values())
-    referencing = [
-        (subentry, ELEMENT_REFERENCE_PRUNERS[subentry.subentry_type])
-        for subentry in subentries
-        if subentry.subentry_type in ELEMENT_REFERENCE_PRUNERS
-    ]
-    for subentry, prune in referencing:
-        element_names = {other.title for other in subentries if other.subentry_id != subentry.subentry_id}
-        pruned = prune(subentry.data, element_names)
-        if pruned is None:
-            hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
-        elif pruned != subentry.data:
-            hass.config_entries.async_update_subentry(entry, subentry, data=pruned)
+    element_names = {subentry.title for subentry in entry.subentries.values()}
+    update_element_references(hass, entry, lambda name: name if name in element_names else None)
 
 
 async def _async_first_refresh(

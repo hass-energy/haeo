@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Literal, TypedDict, TypeGuard
 
 VALUE_TYPE_CONNECTION_TARGET = "connection_target"
@@ -59,6 +59,25 @@ def get_connection_target_name(value: ConnectionTargetValue | str | None) -> str
     raise TypeError(msg)
 
 
+def map_connection_targets(config: Mapping[str, object], resolve: Callable[[str], str | None]) -> dict[str, object]:
+    """Return config with every connection target in it renamed to what resolve returns for its name.
+
+    A target resolve returns None for is left unchanged.
+    """
+    return {key: _map_connection_targets_in(value, resolve) for key, value in config.items()}
+
+
+def _map_connection_targets_in(value: object, resolve: Callable[[str], str | None]) -> object:
+    """Return a config value with the connection targets in it renamed."""
+    if is_connection_target(value):
+        return as_connection_target(resolve(value["value"]) or value["value"])
+    if isinstance(value, Mapping):
+        return {key: _map_connection_targets_in(item, resolve) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_map_connection_targets_in(item, resolve) for item in value]
+    return value
+
+
 __all__ = [
     "ConnectionTarget",
     "ConnectionTargetValue",
@@ -66,5 +85,6 @@ __all__ = [
     "extract_connection_target",
     "get_connection_target_name",
     "is_connection_target",
+    "map_connection_targets",
     "normalize_connection_target",
 ]

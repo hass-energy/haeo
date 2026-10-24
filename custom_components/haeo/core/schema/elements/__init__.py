@@ -1,9 +1,9 @@
 """Element schema definitions for HAEO integration."""
 
 from collections.abc import Callable, Mapping
-from collections.abc import Set as AbstractSet
 from typing import Final
 
+from custom_components.haeo.core.schema.connection_target import map_connection_targets
 from custom_components.haeo.core.schema.elements import battery, buffer, load, policy
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData, BatteryConfigSchema
 from custom_components.haeo.core.schema.elements.battery_section import (
@@ -81,23 +81,41 @@ ELEMENT_SURFACED_PRICE_HINTS: Final[Mapping[str, Mapping[str, SurfacedPriceHint]
     ElementType.LOAD: load.SURFACED_PRICE_HINTS,
 }
 
-# Returns an element's config without references to elements outside the given
-# names, or None when the element is left with nothing to do and is removed
-type ReferencePruner = Callable[[Mapping[str, object], AbstractSet[str]], Mapping[str, object] | None]
+# Returns an element's config with each element it names replaced by what the
+# resolver returns for that name, dropping names it returns None for, or None
+# when the element is left with nothing to do and is removed
+type ReferenceMapper = Callable[[Mapping[str, object], Callable[[str], str | None]], Mapping[str, object] | None]
 
-# Element types whose config names other elements, and how each drops names
-# of elements that no longer exist
-ELEMENT_REFERENCE_PRUNERS: Final[Mapping[str, ReferencePruner]] = {
-    ElementType.BUFFER: buffer.prune_references,
-    ElementType.POLICY: policy.prune_references,
+# Element types whose config names other elements in lists, and how each maps them
+ELEMENT_REFERENCE_MAPPERS: Final[Mapping[str, ReferenceMapper]] = {
+    ElementType.BUFFER: buffer.map_references,
+    ElementType.POLICY: policy.map_references,
 }
+
+
+def map_element_references(
+    element_type: str, config: Mapping[str, object], resolve: Callable[[str], str | None]
+) -> Mapping[str, object] | None:
+    """Return an element's config with every element it names replaced by what resolve returns for it.
+
+    Connection targets are renamed wherever they appear in any element's
+    config. A connection target names the one element a connection needs, so
+    one resolve returns None for is left for setup to report. Element types in
+    ELEMENT_REFERENCE_MAPPERS then map the names they list, dropping those
+    resolve returns None for, and return None when the element should be removed.
+    """
+    mapped = map_connection_targets(config, resolve)
+    mapper = ELEMENT_REFERENCE_MAPPERS.get(element_type)
+    return mapper(mapped, resolve) if mapper is not None else mapped
+
 
 __all__ = [
     "ELEMENT_CONFIG_SCHEMAS",
-    "ELEMENT_REFERENCE_PRUNERS",
+    "ELEMENT_REFERENCE_MAPPERS",
     "ELEMENT_SURFACED_PRICE_HINTS",
     "ElementConfigData",
     "ElementConfigSchema",
     "ElementType",
-    "ReferencePruner",
+    "ReferenceMapper",
+    "map_element_references",
 ]

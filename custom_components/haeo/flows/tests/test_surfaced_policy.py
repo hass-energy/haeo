@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 from unittest.mock import Mock
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
@@ -435,6 +435,40 @@ async def test_battery_flow_creates_surfaced_rules(
     assert discharge_rule.get("source") == ["Test Battery"]
     assert "target" not in discharge_rule
     assert discharge_rule["price"] == as_constant_value(0.02)
+
+
+async def test_battery_rename_moves_surfaced_rules_to_new_name(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Renaming a battery while changing its charge cost updates its rule rather than adding one."""
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    user_input = _base_battery_input()
+    user_input[CONF_CHARGE_COST] = 0.05
+    user_input[CONF_DISCHARGE_COST] = 0.02
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.async_create_entry = Mock()
+    await flow.async_step_user(user_input=_wrap_battery_input(user_input))
+    battery = ConfigSubentry(
+        data=MappingProxyType(flow.async_create_entry.call_args.kwargs["data"]),
+        subentry_type=str(BATTERY_ELEMENT_TYPE),
+        title="Test Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, battery)
+
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.context = {"source": SOURCE_RECONFIGURE, "subentry_id": battery.subentry_id}
+    user_input[CONF_NAME] = "Renamed Battery"
+    user_input[CONF_CHARGE_COST] = 0.07
+    result = await flow.async_step_reconfigure(user_input=_wrap_battery_input(user_input))
+
+    assert result.get("type") == FlowResultType.ABORT
+    rules = sorted(_get_rules(hub_entry), key=lambda rule: rule["name"])
+    assert [(rule.get("source"), rule.get("target"), rule["price"]) for rule in rules] == [
+        (None, ["Renamed Battery"], as_constant_value(0.07)),
+        (["Renamed Battery"], None, as_constant_value(0.02)),
+    ]
 
 
 async def test_battery_flow_new_element_always_applies_defaults(

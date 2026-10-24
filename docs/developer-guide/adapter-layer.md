@@ -82,8 +82,10 @@ These are registered beside `ELEMENT_CONFIG_SCHEMAS` in [`core/schema/elements/_
 
 - **`ELEMENT_SURFACED_PRICE_HINTS`**: Policy pricing fields an element type shows on its own form.
     The value is stored as a policy rule rather than in the element's config, and the element's flow lists each surfaced field in one of its sections.
-- **`ELEMENT_REFERENCE_PRUNERS`**: For element types whose config names other elements, how each drops names of elements that no longer exist.
-    The config entry's update listener applies them when the configuration changes, removing an element left with nothing to do.
+- **`ELEMENT_REFERENCE_MAPPERS`**: For element types whose config lists other elements by name, how each replaces those names through a resolver, dropping the names it returns nothing for.
+    `map_element_references` applies them after renaming the connection targets any element's config holds.
+    The element subentry flow uses it to rename an element everywhere it is named when the element is renamed.
+    The config entry's update listener uses it to drop the names of deleted elements, removing an element left with nothing to do.
 
 `FieldSchemaInfo` in `elements/input_fields.py` carries a field's value type and whether it is optional, read from the schema for the config flow.
 
