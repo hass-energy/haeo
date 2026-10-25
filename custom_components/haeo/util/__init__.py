@@ -1,6 +1,5 @@
 """Utility functions for HAEO."""
 
-from collections.abc import Callable
 import copy
 from typing import TYPE_CHECKING
 
@@ -8,7 +7,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
-from custom_components.haeo.core.schema.elements import map_element_references
+from custom_components.haeo.core.schema.elements import map_element_references, referenced_element_names
 from custom_components.haeo.elements import InputFieldPath, set_nested_config_value_by_path
 
 if TYPE_CHECKING:
@@ -25,22 +24,24 @@ def network_subentry(entry: ConfigEntry) -> ConfigSubentry:
     return next(subentry for subentry in entry.subentries.values() if subentry.subentry_type == ELEMENT_TYPE_NETWORK)
 
 
-def update_element_references(hass: HomeAssistant, entry: ConfigEntry, resolve: Callable[[str], str | None]) -> None:
-    """Replace each element name every element's config holds with what resolve returns for it.
-
-    Names resolve returns None for are dropped where an element lists them,
-    and an element left with nothing to do is removed. Each write fires the
-    update listener eagerly, which may update references itself, so every
-    subentry is read afresh and one already removed is skipped.
-    """
-    for subentry_id in list(entry.subentries):
-        if (subentry := entry.subentries.get(subentry_id)) is None:
-            continue
-        mapped = map_element_references(subentry.subentry_type, subentry.data, resolve)
-        if mapped is None:
-            hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
-        elif mapped != subentry.data:
+def rename_element_references(hass: HomeAssistant, entry: ConfigEntry, old_name: str, new_name: str) -> None:
+    """Rename an element in the config of every element that names it."""
+    for subentry in list(entry.subentries.values()):
+        mapped = map_element_references(
+            subentry.subentry_type, subentry.data, lambda name: new_name if name == old_name else name
+        )
+        if mapped != subentry.data:
             hass.config_entries.async_update_subentry(entry, subentry, data=mapped)
+
+
+def missing_element_references(entry: ConfigEntry) -> dict[str, list[str]]:
+    """Return the names each element refers to that no element of the entry has, by element."""
+    names = {subentry.title for subentry in entry.subentries.values()}
+    missing = {
+        subentry.title: sorted(referenced_element_names(subentry.subentry_type, subentry.data) - names)
+        for subentry in entry.subentries.values()
+    }
+    return {element: absent for element, absent in missing.items() if absent}
 
 
 async def async_update_subentry_value(
@@ -90,5 +91,6 @@ async def async_update_subentry_value(
 
 __all__ = [
     "async_update_subentry_value",
-    "update_element_references",
+    "missing_element_references",
+    "rename_element_references",
 ]

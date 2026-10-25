@@ -251,6 +251,23 @@ Home Assistant keeps retrying setup in the background, and the issue clears once
 2. **Check your sensors**: Every sensor your elements read should be available in **Developer tools → States**
 3. **Report it**: If the error persists once your sensors are available, [report a bug](https://github.com/hass-energy/haeo/issues) with the log and your diagnostics
 
+## Elements refer to elements that do not exist
+
+### Problem
+
+A repair issue titled "Elements refer to elements that do not exist" appears, and the integration shows as retrying setup.
+
+### Solutions
+
+An element names another element that has been deleted, so HAEO cannot build your system.
+Deleting an element never changes the elements that name it, so nothing is lost.
+The issue lists each affected element and the names it is missing.
+
+1. **Add the missing element again**: Use exactly the same name, and everything that named it works as before
+2. **Or point elsewhere**: Reconfigure each affected element to use another element, or delete it
+
+HAEO starts again once every element names only elements that exist, and the issue clears.
+
 ## Getting help
 
 If these solutions don't help:

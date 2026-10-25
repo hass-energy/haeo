@@ -68,7 +68,7 @@ The `core/` package holds everything with no Home Assistant dependency, which im
 ### Core (`core/`)
 
 - **`core/schema/`**: Element config schemas and data TypedDicts, field hints, form sections, and pure migration transforms.
-    The registries `ELEMENT_CONFIG_SCHEMAS`, `ELEMENT_SURFACED_PRICE_HINTS`, and `ELEMENT_REFERENCE_MAPPERS` live in `core/schema/elements/__init__.py`.
+    The registries `ELEMENT_CONFIG_SCHEMAS`, `ELEMENT_SURFACED_PRICE_HINTS`, and `ELEMENT_REFERENCE_MAPPERS` live in `core/schema/elements/__init__.py`, with `map_element_references` and `referenced_element_names`, which rename and find the elements an element's config names.
 - **`core/adapters/`**: One adapter per element type registered in `ELEMENT_TYPES` (`registry.py`), [policy compilation](policy-compilation.md), and `network_builder.py`, whose `build_network` turns loaded configs into a `Network` and `build_element_updaters` returns an updater per element for it.
 - **`core/data/`**: The `InputStore` behind each input, and the loaders, extractors, and utilities that turn entity states into time series.
     See the [Data loading guide](data-loading.md).

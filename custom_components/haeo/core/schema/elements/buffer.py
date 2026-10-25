@@ -130,21 +130,14 @@ class BufferConfigData(TypedDict):
     pricing: BufferPricingData
 
 
-def map_references(config: Mapping[str, object], resolve: Callable[[str], str | None]) -> dict[str, object] | None:
-    """Return the buffer with each participant replaced by what resolve returns for it.
-
-    Participants resolve returns None for are dropped. A buffer with no
-    batteries left holds nothing, so None is returned to remove it rather
-    than keep it empty.
-    """
+def map_references(config: Mapping[str, object], resolve: Callable[[str], str]) -> dict[str, object]:
+    """Return the buffer with each participant replaced by what resolve returns for it."""
     participants = config[SECTION_PARTICIPANTS]
     mapped = {
-        role: [resolved for name in names if (resolved := resolve(name)) is not None]
+        role: [resolve(name) for name in names]
         for role, names in (participants.items() if isinstance(participants, Mapping) else ())
         if isinstance(names, Sequence)
     }
-    if not mapped.get(CONF_STORAGE):
-        return None
     return {**config, SECTION_PARTICIPANTS: mapped}
 
 

@@ -86,33 +86,22 @@ def is_policy_config_data(config: object) -> TypeGuard[PolicyConfigData]:
     return isinstance(config, dict) and config.get("element_type") == ELEMENT_TYPE
 
 
-def map_references(config: Mapping[str, object], resolve: Callable[[str], str | None]) -> dict[str, object]:
-    """Return the policy with each element it names replaced by what resolve returns for it.
-
-    Names resolve returns None for are stripped from each rule's source and
-    target lists. A rule whose named side loses all its elements is dropped, and
-    a rule left with the same source and target as an earlier rule is dropped
-    as a duplicate.
-    """
+def map_references(config: Mapping[str, object], resolve: Callable[[str], str]) -> dict[str, object]:
+    """Return the policy with each element its rules name replaced by what resolve returns for it."""
     rules = config[CONF_RULES]
-    kept: list[dict[str, object]] = []
-    seen_patterns: set[tuple[tuple[str, ...] | None, tuple[str, ...] | None]] = set()
-    for rule in [rule for rule in rules if isinstance(rule, Mapping)] if isinstance(rules, Sequence) else []:
-        mapped_rule: dict[str, object] = dict(rule)
-        endpoints: list[tuple[str, ...] | None] = []
-        for key in (CONF_SOURCE, CONF_TARGET):
-            named = rule.get(key)
-            if isinstance(named, Sequence) and named:
-                remaining = [resolved for name in named if (resolved := resolve(name)) is not None]
-                mapped_rule[key] = remaining
-                endpoints.append(tuple(sorted(remaining)))
-            else:
-                endpoints.append(None)
-        source, target = endpoints
-        if source != () and target != () and (source, target) not in seen_patterns:
-            seen_patterns.add((source, target))
-            kept.append(mapped_rule)
-    return {**config, CONF_RULES: kept}
+    mapped = [
+        {
+            **rule,
+            **{
+                key: [resolve(name) for name in named]
+                for key in (CONF_SOURCE, CONF_TARGET)
+                if isinstance(named := rule.get(key), Sequence)
+            },
+        }
+        for rule in (rules if isinstance(rules, Sequence) else ())
+        if isinstance(rule, Mapping)
+    ]
+    return {**config, CONF_RULES: mapped}
 
 
 __all__ = [

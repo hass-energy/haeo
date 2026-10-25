@@ -49,7 +49,7 @@ from custom_components.haeo.flows.on_off_states import (
     async_state_suggestions,
     fields_reading_words,
 )
-from custom_components.haeo.util import update_element_references
+from custom_components.haeo.util import rename_element_references
 
 
 def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[UnitSpec] | None:
@@ -363,8 +363,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         """
         renamed = self._target_subentry()
         if renamed is not None and renamed.title != self._pending_title:
-            old_name, new_name = renamed.title, self._pending_title
-            update_element_references(self.hass, self._get_entry(), lambda name: new_name if name == old_name else name)
+            rename_element_references(self.hass, self._get_entry(), renamed.title, self._pending_title)
         self._write_linked_entries()
         subentry = self._target_subentry()
         if subentry is not None:

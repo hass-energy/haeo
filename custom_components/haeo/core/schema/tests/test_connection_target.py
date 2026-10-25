@@ -46,8 +46,8 @@ def test_get_connection_target_name_rejects_invalid_type() -> None:
         get_connection_target_name(123)  # type: ignore[arg-type]  # deliberate invalid input; TypeGuard would skip the runtime check under test
 
 
-def test_map_connection_targets_renames_nested_targets_and_keeps_dropped_ones() -> None:
-    """Targets anywhere in a config are renamed, and one the resolver drops is left unchanged."""
+def test_map_connection_targets_renames_nested_targets() -> None:
+    """Targets anywhere in a config are renamed, and other values naming the element are left alone."""
     config = {
         "name": "Bus",
         "connection": as_connection_target("Bus"),
@@ -55,7 +55,7 @@ def test_map_connection_targets_renames_nested_targets_and_keeps_dropped_ones() 
         "list": [as_connection_target("Bus"), "Bus"],
     }
 
-    mapped = map_connection_targets(config, {"Bus": "Main Bus"}.get)
+    mapped = map_connection_targets(config, lambda name: "Main Bus" if name == "Bus" else name)
 
     assert mapped == {
         "name": "Bus",

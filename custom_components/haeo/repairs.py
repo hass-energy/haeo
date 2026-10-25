@@ -195,6 +195,34 @@ def dismiss_invalid_connection_endpoints_issue(
     _LOGGER.debug("Dismissed invalid connection endpoints issue for entry %s", entry_id)
 
 
+def missing_element_references_summary(missing: Mapping[str, Sequence[str]], separator: str = "\n") -> str:
+    """Return a part per element naming the elements it refers to that do not exist, joined by separator."""
+    return separator.join(f"{element} → {', '.join(names)}" for element, names in sorted(missing.items()))
+
+
+def sync_missing_element_references_issue(
+    hass: HomeAssistant, entry_id: str, missing: Mapping[str, Sequence[str]]
+) -> None:
+    """Raise a repair issue for elements that refer to elements that do not exist, and dismiss it otherwise.
+
+    Keys are element names and values are the names each refers to that no element has.
+    """
+    issue_id = f"missing_element_references_{entry_id}"
+    if not missing:
+        async_delete_issue(hass, DOMAIN, issue_id)
+        return
+    async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        is_persistent=True,
+        severity=IssueSeverity.ERROR,
+        translation_key="missing_element_references",
+        translation_placeholders={"references": missing_element_references_summary(missing)},
+    )
+
+
 def create_setup_failed_issue(hass: HomeAssistant, entry_id: str, error: str) -> None:
     """Raise a repair issue for a setup that failed unexpectedly and will be retried."""
     async_create_issue(

@@ -49,12 +49,14 @@ from custom_components.haeo.repairs import (
     async_dismiss_entry_issues,
     create_setup_failed_issue,
     dismiss_setup_failed_issue,
+    missing_element_references_summary,
     setup_failed_issue_error,
+    sync_missing_element_references_issue,
     sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
-from custom_components.haeo.util import network_subentry, update_element_references
+from custom_components.haeo.util import missing_element_references, network_subentry
 
 from . import migrations as _migrations
 
@@ -209,6 +211,10 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     Uses async_schedule_reload instead of async_reload to avoid suspending
     in the listener task. Required subentries are ensured during setup, so
     no need to check here.
+
+    Deleting an element leaves every element that names it unchanged, so
+    recreating it under the same name restores the network. Setup reports
+    the missing element until then.
     """
     # Check if this is a value-only update from an input entity
     runtime_data = entry.runtime_data
@@ -221,18 +227,9 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
             coordinator.signal_optimization_stale()
         return
 
-    # Clean up policy rules that reference deleted elements. An element's
-    # subentry is committed only after its config flow finishes, but the flow
-    # writes the element's surfaced policy rules before that. Skip cleanup while
-    # a subentry flow for this entry is active so those rules are not mistaken
-    # for orphans; element deletions do not run a flow, so they still clean up.
-    flow_in_progress = _element_flow_in_progress(hass, entry)
-    if not flow_in_progress:
-        prune_element_references(hass, entry)
-
     _LOGGER.info("HAEO configuration changed, reloading integration")
 
-    if not flow_in_progress:
+    if not _element_flow_in_progress(hass, entry):
         hass.config_entries.async_schedule_reload(entry.entry_id)
         return
 
@@ -266,16 +263,6 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
 def _element_flow_in_progress(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Return whether a subentry config flow for this entry is in progress."""
     return any(flow["handler"][0] == entry.entry_id for flow in hass.config_entries.subentries.async_progress())
-
-
-def prune_element_references(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove references to deleted elements from the elements that name them.
-
-    Each element type that lists other elements declares how it drops names
-    that no longer exist; an element left with nothing to do is removed.
-    """
-    element_names = {subentry.title for subentry in entry.subentries.values()}
-    update_element_references(hass, entry, lambda name: name if name in element_names else None)
 
 
 async def _async_first_refresh(
@@ -364,6 +351,17 @@ async def _async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> Non
 
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
+
+    # Deleting an element leaves the elements that name it unchanged, so the
+    # user can recreate it; until then there is no network to optimize
+    missing = missing_element_references(entry)
+    sync_missing_element_references_issue(hass, entry.entry_id, missing)
+    if missing:
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="missing_element_references",
+            translation_placeholders={"references": missing_element_references_summary(missing, "; ")},
+        )
 
     # Create network device using centralized device creation
     get_or_create_network_device(hass, entry, network_subentry(entry))

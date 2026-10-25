@@ -79,8 +79,9 @@ Each is registered in a mapping in `core/schema/elements/__init__.py`, and code 
 
 - `SURFACED_PRICE_HINTS` go in `ELEMENT_SURFACED_PRICE_HINTS` when the element's form shows policy pricing fields.
     The element's flow must list each surfaced field in one of its `sections`.
-- `map_references` goes in `ELEMENT_REFERENCE_MAPPERS` when the config lists other elements, so a renamed element is renamed in it and a deleted one dropped.
-    Connection targets need no mapper; they are renamed wherever they appear.
+- `map_references` goes in `ELEMENT_REFERENCE_MAPPERS` when the config lists other elements, so a renamed element is renamed in it and setup can report a name no element has.
+    Connection targets need no mapper; they are found and renamed wherever they appear.
+    Deleting an element never rewrites the elements that name it, so recreating it restores them.
 
 `is_element_config_schema()` in `core/schema/elements/conformance.py` checks a stored mapping against the schema registered for its type.
 

@@ -39,7 +39,6 @@ from custom_components.haeo import (
     async_unload_entry,
     async_update_listener,
     card_static_url,
-    prune_element_references,
 )
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
@@ -68,7 +67,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.elements.buffer import (
-    CONF_GENERATION,
     CONF_KIND,
     CONF_LOADS,
     CONF_STORAGE,
@@ -76,6 +74,7 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_PARTICIPANTS,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
+from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
@@ -89,7 +88,7 @@ from custom_components.haeo.core.schema.sections import (
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.repairs import create_node_replaced_by_junction_issue
-from custom_components.haeo.util import update_element_references
+from custom_components.haeo.util import rename_element_references
 
 
 @pytest.fixture
@@ -1121,6 +1120,17 @@ def test_card_static_url_changes_with_bundle_contents(tmp_path: Path) -> None:
     assert card_static_url(tmp_path) != first
 
 
+def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, data: dict[str, object]) -> ConfigSubentry:
+    subentry = ConfigSubentry(
+        data=MappingProxyType(data),
+        subentry_type=str(data[CONF_ELEMENT_TYPE]),
+        title=str(data[CONF_NAME]),
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    return subentry
+
+
 def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: dict[str, list[str]]) -> ConfigSubentry:
     subentry = ConfigSubentry(
         data=MappingProxyType(
@@ -1139,57 +1149,13 @@ def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: d
     return subentry
 
 
-@pytest.mark.parametrize(
-    ("participants", "expected"),
-    [
-        pytest.param(
-            {CONF_LOADS: ["House", "Pool"], CONF_GENERATION: ["Solar", "Wind"], CONF_STORAGE: ["Battery", "Old"]},
-            {CONF_LOADS: ["House"], CONF_GENERATION: ["Solar"], CONF_STORAGE: ["Battery"]},
-            id="deleted_elements_removed",
-        ),
-        pytest.param(
-            {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]},
-            {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]},
-            id="unchanged",
-        ),
-    ],
-)
-def test_prune_element_references_buffer_strips_deleted_elements(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    participants: dict[str, list[str]],
-    expected: dict[str, list[str]],
-) -> None:
-    """Deleting an element removes it from every buffer that named it."""
-    add_participant(hass, mock_hub_entry, "House", ElementType.LOAD)
-    add_participant(hass, mock_hub_entry, "Solar", ElementType.SOLAR)
-    add_participant(hass, mock_hub_entry, "Battery", ElementType.BATTERY)
-    subentry = _add_buffer(hass, mock_hub_entry, participants)
-
-    prune_element_references(hass, mock_hub_entry)
-
-    assert mock_hub_entry.subentries[subentry.subentry_id].data[SECTION_PARTICIPANTS] == expected
-
-
-def test_prune_element_references_buffer_removes_buffer_without_batteries(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
-) -> None:
-    """A buffer whose last battery is deleted holds nothing, so it is removed."""
-    add_participant(hass, mock_hub_entry, "House", ElementType.LOAD)
-    subentry = _add_buffer(hass, mock_hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]})
-
-    prune_element_references(hass, mock_hub_entry)
-
-    assert subentry.subentry_id not in mock_hub_entry.subentries
-
-
-def test_update_element_references_renames_buffer_participants(
+def test_rename_element_references_renames_buffer_participants(
     hass: HomeAssistant, mock_hub_entry: MockConfigEntry
 ) -> None:
     """Renaming an element renames it in every buffer that lists it."""
     subentry = _add_buffer(hass, mock_hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery", "Spare"]})
 
-    update_element_references(hass, mock_hub_entry, lambda name: "Main Battery" if name == "Battery" else name)
+    rename_element_references(hass, mock_hub_entry, "Battery", "Main Battery")
 
     assert mock_hub_entry.subentries[subentry.subentry_id].data[SECTION_PARTICIPANTS] == {
         CONF_LOADS: ["House"],
@@ -1197,22 +1163,51 @@ def test_update_element_references_renames_buffer_participants(
     }
 
 
-async def test_prune_element_references_survives_a_nested_prune(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+async def test_deleting_an_element_leaves_the_elements_that_name_it_unchanged(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A prune the update listener runs from within a prune's own write does not leave the outer one stale."""
-    first = _add_buffer(hass, mock_hub_entry, {CONF_STORAGE: ["Battery"]})
-    second = _add_buffer(hass, mock_hub_entry, {CONF_STORAGE: ["Battery"]})
+    """Buffers, policies, and connections keep naming a deleted element, so recreating it restores them."""
+    schedule_reload = Mock()
+    monkeypatch.setattr(hass.config_entries, "async_schedule_reload", schedule_reload)
+    mock_hub_entry.runtime_data = None
+    add_participant(hass, mock_hub_entry, "House", ElementType.LOAD)
+    battery = add_participant(hass, mock_hub_entry, "Battery", ElementType.BATTERY)
+    naming = [
+        _add_buffer(hass, mock_hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]}),
+        _add_subentry(
+            hass,
+            mock_hub_entry,
+            {
+                CONF_ELEMENT_TYPE: ElementType.POLICY,
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {CONF_NAME: "charge", CONF_TARGET: ["Battery"], CONF_PRICE: as_constant_value(0.1)},
+                    {CONF_NAME: "out", CONF_SOURCE: ["Battery", "House"], CONF_PRICE: as_constant_value(0.2)},
+                ],
+            },
+        ),
+        _add_subentry(
+            hass,
+            mock_hub_entry,
+            {
+                CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+                CONF_NAME: "Link",
+                SECTION_ENDPOINTS: {
+                    CONF_SOURCE: as_connection_target("Battery"),
+                    CONF_TARGET: as_connection_target("House"),
+                },
+            },
+        ),
+    ]
+    mock_hub_entry.add_update_listener(async_update_listener)
 
-    async def prune_on_update(hass: HomeAssistant, entry: ConfigEntry) -> None:
-        prune_element_references(hass, entry)
+    hass.config_entries.async_remove_subentry(mock_hub_entry, battery.subentry_id)
+    await hass.async_block_till_done()
 
-    mock_hub_entry.add_update_listener(prune_on_update)
-
-    prune_element_references(hass, mock_hub_entry)
-
-    assert first.subentry_id not in mock_hub_entry.subentries
-    assert second.subentry_id not in mock_hub_entry.subentries
+    schedule_reload.assert_called_once_with(mock_hub_entry.entry_id)
+    assert [mock_hub_entry.subentries[subentry.subentry_id].data for subentry in naming] == [
+        subentry.data for subentry in naming
+    ]
 
 
 async def test_removing_an_element_removes_its_entities(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
@@ -1317,3 +1312,73 @@ async def test_setup_succeeds_with_an_input_entity_disabled(hass: HomeAssistant)
 
     assert entry.state is ConfigEntryState.LOADED
     assert hass.states.get(load_forecast.entity_id) is None
+
+
+async def test_setup_waits_for_missing_elements_and_recovers_once_they_are_added(hass: HomeAssistant) -> None:
+    """Elements naming a missing element stop setup with a repair issue until it is added again."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            HUB_SECTION_COMMON: {CONF_NAME: "Home", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS)},
+            HUB_SECTION_ADVANCED: {},
+        },
+        version=1,
+        minor_version=MIGRATION_MINOR_VERSION,
+    )
+    entry.add_to_hass(hass)
+    elements: tuple[dict[str, object], ...] = (
+        {CONF_ELEMENT_TYPE: ElementType.JUNCTION, CONF_NAME: "Switchboard"},
+        {
+            CONF_ELEMENT_TYPE: ElementType.GRID,
+            CONF_NAME: "Grid",
+            CONF_CONNECTION: as_connection_target("Switchboard"),
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+            },
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: as_constant_value(0.3),
+                CONF_PRICE_TARGET_SOURCE: as_constant_value(0.05),
+            },
+        },
+        {
+            CONF_ELEMENT_TYPE: ElementType.LOAD,
+            CONF_NAME: "Load",
+            CONF_CONNECTION: as_connection_target("Inverter"),
+            "curtailment": {},
+            "forecast": {"forecast": as_constant_value(1.0)},
+            SECTION_PRICING: {},
+        },
+        {
+            CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+            CONF_NAME: "Link",
+            SECTION_ENDPOINTS: {
+                CONF_SOURCE: as_connection_target("Inverter"),
+                CONF_TARGET: as_connection_target("Switchboard"),
+            },
+            SECTION_POWER_LIMITS: {},
+            SECTION_PRICING: {},
+            SECTION_EFFICIENCY: {},
+        },
+    )
+    for data in elements:
+        _add_subentry(hass, entry, dict(data))
+    issue_id = f"missing_element_references_{entry.entry_id}"
+
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert not er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_placeholders == {"references": "Link → Inverter\nLoad → Inverter"}
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"setup_failed_{entry.entry_id}") is None
+
+    _add_subentry(hass, entry, {CONF_ELEMENT_TYPE: ElementType.JUNCTION, CONF_NAME: "Inverter"})
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None

@@ -59,18 +59,15 @@ def get_connection_target_name(value: ConnectionTargetValue | str | None) -> str
     raise TypeError(msg)
 
 
-def map_connection_targets(config: Mapping[str, object], resolve: Callable[[str], str | None]) -> dict[str, object]:
-    """Return config with every connection target in it renamed to what resolve returns for its name.
-
-    A target resolve returns None for is left unchanged.
-    """
+def map_connection_targets(config: Mapping[str, object], resolve: Callable[[str], str]) -> dict[str, object]:
+    """Return config with every connection target in it renamed to what resolve returns for its name."""
     return {key: _map_connection_targets_in(value, resolve) for key, value in config.items()}
 
 
-def _map_connection_targets_in(value: object, resolve: Callable[[str], str | None]) -> object:
+def _map_connection_targets_in(value: object, resolve: Callable[[str], str]) -> object:
     """Return a config value with the connection targets in it renamed."""
     if is_connection_target(value):
-        return as_connection_target(resolve(value["value"]) or value["value"])
+        return as_connection_target(resolve(value["value"]))
     if isinstance(value, Mapping):
         return {key: _map_connection_targets_in(item, resolve) for key, item in value.items()}
     if isinstance(value, list):
