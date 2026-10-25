@@ -29,9 +29,13 @@ def update_element_references(hass: HomeAssistant, entry: ConfigEntry, resolve: 
     """Replace each element name every element's config holds with what resolve returns for it.
 
     Names resolve returns None for are dropped where an element lists them,
-    and an element left with nothing to do is removed.
+    and an element left with nothing to do is removed. Each write fires the
+    update listener eagerly, which may update references itself, so every
+    subentry is read afresh and one already removed is skipped.
     """
-    for subentry in list(entry.subentries.values()):
+    for subentry_id in list(entry.subentries):
+        if (subentry := entry.subentries.get(subentry_id)) is None:
+            continue
         mapped = map_element_references(subentry.subentry_type, subentry.data, resolve)
         if mapped is None:
             hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)

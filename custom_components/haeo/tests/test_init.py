@@ -89,6 +89,7 @@ from custom_components.haeo.core.schema.sections import (
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.repairs import create_node_replaced_by_junction_issue
+from custom_components.haeo.util import update_element_references
 
 
 @pytest.fixture
@@ -1180,6 +1181,38 @@ def test_prune_element_references_buffer_removes_buffer_without_batteries(
     prune_element_references(hass, mock_hub_entry)
 
     assert subentry.subentry_id not in mock_hub_entry.subentries
+
+
+def test_update_element_references_renames_buffer_participants(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """Renaming an element renames it in every buffer that lists it."""
+    subentry = _add_buffer(hass, mock_hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery", "Spare"]})
+
+    update_element_references(hass, mock_hub_entry, lambda name: "Main Battery" if name == "Battery" else name)
+
+    assert mock_hub_entry.subentries[subentry.subentry_id].data[SECTION_PARTICIPANTS] == {
+        CONF_LOADS: ["House"],
+        CONF_STORAGE: ["Main Battery", "Spare"],
+    }
+
+
+async def test_prune_element_references_survives_a_nested_prune(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """A prune the update listener runs from within a prune's own write does not leave the outer one stale."""
+    first = _add_buffer(hass, mock_hub_entry, {CONF_STORAGE: ["Battery"]})
+    second = _add_buffer(hass, mock_hub_entry, {CONF_STORAGE: ["Battery"]})
+
+    async def prune_on_update(hass: HomeAssistant, entry: ConfigEntry) -> None:
+        prune_element_references(hass, entry)
+
+    mock_hub_entry.add_update_listener(prune_on_update)
+
+    prune_element_references(hass, mock_hub_entry)
+
+    assert first.subentry_id not in mock_hub_entry.subentries
+    assert second.subentry_id not in mock_hub_entry.subentries
 
 
 async def test_removing_an_element_removes_its_entities(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
