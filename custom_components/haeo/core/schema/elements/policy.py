@@ -5,7 +5,7 @@ When configured, its rules are compiled into PolicyPricing model elements
 that apply costs to tagged power flows on connection min-cuts.
 """
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from typing import Annotated, Final, Literal, NotRequired, TypedDict, TypeGuard
 
 import numpy as np
@@ -87,21 +87,32 @@ def is_policy_config_data(config: object) -> TypeGuard[PolicyConfigData]:
 
 
 def map_references(config: Mapping[str, object], resolve: Callable[[str], str]) -> dict[str, object]:
-    """Return the policy with each element its rules name replaced by what resolve returns for it."""
+    """Return the policy with each element its rules name replaced by what resolve returns for it.
+
+    Renaming an element to a name other rules still hold can leave a side
+    naming an element twice, or two rules over the same elements. The name is
+    kept once and the later rule is dropped, as the policy flow allows neither.
+    """
     rules = config[CONF_RULES]
-    mapped = [
-        {
+    kept: list[dict[str, object]] = []
+    patterns: set[tuple[frozenset[object], ...]] = set()
+    for rule in [rule for rule in rules if isinstance(rule, Mapping)] if isinstance(rules, list) else []:
+        mapped: dict[str, object] = {
             **rule,
             **{
-                key: [resolve(name) for name in named]
+                key: list(dict.fromkeys(resolve(name) for name in named))
                 for key in (CONF_SOURCE, CONF_TARGET)
-                if isinstance(named := rule.get(key), Sequence)
+                if isinstance(named := rule.get(key), list)
             },
         }
-        for rule in (rules if isinstance(rules, Sequence) else ())
-        if isinstance(rule, Mapping)
-    ]
-    return {**config, CONF_RULES: mapped}
+        pattern = tuple(
+            frozenset(side) if isinstance(side := mapped.get(key), list) else frozenset()
+            for key in (CONF_SOURCE, CONF_TARGET)
+        )
+        if pattern not in patterns:
+            patterns.add(pattern)
+            kept.append(mapped)
+    return {**config, CONF_RULES: kept}
 
 
 __all__ = [

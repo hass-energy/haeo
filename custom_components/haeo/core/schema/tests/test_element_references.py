@@ -76,3 +76,40 @@ def test_map_element_references_renames_every_reference(
 
     assert referenced_element_names(element_type, mapped) == {f"New {name}" for name in expected}
     assert mapped["name"] == config["name"]
+
+
+@pytest.mark.parametrize(
+    ("element_type", "config", "expected"),
+    [
+        pytest.param(
+            ElementType.BUFFER,
+            {"name": "Backup", "participants": {"loads": ["House"], "storage": ["Old", "New"]}},
+            {"name": "Backup", "participants": {"loads": ["House"], "storage": ["New"]}},
+            id="buffer_lists_a_participant_once",
+        ),
+        pytest.param(
+            ElementType.POLICY,
+            {
+                "name": "Policies",
+                "rules": [
+                    {"name": "Old charge cost", "target": ["Old"], "price": 0.1},
+                    {"name": "both out", "source": ["Old", "New"], "price": 0.2},
+                    {"name": "New charge cost", "target": ["New"], "price": 0.3},
+                ],
+            },
+            {
+                "name": "Policies",
+                "rules": [
+                    {"name": "Old charge cost", "target": ["New"], "price": 0.1},
+                    {"name": "both out", "source": ["New"], "price": 0.2},
+                ],
+            },
+            id="policy_keeps_the_first_rule_over_the_same_elements",
+        ),
+    ],
+)
+def test_renaming_onto_a_name_still_referenced_leaves_no_duplicates(
+    element_type: ElementType, config: dict[str, object], expected: dict[str, object]
+) -> None:
+    """Renaming an element to the name of a deleted one it still shares a config with names it once."""
+    assert map_element_references(element_type, config, lambda name: "New" if name == "Old" else name) == expected

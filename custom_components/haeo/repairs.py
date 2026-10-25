@@ -154,6 +154,11 @@ def dismiss_disconnected_network_issue(
     _LOGGER.debug("Dismissed disconnected network issue for entry %s", entry_id)
 
 
+def element_names_summary(names_by_element: Mapping[str, Sequence[str]], separator: str = "\n") -> str:
+    """Return an "element → names" part per element, sorted by element and joined by separator."""
+    return separator.join(f"{element} → {', '.join(names)}" for element, names in sorted(names_by_element.items()))
+
+
 def create_invalid_connection_endpoints_issue(
     hass: HomeAssistant,
     entry_id: str,
@@ -161,9 +166,7 @@ def create_invalid_connection_endpoints_issue(
 ) -> None:
     """Create a repair issue for elements connected directly to closed endpoints."""
 
-    connection_summary = "\n".join(
-        f"{element} → {', '.join(endpoints)}" for element, endpoints in sorted(invalid_endpoints.items())
-    )
+    connection_summary = element_names_summary(invalid_endpoints)
     issue_id = f"invalid_connection_endpoints_{entry_id}"
 
     async_create_issue(
@@ -180,7 +183,7 @@ def create_invalid_connection_endpoints_issue(
     _LOGGER.warning(
         "Created repair issue for invalid connection endpoints on entry %s: %s",
         entry_id,
-        connection_summary.replace("\n", "; "),
+        element_names_summary(invalid_endpoints, "; "),
     )
 
 
@@ -193,11 +196,6 @@ def dismiss_invalid_connection_endpoints_issue(
     issue_id = f"invalid_connection_endpoints_{entry_id}"
     async_delete_issue(hass, DOMAIN, issue_id)
     _LOGGER.debug("Dismissed invalid connection endpoints issue for entry %s", entry_id)
-
-
-def missing_element_references_summary(missing: Mapping[str, Sequence[str]], separator: str = "\n") -> str:
-    """Return a part per element naming the elements it refers to that do not exist, joined by separator."""
-    return separator.join(f"{element} → {', '.join(names)}" for element, names in sorted(missing.items()))
 
 
 def sync_missing_element_references_issue(
@@ -219,7 +217,7 @@ def sync_missing_element_references_issue(
         is_persistent=True,
         severity=IssueSeverity.ERROR,
         translation_key="missing_element_references",
-        translation_placeholders={"references": missing_element_references_summary(missing)},
+        translation_placeholders={"references": element_names_summary(missing)},
     )
 
 

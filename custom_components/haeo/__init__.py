@@ -49,7 +49,7 @@ from custom_components.haeo.repairs import (
     async_dismiss_entry_issues,
     create_setup_failed_issue,
     dismiss_setup_failed_issue,
-    missing_element_references_summary,
+    element_names_summary,
     setup_failed_issue_error,
     sync_missing_element_references_issue,
     sync_unavailable_input_issues,
@@ -360,7 +360,7 @@ async def _async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> Non
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="missing_element_references",
-            translation_placeholders={"references": missing_element_references_summary(missing, "; ")},
+            translation_placeholders={"references": element_names_summary(missing, "; ")},
         )
 
     # Create network device using centralized device creation
