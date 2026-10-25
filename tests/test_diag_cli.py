@@ -423,8 +423,29 @@ def test_migrate_participants_for_diag_only_migrates_older_exports(
         "name": "Generator bus",
         "role": {"is_source": as_constant_value(True), "is_sink": as_constant_value(False)},
     }
-    config: dict[str, JsonValueType] = {} if minor_version is None else {"minor_version": minor_version}
+    common: dict[str, JsonValueType] = {"name": "Home", "horizon": {"type": "preset", "value": "5_days"}}
+    config: dict[str, JsonValueType] = (
+        {} if minor_version is None else {"minor_version": minor_version, "common": common}
+    )
 
     migrated = diag.migrate_participants_for_diag(config, {"Generator bus": source_node})
 
     assert (migrated["Generator bus"]["element_type"] == ElementType.JUNCTION) is becomes_junction
+
+
+def test_migrate_participants_for_diag_migrates_a_v1_4_export_without_a_horizon() -> None:
+    """A v1.4 export from a pre-release build, still with its horizon preset, gets the v1.4 element migrations."""
+    switchboard: dict[str, object] = {
+        "element_type": ElementType.NODE,
+        "name": "Switchboard",
+        "role": {"is_source": as_constant_value(False), "is_sink": as_constant_value(False)},
+    }
+    config: dict[str, JsonValueType] = {
+        "minor_version": 4,
+        "common": {"name": "Home", "horizon_preset": "7_days"},
+        "advanced": {"advanced_mode": True},
+    }
+
+    migrated = diag.migrate_participants_for_diag(config, {"Switchboard": switchboard})
+
+    assert migrated["Switchboard"]["element_type"] == ElementType.JUNCTION
