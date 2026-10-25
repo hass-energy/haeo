@@ -1,4 +1,4 @@
-import { isObservable } from "mobx";
+import { autorun, isObservable } from "mobx";
 import { describe, expect, it, vi } from "vitest";
 
 import { ForecastCardStore } from "./store";
@@ -17,6 +17,21 @@ describe("ForecastCardStore", () => {
     expect(isObservable(store.hass)).toBe(false);
     expect(store.normalizedSeries.length).toBeGreaterThan(0);
     expect(isObservable(store.normalizedSeriesCache)).toBe(false);
+  });
+
+  it("keeps the display format while the localization settings stay the same", () => {
+    const store = new ForecastCardStore();
+    const hass = loadScenarioHassState("scenario2");
+    store.setHass({ ...hass, locale: { language: "en", time_format: "24" } });
+    const formats: unknown[] = [];
+    const dispose = autorun(() => formats.push(store.format));
+
+    store.setHass({ ...hass, locale: { language: "en", time_format: "24" } });
+    expect(formats).toHaveLength(1);
+
+    store.setHass({ ...hass, locale: { language: "en", time_format: "12" } });
+    expect(formats).toHaveLength(2);
+    dispose();
   });
 
   it("builds filtered visible series from real scenario outputs", () => {

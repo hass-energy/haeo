@@ -1,23 +1,9 @@
 import type { JSX } from "preact";
 import { t } from "../i18n";
-
-/** Cached Intl.DateTimeFormat for axis tick labels, keyed by locale. */
-let cachedTimeFormatter: Intl.DateTimeFormat | undefined;
-let cachedTimeFormatterLocale = "";
-
-function formatTickTime(ms: number, locale: string): string {
-  if (locale !== cachedTimeFormatterLocale || cachedTimeFormatter === undefined) {
-    cachedTimeFormatter = new Intl.DateTimeFormat(locale !== "" ? locale : undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    cachedTimeFormatterLocale = locale;
-  }
-  return cachedTimeFormatter.format(ms);
-}
+import { formatNumber, formatTime, wallClockOffsetMs, type DisplayFormat } from "../locale-format";
 
 interface AxesGridProps {
-  locale: string;
+  format: DisplayFormat;
   width: number;
   height: number;
   left: number;
@@ -121,39 +107,42 @@ function chooseTimeStep(min: number, max: number, targetCount: number): number {
   return TIME_STEPS_MS[TIME_STEPS_MS.length - 1] ?? 60 * 60_000;
 }
 
-function alignTickStart(min: number, step: number): number {
-  const date = new Date(min);
-  date.setSeconds(0, 0);
+function alignTickStart(min: number, step: number, timeZone: string | undefined): number {
+  // Align on the wall clock of the time zone the times are shown in, then convert back
+  const offset = wallClockOffsetMs(min, timeZone);
+  const date = new Date(min + offset);
+  date.setUTCSeconds(0, 0);
   const minuteMs = 60_000;
   const hourMs = 60 * minuteMs;
   const dayMs = 24 * hourMs;
 
   if (step >= dayMs) {
-    date.setHours(0, 0, 0, 0);
+    date.setUTCHours(0, 0, 0, 0);
   } else if (step >= hourMs) {
     const hoursPerStep = Math.max(1, Math.round(step / hourMs));
-    const hour = date.getHours();
-    date.setMinutes(0, 0, 0);
-    date.setHours(hour - (hour % hoursPerStep));
+    const hour = date.getUTCHours();
+    date.setUTCMinutes(0, 0, 0);
+    date.setUTCHours(hour - (hour % hoursPerStep));
   } else {
     const minutesPerStep = Math.max(1, Math.round(step / minuteMs));
-    const minute = date.getMinutes();
-    date.setMinutes(minute - (minute % minutesPerStep), 0, 0);
+    const minute = date.getUTCMinutes();
+    date.setUTCMinutes(minute - (minute % minutesPerStep), 0, 0);
   }
 
-  let aligned = date.getTime();
+  const wallClock = date.getTime();
+  let aligned = wallClock - wallClockOffsetMs(wallClock - offset, timeZone);
   while (aligned < min) {
     aligned += step;
   }
   return aligned;
 }
 
-function timeTicks(min: number, max: number, targetCount: number): number[] {
+function timeTicks(min: number, max: number, targetCount: number, timeZone: string | undefined): number[] {
   if (max <= min) {
     return [min];
   }
   const step = chooseTimeStep(min, max, targetCount);
-  const start = alignTickStart(min, step);
+  const start = alignTickStart(min, step, timeZone);
   const end = Math.ceil(max / step) * step;
   const out: number[] = [];
   for (let time = start; time <= end + step * 0.25; time += step) {
@@ -193,8 +182,8 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
   const rightAxisX = props.width - props.right;
   const powerLabelX = props.left * 0.78;
   const priceLabelX = rightAxisX + props.right * 0.08;
-  const xMajor = timeTicks(props.xMin, props.xMax, 7);
-  const xMinor = timeTicks(props.xMin, props.xMax, 13);
+  const xMajor = timeTicks(props.xMin, props.xMax, 7, props.format.timeZone);
+  const xMinor = timeTicks(props.xMin, props.xMax, 13, props.format.timeZone);
   const yMajor = niceLinearTicks(props.powerMin, props.powerMax, 6, true).filter((value) =>
     isVisibleY(props.yScalePower(value))
   );
@@ -241,7 +230,7 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
             y2={props.bottom}
           />
           <text className="axisTickLabel" x={props.xScale(time)} y={props.bottom + 16} textAnchor="middle">
-            {formatTickTime(time, props.locale)}
+            {formatTime(time, props.format)}
           </text>
         </g>
       ))}
@@ -262,7 +251,7 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
             textAnchor="end"
             dominantBaseline="middle"
           >
-            {value.toFixed(Math.abs(value) >= 10 ? 0 : 1)}
+            {formatNumber(value, props.format, Math.abs(value) >= 10 ? 0 : 1)}
           </text>
         </g>
       ))}
@@ -276,7 +265,7 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
           textAnchor="start"
           dominantBaseline="middle"
         >
-          {value.toFixed(Math.abs(value) >= 10 ? 0 : 2)}
+          {formatNumber(value, props.format, Math.abs(value) >= 10 ? 0 : 2)}
         </text>
       ))}
 
@@ -292,10 +281,10 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
       <line className="axisBase" x1={rightAxisX} y1={props.top} x2={rightAxisX} y2={props.bottom} />
 
       <text className="axisLabelStrong" x={powerLabelX} y={props.top - 6} textAnchor="end">
-        {t(props.locale, "axis.power")}
+        {t(props.format.language, "axis.power")}
       </text>
       <text className="axisLabelStrong" x={priceLabelX} y={props.top - 6} textAnchor="start">
-        {t(props.locale, "axis.price")}
+        {t(props.format.language, "axis.price")}
       </text>
     </>
   );

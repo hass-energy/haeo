@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/preact";
 
+import { displayFormat } from "../locale-format";
 import { Tooltip } from "./Tooltip";
 
 const meta: Meta<typeof Tooltip> = {
@@ -13,7 +14,7 @@ type Story = StoryObj<typeof Tooltip>;
 export const Default: Story = {
   render: () => (
     <Tooltip
-      locale="en"
+      format={displayFormat("en", undefined, undefined)}
       panelTimeMs={Date.parse("2025-10-06T10:55:00.000000+0000")}
       rows={[
         {

@@ -134,7 +134,7 @@ const TooltipSection = observer(function TooltipSection(props: { store: Forecast
   }
   return (
     <Tooltip
-      locale={props.store.locale}
+      format={props.store.format}
       panelTimeMs={props.store.panelTimeMs}
       rows={props.store.tooltipRows}
       emphasizedKeys={props.store.tooltipEmphasisKeys}
