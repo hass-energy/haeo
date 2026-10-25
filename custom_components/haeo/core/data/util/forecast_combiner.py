@@ -25,8 +25,25 @@ def split_sensor_payloads(payloads: Mapping[str, SensorPayload]) -> tuple[float 
     return present_value, forecast_series
 
 
+def _end_before(series: ForecastSeries) -> ForecastSeries:
+    """Move a forecast's last point just before its timestamp, keeping its value."""
+    *points, (timestamp, value) = series
+    return [*points, (float(np.nextafter(timestamp, -np.inf)), value)]
+
+
 def _merge_forecasts(forecast_series: Sequence[ForecastSeries]) -> ForecastSeries:
-    """Sum forecasts on the union of their timestamps, each zero outside its own range."""
+    """Sum forecasts on the union of their timestamps, each zero outside its own range.
+
+    Where one forecast ends at the timestamp another starts, the later one
+    alone sets the value there: the ending forecast steps down just before
+    it, so the merged forecast steps from one to the other.
+    """
+    forecast_series = [
+        _end_before(series)
+        if any(other is not series and other[0][0] == series[-1][0] for other in forecast_series)
+        else series
+        for series in forecast_series
+    ]
     unique_timestamps = sorted({timestamp for series in forecast_series for timestamp, _ in series})
     all_timestamps = np.array(unique_timestamps, dtype=np.float64)
     total_values = np.zeros(all_timestamps.size, dtype=np.float64)

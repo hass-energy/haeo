@@ -100,3 +100,23 @@ def test_present_value_alone_repeats() -> None:
 def test_no_data_points_sum_to_zero(*, boundaries: bool, expected: list[float]) -> None:
     """Sources that supplied only forecasts with no points, such as an empty calendar, sum to zero."""
     assert fuse_sensor_payloads(None, [], [0.0, HOUR, 2 * HOUR], boundaries=boundaries) == expected
+
+
+@pytest.mark.parametrize(
+    ("boundaries", "expected"),
+    [
+        pytest.param(False, [0.1925] * 12 + [0.1979] * 12, id="intervals"),
+        pytest.param(True, [0.1925] * 12 + [0.1979] * 13, id="boundaries"),
+    ],
+)
+def test_forecasts_sharing_an_endpoint_step_to_the_later_one(*, boundaries: bool, expected: list[float]) -> None:
+    """Where one forecast ends at the timestamp the next starts, the later one alone sets the value there."""
+    # An epoch time, as real forecasts use: the forecast cycle rounds a step just before a small timestamp onto it
+    seam = 1_761_451_200.0
+    times = [seam - HOUR + step * 300.0 for step in range(25)]
+    retailer = [(seam - HOUR, 0.1925), (seam, 0.1925)]
+    pre_dispatch = [(seam, 0.1979), (seam + HOUR, 0.1979)]
+
+    result = fuse_sensor_payloads(None, [retailer, pre_dispatch], times, boundaries=boundaries)
+
+    assert result == pytest.approx(expected)
