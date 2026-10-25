@@ -110,6 +110,7 @@ export class ForecastCardStore {
       priceBounds: computed.struct,
       socBounds: computed.struct,
       tooltipRows: computed.struct,
+      format: computed.struct,
       cachedXScale: computed,
     });
   }

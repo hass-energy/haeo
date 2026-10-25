@@ -18,7 +18,6 @@ interface TooltipRow {
 }
 
 interface TooltipProps {
-  locale: string;
   format: DisplayFormat;
   panelTimeMs: number;
   rows: TooltipRow[];
@@ -53,7 +52,7 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
       soc: "tooltip.section.soc",
       window: "tooltip.section.window",
     };
-    return t(props.locale, keyByLane[lane]);
+    return t(props.format.language, keyByLane[lane]);
   };
   return (
     <div className="tooltip">

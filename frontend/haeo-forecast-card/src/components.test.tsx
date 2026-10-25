@@ -156,7 +156,12 @@ describe("ForecastCardView components", () => {
   ])("orders the tooltip date by the %s format from the Home Assistant profile", (dateFormat, expectedDate) => {
     const store = new ForecastCardStore();
     store.setConfig(testCardConfig);
-    store.setHass({ ...testFixture, language: "en", locale: { language: "en", date_format: dateFormat } });
+    store.setHass({
+      ...testFixture,
+      language: "en",
+      locale: { language: "en", date_format: dateFormat, time_zone: "server" },
+      config: { time_zone: "UTC" },
+    });
     store.setSize(900, 380);
     store.setPointer(300, 110);
 

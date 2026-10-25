@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type * as LocaleFormat from "./locale-format";
 import {
   displayFormat,
   formatDateNumeric,
@@ -17,6 +18,24 @@ const MS = new Date(2026, 9, 25, 21, 2, 11).getTime();
 const format = (settings: HassLocaleSettings, language = "en", serverTimeZone?: string) =>
   displayFormat(language, settings, serverTimeZone);
 
+const { DateTimeFormat, NumberFormat } = Intl;
+
+/** Load the module as if the browser's own locale were the given one. */
+async function withBrowserLocale(browserLocale: string): Promise<typeof LocaleFormat> {
+  vi.spyOn(Intl, "DateTimeFormat").mockImplementation(
+    (locales, options) => new DateTimeFormat(locales ?? browserLocale, options)
+  );
+  vi.spyOn(Intl, "NumberFormat").mockImplementation(
+    (locales, options) => new NumberFormat(locales ?? browserLocale, options)
+  );
+  vi.resetModules();
+  return import("./locale-format");
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("hour12ForTimeFormat", () => {
   it("uses a 12-hour clock for the 12 format", () => {
     expect(hour12ForTimeFormat("12")).toBe(true);
@@ -26,9 +45,12 @@ describe("hour12ForTimeFormat", () => {
     expect(hour12ForTimeFormat("24")).toBe(false);
   });
 
-  it("follows the browser clock for the system format", () => {
-    const { hourCycle } = new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions();
-    expect(hour12ForTimeFormat("system")).toBe(hourCycle === "h11" || hourCycle === "h12");
+  it.each([
+    ["en-US", true],
+    ["de", false],
+  ])("follows the clock of a %s browser for the system format", async (browserLocale, expected) => {
+    const { hour12ForTimeFormat } = await withBrowserLocale(browserLocale);
+    expect(hour12ForTimeFormat("system")).toBe(expected);
   });
 
   it.each(["language", undefined])("leaves the %s format to the language", (timeFormat) => {
@@ -39,9 +61,20 @@ describe("hour12ForTimeFormat", () => {
 describe("formatTime", () => {
   it.each([
     ["24", "21:02"],
-    ["12", "09:02 PM"],
+    ["12", "9:02 PM"],
   ])("follows the %s time format", (timeFormat, expected) => {
     expect(formatTime(MS, format({ time_format: timeFormat }))).toBe(expected);
+  });
+
+  it("pads the hour on a 24-hour clock", () => {
+    const morning = new Date(2026, 9, 25, 9, 2).getTime();
+    expect(formatTime(morning, format({ time_format: "24" }))).toBe("09:02");
+  });
+
+  it("falls back to the browser's time zone when the server's is unknown", () => {
+    const shown = format({ time_format: "24", time_zone: "server" }, "en", "Not/A_Zone");
+    expect(shown.timeZone).toBeUndefined();
+    expect(formatTime(MS, shown)).toBe("21:02");
   });
 
   it("shows the server's time zone when the profile asks for it", () => {
@@ -72,11 +105,20 @@ describe("formatDateNumeric", () => {
     expect(formatDateNumeric(MS, format({ date_format: "language" }))).toBe("10/25/2026");
   });
 
-  it("uses the browser's own format for the system format", () => {
-    const expected = new Intl.DateTimeFormat(undefined, { year: "numeric", month: "numeric", day: "numeric" }).format(
-      MS
-    );
-    expect(formatDateNumeric(MS, format({ date_format: "system" }))).toBe(expected);
+  it.each([
+    ["hu", "DMY", "25. 10. 2026."],
+    ["hu", "YMD", "2026. 10. 25."],
+    ["bg", "DMY", "25.10.2026 г."],
+    ["bg", "MDY", "10.25.2026 г."],
+    ["bg", "YMD", "2026.10.25"],
+  ])("keeps the trailing text of %s for the %s format", (language, dateFormat, expected) => {
+    // Bulgarian separates " г." with a narrow no-break space
+    expect(formatDateNumeric(MS, format({ date_format: dateFormat }, language)).replace(/\s/gu, " ")).toBe(expected);
+  });
+
+  it("uses the browser's own format for the system format", async () => {
+    const { displayFormat, formatDateNumeric } = await withBrowserLocale("de");
+    expect(formatDateNumeric(MS, displayFormat("nl", { date_format: "system" }, undefined))).toBe("25.10.2026");
   });
 });
 
@@ -86,7 +128,24 @@ describe("formatDateTime", () => {
   });
 
   it("shows the day period on a 12-hour clock", () => {
-    expect(formatDateTime(MS, format({ date_format: "MDY", time_format: "12" }))).toBe("10/25/2026, 09:02:11 PM");
+    expect(formatDateTime(MS, format({ date_format: "MDY", time_format: "12" }))).toBe("10/25/2026, 9:02:11 PM");
+  });
+
+  it.each([
+    ["en", "10/25/2026, 9:02:11 PM"],
+    ["hu", "2026. 10. 25. 21:02:11"],
+    ["ja", "2026/10/25 21:02:11"],
+  ])("joins the date and time the way %s does for the language format", (language, expected) => {
+    expect(formatDateTime(MS, format({ date_format: "language" }, language))).toBe(expected);
+  });
+
+  it("applies the profile's clock to the language format", () => {
+    expect(formatDateTime(MS, format({ date_format: "language", time_format: "24" }))).toBe("10/25/2026, 21:02:11");
+  });
+
+  it("uses the browser's own date and time for the system format", async () => {
+    const { displayFormat, formatDateTime } = await withBrowserLocale("de");
+    expect(formatDateTime(MS, displayFormat("en", { date_format: "system" }, undefined))).toBe("25.10.2026, 21:02:11");
   });
 });
 
@@ -108,11 +167,9 @@ describe("formatNumber", () => {
     expect(formatNumber(0.14, format({ number_format: "language" }, "nl"), 2)).toBe("0,14");
   });
 
-  it("uses the browser's separators for the system number format", () => {
-    const expected = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-      1234.5
-    );
-    expect(formatNumber(1234.5, format({ number_format: "system" }), 2)).toBe(expected);
+  it("uses the browser's separators for the system number format", async () => {
+    const { displayFormat, formatNumber } = await withBrowserLocale("de");
+    expect(formatNumber(1234.5, displayFormat("en", { number_format: "system" }, undefined), 2)).toBe("1.234,50");
   });
 });
 

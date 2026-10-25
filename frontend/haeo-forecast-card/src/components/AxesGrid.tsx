@@ -3,7 +3,6 @@ import { t } from "../i18n";
 import { formatNumber, formatTime, wallClockOffsetMs, type DisplayFormat } from "../locale-format";
 
 interface AxesGridProps {
-  locale: string;
   format: DisplayFormat;
   width: number;
   height: number;
@@ -282,10 +281,10 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
       <line className="axisBase" x1={rightAxisX} y1={props.top} x2={rightAxisX} y2={props.bottom} />
 
       <text className="axisLabelStrong" x={powerLabelX} y={props.top - 6} textAnchor="end">
-        {t(props.locale, "axis.power")}
+        {t(props.format.language, "axis.power")}
       </text>
       <text className="axisLabelStrong" x={priceLabelX} y={props.top - 6} textAnchor="start">
-        {t(props.locale, "axis.price")}
+        {t(props.format.language, "axis.price")}
       </text>
     </>
   );

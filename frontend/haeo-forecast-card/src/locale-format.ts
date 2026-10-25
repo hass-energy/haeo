@@ -89,6 +89,16 @@ function numberLocaleFor(numberFormat: string | undefined, language: string): st
   }
 }
 
+/** Return the time zone if the browser knows it, or undefined for the browser's own. */
+function knownTimeZone(timeZone: string | undefined): string | undefined {
+  try {
+    dateTimeFormatter("en-US", { timeZone });
+    return timeZone;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Build the display format from the profile settings and the server's time zone. */
 export function displayFormat(
   language: string,
@@ -101,7 +111,7 @@ export function displayFormat(
     dateFormat: settings?.date_format,
     numberLocale: numberLocaleFor(settings?.number_format, language),
     useGrouping: settings?.number_format !== "none",
-    timeZone: settings?.time_zone === "server" ? serverTimeZone : undefined,
+    timeZone: settings?.time_zone === "server" ? knownTimeZone(serverTimeZone) : undefined,
   };
 }
 
@@ -114,21 +124,42 @@ export function formatNumber(value: number, format: DisplayFormat, fractionDigit
   }).format(value);
 }
 
+/** Return the hour cycle of the profile's clock, or undefined to leave it to the language. */
+function hourCycle(format: DisplayFormat): "h12" | "h23" | undefined {
+  if (format.hour12 === undefined) {
+    return undefined;
+  }
+  return format.hour12 ? "h12" : "h23";
+}
+
+/** Return whether the profile orders dates itself rather than leaving it to the language or the browser. */
+function ordersDate(dateFormat: string | undefined): dateFormat is "DMY" | "MDY" | "YMD" {
+  return dateFormat === "DMY" || dateFormat === "MDY" || dateFormat === "YMD";
+}
+
+/** Return the locale dates are written in, which is the browser's own for the system date format. */
+function dateLocale(format: DisplayFormat): string | undefined {
+  return format.dateFormat === "system" ? undefined : format.language || undefined;
+}
+
 /** Return a time of day such as 21:02, or 9:02 PM on a 12-hour clock. */
 export function formatTime(ms: number, format: DisplayFormat, withSeconds = false): string {
   return dateTimeFormatter(format.language || undefined, {
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
     ...(withSeconds ? { second: "2-digit" } : {}),
-    hour12: format.hour12,
+    hourCycle: hourCycle(format),
     timeZone: format.timeZone,
   }).format(ms);
 }
 
-/** Return a numeric date such as 25/10/2026, ordered by the profile's date format. */
+/**
+ * Return a numeric date such as 25/10/2026, ordered by the profile's date format.
+ *
+ * A reordered date keeps the language's separator and trailing text, such as 25. 10. 2026. in Hungarian.
+ */
 export function formatDateNumeric(ms: number, format: DisplayFormat): string {
-  const locale = format.dateFormat === "system" ? undefined : format.language || undefined;
-  const formatter = dateTimeFormatter(locale, {
+  const formatter = dateTimeFormatter(dateLocale(format), {
     year: "numeric",
     month: "numeric",
     day: "numeric",
@@ -139,18 +170,38 @@ export function formatDateNumeric(ms: number, format: DisplayFormat): string {
     MDY: ["month", "day", "year"],
     YMD: ["year", "month", "day"],
   } as const;
-  if (format.dateFormat !== "DMY" && format.dateFormat !== "MDY" && format.dateFormat !== "YMD") {
+  if (!ordersDate(format.dateFormat)) {
     return formatter.format(ms);
   }
   const parts = formatter.formatToParts(ms);
   const part = (type: Intl.DateTimeFormatPartTypes): string => parts.find((p) => p.type === type)?.value ?? "";
   // The language's separator between the numbers, such as "/" or "-"
   const separator = parts.find((p) => p.type === "literal")?.value ?? "/";
-  return order[format.dateFormat].map(part).join(separator);
+  // Bulgarian marks the year with a trailing " г.", which Home Assistant drops when the year comes first
+  const last = parts[parts.length - 1];
+  const trailing =
+    last?.type === "literal" && !(format.language === "bg" && format.dateFormat === "YMD") ? last.value : "";
+  return order[format.dateFormat].map(part).join(separator) + trailing;
 }
 
-/** Return a date and time such as 25/10/2026, 21:02:11 for a tooltip. */
+/**
+ * Return a date and time such as 25/10/2026, 21:02:11 for a tooltip.
+ *
+ * The language and system date formats join the date and time the way their locale does.
+ */
 export function formatDateTime(ms: number, format: DisplayFormat): string {
+  if (!ordersDate(format.dateFormat)) {
+    return dateTimeFormatter(dateLocale(format), {
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: hourCycle(format),
+      timeZone: format.timeZone,
+    }).format(ms);
+  }
   return `${formatDateNumeric(ms, format)}, ${formatTime(ms, format, true)}`;
 }
 
