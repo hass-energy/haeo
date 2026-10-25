@@ -16,6 +16,9 @@ A buffer held by a single battery is listed under that battery in the legend.
 An input that reads its windows from a calendar is drawn as a tinted band across the chart wherever a window is open, with a strip in the element's color along the top.
 The tooltip lists the windows open at the hovered time.
 
+Times, dates and numbers follow the localization settings in your Home Assistant profile.
+The time format sets the clock on the time axis and in the tooltip, the date format orders the tooltip date, the number format sets the decimal and thousands separators, and the time zone setting chooses between your own time zone and the server's.
+
 ## Prerequisites
 
 You must already have the HAEO integration installed and running.

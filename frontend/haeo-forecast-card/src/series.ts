@@ -1,3 +1,4 @@
+import type { HassLocaleSettings } from "./locale-format";
 import type {
   ForecastCardConfig,
   ForecastSeries,
@@ -26,7 +27,8 @@ interface HassLike {
   entities?: Record<string, EntityRegistryEntryLike | undefined>;
   devices?: Record<string, { config_entries: string[] } | undefined>;
   language?: string;
-  locale?: { language?: string };
+  locale?: HassLocaleSettings;
+  config?: { time_zone?: string };
 }
 
 export type { HassEntityState, HassLike };

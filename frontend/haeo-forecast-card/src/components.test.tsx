@@ -127,6 +127,86 @@ describe("ForecastCardView components", () => {
     expect(root.querySelectorAll(".tooltipRow").length).toBeGreaterThan(0);
   });
 
+  it.each([
+    ["24", false],
+    ["12", true],
+  ])("formats times with the %s-hour clock from the Home Assistant profile", (timeFormat, showsDayPeriod) => {
+    const store = new ForecastCardStore();
+    store.setConfig(testCardConfig);
+    store.setHass({ ...testFixture, language: "en", locale: { language: "en", time_format: timeFormat } });
+    store.setSize(900, 380);
+    store.setPointer(300, 110);
+
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+
+    const times = [
+      root.querySelector(".tooltipTime")?.textContent ?? "",
+      ...Array.from(root.querySelectorAll(".axisTickLabel")).map((label) => label.textContent),
+    ].filter((text) => /\d:\d\d/.test(text));
+    expect(times.length).toBeGreaterThan(1);
+    for (const text of times) {
+      expect(/AM|PM/.test(text)).toBe(showsDayPeriod);
+    }
+  });
+
+  it.each([
+    ["DMY", "6/10/2025"],
+    ["MDY", "10/6/2025"],
+    ["YMD", "2025/10/6"],
+  ])("orders the tooltip date by the %s format from the Home Assistant profile", (dateFormat, expectedDate) => {
+    const store = new ForecastCardStore();
+    store.setConfig(testCardConfig);
+    store.setHass({ ...testFixture, language: "en", locale: { language: "en", date_format: dateFormat } });
+    store.setSize(900, 380);
+    store.setPointer(300, 110);
+
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+
+    expect(root.querySelector(".tooltipTime")?.textContent).toMatch(new RegExp(`^${expectedDate}, `));
+  });
+
+  it("formats tooltip values with the number format from the Home Assistant profile", () => {
+    const store = new ForecastCardStore();
+    store.setConfig(testCardConfig);
+    store.setHass({ ...testFixture, language: "en", locale: { language: "en", number_format: "decimal_comma" } });
+    store.setSize(900, 380);
+    store.setPointer(300, 110);
+
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+
+    const values = Array.from(root.querySelectorAll(".tooltipRow")).map((row) => row.textContent);
+    expect(values.some((text) => /\d,\d\d/.test(text))).toBe(true);
+    expect(values.some((text) => /\d\.\d\d/.test(text))).toBe(false);
+  });
+
+  it("shows axis times in the server's time zone when the profile asks for it", () => {
+    const labelsFor = (timeZone: string): string[] => {
+      const store = new ForecastCardStore();
+      store.setConfig(testCardConfig);
+      store.setHass({
+        ...testFixture,
+        language: "en",
+        locale: { language: "en", time_format: "24", time_zone: "server" },
+        config: { time_zone: timeZone },
+      });
+      store.setSize(900, 380);
+      render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+      return Array.from(root.querySelectorAll(".axisTickLabel"))
+        .map((label) => label.textContent)
+        .filter((text) => /^\d\d:\d\d$/.test(text));
+    };
+
+    const utc = labelsFor("UTC");
+    const tokyo = labelsFor("Asia/Tokyo");
+    expect(utc.length).toBeGreaterThan(0);
+    // Tokyo is 9 hours ahead of UTC, so every tick label moves 9 hours on
+    const shifted = utc.map((label) => {
+      const [hours = 0, minutes = 0] = label.split(":").map(Number);
+      return `${String((hours + 9) % 24).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    });
+    expect(tokyo).toEqual(shifted);
+  });
+
   it("hides tooltip details from the header toggle", async () => {
     const store = new ForecastCardStore();
     store.setConfig(testCardConfig);

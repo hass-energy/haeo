@@ -11,6 +11,7 @@ import type { LineSvgPath, PowerShape } from "./store-paths";
 import { computeHoveredPowerKeys, computePowerShapes, computePricePaths, computeSocPaths } from "./store-paths";
 import { buildTooltipRows, type TooltipSectionId } from "./tooltip-helpers";
 import { clampHorizonToOptions, horizonPresetToDuration, type HorizonOption } from "./horizon-config";
+import { displayFormat, type DisplayFormat } from "./locale-format";
 import type { ChartMargins, ForecastCardConfig, ForecastSeries, LaneBounds, PowerDisplayMode } from "./types";
 
 const DEFAULT_HEIGHT = 360;
@@ -230,6 +231,11 @@ export class ForecastCardStore {
 
   get locale(): string {
     return this.hass?.language ?? this.hass?.locale?.language ?? "en";
+  }
+
+  /** How dates, times and numbers are shown, following the localization settings in the user profile. */
+  get format(): DisplayFormat {
+    return displayFormat(this.locale, this.hass?.locale, this.hass?.config?.time_zone);
   }
 
   // --- Computed: layout ---
