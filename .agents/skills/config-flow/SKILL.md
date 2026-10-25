@@ -68,7 +68,8 @@ Repair issues are created from the coordinator based on loaded configurations.
 
 ## Error handling
 
-Set errors on the form's `errors` dict, keyed by field or `base`, and translate each in `en.json` under the flow that shows it:
+Set errors on the form's `errors` dict, keyed by field or `base`, and translate each in `en.json` under the flow that shows it.
+Key an error for a field inside a form section by the section instead, because Home Assistant only shows errors for top-level form fields and otherwise re-shows the form without saying why:
 
 - Hub flow: `config.error`
 - Options flow: `options.error`
