@@ -26,6 +26,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if entry.version != 1:
         return True
 
+    await v1_4.async_repair_entry(hass, entry)
+
     for target_minor, handler in MIGRATIONS:
         if entry.minor_version < target_minor and not await handler(hass, entry):
             return False

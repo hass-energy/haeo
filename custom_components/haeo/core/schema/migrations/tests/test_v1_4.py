@@ -24,6 +24,7 @@ from custom_components.haeo.core.schema import (
 )
 from custom_components.haeo.core.schema.elements import battery, buffer, connection, grid, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
+from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.migrations.v1_4 import (
     HubHorizonMigration,
     junction_config,
@@ -32,6 +33,7 @@ from custom_components.haeo.core.schema.migrations.v1_4 import (
     migrate_participants,
     node_becomes_junction,
     node_is_junction,
+    predates_v1_4,
 )
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -396,3 +398,56 @@ def test_migrate_participants_replaces_nodes_by_mode(advanced_mode: bool, juncti
 
     assert migration.junctions == junctions
     assert migration.created_from == {}
+
+
+_CURRENT_HUB: dict[str, object] = {
+    HUB_SECTION_COMMON: {CONF_NAME: "Home", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_5_DAYS)}
+}
+_CURRENT_BATTERY: dict[str, object] = {
+    CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+    CONF_NAME: "Battery",
+    battery.SECTION_STORAGE: {},
+    battery.SECTION_ADVANCED: {battery.CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
+}
+
+
+@pytest.mark.parametrize(
+    ("hub", "participants", "expected"),
+    [
+        pytest.param(_CURRENT_HUB, [_CURRENT_BATTERY], False, id="current"),
+        pytest.param(
+            {HUB_SECTION_COMMON: {CONF_NAME: "Home", CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS}},
+            [_CURRENT_BATTERY],
+            True,
+            id="horizon_preset",
+        ),
+        pytest.param({**_CURRENT_HUB, HUB_SECTION_TIERS: {}}, [_CURRENT_BATTERY], True, id="tiers"),
+        pytest.param(
+            _CURRENT_HUB,
+            [{**_CURRENT_BATTERY, partitions.SECTION_PARTITIONING: {partitions.CONF_CONFIGURE_PARTITIONS: False}}],
+            True,
+            id="battery_partitions",
+        ),
+        pytest.param(
+            _CURRENT_HUB,
+            [{key: value for key, value in _CURRENT_BATTERY.items() if key != battery.SECTION_ADVANCED}],
+            True,
+            id="missing_charge_limit_cost",
+        ),
+        pytest.param(
+            _CURRENT_HUB,
+            [
+                {
+                    CONF_ELEMENT_TYPE: node.ELEMENT_TYPE,
+                    CONF_NAME: "Switchboard",
+                    node.SECTION_ROLE: {node.CONF_IS_SOURCE: as_constant_value(True)},
+                }
+            ],
+            False,
+            id="node_alone_is_not_a_marker",
+        ),
+    ],
+)
+def test_predates_v1_4(hub: Mapping[str, object], participants: list[Mapping[str, object]], *, expected: bool) -> None:
+    """A hub without a horizon choice, or a battery with partitions or no charge limit cost, predates v1.4."""
+    assert predates_v1_4(hub, participants) is expected

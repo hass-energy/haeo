@@ -7,7 +7,7 @@ and battery undercharge and overcharge partitions become buffers.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 import logging
@@ -406,6 +406,31 @@ def migrate_participants(
     return ParticipantMigration(ordered, created_from, junctions)
 
 
+def _battery_predates_v1_4(config: Mapping[str, object]) -> bool:
+    """Return True when a battery config still has partitions or lacks the cost of its charge limits."""
+    return not _PARTITION_SECTIONS.isdisjoint(config) or battery.CONF_CHARGE_LIMIT_COST not in section_dict(
+        config, battery.SECTION_ADVANCED
+    )
+
+
+def predates_v1_4(hub: Mapping[str, object], participants: Iterable[Mapping[str, object]]) -> bool:
+    """Return True when a hub config or any of its element configs still has a shape from before v1.4.
+
+    Builds of main before 0.5.0rc1 saved entries at v1.4 after splitting
+    connections only, so those entries skipped the later v1.4 steps. Every hub
+    the full v1.4 migration or the config flow saved has a horizon choice in
+    place of its preset and tiers, and every battery has a charge limit cost
+    and no partitions. Nodes are no marker, since a current node that sources
+    or sinks power is kept outside advanced mode.
+    """
+    common = section_dict(hub, HUB_SECTION_COMMON)
+    if CONF_HORIZON not in common or CONF_HORIZON_PRESET in common or HUB_SECTION_TIERS in hub:
+        return True
+    return any(
+        config[CONF_ELEMENT_TYPE] == battery.ELEMENT_TYPE and _battery_predates_v1_4(config) for config in participants
+    )
+
+
 __all__ = [
     "LEGACY_CHARGE_LIMIT_COST",
     "MINOR_VERSION",
@@ -423,4 +448,5 @@ __all__ = [
     "migrate_participants",
     "node_becomes_junction",
     "node_is_junction",
+    "predates_v1_4",
 ]

@@ -48,7 +48,7 @@ from custom_components.haeo.core.schema.elements.conformance import is_element_c
 from custom_components.haeo.core.schema.horizon_value import is_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.schema.migrations.v1_4 import MINOR_VERSION as MIGRATED_MINOR_VERSION
-from custom_components.haeo.core.schema.migrations.v1_4 import migrate_hub_horizon, migrate_participants
+from custom_components.haeo.core.schema.migrations.v1_4 import migrate_hub_horizon, migrate_participants, predates_v1_4
 from custom_components.haeo.core.schema.migrations.v1_6 import MINOR_VERSION as PUBLIC_PRICE_MINOR_VERSION
 from custom_components.haeo.core.schema.migrations.v1_6 import migrate_element_config as migrate_public_charging_price
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
@@ -212,12 +212,15 @@ def migrate_participants_for_diag(
     Exports from before v1.4 get the v1.4 element migrations, and exports from
     before v1.6 give their EVs the default public charging price. An export
     without a minor version predates the diagnostics format, so it gets both.
+    An export at v1.4 or later from a build that saved entries at v1.4 before
+    every v1.4 step existed still has a config from before v1.4, so it gets the
+    v1.4 element migrations too.
     """
     minor_version = config.get("minor_version")
     version = minor_version if isinstance(minor_version, int) else 0
     migrated = (
         {name: dict(participant) for name, participant in participants.items()}
-        if version >= MIGRATED_MINOR_VERSION
+        if version >= MIGRATED_MINOR_VERSION and not predates_v1_4(config, participants.values())
         else migrate_participants(participants, advanced_mode=config_advanced_mode(config)).participants
     )
     if version >= PUBLIC_PRICE_MINOR_VERSION:
