@@ -76,7 +76,7 @@ async def test_flow_source_equals_target_error(hass: HomeAssistant, hub_entry: M
     )
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {CONF_TARGET: "cannot_connect_to_self"}
+    assert result.get("errors") == {SECTION_ENDPOINTS: "cannot_connect_to_self"}
 
 
 async def test_reconfigure_source_equals_target_error(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -113,7 +113,7 @@ async def test_reconfigure_source_equals_target_error(hass: HomeAssistant, hub_e
     )
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {CONF_TARGET: "cannot_connect_to_self"}
+    assert result.get("errors") == {SECTION_ENDPOINTS: "cannot_connect_to_self"}
 
 
 async def test_reconfigure_rejects_saved_never_endpoint(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -137,7 +137,7 @@ async def test_reconfigure_rejects_saved_never_endpoint(hass: HomeAssistant, hub
     )
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {CONF_SOURCE: "invalid_endpoint"}
+    assert result.get("errors") == {SECTION_ENDPOINTS: "invalid_endpoint"}
 
 
 def test_build_config_normalizes_endpoints(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

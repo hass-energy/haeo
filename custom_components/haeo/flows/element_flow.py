@@ -241,7 +241,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             return False
         return True
 
-    def _validate_endpoint(self, name: str | None, field: str, errors: dict[str, str]) -> None:
+    def _validate_endpoint(self, name: str | None, error_key: str, errors: dict[str, str]) -> None:
         """Add an error when an endpoint names an element that is never a connection endpoint.
 
         The participant selector keeps a saved endpoint selectable so a config
@@ -254,7 +254,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                 and is_element_type(subentry.subentry_type)
                 and ELEMENT_TYPES[subentry.subentry_type].connectivity == ConnectivityLevel.NEVER
             ):
-                errors[field] = "invalid_endpoint"
+                errors[error_key] = "invalid_endpoint"
 
     def _get_subentry(self) -> ConfigSubentry | None:
         """Get the subentry being reconfigured, or None for new entries."""
