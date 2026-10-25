@@ -26,9 +26,16 @@ def split_sensor_payloads(payloads: Mapping[str, SensorPayload]) -> tuple[float 
 
 
 def _end_before(series: ForecastSeries) -> ForecastSeries:
-    """Move a forecast's last point just before its timestamp, keeping its value."""
+    """End a forecast just before its last timestamp, holding the value it reaches there.
+
+    A forecast that already steps at its last timestamp ends on the point
+    before that step.
+    """
     *points, (timestamp, value) = series
-    return [*points, (float(np.nextafter(timestamp, -np.inf)), value)]
+    before = float(np.nextafter(timestamp, -np.inf))
+    if points and points[-1][0] == before:
+        return points
+    return [*points, (before, value)]
 
 
 def _merge_forecasts(forecast_series: Sequence[ForecastSeries]) -> ForecastSeries:
