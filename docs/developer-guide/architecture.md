@@ -94,6 +94,7 @@ The `core/` package holds everything with no Home Assistant dependency, which im
 - **`diagnostics/`**: Diagnostics export, including the inputs an optimization used so it can be replayed.
 - **`migrations/`**: Config entry migrations, which apply the transforms in `core/schema/migrations/`.
     The diagnostics CLI replays older exports through the same transforms, such as `migrate_participants`, so both migrate a config alike.
+    Pre-release builds saved entries at version 1.4 before every v1.4 step existed, so an entry or export at 1.4 or later that still has a shape from before v1.4, as `predates_v1_4` detects, gets the v1.4 steps again.
 - **`translations/`**: User-facing strings.
 - **`www/`**: The built Lovelace cards the integration serves.
     The forecast card's source is in `frontend/haeo-forecast-card/` at the repository root.

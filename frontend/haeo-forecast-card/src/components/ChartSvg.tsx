@@ -16,7 +16,7 @@ const AxesLayer = observer(function AxesLayer(props: { store: ForecastCardStore 
   const { store } = props;
   return (
     <AxesGrid
-      locale={store.locale}
+      format={store.format}
       width={store.width}
       height={store.height}
       left={store.margins.left}

@@ -75,9 +75,17 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             hub_name = user_input[HUB_SECTION_COMMON][CONF_NAME]
             existing_names = [entry.title for entry in self.hass.config_entries.async_entries(DOMAIN)]
 
+            # The name and horizon fields sit in a section, and Home Assistant only shows top-level field errors
             if hub_name in existing_names:
-                errors[CONF_NAME] = "name_exists"
-            validate_horizon(self.hass, user_input[HUB_SECTION_COMMON][CONF_HORIZON], errors, entry_id=None)
+                errors[HUB_SECTION_COMMON] = "name_exists"
+            else:
+                validate_horizon(
+                    self.hass,
+                    user_input[HUB_SECTION_COMMON][CONF_HORIZON],
+                    errors,
+                    error_key=HUB_SECTION_COMMON,
+                    entry_id=None,
+                )
             if not errors:
                 # Check unique_id to prevent duplicates
                 await self.async_set_unique_id(f"haeo_hub_{hub_name.lower().replace(' ', '_')}")

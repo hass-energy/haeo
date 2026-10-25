@@ -1,5 +1,6 @@
 import type { JSX } from "preact";
 import { t } from "../i18n";
+import { formatDateTime, formatNumber, type DisplayFormat } from "../locale-format";
 import type { TooltipSectionId } from "../tooltip-helpers";
 
 /** Cap rows per tooltip group to prevent the tooltip from obscuring the chart. */
@@ -17,17 +18,17 @@ interface TooltipRow {
 }
 
 interface TooltipProps {
-  locale: string;
+  format: DisplayFormat;
   panelTimeMs: number;
   rows: TooltipRow[];
   emphasizedKeys: Set<string>;
 }
 
-function formatRowValue(row: TooltipRow): string {
+function formatRowValue(row: TooltipRow, format: DisplayFormat): string {
   const value =
     row.possibleValue === undefined
-      ? row.value.toFixed(2)
-      : `${row.value.toFixed(2)} / ${row.possibleValue.toFixed(2)}`;
+      ? formatNumber(row.value, format, 2)
+      : `${formatNumber(row.value, format, 2)} / ${formatNumber(row.possibleValue, format, 2)}`;
   return `${value} ${row.unit}`;
 }
 
@@ -51,11 +52,11 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
       soc: "tooltip.section.soc",
       window: "tooltip.section.window",
     };
-    return t(props.locale, keyByLane[lane]);
+    return t(props.format.language, keyByLane[lane]);
   };
   return (
     <div className="tooltip">
-      <div className="tooltipTime">{new Date(props.panelTimeMs).toLocaleString(props.locale)}</div>
+      <div className="tooltipTime">{formatDateTime(props.panelTimeMs, props.format)}</div>
       {[...groups.entries()].map(([lane, rows]) => (
         <div key={lane} className="tooltipGroup">
           <div className="tooltipGroupTitle">{laneLabel(lane)}</div>
@@ -71,7 +72,7 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
             >
               <span className="tooltipDot" style={{ background: row.color }} />
               <span>{row.label}</span>
-              <span>{row.lane === "window" ? "" : formatRowValue(row)}</span>
+              <span>{row.lane === "window" ? "" : formatRowValue(row, props.format)}</span>
             </div>
           ))}
         </div>

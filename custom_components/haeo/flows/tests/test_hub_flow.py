@@ -139,7 +139,7 @@ async def test_user_flow_invalid_horizon_entity(hass: HomeAssistant, attributes:
     )
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {CONF_HORIZON: "horizon_entity_invalid"}
+    assert result.get("errors") == {HUB_SECTION_COMMON: "horizon_entity_invalid"}
     assert hass.config_entries.async_entries(DOMAIN) == []
 
 
@@ -173,7 +173,7 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
     )
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {CONF_NAME: "name_exists"}
+    assert result.get("errors") == {HUB_SECTION_COMMON: "name_exists"}
 
     # Verify flow can recover from error
     result = await hass.config_entries.flow.async_configure(

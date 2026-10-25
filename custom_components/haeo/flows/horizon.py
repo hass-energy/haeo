@@ -94,28 +94,33 @@ def horizon_field(
     return vol.Required(CONF_HORIZON, default=default), selector
 
 
-def validate_horizon(hass: HomeAssistant, horizon: HorizonValue, errors: dict[str, str], entry_id: str | None) -> None:
-    """Add an error when a horizon entity cannot provide the horizon.
+def validate_horizon(
+    hass: HomeAssistant, horizon: HorizonValue, errors: dict[str, str], *, error_key: str, entry_id: str | None
+) -> None:
+    """Add an error under error_key when a horizon entity cannot provide the horizon.
 
     The entity must currently report a forecast of at least two increasing
     times. It cannot belong to this hub, because the hub's sensors are
     computed on its horizon.
+
+    The horizon field sits inside a form section, and Home Assistant only shows
+    errors for top-level form fields, so callers pass the section as error_key.
     """
     if is_horizon_preset_value(horizon):
         return
     entity_id = horizon["value"][0]
     registry_entry = er.async_get(hass).async_get(entity_id)
     if entry_id is not None and registry_entry is not None and registry_entry.config_entry_id == entry_id:
-        errors[CONF_HORIZON] = "horizon_entity_from_this_hub"
+        errors[error_key] = "horizon_entity_from_this_hub"
         return
     state = hass.states.get(entity_id)
     if state is None:
-        errors[CONF_HORIZON] = "horizon_entity_invalid"
+        errors[error_key] = "horizon_entity_invalid"
         return
     try:
         forecast_boundaries(state, dt_util.get_default_time_zone())
     except ValueError:
-        errors[CONF_HORIZON] = "horizon_entity_invalid"
+        errors[error_key] = "horizon_entity_invalid"
 
 
 __all__ = ["HorizonSelector", "horizon_field", "validate_horizon"]

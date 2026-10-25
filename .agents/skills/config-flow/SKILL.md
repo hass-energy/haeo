@@ -74,6 +74,8 @@ Set errors on the form's `errors` dict, keyed by field or `base`, and translate 
 - Options flow: `options.error`
 - Element subentry flow: `config_subentries.{type}.error`
 
+Key an error for a field inside a form section by the section instead, because Home Assistant only shows errors for top-level form fields and otherwise re-shows the form without saying why.
+
 The runtime translation checker fails a test that shows an error key `en.json` lacks; see the `translations` skill.
 
 ## Step naming
