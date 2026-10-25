@@ -175,6 +175,15 @@ def _swap_node_for_junction(
         )
 
 
+def _element_configs(entry: ConfigEntry) -> dict[str, dict[str, object]]:
+    """Return the config of each element subentry, with its element type, by title."""
+    return {
+        subentry.title: {CONF_ELEMENT_TYPE: subentry.subentry_type, **subentry.data}
+        for subentry in entry.subentries.values()
+        if subentry.subentry_type in ELEMENT_TYPES
+    }
+
+
 def _migrate_elements(hass: HomeAssistant, entry: ConfigEntry, *, advanced_mode: bool) -> tuple[str, ...]:
     """Apply the v1.4 element migrations to the element subentries.
 
@@ -188,10 +197,7 @@ def _migrate_elements(hass: HomeAssistant, entry: ConfigEntry, *, advanced_mode:
     subentries = {
         subentry.title: subentry for subentry in entry.subentries.values() if subentry.subentry_type in ELEMENT_TYPES
     }
-    migration = migrate_participants(
-        {title: {CONF_ELEMENT_TYPE: subentry.subentry_type, **subentry.data} for title, subentry in subentries.items()},
-        advanced_mode=advanced_mode,
-    )
+    migration = migrate_participants(_element_configs(entry), advanced_mode=advanced_mode)
     for title, subentry in subentries.items():
         config = migration.participants[title]
         if title not in migration.junctions and config != {CONF_ELEMENT_TYPE: subentry.subentry_type, **subentry.data}:
@@ -295,18 +301,14 @@ async def async_repair_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     Builds of main before 0.5.0rc1 shipped a v1.4 migration that only split
     bidirectional connections, and saved their entries at 1.4, so those entries
-    never had the steps added to v1.4 later. Every step leaves a config it
-    already migrated as it is, so the whole migration runs again and the minor
-    version is kept for the later migrations to continue from.
+    never had the steps added to v1.4 later. The whole migration runs again,
+    as it would on an entry from before 1.4, and the minor version is kept for
+    the later migrations to continue from. Connections it already split keep
+    their split, but outside advanced mode every node becomes a junction.
     """
     if entry.minor_version < MINOR_VERSION:
         return
-    participants = (
-        {CONF_ELEMENT_TYPE: subentry.subentry_type, **subentry.data}
-        for subentry in entry.subentries.values()
-        if subentry.subentry_type in ELEMENT_TYPES
-    )
-    if not predates_v1_4(entry.data, participants):
+    if not predates_v1_4(entry.data, _element_configs(entry).values()):
         return
 
     _LOGGER.warning(
