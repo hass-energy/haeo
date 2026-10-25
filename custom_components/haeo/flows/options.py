@@ -26,7 +26,13 @@ _LOGGER = logging.getLogger(__name__)
 def validate_hub_settings(hass: HomeAssistant, entry: ConfigEntry, user_input: Mapping[str, Any]) -> dict[str, str]:
     """Return the form errors for submitted hub settings."""
     errors: dict[str, str] = {}
-    validate_horizon(hass, user_input[HUB_SECTION_COMMON][CONF_HORIZON], errors, entry_id=entry.entry_id)
+    validate_horizon(
+        hass,
+        user_input[HUB_SECTION_COMMON][CONF_HORIZON],
+        errors,
+        error_key=HUB_SECTION_COMMON,
+        entry_id=entry.entry_id,
+    )
     return errors
 
 

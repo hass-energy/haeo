@@ -75,10 +75,10 @@ class ConnectionSubentryFlowHandler(SectionedElementSubentryFlow):
         endpoints = as_mapping(user_input.get(SECTION_ENDPOINTS))
         source = connection_target_name(endpoints.get(CONF_SOURCE))
         target = connection_target_name(endpoints.get(CONF_TARGET))
-        self._validate_endpoint(source, CONF_SOURCE, errors)
-        self._validate_endpoint(target, CONF_TARGET, errors)
+        self._validate_endpoint(source, SECTION_ENDPOINTS, errors)
+        self._validate_endpoint(target, SECTION_ENDPOINTS, errors)
         if source and target and source == target:
-            errors[CONF_TARGET] = "cannot_connect_to_self"
+            errors[SECTION_ENDPOINTS] = "cannot_connect_to_self"
 
     def _config_fields(
         self, user_input: Mapping[str, object], sections: Mapping[str, Mapping[str, object]]
