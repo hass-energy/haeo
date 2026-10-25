@@ -897,7 +897,7 @@ async def test_config_change_retries_failed_setup_at_once(
     assert mock_hub_entry.state is ConfigEntryState.LOADED
     assert len(attempts) == 2
 
-    # Once setup succeeds the retry listener is gone, leaving reloads to the update listener it registers
+    # Once setup succeeds the retry listener is gone, so a later change does not retry setup again
     add_participant(hass, mock_hub_entry, "Third Bus")
     await hass.async_block_till_done()
     assert len(attempts) == 2
