@@ -1136,7 +1136,7 @@ def test_min_cut_specific_target_lands_on_target_inbound() -> None:
     """Single source, single target: cut is the target's inbound edge (the discriminator)."""
     # grid → sw → load ; cut separating {grid} from {load} sits on sw_load
     edges = [("grid", "sw", "grid_sw"), ("sw", "load", "sw_load")]
-    assert _min_cut_edges({"grid"}, {"load"}, edges) == {"sw_load"}
+    assert _min_cut_edges({"grid"}, {"load"}, edges, sinks={"load"}) == {"sw_load"}
 
 
 def test_min_cut_wildcard_target_lands_on_source_outbound() -> None:
@@ -1147,7 +1147,7 @@ def test_min_cut_wildcard_target_lands_on_source_outbound() -> None:
         ("sw", "load", "sw_load"),
         ("sw", "grid", "sw_grid"),
     ]
-    assert _min_cut_edges({"battery"}, {"load", "grid", "inv"}, edges) == {"bat_inv"}
+    assert _min_cut_edges({"battery"}, {"load", "grid", "inv"}, edges, sinks={"load", "grid", "inv"}) == {"bat_inv"}
 
 
 def test_min_cut_finds_shared_bottleneck_between_multi_source_multi_target() -> None:
@@ -1165,7 +1165,26 @@ def test_min_cut_finds_shared_bottleneck_between_multi_source_multi_target() -> 
         ("sw", "load", "sw_load"),
         ("sw", "grid", "sw_grid"),
     ]
-    assert _min_cut_edges({"battery", "solar"}, {"load", "grid"}, edges) == {"inv_sw"}
+    assert _min_cut_edges({"battery", "solar"}, {"load", "grid"}, edges, sinks={"load", "grid"}) == {"inv_sw"}
+
+
+def test_min_cut_leaves_edges_whose_flow_can_reach_other_sinks() -> None:
+    """A rule targeting two batteries behind an inverter is priced where power enters them, not on the inverter.
+
+    Grid power crossing the inverter's AC to DC edge can come straight back
+    over its DC to AC edge to the load, so that edge does not separate the
+    grid from the batteries even though every path to them crosses it.
+    """
+    edges = [
+        ("grid", "sw", "grid_sw"),
+        ("sw", "load", "sw_load"),
+        ("sw", "inv", "ac_to_dc"),
+        ("inv", "sw", "dc_to_ac"),
+        ("inv", "battery", "inv_battery"),
+        ("inv", "ev", "inv_ev"),
+    ]
+    sinks = {"grid", "load", "battery", "ev"}
+    assert _min_cut_edges({"grid"}, {"battery", "ev"}, edges, sinks=sinks) == {"inv_battery", "inv_ev"}
 
 
 def test_min_cut_is_antichain_every_path_crosses_exactly_once() -> None:
@@ -1182,7 +1201,7 @@ def test_min_cut_is_antichain_every_path_crosses_exactly_once() -> None:
         ("c", "d", "cd"),
     ]
     # Sink-side canonical cut is target-inbound: {bd, cd}
-    cut = _min_cut_edges({"a"}, {"d"}, edges)
+    cut = _min_cut_edges({"a"}, {"d"}, edges, sinks={"d"})
     assert cut == {"bd", "cd"}
     # Each s-t path contains exactly one cut edge
     paths = [["ab", "bd"], ["ac", "cd"]]
@@ -1192,8 +1211,8 @@ def test_min_cut_is_antichain_every_path_crosses_exactly_once() -> None:
 
 def test_min_cut_empty_when_source_or_dest_empty() -> None:
     """Empty source or destination set yields no cut edges."""
-    assert _min_cut_edges(set(), {"a"}, [("a", "b", "x")]) == set()
-    assert _min_cut_edges({"a"}, set(), [("a", "b", "x")]) == set()
+    assert _min_cut_edges(set(), {"a"}, [("a", "b", "x")], sinks={"a"}) == set()
+    assert _min_cut_edges({"a"}, set(), [("a", "b", "x")], sinks=set()) == set()
 
 
 def test_min_cut_ignores_self_loops_in_destinations() -> None:
@@ -1205,13 +1224,13 @@ def test_min_cut_ignores_self_loops_in_destinations() -> None:
     edge.
     """
     edges = [("battery", "inv", "bat_inv"), ("inv", "load", "inv_load")]
-    assert _min_cut_edges({"battery"}, {"battery", "load"}, edges) == {"inv_load"}
+    assert _min_cut_edges({"battery"}, {"battery", "load"}, edges, sinks={"battery", "load"}) == {"inv_load"}
 
 
 def test_min_cut_returns_empty_for_unreachable_destinations() -> None:
     """No s-t path in the subgraph means max flow is zero and cut is empty."""
     edges = [("a", "b", "ab"), ("c", "d", "cd")]
-    assert _min_cut_edges({"a"}, {"d"}, edges) == set()
+    assert _min_cut_edges({"a"}, {"d"}, edges, sinks={"d"}) == set()
 
 
 def test_min_cut_handles_parallel_edges() -> None:
@@ -1224,7 +1243,7 @@ def test_min_cut_handles_parallel_edges() -> None:
         ("grid", "load", "conn_a"),
         ("grid", "load", "conn_b"),
     ]
-    assert _min_cut_edges({"grid"}, {"load"}, edges) == {"conn_a", "conn_b"}
+    assert _min_cut_edges({"grid"}, {"load"}, edges, sinks={"load"}) == {"conn_a", "conn_b"}
 
 
 def test_min_cut_scales_with_cardinality_not_capacity() -> None:
@@ -1242,8 +1261,54 @@ def test_min_cut_scales_with_cardinality_not_capacity() -> None:
         ("s", "b", "sb"),
         ("b", "t", "bt"),
     ]
-    cut = _min_cut_edges({"s"}, {"t"}, edges)
+    cut = _min_cut_edges({"s"}, {"t"}, edges, sinks={"t"})
     assert len(cut) == 2
+
+
+def test_a_reward_for_charging_two_batteries_never_cycles_the_inverter() -> None:
+    """A negative price on power into two full batteries behind an inverter earns nothing and moves no power.
+
+    Were the reward placed on the inverter's AC to DC edge, the plan could
+    collect it on grid power that turns straight back through the DC to AC
+    edge, cycling the inverter for a reward bigger than its losses.
+    """
+
+    def limited(max_power: float, efficiency: float = 1.0) -> dict[str, SegmentSpec]:
+        return {
+            "power_limit": {"segment_type": "power_limit", "max_power": np.array([max_power])},
+            "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
+        }
+
+    elements = [
+        _node("grid", is_source=True, is_sink=True),
+        _junction("sw"),
+        _junction("inv"),
+        _node("load", is_sink=True),
+        _node("battery", is_sink=True),
+        _node("ev", is_sink=True),
+        _conn(
+            "grid_sw",
+            "grid",
+            "sw",
+            {
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([30.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([0.10])},
+            },
+        ),
+        _conn("sw_load", "sw", "load", limited(30.0)),
+        _conn("ac_to_dc", "sw", "inv", limited(30.0, 0.994)),
+        _conn("dc_to_ac", "inv", "sw", limited(30.0, 0.97)),
+        _conn("inv_battery", "inv", "battery", limited(0.0)),
+        _conn("inv_ev", "inv", "ev", limited(0.0)),
+    ]
+    compiled = compile_policies(elements, [_policy(["*"], ["battery", "ev"], -0.01)])
+
+    network = _build_network(compiled)
+    add_rows(network._solver, _network_element(network, "load").connection_power() == np.array([1.0]))
+    cost = network.optimize()
+
+    assert cost == pytest.approx(0.10)
+    assert network.elements["ac_to_dc"].outputs()["connection_power"].values == pytest.approx([0.0], abs=1e-9)
 
 
 def test_no_policy_no_extra_cost() -> None:

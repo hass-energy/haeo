@@ -240,7 +240,9 @@ def compile_policies(
     # in the VLAN subgraph. The sink-side canonical min-cut (closest to the
     # destinations) is an antichain: every source→destination path crosses
     # exactly one cut edge, so a unit of flow pays the price exactly once
-    # regardless of path length. It also minimises the number of places
+    # regardless of path length. Only edges whose flow can reach no sink
+    # but the rule's destinations may be cut, so the price lands on exactly
+    # the flow that reaches them. It also minimises the number of places
     # operations are installed (a single power-limit policy becomes a single
     # sum-over-cut constraint rather than one per destination).
     #
@@ -254,7 +256,8 @@ def compile_policies(
     #     the source's outbound edges (the natural discharge / production
     #     gate);
     #   - shared bottleneck between multiple sources and targets (e.g. an
-    #     inverter between DC and AC): cut is the bottleneck edge.
+    #     inverter between DC and AC): cut is the bottleneck edge, when all
+    #     the flow across it goes on to the targets.
     pricing_elements: list[PolicyPricingElementConfig] = []
     pricing_rule_map: dict[int, list[str]] = {}
 
@@ -287,7 +290,7 @@ def compile_policies(
                 for conn in tagged_connections
                 if source_vlan in conn.get("tags", set())
             ]
-            cut = _min_cut_edges(vlan_sources, set(destinations), vlan_edges)
+            cut = _min_cut_edges(vlan_sources, set(destinations), vlan_edges, sinks=sink_names)
             if not cut:
                 continue
 
@@ -422,6 +425,8 @@ def _min_cut_edges(
     sources: set[str],
     destinations: set[str],
     directed_edges: Sequence[tuple[str, str, str]],
+    *,
+    sinks: AbstractSet[str],
 ) -> set[str]:
     """Return connection names on a sink-side minimum s-t cut.
 
@@ -436,8 +441,13 @@ def _min_cut_edges(
     * every s→t path in ``directed_edges`` crosses exactly one cut edge
       (it is a directed antichain), so a unit of flow can be priced or
       capacity-constrained exactly once without double-counting;
-    * the cut has minimum cardinality, so the number of places where
-      constraints / costs are installed is minimised.
+    * every unit of flow crossing a cut edge ends at a destination, as
+      only edges whose flow can reach no other sink in ``sinks`` may be
+      cut. A bottleneck that flow can cross and then leave for another
+      sink does not separate the sources from the destinations, so pricing
+      it would charge, or reward, flow the rule does not cover;
+    * the cut has minimum cardinality among those edges, so the number of
+      places where constraints / costs are installed is minimised.
 
     Degenerate shapes this collapses to:
 
@@ -446,7 +456,8 @@ def _min_cut_edges(
     * wildcard target with a single-outbound source → source-outbound
       edges;
     * a bottleneck shared by all source→destination paths (e.g. an
-      inverter linking a DC bus to an AC bus) → the bottleneck edge.
+      inverter linking a DC bus to an AC bus) → the bottleneck edge, when
+      everything beyond it leads only to destinations.
 
     Parallel edges between the same ``(u, v)`` pair share one aggregated
     flow variable with capacity equal to the number of parallels; if the
@@ -467,6 +478,19 @@ def _min_cut_edges(
     super_dst = "\x00__min_cut_dst__"
     inf = float("inf")
 
+    # Nodes whose flow can go on to a sink other than the destinations,
+    # found walking back from those sinks without passing a destination
+    predecessors: dict[str, set[str]] = defaultdict(set)
+    for u, v, _conn_name in directed_edges:
+        predecessors[v].add(u)
+    leaks = set(sinks - destinations)
+    queue: deque[str] = deque(leaks)
+    while queue:
+        for u in predecessors[queue.popleft()]:
+            if u not in leaks and u not in destinations:
+                leaks.add(u)
+                queue.append(u)
+
     residual: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     conns_by_pair: dict[tuple[str, str], list[str]] = defaultdict(list)
 
@@ -475,7 +499,8 @@ def _min_cut_edges(
     for dst in sorted(effective_destinations):
         residual[dst][super_dst] = inf
     for u, v, conn_name in directed_edges:
-        residual[u][v] += 1
+        # An edge into a node that leaks flow cannot be cut
+        residual[u][v] += inf if v in leaks else 1
         conns_by_pair[(u, v)].append(conn_name)
 
     def _bfs_augmenting_path() -> dict[str, str] | None:
@@ -517,7 +542,7 @@ def _min_cut_edges(
                 reverse_adj[v].append(u)
 
     t_side = {super_dst}
-    queue = deque([super_dst])
+    queue.append(super_dst)
     while queue:
         v = queue.popleft()
         for u in reverse_adj[v]:

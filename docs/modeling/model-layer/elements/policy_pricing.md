@@ -11,6 +11,7 @@ It only adds a cost: one price multiplied by the power on a set of connection an
 [Policy compilation](../../../developer-guide/policy-compilation.md) creates the elements.
 Each policy rule gets one PolicyPricing element per source tag it prices.
 Its terms are the connections on the minimum cut that separates the rule's sources from its destinations on that tag, so every tagged path from a source to a destination pays the price exactly once.
+Only connections whose flow can reach no sink but the destinations are cut, so the price applies only to flow that reaches them.
 See [policy pricing](../../tagged-power.md#policy-pricing) in the power policies formulation for why the cut is used.
 
 ## Model formulation
