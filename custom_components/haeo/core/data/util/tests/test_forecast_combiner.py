@@ -62,6 +62,22 @@ def test_forecast_after_the_horizon_adds_nothing(end: float) -> None:
     assert result == pytest.approx(fuse_to_intervals(None, today, times))
 
 
+def _before(time: float) -> float:
+    """Return the timestamp just before a time, where a stepped forecast holds its earlier value."""
+    return float(np.nextafter(T0 + time, -np.inf))
+
+
+# A calendar-style adder: zero well before and after its one event, from 36:00 to 48:00
+CALENDAR = [
+    (T0 - 60 * DAY, 0.0),
+    (_before(36 * HOUR), 0.0),
+    (T0 + 36 * HOUR, 0.1),
+    (_before(2 * DAY), 0.1),
+    (T0 + 2 * DAY, 0.0),
+    (T0 + 60 * DAY, 0.0),
+]
+
+
 @pytest.mark.parametrize(
     ("forecast_series", "start", "end", "expected"),
     [
@@ -77,7 +93,7 @@ def test_forecast_after_the_horizon_adds_nothing(end: float) -> None:
             0.0,
             2 * DAY,
             [3.0, 3.0, 3.0, 3.0],
-            id="overlapping_windows_add_up",
+            id="forecasts_over_one_window_add_up",
         ),
         pytest.param(
             [[(T0, 1.0)], [(T0, 2.0)]],
@@ -87,28 +103,37 @@ def test_forecast_after_the_horizon_adds_nothing(end: float) -> None:
             id="forecasts_at_one_instant_add_up",
         ),
         pytest.param(
-            [_flat(0.0, DAY, 1.0), _flat(12 * HOUR, 36 * HOUR, 2.0)],
+            [_flat(0.0, DAY, 0.3), CALENDAR],
             0.0,
-            36 * HOUR,
-            [1.0, 3.0, 2.0],
-            id="partial_overlap_adds_in_the_overlap",
+            3 * DAY,
+            [0.3, 0.3, 0.3, 0.4, 0.3, 0.3],
+            id="price_repeats_beside_a_calendar",
         ),
         pytest.param(
-            [_flat(0.0, DAY, 1.0), _flat(0.0, 7 * DAY, 10.0)],
+            [_flat(0.0, 30 * HOUR, 1.0), _flat(DAY, 7 * DAY, 2.0)],
             0.0,
-            2 * DAY,
-            [11.0, 11.0, 10.0, 10.0],
-            id="short_window_beside_one_covering_the_horizon_does_not_repeat",
+            3 * DAY,
+            [3.0] * 6,
+            id="overlapping_forecasts_each_repeat_on_their_own",
         ),
     ],
 )
-def test_each_forecast_counts_within_its_own_window(
+def test_forecasts_join_or_repeat_on_their_own(
     forecast_series: list[list[tuple[float, float]]], start: float, end: float, expected: list[float]
 ) -> None:
-    """Forecasts add up on one timeline, each counting only within its own window."""
+    """Forecasts that follow on from each other join; each forecast or joined group repeats, and they add up."""
     result = fuse_sensor_payloads(None, forecast_series, _times(start, end, 12 * HOUR), boundaries=False)
 
     assert result == pytest.approx(expected)
+
+
+def test_short_forecast_repeats_beside_one_covering_the_horizon() -> None:
+    """A one-day forecast repeats to fill the horizon even when another forecast covers it all."""
+    times = [0.0, DAY, 2 * DAY]
+    one_day = [(0.0, 1.0), (DAY - HOUR, 1.0)]
+    two_days = [(0.0, 10.0), (2 * DAY, 10.0)]
+
+    assert fuse_sensor_payloads(None, [one_day, two_days], times, boundaries=False) == pytest.approx([11.0, 11.0])
 
 
 @pytest.mark.parametrize(
@@ -119,23 +144,12 @@ def test_each_forecast_counts_within_its_own_window(
     ],
 )
 def test_time_with_no_data_repeats_by_time_of_day(later: list[list[tuple[float, float]]]) -> None:
-    """Where no forecast has data, the combined forecast repeats today's profile by time of day."""
+    """Where a forecast, or a group of forecasts that follow on, has no data, it repeats by time of day."""
     today = _solar_day(0, 1.0)
 
     result = fuse_sensor_payloads(None, [today, *later], _times(DAY, 2 * DAY, HOUR), boundaries=False)
 
     assert result == pytest.approx(fuse_to_intervals(None, today, _times(0.0, DAY, HOUR)), abs=1e-6)
-
-
-def test_forecasts_with_different_coverage_repeat_after_joining() -> None:
-    """A shorter forecast joins a longer one and their sum repeats, so the shorter one never fills a whole day."""
-    times = [0.0, 12 * HOUR, DAY, DAY + 12 * HOUR, 2 * DAY]
-    full_day = [(hour * HOUR, 1.0) for hour in range(24)]
-    half_day = [(hour * HOUR, 2.0) for hour in range(13)]
-
-    result = fuse_sensor_payloads(None, [full_day, half_day], times, boundaries=False)
-
-    assert result == pytest.approx([3.0, 1.0, 3.0, 1.0], abs=0.1)
 
 
 def test_forecasts_sum_after_fusing() -> None:

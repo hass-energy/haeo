@@ -224,7 +224,7 @@ A calendar with no events over the horizon gives a forecast with no points, whic
 Each event's value is a number typed with its unit.
 `extract()` takes the input's output type, and the calendar extractor converts each event's value to the input's unit with `to_field_unit()`.
 An event whose value the input cannot use, such as a bare number, is ignored, and the calendar input loader raises a repair issue listing those events, so one mistyped event never makes the input unavailable.
-The extracted series is a step function padded with zeros well before and after the events, so it covers the horizon: a calendar is zero outside its events rather than repeating, and beside it no other forecast on the input repeats.
+The extracted series is a step function padded with zeros well before and after the events, so it covers the horizon: a calendar is zero outside its events rather than repeating, and it never joins another forecast because its window overlaps theirs.
 
 ### Parser design
 
@@ -261,19 +261,28 @@ This matches physical reality: two solar arrays produce combined power, multiple
 ### Timestamp alignment
 
 `fuse_sensor_payloads()` follows one rule:
-all of an input's sensors add up on one timeline, each counting only within its own forecast window.
-Wherever no sensor has data, the combined forecast repeats by time of day.
+sensors whose forecasts follow on from each other without overlapping join into one.
+Each sensor, or joined group, then repeats by time of day past its own forecast, and they all add up.
 
-A forecast's window runs from its first point to its last, and the windows of all the input's forecasts join into the times the input has data wherever they overlap or meet.
+A forecast's window runs from its first point to its last.
+The forecasts group deterministically:
 
-1. All forecasts merge on the union of their timestamps.
-    Each is interpolated there and steps to zero just outside its own window, and the values sum.
-    Where one forecast ends at the timestamp another starts, the later one alone sets the value there, so consecutive windows such as today and tomorrow step cleanly from one to the other.
-2. Each gap between windows fills with the forecast before it repeating by time of day, through the same [forecast cycling](#forecast-cycling) that fills the horizon past the forecast's end.
-    The repeat steps to the next window's data where that window starts.
-3. The combined forecast, with no gaps left, fuses to the horizon, cycling wherever the horizon reaches before or after it.
+1. Sort the forecasts by start, then by end, then by input order.
+2. Put each forecast in the first group whose windows it does not overlap, or start a new group.
+    Touching, where one forecast ends exactly where the next starts, is not overlapping.
+    A single-point forecast at a group's end does not follow on from it, since it ends no later than the group does.
 
-A forecast that covers the horizon leaves no time without data, so a shorter forecast beside it counts only within its own window and does not repeat.
+Each group then joins into one forecast:
+
+- Where one forecast ends at the timestamp the next starts, the later one alone sets the value there, so consecutive windows such as today and tomorrow step cleanly from one to the other.
+- A gap between two windows in a group is time where the group has no data, so it fills with the group's forecast so far repeating by time of day, through the same [forecast cycling](#forecast-cycling) that fills the horizon past its end.
+    The repeat steps to the next forecast where it starts.
+
+Each joined group fuses to the horizon on its own, repeating wherever the horizon reaches before or after it, and the groups sum.
+A calendar's zeros cover the whole horizon, so a calendar is always a group of its own and never stops a sensor beside it from repeating.
+
+Forecasts that overlap, even partly, stay in separate groups: each repeats on its own and they add up.
+Forecasts meant to continue one another should meet rather than overlap.
 A forecast with no points, such as a calendar without events, adds nothing.
 
 ### Mixed payloads
@@ -323,7 +332,7 @@ Trapezoidal integration provides the best balance of accuracy and simplicity for
 
 ### Partial coverage
 
-Wherever the combined forecast has no data, the system cycles it using natural period alignment.
+When a forecast or joined group doesn't cover the full horizon, the system cycles it using natural period alignment.
 See [Forecast cycling](#forecast-cycling) for details.
 
 The cycling happens before fusion, ensuring the fusion always has data covering beyond the last horizon timestamp.
