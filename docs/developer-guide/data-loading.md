@@ -224,7 +224,7 @@ A calendar with no events over the horizon gives a forecast with no points, whic
 Each event's value is a number typed with its unit.
 `extract()` takes the input's output type, and the calendar extractor converts each event's value to the input's unit with `to_field_unit()`.
 An event whose value the input cannot use, such as a bare number, is ignored, and the calendar input loader raises a repair issue listing those events, so one mistyped event never makes the input unavailable.
-The extracted series is a step function padded with zeros well before and after the events, so it covers the horizon: a calendar is zero outside its events rather than repeating, and it fuses on its own beside other forecasts.
+The extracted series is a step function padded with zeros well before and after the events, so it covers the horizon: a calendar is zero outside its events rather than repeating, and beside it no other forecast on the input repeats.
 
 ### Parser design
 
@@ -260,16 +260,20 @@ This matches physical reality: two solar arrays produce combined power, multiple
 
 ### Timestamp alignment
 
-`fuse_sensor_payloads()` splits forecasts by whether they cover the whole horizon.
-Forecasts covering only part of it merge first:
+`fuse_sensor_payloads()` follows one rule:
+all of an input's sensors add up on one timeline, each counting only within its own forecast window.
+Wherever no sensor has data, the combined forecast repeats by time of day.
 
-1. Creates a union of all timestamps from the partial forecasts
-2. Interpolates each forecast's values to this common timestamp set, zero outside its own range
-3. Sums interpolated values at each timestamp
+A forecast's window runs from its first point to its last, and the windows of all the input's forecasts join into the times the input has data wherever they overlap or meet.
 
-The merged forecast then fuses to the horizon, repeating if it ends early, so forecasts for consecutive windows (today and tomorrow) join before they repeat.
-Each forecast covering the whole horizon fuses on its own and adds to the result.
-Merging one into the partial forecasts would make the merged forecast cover the horizon too, stopping the partial ones from repeating.
+1. All forecasts merge on the union of their timestamps.
+    Each is interpolated there and steps to zero just outside its own window, and the values sum.
+    Where one forecast ends at the timestamp another starts, the later one alone sets the value there, so consecutive windows such as today and tomorrow step cleanly from one to the other.
+2. Each gap between windows fills with the forecast before it repeating by time of day, through the same [forecast cycling](#forecast-cycling) that fills the horizon past the forecast's end.
+    The repeat steps to the next window's data where that window starts.
+3. The combined forecast, with no gaps left, fuses to the horizon, cycling wherever the horizon reaches before or after it.
+
+A forecast that covers the horizon leaves no time without data, so a shorter forecast beside it counts only within its own window and does not repeat.
 A forecast with no points, such as a calendar without events, adds nothing.
 
 ### Mixed payloads
@@ -319,7 +323,7 @@ Trapezoidal integration provides the best balance of accuracy and simplicity for
 
 ### Partial coverage
 
-When forecasts don't cover the full horizon, the system cycles them using natural period alignment.
+Wherever the combined forecast has no data, the system cycles it using natural period alignment.
 See [Forecast cycling](#forecast-cycling) for details.
 
 The cycling happens before fusion, ensuring the fusion always has data covering beyond the last horizon timestamp.

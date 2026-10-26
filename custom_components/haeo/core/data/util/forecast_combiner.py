@@ -1,11 +1,12 @@
 """Utilities for combining sensor payloads into one horizon-aligned series."""
 
 from collections.abc import Mapping, Sequence
+import itertools
 
 import numpy as np
 
 from . import ForecastSeries, SensorPayload
-from .forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from .forecast_fuser import build_extended_block, fuse_to_boundaries, fuse_to_intervals
 
 
 def split_sensor_payloads(payloads: Mapping[str, SensorPayload]) -> tuple[float | None, list[ForecastSeries]]:
@@ -38,12 +39,30 @@ def _end_before(series: ForecastSeries) -> ForecastSeries:
     return [*points, (before, value)]
 
 
-def _merge_forecasts(forecast_series: Sequence[ForecastSeries]) -> ForecastSeries:
-    """Sum forecasts on the union of their timestamps, each zero outside its own range.
+def _windows(forecast_series: Sequence[ForecastSeries]) -> list[tuple[float, float]]:
+    """Return the times the forecasts have data as disjoint windows in time order.
 
-    Where one forecast ends at the timestamp another starts, the later one
-    alone sets the value there: the ending forecast steps down just before
-    it, so the merged forecast steps from one to the other.
+    Forecasts whose ranges overlap or meet share one window.
+    """
+    windows: list[tuple[float, float]] = []
+    for start, end in sorted((series[0][0], series[-1][0]) for series in forecast_series):
+        if windows and start <= windows[-1][1]:
+            windows[-1] = (windows[-1][0], max(windows[-1][1], end))
+        else:
+            windows.append((start, end))
+    return windows
+
+
+def _merge_forecasts(
+    forecast_series: Sequence[ForecastSeries], windows: Sequence[tuple[float, float]]
+) -> ForecastSeries:
+    """Sum forecasts on one timeline, each counting only within its own range.
+
+    Each forecast steps to zero just outside its range. Where one forecast
+    ends at the timestamp another starts, the later one alone sets the value
+    there: the ending forecast steps down just before it, so the merged
+    forecast steps from one to the other. The merged forecast holds points
+    only within the windows.
     """
     forecast_series = [
         _end_before(series)
@@ -51,8 +70,16 @@ def _merge_forecasts(forecast_series: Sequence[ForecastSeries]) -> ForecastSerie
         else series
         for series in forecast_series
     ]
-    unique_timestamps = sorted({timestamp for series in forecast_series for timestamp, _ in series})
-    all_timestamps = np.array(unique_timestamps, dtype=np.float64)
+    edges = {
+        edge
+        for series in forecast_series
+        for edge in (float(np.nextafter(series[0][0], -np.inf)), float(np.nextafter(series[-1][0], np.inf)))
+    }
+    all_timestamps = np.array(sorted({timestamp for series in forecast_series for timestamp, _ in series} | edges))
+    inside = np.zeros(all_timestamps.size, dtype=bool)
+    for start, end in windows:
+        inside |= (all_timestamps >= start) & (all_timestamps <= end)
+    all_timestamps = all_timestamps[inside]
     total_values = np.zeros(all_timestamps.size, dtype=np.float64)
 
     for series in forecast_series:
@@ -63,9 +90,28 @@ def _merge_forecasts(forecast_series: Sequence[ForecastSeries]) -> ForecastSerie
     return list(zip(all_timestamps.tolist(), total_values.tolist(), strict=True))
 
 
-def _covers(series: ForecastSeries, horizon_times: Sequence[float]) -> bool:
-    """Return True when a forecast spans the whole horizon, so it never repeats."""
-    return series[0][0] <= horizon_times[0] and series[-1][0] >= horizon_times[-1]
+def _fill_gaps(merged: ForecastSeries, windows: Sequence[tuple[float, float]]) -> ForecastSeries:
+    """Fill the time between windows with the forecast before it repeating by time of day.
+
+    The repeat ends just before the next window starts, so the forecast steps
+    from the repeat to the next window's data.
+    """
+    filled = [point for point in merged if point[0] <= windows[0][1]]
+    for (_, gap_start), (gap_end, window_end) in itertools.pairwise(windows):
+        block = build_extended_block(filled, filled[0][0], gap_end)
+        times, values = block["timestamp"], block["value"]
+        in_gap = (times > gap_start) & (times < gap_end)
+        repeat = [
+            (gap_start, float(np.interp(gap_start, times, values))),
+            *zip(times[in_gap].tolist(), values[in_gap].tolist(), strict=True),
+            (gap_end, float(np.interp(gap_end, times, values))),
+        ]
+        filled = [
+            *_end_before(filled),
+            *_end_before(repeat),
+            *(point for point in merged if gap_end <= point[0] <= window_end),
+        ]
+    return filled
 
 
 def fuse_sensor_payloads(
@@ -77,11 +123,9 @@ def fuse_sensor_payloads(
 ) -> list[float]:
     """Fuse sensor payloads to the horizon and sum them.
 
-    Forecasts that only cover part of the horizon merge first, each zero
-    outside its own range, so forecasts for consecutive windows (today and
-    tomorrow) join into one, which then repeats to fill the horizon. A
-    forecast covering the whole horizon fuses on its own and adds to the
-    result, so it never stops the partial forecasts from repeating.
+    All of an input's sensors add up on one timeline, each counting only
+    within its own forecast window. Wherever no sensor has data, the combined
+    forecast repeats by time of day.
 
     The present value is the value for now: it replaces the first interval
     (or boundary), and repeats across the horizon when there is no forecast.
@@ -93,13 +137,5 @@ def fuse_sensor_payloads(
             return [0.0] * (len(horizon_times) if boundaries else max(len(horizon_times) - 1, 0))
         return fuse(present_value, [], horizon_times)
 
-    covering = [series for series in forecast_series if _covers(series, horizon_times)]
-    partial = [series for series in forecast_series if not _covers(series, horizon_times)]
-    fused = [fuse(None, series, horizon_times) for series in covering]
-    if partial:
-        fused.append(fuse(None, _merge_forecasts(partial), horizon_times))
-
-    result: list[float] = np.sum(fused, axis=0).tolist()
-    if present_value is not None and result:
-        result[0] = present_value
-    return result
+    windows = _windows(forecast_series)
+    return fuse(present_value, _fill_gaps(_merge_forecasts(forecast_series, windows), windows), horizon_times)

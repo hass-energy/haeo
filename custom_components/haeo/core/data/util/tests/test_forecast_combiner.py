@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.core.data.util.forecast_combiner import fuse_sensor_payloads, split_sensor_payloads
+from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_intervals
 
 HOUR = 3600.0
 DAY = 24 * HOUR
@@ -29,32 +30,101 @@ def test_split_sensor_payloads(payloads: Payloads, expected_present: float | Non
     assert len(forecast_series) == expected_count
 
 
-def test_short_forecast_repeats_beside_one_covering_the_horizon() -> None:
-    """A one-day forecast repeats to fill the horizon even when another forecast covers it all."""
-    times = [0.0, DAY, 2 * DAY]
-    one_day = [(0.0, 1.0), (DAY - HOUR, 1.0)]
-    two_days = [(0.0, 10.0), (2 * DAY, 10.0)]
-
-    assert fuse_sensor_payloads(None, [one_day, two_days], times, boundaries=False) == pytest.approx([11.0, 11.0])
+# Midnight UTC on 25 October 2025: epoch times, as real forecasts use, keep a step just
+# before a timestamp apart from it through the forecast cycle
+T0 = 20_386 * DAY
 
 
-def test_partial_forecasts_join_before_repeating() -> None:
-    """Forecasts for consecutive windows join into one rather than each repeating into the other's window."""
-    times = [0.0, DAY, 2 * DAY]
-    today = [(0.0, 1.0), (DAY - HOUR, 1.0)]
-    tomorrow = [(DAY, 3.0), (2 * DAY - HOUR, 3.0)]
+def _flat(start: float, end: float, value: float) -> list[tuple[float, float]]:
+    """Return a forecast holding one value from start to end."""
+    return [(T0 + start, value), (T0 + end, value)]
+
+
+def _solar_day(day: int, peak: float) -> list[tuple[float, float]]:
+    """Return an hourly solar-like forecast for one whole day, from its midnight to the next."""
+    return [(T0 + day * DAY + hour * HOUR, peak * max(0.0, np.sin(np.pi * (hour - 8) / 9))) for hour in range(25)]
+
+
+def _times(start: float, end: float, step: float) -> list[float]:
+    """Return horizon boundaries from start to end."""
+    return [T0 + float(time) for time in np.arange(start, end + step / 2, step)]
+
+
+@pytest.mark.parametrize("end", [18 * HOUR, 23.75 * HOUR, DAY], ids=["18:00", "23:45", "midnight"])
+def test_forecast_after_the_horizon_adds_nothing(end: float) -> None:
+    """Today's and tomorrow's forecasts on one input give today's alone for a horizon ending today."""
+    today = _solar_day(0, 1.0)
+    tomorrow = _solar_day(1, 1.5)
+    times = _times(0.75 * HOUR, end, 0.25 * HOUR)
 
     result = fuse_sensor_payloads(None, [today, tomorrow], times, boundaries=False)
 
-    assert result[0] == pytest.approx(1.0, abs=0.1)
-    assert result[1] == pytest.approx(3.0, abs=0.1)
+    assert result == pytest.approx(fuse_to_intervals(None, today, times))
+
+
+@pytest.mark.parametrize(
+    ("forecast_series", "start", "end", "expected"),
+    [
+        pytest.param(
+            [_flat(0.0, DAY, 1.0), _flat(DAY, 2 * DAY, 3.0)],
+            6 * HOUR,
+            66 * HOUR,
+            [1.0, 2.0, 3.0, 2.0, 1.0],
+            id="consecutive_windows_join_then_repeat",
+        ),
+        pytest.param(
+            [_flat(0.0, DAY, 1.0), _flat(0.0, DAY, 2.0)],
+            0.0,
+            2 * DAY,
+            [3.0, 3.0, 3.0, 3.0],
+            id="overlapping_windows_add_up",
+        ),
+        pytest.param(
+            [_flat(0.0, DAY, 1.0), _flat(12 * HOUR, 36 * HOUR, 2.0)],
+            0.0,
+            36 * HOUR,
+            [1.0, 3.0, 2.0],
+            id="partial_overlap_adds_in_the_overlap",
+        ),
+        pytest.param(
+            [_flat(0.0, DAY, 1.0), _flat(0.0, 7 * DAY, 10.0)],
+            0.0,
+            2 * DAY,
+            [11.0, 11.0, 10.0, 10.0],
+            id="short_window_beside_one_covering_the_horizon_does_not_repeat",
+        ),
+    ],
+)
+def test_each_forecast_counts_within_its_own_window(
+    forecast_series: list[list[tuple[float, float]]], start: float, end: float, expected: list[float]
+) -> None:
+    """Forecasts add up on one timeline, each counting only within its own window."""
+    result = fuse_sensor_payloads(None, forecast_series, _times(start, end, 12 * HOUR), boundaries=False)
+
+    assert result == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    "later",
+    [
+        pytest.param([], id="after_a_single_forecast"),
+        pytest.param([_flat(2 * DAY, 3 * DAY, 5.0)], id="between_two_windows"),
+    ],
+)
+def test_time_with_no_data_repeats_by_time_of_day(later: list[list[tuple[float, float]]]) -> None:
+    """Where no forecast has data, the combined forecast repeats today's profile by time of day."""
+    today = _solar_day(0, 1.0)
+
+    result = fuse_sensor_payloads(None, [today, *later], _times(DAY, 2 * DAY, HOUR), boundaries=False)
+
+    assert result == pytest.approx(fuse_to_intervals(None, today, _times(0.0, DAY, HOUR)), abs=1e-6)
 
 
 def test_forecasts_with_different_coverage_repeat_after_joining() -> None:
     """A shorter forecast joins a longer one and their sum repeats, so the shorter one never fills a whole day."""
     times = [0.0, 12 * HOUR, DAY, DAY + 12 * HOUR, 2 * DAY]
     full_day = [(hour * HOUR, 1.0) for hour in range(24)]
-    half_day = [(hour * HOUR, 2.0) for hour in range(12)]
+    half_day = [(hour * HOUR, 2.0) for hour in range(13)]
 
     result = fuse_sensor_payloads(None, [full_day, half_day], times, boundaries=False)
 
