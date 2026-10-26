@@ -59,15 +59,13 @@ def _merge_forecasts(
     """Sum forecasts on one timeline, each counting only within its own range.
 
     Each forecast steps to zero just outside its range. Where one forecast
-    ends at the timestamp another starts, the later one alone sets the value
-    there: the ending forecast steps down just before it, so the merged
+    ends at the timestamp a later one starts, the later one alone sets the
+    value there: the ending forecast steps down just before it, so the merged
     forecast steps from one to the other. The merged forecast holds points
     only within the windows.
     """
     forecast_series = [
-        _end_before(series)
-        if any(other is not series and other[0][0] == series[-1][0] for other in forecast_series)
-        else series
+        _end_before(series) if any(other[0][0] == series[-1][0] < other[-1][0] for other in forecast_series) else series
         for series in forecast_series
     ]
     edges = {

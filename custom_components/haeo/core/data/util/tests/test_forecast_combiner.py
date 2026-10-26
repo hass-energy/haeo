@@ -80,6 +80,13 @@ def test_forecast_after_the_horizon_adds_nothing(end: float) -> None:
             id="overlapping_windows_add_up",
         ),
         pytest.param(
+            [[(T0, 1.0)], [(T0, 2.0)]],
+            0.0,
+            DAY,
+            [3.0, 3.0],
+            id="forecasts_at_one_instant_add_up",
+        ),
+        pytest.param(
             [_flat(0.0, DAY, 1.0), _flat(12 * HOUR, 36 * HOUR, 2.0)],
             0.0,
             36 * HOUR,
