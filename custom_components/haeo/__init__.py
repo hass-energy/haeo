@@ -32,7 +32,6 @@ from custom_components.haeo.const import (
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE
-from custom_components.haeo.core.schema.elements import ELEMENT_REFERENCE_PRUNERS
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.hub import async_network_subentry, async_switchboard_subentry
@@ -50,12 +49,19 @@ from custom_components.haeo.repairs import (
     async_dismiss_entry_issues,
     create_setup_failed_issue,
     dismiss_setup_failed_issue,
+    element_names_summary,
     setup_failed_issue_error,
+    sync_missing_element_references_issue,
     sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
-from custom_components.haeo.util import network_subentry
+from custom_components.haeo.util import (
+    forget_elements,
+    missing_element_references,
+    network_subentry,
+    remove_deleted_elements_rules,
+)
 
 from . import migrations as _migrations
 
@@ -210,7 +216,14 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     Uses async_schedule_reload instead of async_reload to avoid suspending
     in the listener task. Required subentries are ensured during setup, so
     no need to check here.
+
+    Deleting an element removes the policy rules it surfaced on its own form.
+    Every other element that names it is left unchanged, so recreating it
+    under the same name restores the network, and setup reports the missing
+    element until then.
     """
+    remove_deleted_elements_rules(hass, entry)
+
     # Check if this is a value-only update from an input entity
     runtime_data = entry.runtime_data
     if runtime_data and runtime_data.value_update_in_progress:
@@ -222,18 +235,9 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
             coordinator.signal_optimization_stale()
         return
 
-    # Clean up policy rules that reference deleted elements. An element's
-    # subentry is committed only after its config flow finishes, but the flow
-    # writes the element's surfaced policy rules before that. Skip cleanup while
-    # a subentry flow for this entry is active so those rules are not mistaken
-    # for orphans; element deletions do not run a flow, so they still clean up.
-    flow_in_progress = _element_flow_in_progress(hass, entry)
-    if not flow_in_progress:
-        prune_element_references(hass, entry)
-
     _LOGGER.info("HAEO configuration changed, reloading integration")
 
-    if not flow_in_progress:
+    if not _element_flow_in_progress(hass, entry):
         hass.config_entries.async_schedule_reload(entry.entry_id)
         return
 
@@ -267,27 +271,6 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
 def _element_flow_in_progress(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Return whether a subentry config flow for this entry is in progress."""
     return any(flow["handler"][0] == entry.entry_id for flow in hass.config_entries.subentries.async_progress())
-
-
-def prune_element_references(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove references to deleted elements from the elements that name them.
-
-    Each element type that names other elements declares how it drops names
-    that no longer exist; an element left with nothing to do is removed.
-    """
-    subentries = list(entry.subentries.values())
-    referencing = [
-        (subentry, ELEMENT_REFERENCE_PRUNERS[subentry.subentry_type])
-        for subentry in subentries
-        if subentry.subentry_type in ELEMENT_REFERENCE_PRUNERS
-    ]
-    for subentry, prune in referencing:
-        element_names = {other.title for other in subentries if other.subentry_id != subentry.subentry_id}
-        pruned = prune(subentry.data, element_names)
-        if pruned is None:
-            hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
-        elif pruned != subentry.data:
-            hass.config_entries.async_update_subentry(entry, subentry, data=pruned)
 
 
 async def _async_first_refresh(
@@ -374,8 +357,24 @@ async def _async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> Non
     # Import here to avoid circular imports at module level
     from custom_components.haeo.entities.device import get_or_create_network_device  # noqa: PLC0415
 
+    # Elements deleted while no update listener was registered, such as while
+    # setup waited to retry, take their own policy rules with them now. This
+    # runs first so the elements are remembered even when setup fails.
+    remove_deleted_elements_rules(hass, entry)
+
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
+
+    # Every other reference to a deleted element stays, so the user can
+    # recreate it; until then there is no network to optimize
+    missing = missing_element_references(entry)
+    sync_missing_element_references_issue(hass, entry.entry_id, missing)
+    if missing:
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="missing_element_references",
+            translation_placeholders={"references": element_names_summary(missing, "; ")},
+        )
 
     # Create network device using centralized device creation
     get_or_create_network_device(hass, entry, network_subentry(entry))
@@ -451,8 +450,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> boo
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
-    """Dismiss the repair issues raised for a removed config entry."""
+    """Dismiss the repair issues raised for a removed config entry and forget its elements."""
     await async_dismiss_entry_issues(hass, entry.entry_id)
+    forget_elements(hass, entry.entry_id)
 
 
 async def async_remove_config_entry_device(

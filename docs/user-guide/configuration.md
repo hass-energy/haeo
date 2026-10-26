@@ -207,11 +207,18 @@ Changes trigger a new optimization.
 ### Removing elements and connections
 
 Use the three-dot menu on each entry to delete it.
-The hub automatically adjusts optimization for remaining elements.
+Deleting an element also deletes the prices set on its own form.
+Everything else that names it stays as it is, including connections, buffers, and policy rules you wrote yourself.
+This means you can delete an element and add it again under the same name, and everything that named it works as before; only its own prices need setting again.
 
-!!! danger "Cascade effects"
+!!! warning "Elements that name a deleted element"
 
-    Removing elements used in connections may affect network connectivity.
+    While any element names an element that no longer exists, HAEO cannot plan.
+    A repair issue titled "Elements refer to elements that do not exist" lists each element and the names it is missing.
+    Add the missing element again with the same name, or reconfigure or delete each element that names it.
+    See [elements refer to elements that do not exist](troubleshooting.md#elements-refer-to-elements-that-do-not-exist).
+
+Renaming an element renames it everywhere it is named.
 
 ### Editing hub settings
 

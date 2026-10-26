@@ -729,6 +729,9 @@
     "inputs_not_aligned": {
       "message": "The forecast inputs are still loading for the new planning horizon. Try again in a moment."
     },
+    "missing_element_references": {
+      "message": "Some elements refer to elements that do not exist, so there is no plan: {references}. Home Assistant will retry automatically."
+    },
     "negative_input_value": {
       "message": "Input {field} of {element} cannot be negative, but {entities} supplied {value}. Check that the sensor or forecast reports this value with the expected sign."
     },
@@ -763,6 +766,10 @@
     "invalid_connection_endpoints": {
       "title": "Connections bypass an element's own limits and prices",
       "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the element its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
+    },
+    "missing_element_references": {
+      "title": "Elements refer to elements that do not exist",
+      "description": "Some elements refer to an element that has been deleted or never existed, so HAEO cannot build your system and there is no plan.\n\nAffected elements (element → missing elements):\n{references}\n\nTo fix this issue, for each missing element either:\n1. Add it again with exactly the same name, which restores everything that refers to it, or\n2. Reconfigure each element that refers to it to use another element, or delete that element\n\nThis issue clears automatically once every element refers only to elements that exist."
     },
     "mixed_price_currencies": {
       "title": "Price inputs report different currencies",

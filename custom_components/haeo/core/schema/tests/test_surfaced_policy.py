@@ -6,7 +6,11 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES, PolicyRuleConfig
-from custom_components.haeo.core.schema.surfaced_policy import find_surfaced_rule, negated_price_paths
+from custom_components.haeo.core.schema.surfaced_policy import (
+    find_surfaced_rule,
+    negated_price_paths,
+    without_owned_rules,
+)
 
 # --- find_surfaced_rule tests ---
 
@@ -94,3 +98,51 @@ def test_negated_price_paths_keeps_stored_rule_indices() -> None:
 def test_negated_price_paths_without_policy_is_empty() -> None:
     """Configs without a policy element have no negated paths."""
     assert negated_price_paths({"Miner": {CONF_ELEMENT_TYPE: ElementType.LOAD}, "orphan": {}}) == {}
+
+
+# --- without_owned_rules tests ---
+
+OWNERSHIP_RULES = [
+    {"name": "charge", "target": ["Battery"]},
+    {"name": "discharge", "source": ["Battery"]},
+    {"name": "shared", "source": ["Battery", "Solar"]},
+    {"name": "both sides", "source": ["Solar"], "target": ["Battery"]},
+    {"name": "consumption", "target": ["House"]},
+    {"name": "out of house", "source": ["House"]},
+]
+
+
+@pytest.mark.parametrize(
+    ("element_type", "name", "kept"),
+    [
+        pytest.param(
+            ElementType.BATTERY,
+            "Battery",
+            ["shared", "both sides", "consumption", "out of house"],
+            id="battery_both_directions",
+        ),
+        pytest.param(
+            ElementType.LOAD,
+            "House",
+            ["charge", "discharge", "shared", "both sides", "out of house"],
+            id="load_only_its_hint_direction",
+        ),
+        pytest.param(
+            ElementType.SOLAR,
+            "Solar",
+            [rule["name"] for rule in OWNERSHIP_RULES],
+            id="type_without_surfaced_prices",
+        ),
+        pytest.param(
+            ElementType.BATTERY,
+            "House",
+            ["charge", "discharge", "shared", "both sides"],
+            id="matches_by_type_not_by_name",
+        ),
+    ],
+)
+def test_without_owned_rules(element_type: ElementType, name: str, kept: list[str]) -> None:
+    """Only rules matching one of the type's surfaced patterns for the element exactly are removed."""
+    assert without_owned_rules(OWNERSHIP_RULES, element_type, name) == [
+        rule for rule in OWNERSHIP_RULES if rule["name"] in kept
+    ]

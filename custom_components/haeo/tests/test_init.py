@@ -39,7 +39,6 @@ from custom_components.haeo import (
     async_unload_entry,
     async_update_listener,
     card_static_url,
-    prune_element_references,
 )
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
@@ -59,7 +58,7 @@ from custom_components.haeo.core.const import (
 )
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements import ElementType, map_element_references
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -68,7 +67,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.elements.buffer import (
-    CONF_GENERATION,
     CONF_KIND,
     CONF_LOADS,
     CONF_STORAGE,
@@ -76,6 +74,7 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_PARTICIPANTS,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
+from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
@@ -89,6 +88,11 @@ from custom_components.haeo.core.schema.sections import (
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.repairs import create_node_replaced_by_junction_issue
+from custom_components.haeo.util import (
+    missing_element_references,
+    remove_deleted_elements_rules,
+    rename_element_references,
+)
 
 
 @pytest.fixture
@@ -1120,6 +1124,17 @@ def test_card_static_url_changes_with_bundle_contents(tmp_path: Path) -> None:
     assert card_static_url(tmp_path) != first
 
 
+def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, data: dict[str, object]) -> ConfigSubentry:
+    subentry = ConfigSubentry(
+        data=MappingProxyType(data),
+        subentry_type=str(data[CONF_ELEMENT_TYPE]),
+        title=str(data[CONF_NAME]),
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    return subentry
+
+
 def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: dict[str, list[str]]) -> ConfigSubentry:
     subentry = ConfigSubentry(
         data=MappingProxyType(
@@ -1138,48 +1153,152 @@ def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: d
     return subentry
 
 
-@pytest.mark.parametrize(
-    ("participants", "expected"),
-    [
-        pytest.param(
-            {CONF_LOADS: ["House", "Pool"], CONF_GENERATION: ["Solar", "Wind"], CONF_STORAGE: ["Battery", "Old"]},
-            {CONF_LOADS: ["House"], CONF_GENERATION: ["Solar"], CONF_STORAGE: ["Battery"]},
-            id="deleted_elements_removed",
-        ),
-        pytest.param(
-            {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]},
-            {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]},
-            id="unchanged",
-        ),
-    ],
-)
-def test_prune_element_references_buffer_strips_deleted_elements(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-    participants: dict[str, list[str]],
-    expected: dict[str, list[str]],
-) -> None:
-    """Deleting an element removes it from every buffer that named it."""
-    add_participant(hass, mock_hub_entry, "House", ElementType.LOAD)
-    add_participant(hass, mock_hub_entry, "Solar", ElementType.SOLAR)
-    add_participant(hass, mock_hub_entry, "Battery", ElementType.BATTERY)
-    subentry = _add_buffer(hass, mock_hub_entry, participants)
-
-    prune_element_references(hass, mock_hub_entry)
-
-    assert mock_hub_entry.subentries[subentry.subentry_id].data[SECTION_PARTICIPANTS] == expected
-
-
-def test_prune_element_references_buffer_removes_buffer_without_batteries(
+def test_rename_element_references_renames_buffer_participants(
     hass: HomeAssistant, mock_hub_entry: MockConfigEntry
 ) -> None:
-    """A buffer whose last battery is deleted holds nothing, so it is removed."""
-    add_participant(hass, mock_hub_entry, "House", ElementType.LOAD)
-    subentry = _add_buffer(hass, mock_hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]})
+    """Renaming an element renames it in every buffer that lists it."""
+    subentry = _add_buffer(hass, mock_hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery", "Spare"]})
 
-    prune_element_references(hass, mock_hub_entry)
+    rename_element_references(hass, mock_hub_entry, "Battery", "Main Battery")
 
-    assert subentry.subentry_id not in mock_hub_entry.subentries
+    assert mock_hub_entry.subentries[subentry.subentry_id].data[SECTION_PARTICIPANTS] == {
+        CONF_LOADS: ["House"],
+        CONF_STORAGE: ["Main Battery", "Spare"],
+    }
+
+
+def _rule(name: str, source: list[str] | None = None, target: list[str] | None = None) -> dict[str, object]:
+    return {
+        CONF_NAME: name,
+        **({CONF_SOURCE: source} if source else {}),
+        **({CONF_TARGET: target} if target else {}),
+        CONF_PRICE: as_constant_value(0.1),
+    }
+
+
+RULES = [
+    _rule("Battery charge cost", target=["Battery"]),
+    _rule("Battery discharge cost", source=["Battery"]),
+    _rule("Battery and solar out", source=["Battery", "Solar"]),
+    _rule("Solar into battery", source=["Solar"], target=["Battery"]),
+    _rule("House consumption cost", target=["House"]),
+    _rule("Out of house", source=["House"]),
+]
+
+
+def _add_referencing_elements(hass: HomeAssistant, hub_entry: MockConfigEntry) -> list[ConfigSubentry]:
+    """Add a load, battery, and solar, and the buffer, connection, and policy that name them."""
+    add_participant(hass, hub_entry, "House", ElementType.LOAD)
+    add_participant(hass, hub_entry, "Battery", ElementType.BATTERY)
+    add_participant(hass, hub_entry, "Solar", ElementType.SOLAR)
+    return [
+        _add_buffer(hass, hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]}),
+        _add_subentry(
+            hass,
+            hub_entry,
+            {
+                CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+                CONF_NAME: "Link",
+                SECTION_ENDPOINTS: {
+                    CONF_SOURCE: as_connection_target("Battery"),
+                    CONF_TARGET: as_connection_target("House"),
+                },
+            },
+        ),
+        _add_subentry(
+            hass, hub_entry, {CONF_ELEMENT_TYPE: ElementType.POLICY, CONF_NAME: "Policies", CONF_RULES: RULES}
+        ),
+    ]
+
+
+def _element(hub_entry: ConfigEntry, name: str) -> ConfigSubentry:
+    return next(subentry for subentry in hub_entry.subentries.values() if subentry.title == name)
+
+
+@pytest.mark.parametrize(
+    ("deleted", "removed_rules", "missing"),
+    [
+        pytest.param(
+            "Battery",
+            {"Battery charge cost", "Battery discharge cost"},
+            {"Backup": ["Battery"], "Link": ["Battery"], "Policies": ["Battery"]},
+            id="battery",
+        ),
+        pytest.param(
+            "House",
+            {"House consumption cost"},
+            {"Backup": ["House"], "Link": ["House"], "Policies": ["House"]},
+            id="load",
+        ),
+        pytest.param("Solar", set(), {"Policies": ["Solar"]}, id="element_without_surfaced_prices"),
+    ],
+)
+async def test_deleting_an_element_removes_only_its_own_pricing_rules(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+    deleted: str,
+    removed_rules: set[str],
+    missing: dict[str, list[str]],
+) -> None:
+    """A deleted element takes the rules its form surfaces; everything else that names it stays and is reported."""
+    schedule_reload = Mock()
+    monkeypatch.setattr(hass.config_entries, "async_schedule_reload", schedule_reload)
+    mock_hub_entry.runtime_data = None
+    buffer, link, policy = _add_referencing_elements(hass, mock_hub_entry)
+    remove_deleted_elements_rules(hass, mock_hub_entry)
+    mock_hub_entry.add_update_listener(async_update_listener)
+
+    hass.config_entries.async_remove_subentry(mock_hub_entry, _element(mock_hub_entry, deleted).subentry_id)
+    await hass.async_block_till_done()
+
+    schedule_reload.assert_called_with(mock_hub_entry.entry_id)
+    assert mock_hub_entry.subentries[buffer.subentry_id].data == buffer.data
+    assert mock_hub_entry.subentries[link.subentry_id].data == link.data
+    assert mock_hub_entry.subentries[policy.subentry_id].data[CONF_RULES] == [
+        rule for rule in RULES if rule[CONF_NAME] not in removed_rules
+    ]
+    assert missing_element_references(mock_hub_entry) == missing
+
+
+def test_element_renamed_and_deleted_between_listener_runs_takes_its_rules(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """A rename made while no update listener runs is remembered, so a later deletion finds the renamed rules."""
+    *_, policy = _add_referencing_elements(hass, mock_hub_entry)
+    remove_deleted_elements_rules(hass, mock_hub_entry)
+
+    rename_element_references(hass, mock_hub_entry, "Battery", "Home Battery")
+    hass.config_entries.async_update_subentry(mock_hub_entry, _element(mock_hub_entry, "Battery"), title="Home Battery")
+    hass.config_entries.async_remove_subentry(mock_hub_entry, _element(mock_hub_entry, "Home Battery").subentry_id)
+    remove_deleted_elements_rules(hass, mock_hub_entry)
+
+    assert [rule[CONF_NAME] for rule in mock_hub_entry.subentries[policy.subentry_id].data[CONF_RULES]] == [
+        rule[CONF_NAME] for rule in RULES if rule[CONF_NAME] not in {"Battery charge cost", "Battery discharge cost"}
+    ]
+
+
+async def test_renaming_an_element_keeps_its_pricing_rules_under_the_new_name(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A rename is not a deletion, so the renamed element keeps its own rules."""
+    monkeypatch.setattr(hass.config_entries, "async_schedule_reload", Mock())
+    mock_hub_entry.runtime_data = None
+    *_, policy = _add_referencing_elements(hass, mock_hub_entry)
+    remove_deleted_elements_rules(hass, mock_hub_entry)
+    mock_hub_entry.add_update_listener(async_update_listener)
+
+    rename_element_references(hass, mock_hub_entry, "Battery", "Home Battery")
+    hass.config_entries.async_update_subentry(mock_hub_entry, _element(mock_hub_entry, "Battery"), title="Home Battery")
+    await hass.async_block_till_done()
+
+    assert (
+        mock_hub_entry.subentries[policy.subentry_id].data[CONF_RULES]
+        == map_element_references(
+            ElementType.POLICY, policy.data, lambda name: "Home Battery" if name == "Battery" else name
+        )[CONF_RULES]
+    )
+    assert len(mock_hub_entry.subentries[policy.subentry_id].data[CONF_RULES]) == len(RULES)
 
 
 async def test_removing_an_element_removes_its_entities(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
@@ -1284,3 +1403,111 @@ async def test_setup_succeeds_with_an_input_entity_disabled(hass: HomeAssistant)
 
     assert entry.state is ConfigEntryState.LOADED
     assert hass.states.get(load_forecast.entity_id) is None
+
+
+def _hub_missing_inverter(hass: HomeAssistant) -> MockConfigEntry:
+    """Return a hub whose load and connection name an "Inverter" it does not have."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            HUB_SECTION_COMMON: {CONF_NAME: "Home", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS)},
+            HUB_SECTION_ADVANCED: {},
+        },
+        version=1,
+        minor_version=MIGRATION_MINOR_VERSION,
+    )
+    entry.add_to_hass(hass)
+    elements: tuple[dict[str, object], ...] = (
+        {CONF_ELEMENT_TYPE: ElementType.JUNCTION, CONF_NAME: "Switchboard"},
+        {
+            CONF_ELEMENT_TYPE: ElementType.GRID,
+            CONF_NAME: "Grid",
+            CONF_CONNECTION: as_connection_target("Switchboard"),
+            SECTION_POWER_LIMITS: {
+                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
+                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+            },
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: as_constant_value(0.3),
+                CONF_PRICE_TARGET_SOURCE: as_constant_value(0.05),
+            },
+        },
+        {
+            CONF_ELEMENT_TYPE: ElementType.LOAD,
+            CONF_NAME: "Load",
+            CONF_CONNECTION: as_connection_target("Inverter"),
+            "curtailment": {},
+            "forecast": {"forecast": as_constant_value(1.0)},
+            SECTION_PRICING: {},
+        },
+        {
+            CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+            CONF_NAME: "Link",
+            SECTION_ENDPOINTS: {
+                CONF_SOURCE: as_connection_target("Inverter"),
+                CONF_TARGET: as_connection_target("Switchboard"),
+            },
+            SECTION_POWER_LIMITS: {},
+            SECTION_PRICING: {},
+            SECTION_EFFICIENCY: {},
+        },
+        {
+            CONF_ELEMENT_TYPE: ElementType.POLICY,
+            CONF_NAME: "Policies",
+            CONF_RULES: [
+                {
+                    CONF_NAME: "Load consumption cost",
+                    CONF_ENABLED: True,
+                    CONF_TARGET: ["Load"],
+                    CONF_PRICE: as_constant_value(-0.1),
+                }
+            ],
+        },
+    )
+    for data in elements:
+        _add_subentry(hass, entry, dict(data))
+    return entry
+
+
+async def test_setup_waits_for_missing_elements_and_recovers_once_they_are_added(hass: HomeAssistant) -> None:
+    """Elements naming a missing element stop setup with a repair issue until it is added again."""
+    entry = _hub_missing_inverter(hass)
+    issue_id = f"missing_element_references_{entry.entry_id}"
+
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert not er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_placeholders == {"references": "Link → Inverter\nLoad → Inverter"}
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"setup_failed_{entry.entry_id}") is None
+
+    _add_subentry(hass, entry, {CONF_ELEMENT_TYPE: ElementType.JUNCTION, CONF_NAME: "Inverter"})
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_element_deleted_while_setup_waits_takes_its_pricing_rules_at_the_next_attempt(
+    hass: HomeAssistant,
+) -> None:
+    """Setup removes the rules of an element deleted while no update listener was registered."""
+    entry = _hub_missing_inverter(hass)
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+
+    hass.config_entries.async_remove_subentry(entry, _element(entry, "Load").subentry_id)
+    assert not await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert _element(entry, "Policies").data[CONF_RULES] == []
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"missing_element_references_{entry.entry_id}")
+    assert issue is not None
+    assert issue.translation_placeholders == {"references": "Link → Inverter"}

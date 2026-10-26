@@ -66,6 +66,21 @@ def _endpoints_match(
     return rule_normalized == pattern_normalized
 
 
+def without_owned_rules(rules: Sequence[object], element_type: str, element_name: str) -> list[object]:
+    """Return the rules without those an element surfaces as pricing fields on its own form.
+
+    A rule is the element's own when it matches one of its type's surfaced
+    patterns exactly, so a rule naming it any other way is kept.
+    """
+    owned = {
+        find_surfaced_rule(rules, source=source, target=target)
+        for source, target in (
+            resolve_surfaced_endpoints(hint, element_name) for hint in get_surfaced_price_hints(element_type).values()
+        )
+    }
+    return [rule for index, rule in enumerate(rules) if index not in owned]
+
+
 def negated_price_paths(participants: Mapping[str, Mapping[str, object]]) -> dict[str, frozenset[tuple[str, ...]]]:
     """Map each policy element name to the rule price paths that surface a negated price.
 
@@ -105,4 +120,5 @@ __all__ = [
     "get_surfaced_price_hints",
     "negated_price_paths",
     "resolve_surfaced_endpoints",
+    "without_owned_rules",
 ]
