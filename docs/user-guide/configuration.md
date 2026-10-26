@@ -207,8 +207,9 @@ Changes trigger a new optimization.
 ### Removing elements and connections
 
 Use the three-dot menu on each entry to delete it.
-Deleting an element leaves every other element as it is, including the connections, buffers, and policy rules that name it.
-This means you can delete an element and add it again under the same name, and everything that named it works as before.
+Deleting an element also deletes the prices set on its own form, such as a battery's charge and discharge costs or a load's consumption cost.
+Everything else that names it stays as it is, including connections, buffers, and policy rules you wrote yourself.
+This means you can delete an element and add it again under the same name, and everything that named it works as before; only its own prices need setting again.
 
 !!! warning "Elements that name a deleted element"
 

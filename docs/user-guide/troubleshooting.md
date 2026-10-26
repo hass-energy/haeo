@@ -260,7 +260,7 @@ A repair issue titled "Elements refer to elements that do not exist" appears, an
 ### Solutions
 
 An element names another element that has been deleted, so HAEO cannot build your system.
-Deleting an element never changes the elements that name it, so nothing is lost.
+Deleting an element removes only the prices set on its own form, so everything else that named it is kept.
 The issue lists each affected element and the names it is missing.
 
 1. **Add the missing element again**: Use exactly the same name, and everything that named it works as before

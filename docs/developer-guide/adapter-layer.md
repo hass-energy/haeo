@@ -87,7 +87,10 @@ These are registered beside `ELEMENT_CONFIG_SCHEMAS` in [`core/schema/elements/_
     The element subentry flow uses it to rename an element everywhere it is named when the element is renamed.
     `referenced_element_names` runs the same walk with a resolver that records each name, so setup can find the elements an element names that do not exist.
 
-Deleting an element changes no other element, so recreating it under the same name restores everything that named it.
+Deleting an element removes only the policy rules it owns: those matching one of its type's `ELEMENT_SURFACED_PRICE_HINTS` exactly, as its form finds them.
+`without_owned_rules` in `core/schema/surfaced_policy.py` filters them out, and `remove_deleted_elements_rules` in `util/` applies it for each element deleted since the entry's config last changed.
+That helper remembers each entry's elements by subentry ID in `hass.data`, so a rename never counts as a deletion, and runs from the update listener and at the start of setup, so an element deleted while setup waits to retry is handled at the next attempt.
+Every other reference to a deleted element stays, so recreating it under the same name restores everything that named it.
 Until then, setup raises a repair issue listing each element and the missing names it holds, and retries without building the network.
 
 `FieldSchemaInfo` in `elements/input_fields.py` carries a field's value type and whether it is optional, read from the schema for the config flow.

@@ -56,7 +56,12 @@ from custom_components.haeo.repairs import (
 )
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
-from custom_components.haeo.util import missing_element_references, network_subentry
+from custom_components.haeo.util import (
+    forget_elements,
+    missing_element_references,
+    network_subentry,
+    remove_deleted_elements_rules,
+)
 
 from . import migrations as _migrations
 
@@ -212,10 +217,13 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     in the listener task. Required subentries are ensured during setup, so
     no need to check here.
 
-    Deleting an element leaves every element that names it unchanged, so
-    recreating it under the same name restores the network. Setup reports
-    the missing element until then.
+    Deleting an element removes the policy rules it surfaced on its own form.
+    Every other element that names it is left unchanged, so recreating it
+    under the same name restores the network, and setup reports the missing
+    element until then.
     """
+    remove_deleted_elements_rules(hass, entry)
+
     # Check if this is a value-only update from an input entity
     runtime_data = entry.runtime_data
     if runtime_data and runtime_data.value_update_in_progress:
@@ -349,11 +357,16 @@ async def _async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> Non
     # Import here to avoid circular imports at module level
     from custom_components.haeo.entities.device import get_or_create_network_device  # noqa: PLC0415
 
+    # Elements deleted while no update listener was registered, such as while
+    # setup waited to retry, take their own policy rules with them now. This
+    # runs first so the elements are remembered even when setup fails.
+    remove_deleted_elements_rules(hass, entry)
+
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
-    # Deleting an element leaves the elements that name it unchanged, so the
-    # user can recreate it; until then there is no network to optimize
+    # Every other reference to a deleted element stays, so the user can
+    # recreate it; until then there is no network to optimize
     missing = missing_element_references(entry)
     sync_missing_element_references_issue(hass, entry.entry_id, missing)
     if missing:
@@ -437,8 +450,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> boo
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
-    """Dismiss the repair issues raised for a removed config entry."""
+    """Dismiss the repair issues raised for a removed config entry and forget its elements."""
     await async_dismiss_entry_issues(hass, entry.entry_id)
+    forget_elements(hass, entry.entry_id)
 
 
 async def async_remove_config_entry_device(

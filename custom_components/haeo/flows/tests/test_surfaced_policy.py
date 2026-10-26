@@ -12,6 +12,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
+from custom_components.haeo import async_update_listener
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
@@ -74,6 +75,7 @@ from custom_components.haeo.flows.surfaced_policy import (
     price_to_form_value,
     save_surfaced_rule,
 )
+from custom_components.haeo.util import remove_deleted_elements_rules
 
 # --- Helper functions ---
 
@@ -467,6 +469,61 @@ async def test_battery_rename_moves_surfaced_rules_to_new_name(
     assert [(rule.get("source"), rule.get("target"), rule["price"]) for rule in rules] == [
         (None, ["Renamed Battery"], as_constant_value(0.07)),
         (["Renamed Battery"], None, as_constant_value(0.02)),
+    ]
+
+
+async def test_deleted_battery_takes_its_rules_so_a_recreated_one_starts_without_prices(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Deleting a battery removes its surfaced rules, so one recreated under its name finds no old prices."""
+    monkeypatch.setattr(hass.config_entries, "async_schedule_reload", Mock())
+    hub_entry.runtime_data = None
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    user_input = _base_battery_input()
+    user_input[CONF_CHARGE_COST] = 0.05
+    user_input[CONF_DISCHARGE_COST] = 0.02
+
+    async def create_battery() -> ConfigSubentry:
+        flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+        flow.async_create_entry = Mock()
+        await flow.async_step_user(user_input=_wrap_battery_input(user_input))
+        battery = ConfigSubentry(
+            data=MappingProxyType(flow.async_create_entry.call_args.kwargs["data"]),
+            subentry_type=str(BATTERY_ELEMENT_TYPE),
+            title="Test Battery",
+            unique_id=None,
+        )
+        hass.config_entries.async_add_subentry(hub_entry, battery)
+        return battery
+
+    battery = await create_battery()
+    remove_deleted_elements_rules(hass, hub_entry)
+    hub_entry.add_update_listener(async_update_listener)
+
+    hass.config_entries.async_remove_subentry(hub_entry, battery.subentry_id)
+    await hass.async_block_till_done()
+
+    assert _get_rules(hub_entry) == []
+    assert (
+        build_surfaced_defaults(
+            hub_entry,
+            "Test Battery",
+            BATTERY_SURFACED_PRICE_HINTS,
+            get_surfaced_input_fields(BATTERY_ELEMENT_TYPE),
+        )
+        == {}
+    )
+
+    user_input[CONF_CHARGE_COST] = 0.07
+    await create_battery()
+    await hass.async_block_till_done()
+
+    rules = sorted(_get_rules(hub_entry), key=lambda rule: rule["name"])
+    assert [(rule.get("source"), rule.get("target"), rule["price"]) for rule in rules] == [
+        (None, ["Test Battery"], as_constant_value(0.07)),
+        (["Test Battery"], None, as_constant_value(0.02)),
     ]
 
 
