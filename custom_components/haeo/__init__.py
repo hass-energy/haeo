@@ -392,8 +392,6 @@ async def _async_retry_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     update listener defers its reload, so every one of those commits lands first.
     """
     _remove_retry_listener(hass, entry)
-    if not _element_flow_in_progress(hass, entry):
-        prune_element_references(hass, entry)
     hass.loop.call_soon(hass.config_entries.async_schedule_reload, entry.entry_id)
 
 
