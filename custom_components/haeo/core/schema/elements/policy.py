@@ -90,29 +90,46 @@ def map_references(config: Mapping[str, object], resolve: Callable[[str], str]) 
     """Return the policy with each element its rules name replaced by what resolve returns for it.
 
     Renaming an element to a name other rules still hold can leave a side
-    naming an element twice, or two rules over the same elements. The name is
-    kept once and the later rule is dropped, as the policy flow allows neither.
+    naming an element twice, or a renamed rule over the same elements as
+    another rule, which the policy flow allows neither of. The name is kept
+    once, and the renamed rule replaces the other, keeping its own price.
+    Rules the rename does not change are otherwise left as they are.
     """
     rules = config[CONF_RULES]
-    kept: list[dict[str, object]] = []
-    patterns: set[tuple[frozenset[object], ...]] = set()
-    for rule in [rule for rule in rules if isinstance(rule, Mapping)] if isinstance(rules, list) else []:
-        mapped: dict[str, object] = {
-            **rule,
-            **{
-                key: list(dict.fromkeys(resolve(name) for name in named))
-                for key in (CONF_SOURCE, CONF_TARGET)
-                if isinstance(named := rule.get(key), list)
+    mapped = [
+        (
+            rule,
+            {
+                **rule,
+                **{
+                    key: list(dict.fromkeys(resolve(name) for name in named))
+                    for key in (CONF_SOURCE, CONF_TARGET)
+                    if isinstance(named := rule.get(key), list)
+                },
             },
-        }
-        pattern = tuple(
-            frozenset(side) if isinstance(side := mapped.get(key), list) else frozenset()
-            for key in (CONF_SOURCE, CONF_TARGET)
         )
-        if pattern not in patterns:
-            patterns.add(pattern)
-            kept.append(mapped)
+        for rule in (rules if isinstance(rules, list) else [])
+        if isinstance(rule, Mapping)
+    ]
+    renamed = {_rule_pattern(new) for old, new in mapped if new != old}
+    kept: list[Mapping[str, object]] = []
+    seen: set[tuple[frozenset[object], ...]] = set()
+    for old, new in mapped:
+        pattern = _rule_pattern(new)
+        if new == old and pattern not in renamed:
+            kept.append(new)
+        elif new != old and pattern not in seen:
+            seen.add(pattern)
+            kept.append(new)
     return {**config, CONF_RULES: kept}
+
+
+def _rule_pattern(rule: Mapping[str, object]) -> tuple[frozenset[object], ...]:
+    """Return the elements on each side of a rule, an empty set meaning any element."""
+    return tuple(
+        frozenset(side) if isinstance(side := rule.get(key), list) else frozenset()
+        for key in (CONF_SOURCE, CONF_TARGET)
+    )
 
 
 __all__ = [

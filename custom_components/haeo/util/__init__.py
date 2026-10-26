@@ -29,13 +29,22 @@ def network_subentry(entry: ConfigEntry) -> ConfigSubentry:
 
 
 def rename_element_references(hass: HomeAssistant, entry: ConfigEntry, old_name: str, new_name: str) -> None:
-    """Rename an element in the config of every element that names it."""
+    """Rename an element in the config of every element that names it, and in the elements remembered for the entry.
+
+    Only elements that name it are rewritten.
+    """
     for subentry in list(entry.subentries.values()):
-        mapped = map_element_references(
-            subentry.subentry_type, subentry.data, lambda name: new_name if name == old_name else name
-        )
-        if mapped != subentry.data:
+        if old_name in referenced_element_names(subentry.subentry_type, subentry.data):
+            mapped = map_element_references(
+                subentry.subentry_type, subentry.data, lambda name: new_name if name == old_name else name
+            )
             hass.config_entries.async_update_subentry(entry, subentry, data=mapped)
+    # The element may be deleted before the update listener next runs, such as
+    # while setup waits to retry, and must then be found under its new name
+    known = hass.data.get(KNOWN_ELEMENTS, {}).get(entry.entry_id, {})
+    for subentry_id, (element_type, name) in known.items():
+        if name == old_name:
+            known[subentry_id] = (element_type, new_name)
 
 
 # The type and name of each element of an entry, by entry ID and then subentry ID,

@@ -104,7 +104,27 @@ def test_map_element_references_renames_every_reference(
                     {"name": "both out", "source": ["New"], "price": 0.2},
                 ],
             },
-            id="policy_keeps_the_first_rule_over_the_same_elements",
+            id="policy_renamed_rule_replaces_the_stale_one",
+        ),
+        pytest.param(
+            ElementType.POLICY,
+            {
+                "name": "Policies",
+                "rules": [
+                    {"name": "first", "source": ["Grid"], "price": 0.1},
+                    {"name": "second", "source": ["Grid"], "price": 0.2},
+                    {"name": "renamed", "source": ["Old"], "price": 0.3},
+                ],
+            },
+            {
+                "name": "Policies",
+                "rules": [
+                    {"name": "first", "source": ["Grid"], "price": 0.1},
+                    {"name": "second", "source": ["Grid"], "price": 0.2},
+                    {"name": "renamed", "source": ["New"], "price": 0.3},
+                ],
+            },
+            id="policy_leaves_rules_the_rename_does_not_touch",
         ),
     ],
 )

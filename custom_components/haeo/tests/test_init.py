@@ -1261,6 +1261,23 @@ async def test_deleting_an_element_removes_only_its_own_pricing_rules(
     assert missing_element_references(mock_hub_entry) == missing
 
 
+def test_element_renamed_and_deleted_between_listener_runs_takes_its_rules(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """A rename made while no update listener runs is remembered, so a later deletion finds the renamed rules."""
+    *_, policy = _add_referencing_elements(hass, mock_hub_entry)
+    remove_deleted_elements_rules(hass, mock_hub_entry)
+
+    rename_element_references(hass, mock_hub_entry, "Battery", "Home Battery")
+    hass.config_entries.async_update_subentry(mock_hub_entry, _element(mock_hub_entry, "Battery"), title="Home Battery")
+    hass.config_entries.async_remove_subentry(mock_hub_entry, _element(mock_hub_entry, "Home Battery").subentry_id)
+    remove_deleted_elements_rules(hass, mock_hub_entry)
+
+    assert [rule[CONF_NAME] for rule in mock_hub_entry.subentries[policy.subentry_id].data[CONF_RULES]] == [
+        rule[CONF_NAME] for rule in RULES if rule[CONF_NAME] not in {"Battery charge cost", "Battery discharge cost"}
+    ]
+
+
 async def test_renaming_an_element_keeps_its_pricing_rules_under_the_new_name(
     hass: HomeAssistant, mock_hub_entry: MockConfigEntry, monkeypatch: pytest.MonkeyPatch
 ) -> None:
