@@ -5,8 +5,7 @@ batteries, for a group of loads and generation over a window of time, measured
 from a level of the batteries' charge.
 """
 
-from collections.abc import Mapping, Sequence
-from collections.abc import Set as AbstractSet
+from collections.abc import Callable, Mapping
 from typing import Annotated, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
@@ -131,20 +130,18 @@ class BufferConfigData(TypedDict):
     pricing: BufferPricingData
 
 
-def prune_references(config: Mapping[str, object], element_names: AbstractSet[str]) -> dict[str, object] | None:
-    """Return the buffer without participants outside element_names, or None when no battery is left.
+def map_references(config: Mapping[str, object], resolve: Callable[[str], str]) -> dict[str, object]:
+    """Return the buffer with each participant replaced by what resolve returns for it.
 
-    A buffer with no batteries holds nothing, so it is removed rather than kept empty.
+    A participant renamed to a name its list already holds is listed once.
     """
     participants = config[SECTION_PARTICIPANTS]
-    pruned = {
-        role: [name for name in names if name in element_names]
+    mapped = {
+        role: list(dict.fromkeys(resolve(name) for name in names))
         for role, names in (participants.items() if isinstance(participants, Mapping) else ())
-        if isinstance(names, Sequence)
+        if isinstance(names, list)
     }
-    if not pruned.get(CONF_STORAGE):
-        return None
-    return {**config, SECTION_PARTICIPANTS: pruned}
+    return {**config, SECTION_PARTICIPANTS: mapped}
 
 
 __all__ = [
@@ -172,5 +169,5 @@ __all__ = [
     "ParticipantsConfig",
     "RequirementConfig",
     "RequirementData",
-    "prune_references",
+    "map_references",
 ]

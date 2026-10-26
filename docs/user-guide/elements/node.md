@@ -96,8 +96,8 @@ Then add a connection from "Generator" to your switchboard with a maximum power 
 
 !!! warning "Deleting nodes"
 
-    If you delete a node element, you must update all connections that reference it.
-    Connections cannot have endpoints that don't exist.
+    Deleting a node leaves the connections and elements connected to it unchanged, and HAEO cannot plan until they connect to elements that exist.
+    Add the node again with the same name to restore them, or reconfigure each of them to connect elsewhere.
 
 ### Input entities
 

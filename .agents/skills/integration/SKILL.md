@@ -103,10 +103,11 @@ Add any key that holds a password, token, or sensitive coordinate there.
 `async_setup_entry()` in [`__init__.py`](../../../custom_components/haeo/__init__.py) stores a `HaeoRuntimeData` on `entry.runtime_data`, holding the horizon manager, the input stores in `input_stores`, the auto-optimize switch, and the coordinator.
 Setup runs in this order:
 
-1. Create the horizon manager and the input stores, and start the loaders that keep the stores loaded.
-2. Forward the input platforms, which only display the stores, and wait for every input store to settle, raising `ConfigEntryNotReady` while inputs are unavailable.
-3. Initialize the coordinator and run the first optimization with `async_refresh()`, so a failed optimization does not retry setup.
-4. Forward the output platforms.
+1. Remove the pricing rules of elements deleted since the config last changed, create the required subentries, then check that every element names only elements that exist, raising `ConfigEntryNotReady` with a `missing_element_references` repair issue otherwise.
+2. Create the horizon manager and the input stores, and start the loaders that keep the stores loaded.
+3. Forward the input platforms, which only display the stores, and wait for every input store to settle, raising `ConfigEntryNotReady` while inputs are unavailable.
+4. Initialize the coordinator and run the first optimization with `async_refresh()`, so a failed optimization does not retry setup.
+5. Forward the output platforms.
 
 Register every cleanup with `entry.async_on_unload()` during setup.
 `async_unload_entry()` then only unloads the platforms, clears `entry.runtime_data` if they unloaded, and returns that result.

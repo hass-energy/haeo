@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 from unittest.mock import Mock
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
@@ -12,7 +12,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
-from custom_components.haeo import prune_element_references
+from custom_components.haeo import async_update_listener
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
@@ -75,6 +75,7 @@ from custom_components.haeo.flows.surfaced_policy import (
     price_to_form_value,
     save_surfaced_rule,
 )
+from custom_components.haeo.util import remove_deleted_elements_rules
 
 # --- Helper functions ---
 
@@ -435,6 +436,95 @@ async def test_battery_flow_creates_surfaced_rules(
     assert discharge_rule.get("source") == ["Test Battery"]
     assert "target" not in discharge_rule
     assert discharge_rule["price"] == as_constant_value(0.02)
+
+
+async def test_battery_rename_moves_surfaced_rules_to_new_name(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Renaming a battery while changing its charge cost updates its rule rather than adding one."""
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    user_input = _base_battery_input()
+    user_input[CONF_CHARGE_COST] = 0.05
+    user_input[CONF_DISCHARGE_COST] = 0.02
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.async_create_entry = Mock()
+    await flow.async_step_user(user_input=_wrap_battery_input(user_input))
+    battery = ConfigSubentry(
+        data=MappingProxyType(flow.async_create_entry.call_args.kwargs["data"]),
+        subentry_type=str(BATTERY_ELEMENT_TYPE),
+        title="Test Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, battery)
+
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.context = {"source": SOURCE_RECONFIGURE, "subentry_id": battery.subentry_id}
+    user_input[CONF_NAME] = "Renamed Battery"
+    user_input[CONF_CHARGE_COST] = 0.07
+    result = await flow.async_step_reconfigure(user_input=_wrap_battery_input(user_input))
+
+    assert result.get("type") == FlowResultType.ABORT
+    rules = sorted(_get_rules(hub_entry), key=lambda rule: rule["name"])
+    assert [(rule.get("source"), rule.get("target"), rule["price"]) for rule in rules] == [
+        (None, ["Renamed Battery"], as_constant_value(0.07)),
+        (["Renamed Battery"], None, as_constant_value(0.02)),
+    ]
+
+
+async def test_deleted_battery_takes_its_rules_so_a_recreated_one_starts_without_prices(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Deleting a battery removes its surfaced rules, so one recreated under its name finds no old prices."""
+    monkeypatch.setattr(hass.config_entries, "async_schedule_reload", Mock())
+    hub_entry.runtime_data = None
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    user_input = _base_battery_input()
+    user_input[CONF_CHARGE_COST] = 0.05
+    user_input[CONF_DISCHARGE_COST] = 0.02
+
+    async def create_battery() -> ConfigSubentry:
+        flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+        flow.async_create_entry = Mock()
+        await flow.async_step_user(user_input=_wrap_battery_input(user_input))
+        battery = ConfigSubentry(
+            data=MappingProxyType(flow.async_create_entry.call_args.kwargs["data"]),
+            subentry_type=str(BATTERY_ELEMENT_TYPE),
+            title="Test Battery",
+            unique_id=None,
+        )
+        hass.config_entries.async_add_subentry(hub_entry, battery)
+        return battery
+
+    battery = await create_battery()
+    remove_deleted_elements_rules(hass, hub_entry)
+    hub_entry.add_update_listener(async_update_listener)
+
+    hass.config_entries.async_remove_subentry(hub_entry, battery.subentry_id)
+    await hass.async_block_till_done()
+
+    assert _get_rules(hub_entry) == []
+    assert (
+        build_surfaced_defaults(
+            hub_entry,
+            "Test Battery",
+            BATTERY_SURFACED_PRICE_HINTS,
+            get_surfaced_input_fields(BATTERY_ELEMENT_TYPE),
+        )
+        == {}
+    )
+
+    user_input[CONF_CHARGE_COST] = 0.07
+    await create_battery()
+    await hass.async_block_till_done()
+
+    rules = sorted(_get_rules(hub_entry), key=lambda rule: rule["name"])
+    assert [(rule.get("source"), rule.get("target"), rule["price"]) for rule in rules] == [
+        (None, ["Test Battery"], as_constant_value(0.07)),
+        (["Test Battery"], None, as_constant_value(0.02)),
+    ]
 
 
 async def test_battery_flow_new_element_always_applies_defaults(
@@ -810,112 +900,6 @@ async def test_policy_flow_allows_unique_pattern(
         }
     )
     assert result.get("type") == FlowResultType.CREATE_ENTRY
-
-
-# --- Cleanup tests ---
-
-
-def test_cleanup_removes_orphaned_rules(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Cleanup removes rules for elements that no longer exist."""
-    add_participant(hass, hub_entry, "Battery1", str(BATTERY_ELEMENT_TYPE))
-    _add_policy_subentry(
-        hass,
-        hub_entry,
-        [
-            {"name": "charge", "target": ["Battery1"], "price": as_constant_value(0.1)},
-            {"name": "discharge", "source": ["Battery1"], "price": as_constant_value(0.2)},
-            {"name": "load charge", "target": ["DeletedLoad"], "price": as_constant_value(0.3)},
-            {"name": "deleted discharge", "source": ["DeletedBattery"], "price": as_constant_value(0.4)},
-        ],
-    )
-
-    prune_element_references(hass, hub_entry)
-
-    rules = _get_rules(hub_entry)
-    assert len(rules) == 2
-    names = {r["name"] for r in rules}
-    assert "charge" in names
-    assert "discharge" in names
-
-
-def test_cleanup_strips_deleted_from_multi_element_rules(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Cleanup strips deleted names from multi-element source/target lists."""
-    add_participant(hass, hub_entry, "A", str(BATTERY_ELEMENT_TYPE))
-    add_participant(hass, hub_entry, "C", str(LOAD_ELEMENT_TYPE))
-    _add_policy_subentry(
-        hass,
-        hub_entry,
-        [
-            {"name": "multi", "source": ["A", "B"], "target": ["C"], "price": as_constant_value(0.5)},
-        ],
-    )
-
-    prune_element_references(hass, hub_entry)
-
-    rules = _get_rules(hub_entry)
-    assert len(rules) == 1
-    assert rules[0].get("source") == ["A"]
-    assert rules[0].get("target") == ["C"]
-
-
-def test_cleanup_removes_rule_when_either_side_empty(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Cleanup removes rules where source or target had elements but became empty."""
-    add_participant(hass, hub_entry, "Alive", str(BATTERY_ELEMENT_TYPE))
-    _add_policy_subentry(
-        hass,
-        hub_entry,
-        [
-            {"name": "source gone", "source": ["Gone"], "target": ["Alive"], "price": as_constant_value(0.1)},
-            {"name": "target gone", "source": ["Alive"], "target": ["Gone"], "price": as_constant_value(0.2)},
-            {"name": "both gone", "source": ["Gone1"], "target": ["Gone2"], "price": as_constant_value(0.3)},
-        ],
-    )
-
-    prune_element_references(hass, hub_entry)
-
-    rules = _get_rules(hub_entry)
-    assert len(rules) == 0
-
-
-def test_cleanup_noop_when_no_policy(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Cleanup does nothing when no policy subentry exists."""
-    prune_element_references(hass, hub_entry)
-    assert find_policy_subentry(hub_entry) is None
-
-
-def test_cleanup_deduplicates_rules_after_stripping(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Cleanup removes duplicate rules that arise from stripping deleted elements."""
-    add_participant(hass, hub_entry, "A", str(BATTERY_ELEMENT_TYPE))
-    add_participant(hass, hub_entry, "C", str(LOAD_ELEMENT_TYPE))
-    _add_policy_subentry(
-        hass,
-        hub_entry,
-        [
-            {"name": "first", "source": ["A"], "target": ["C"], "price": as_constant_value(0.1)},
-            {"name": "second", "source": ["A", "B"], "target": ["C"], "price": as_constant_value(0.2)},
-        ],
-    )
-
-    prune_element_references(hass, hub_entry)
-
-    rules = _get_rules(hub_entry)
-    assert len(rules) == 1
-    assert rules[0]["name"] == "first"
 
 
 def test_build_surfaced_schema_entries_includes_compatible_price_entities(

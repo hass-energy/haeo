@@ -5,8 +5,7 @@ When configured, its rules are compiled into PolicyPricing model elements
 that apply costs to tagged power flows on connection min-cuts.
 """
 
-from collections.abc import Mapping, Sequence
-from collections.abc import Set as AbstractSet
+from collections.abc import Callable, Mapping
 from typing import Annotated, Final, Literal, NotRequired, TypedDict, TypeGuard
 
 import numpy as np
@@ -87,32 +86,50 @@ def is_policy_config_data(config: object) -> TypeGuard[PolicyConfigData]:
     return isinstance(config, dict) and config.get("element_type") == ELEMENT_TYPE
 
 
-def prune_references(config: Mapping[str, object], element_names: AbstractSet[str]) -> dict[str, object]:
-    """Return the policy without references to elements outside element_names.
+def map_references(config: Mapping[str, object], resolve: Callable[[str], str]) -> dict[str, object]:
+    """Return the policy with each element its rules name replaced by what resolve returns for it.
 
-    Deleted names are stripped from each rule's source and target lists. A rule
-    whose named side loses all its elements is dropped, and a rule left with the
-    same source and target as an earlier rule is dropped as a duplicate.
+    Renaming an element to a name other rules still hold can leave a side
+    naming an element twice, or a renamed rule over the same elements as
+    another rule, which the policy flow allows neither of. The name is kept
+    once, and the renamed rule replaces the other, keeping its own price.
+    Rules the rename does not change are otherwise left as they are.
     """
     rules = config[CONF_RULES]
-    kept: list[dict[str, object]] = []
-    seen_patterns: set[tuple[tuple[str, ...] | None, tuple[str, ...] | None]] = set()
-    for rule in [rule for rule in rules if isinstance(rule, Mapping)] if isinstance(rules, Sequence) else []:
-        pruned_rule: dict[str, object] = dict(rule)
-        endpoints: list[tuple[str, ...] | None] = []
-        for key in (CONF_SOURCE, CONF_TARGET):
-            named = rule.get(key)
-            if isinstance(named, Sequence) and named:
-                remaining = [name for name in named if name in element_names]
-                pruned_rule[key] = remaining
-                endpoints.append(tuple(sorted(remaining)))
-            else:
-                endpoints.append(None)
-        source, target = endpoints
-        if source != () and target != () and (source, target) not in seen_patterns:
-            seen_patterns.add((source, target))
-            kept.append(pruned_rule)
+    mapped = [
+        (
+            rule,
+            {
+                **rule,
+                **{
+                    key: list(dict.fromkeys(resolve(name) for name in named))
+                    for key in (CONF_SOURCE, CONF_TARGET)
+                    if isinstance(named := rule.get(key), list)
+                },
+            },
+        )
+        for rule in (rules if isinstance(rules, list) else [])
+        if isinstance(rule, Mapping)
+    ]
+    renamed = {_rule_pattern(new) for old, new in mapped if new != old}
+    kept: list[Mapping[str, object]] = []
+    seen: set[tuple[frozenset[object], ...]] = set()
+    for old, new in mapped:
+        pattern = _rule_pattern(new)
+        if new == old and pattern not in renamed:
+            kept.append(new)
+        elif new != old and pattern not in seen:
+            seen.add(pattern)
+            kept.append(new)
     return {**config, CONF_RULES: kept}
+
+
+def _rule_pattern(rule: Mapping[str, object]) -> tuple[frozenset[object], ...]:
+    """Return the elements on each side of a rule, an empty set meaning any element."""
+    return tuple(
+        frozenset(side) if isinstance(side := rule.get(key), list) else frozenset()
+        for key in (CONF_SOURCE, CONF_TARGET)
+    )
 
 
 __all__ = [
@@ -129,5 +146,5 @@ __all__ = [
     "PolicyRuleConfig",
     "PolicyRuleData",
     "is_policy_config_data",
-    "prune_references",
+    "map_references",
 ]

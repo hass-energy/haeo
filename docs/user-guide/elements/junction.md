@@ -106,8 +106,8 @@ Then connect elements to "Sub Panel" via connections.
 
 !!! warning "Deleting junctions"
 
-    If you delete a junction, you must update all connections that reference it.
-    Connections cannot have endpoints that don't exist.
+    Deleting a junction leaves the connections and elements connected to it unchanged, and HAEO cannot plan until they connect to elements that exist.
+    Add the junction again with the same name to restore them, or reconfigure each of them to connect elsewhere.
 
 ## Sensors created
 

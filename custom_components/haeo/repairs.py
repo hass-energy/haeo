@@ -154,6 +154,11 @@ def dismiss_disconnected_network_issue(
     _LOGGER.debug("Dismissed disconnected network issue for entry %s", entry_id)
 
 
+def element_names_summary(names_by_element: Mapping[str, Sequence[str]], separator: str = "\n") -> str:
+    """Return an "element → names" part per element, sorted by element and joined by separator."""
+    return separator.join(f"{element} → {', '.join(names)}" for element, names in sorted(names_by_element.items()))
+
+
 def create_invalid_connection_endpoints_issue(
     hass: HomeAssistant,
     entry_id: str,
@@ -161,9 +166,7 @@ def create_invalid_connection_endpoints_issue(
 ) -> None:
     """Create a repair issue for elements connected directly to closed endpoints."""
 
-    connection_summary = "\n".join(
-        f"{element} → {', '.join(endpoints)}" for element, endpoints in sorted(invalid_endpoints.items())
-    )
+    connection_summary = element_names_summary(invalid_endpoints)
     issue_id = f"invalid_connection_endpoints_{entry_id}"
 
     async_create_issue(
@@ -180,7 +183,7 @@ def create_invalid_connection_endpoints_issue(
     _LOGGER.warning(
         "Created repair issue for invalid connection endpoints on entry %s: %s",
         entry_id,
-        connection_summary.replace("\n", "; "),
+        element_names_summary(invalid_endpoints, "; "),
     )
 
 
@@ -193,6 +196,29 @@ def dismiss_invalid_connection_endpoints_issue(
     issue_id = f"invalid_connection_endpoints_{entry_id}"
     async_delete_issue(hass, DOMAIN, issue_id)
     _LOGGER.debug("Dismissed invalid connection endpoints issue for entry %s", entry_id)
+
+
+def sync_missing_element_references_issue(
+    hass: HomeAssistant, entry_id: str, missing: Mapping[str, Sequence[str]]
+) -> None:
+    """Raise a repair issue for elements that refer to elements that do not exist, and dismiss it otherwise.
+
+    Keys are element names and values are the names each refers to that no element has.
+    """
+    issue_id = f"missing_element_references_{entry_id}"
+    if not missing:
+        async_delete_issue(hass, DOMAIN, issue_id)
+        return
+    async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        is_persistent=True,
+        severity=IssueSeverity.ERROR,
+        translation_key="missing_element_references",
+        translation_placeholders={"references": element_names_summary(missing)},
+    )
 
 
 def create_setup_failed_issue(hass: HomeAssistant, entry_id: str, error: str) -> None:
