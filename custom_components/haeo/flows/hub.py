@@ -132,10 +132,10 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             errors = validate_hub_settings(self.hass, entry, user_input)
             if not errors:
                 data = hub_settings_data(entry, user_input)
-                # A loaded hub's update listener reloads it when its data changes, so
-                # reloading here as well would reload it twice. A hub that has not set
-                # up has no listener, so it is reloaded here to apply the settings.
-                if entry.state is ConfigEntryState.LOADED:
+                # A loaded hub's update listener reloads it when its data changes, and a hub
+                # waiting to retry setup has a listener that retries it, so reloading here as
+                # well would reload it twice. Any other hub has no listener, so it is reloaded here.
+                if entry.state in (ConfigEntryState.LOADED, ConfigEntryState.SETUP_RETRY):
                     return self.async_update_and_abort(entry, data=data)
                 return self.async_update_reload_and_abort(entry, data=data)
 

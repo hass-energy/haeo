@@ -249,16 +249,20 @@ async def test_reconfigure_flow_finishes_with_reconfigure_successful(hass: HomeA
 
 
 @pytest.mark.parametrize(
-    ("initial_horizon", "initial_state"),
+    ("initial_horizon", "set_up", "initial_state"),
     [
-        pytest.param(as_horizon_preset_value(HORIZON_PRESET_2_DAYS), ConfigEntryState.LOADED, id="loaded"),
-        pytest.param(as_entity_value([HORIZON_ENTITY_ID]), ConfigEntryState.SETUP_RETRY, id="setup_failed"),
+        pytest.param(as_horizon_preset_value(HORIZON_PRESET_2_DAYS), True, ConfigEntryState.LOADED, id="loaded"),
+        pytest.param(as_entity_value([HORIZON_ENTITY_ID]), True, ConfigEntryState.SETUP_RETRY, id="setup_failed"),
+        pytest.param(
+            as_horizon_preset_value(HORIZON_PRESET_2_DAYS), False, ConfigEntryState.NOT_LOADED, id="not_loaded"
+        ),
     ],
 )
 async def test_reconfigure_reloads_the_hub_once_with_the_new_settings(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     initial_horizon: HorizonValue,
+    set_up: bool,
     initial_state: ConfigEntryState,
 ) -> None:
     """Reconfiguring reloads the hub exactly once, whether or not it had set up, and the new horizon is live."""
@@ -272,8 +276,9 @@ async def test_reconfigure_reloads_the_hub_once_with_the_new_settings(
         },
     )
     entry.add_to_hass(hass)
-    await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
+    if set_up:
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
     assert entry.state is initial_state
 
     reloads: list[str] = []

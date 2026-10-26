@@ -15,12 +15,13 @@ from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry, ConfigSubentryData
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.setup import async_when_setup
+from homeassistant.util.hass_dict import HassKey
 
 from custom_components.haeo.const import (
     DOMAIN,
@@ -90,6 +91,9 @@ OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 # Timeout in seconds for waiting for input entities to be ready
 INPUT_ENTITY_READY_TIMEOUT = 5
+
+# Removers of the listeners that retry a failed setup when its config changes, by entry ID
+RETRY_LISTENERS: HassKey[dict[str, CALLBACK_TYPE]] = HassKey(f"{DOMAIN}_retry_listeners")
 
 # Directory holding the built Lovelace card bundles
 CARD_STATIC_DIR = Path(__file__).parent / STATIC_CARD_STATIC_DIR
@@ -320,11 +324,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     Setup never fails permanently: an unexpected error raises a repair issue and
     ConfigEntryNotReady, so Home Assistant retries until the conditions it hit settle.
     """
+    _remove_retry_listener(hass, entry)
     try:
         await _async_setup_entry(hass, entry)
     except ConfigEntryNotReady:
         # Setup now waits on something it reports itself, so an earlier unexpected error is no longer the cause
         dismiss_setup_failed_issue(hass, entry.entry_id)
+        _add_retry_listener(hass, entry)
         raise
     except Exception as err:
         error = f"{type(err).__name__}: {err}"
@@ -334,6 +340,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         else:
             _LOGGER.exception("HAEO setup failed, Home Assistant will retry")
         create_setup_failed_issue(hass, entry.entry_id, error)
+        _add_retry_listener(hass, entry)
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="setup_failed",
@@ -341,6 +348,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         ) from err
     dismiss_setup_failed_issue(hass, entry.entry_id)
     return True
+
+
+def _add_retry_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
+    """Retry a failed setup as soon as its config changes.
+
+    The update listener is registered only once setup succeeds, and Home
+    Assistant removes everything a failed setup registered, so without this a
+    fix made while setup waits to retry waits for the retry timer instead.
+    This listener outlives the failed setup, and the next attempt removes it.
+    """
+    hass.data.setdefault(RETRY_LISTENERS, {})[entry.entry_id] = entry.add_update_listener(_async_retry_listener)
+
+
+def _remove_retry_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
+    """Remove the listener a failed setup left to retry on a config change, if there is one."""
+    if (remove := hass.data.get(RETRY_LISTENERS, {}).pop(entry.entry_id, None)) is not None:
+        remove()
+
+
+async def _async_retry_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
+    """Retry a failed setup once the config change that triggered this has landed.
+
+    The listener removes itself so the rest of a flow's commits in the same
+    step do not schedule further retries, and the retry is deferred, as the
+    update listener defers its reload, so every one of those commits lands first.
+    """
+    _remove_retry_listener(hass, entry)
+    hass.loop.call_soon(hass.config_entries.async_schedule_reload, entry.entry_id)
 
 
 async def _async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:

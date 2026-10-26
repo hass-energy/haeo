@@ -874,6 +874,39 @@ async def test_unexpected_setup_failure_retries_with_a_repair_issue(
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"setup_failed_{mock_hub_entry.entry_id}") is None
 
 
+async def test_config_change_retries_failed_setup_at_once(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A config change made while setup waits to retry retries it straight away, and only once."""
+    attempts: list[bool] = []
+
+    async def setup(_hass: HomeAssistant, _entry: ConfigEntry) -> None:
+        attempts.append(True)
+        if len(attempts) == 1:
+            msg = "Bus not found"
+            raise ValueError(msg)
+
+    monkeypatch.setattr("custom_components.haeo._async_setup_entry", setup)
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", AsyncMock(return_value=True))
+
+    assert not await hass.config_entries.async_setup(mock_hub_entry.entry_id)
+    assert mock_hub_entry.state is ConfigEntryState.SETUP_RETRY
+
+    add_participant(hass, mock_hub_entry, "Bus")
+    add_participant(hass, mock_hub_entry, "Other Bus")
+    await hass.async_block_till_done()
+
+    assert mock_hub_entry.state is ConfigEntryState.LOADED
+    assert len(attempts) == 2
+
+    # Once setup succeeds the retry listener is gone, so a later change does not retry setup again
+    add_participant(hass, mock_hub_entry, "Third Bus")
+    await hass.async_block_till_done()
+    assert len(attempts) == 2
+
+
 async def test_repeated_setup_failure_logs_once_and_clears_when_the_cause_changes(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
