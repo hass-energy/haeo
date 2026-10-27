@@ -44,8 +44,12 @@ def normalize_forecast_cycle(forecast_series: ForecastSeries, current_time: floa
     wraps = np.floor_divide(shifted, cover_seconds)
     forecast_idx = np.lexsort((periodic_forecast["timestamp"], -wraps, forecast_times))
 
+    # Where one cycle ends at the time the next starts, the end moves one ulp earlier
+    # so the forecast steps there, as forecasts encode steps everywhere else
+    output_times = forecast_times[forecast_idx]
+    steps = np.append(output_times[:-1] == output_times[1:], False)
     output_forecast = np.empty_like(periodic_forecast)
-    output_forecast["timestamp"] = forecast_times[forecast_idx]
+    output_forecast["timestamp"] = np.where(steps, np.nextafter(output_times, -np.inf), output_times)
     output_forecast["value"] = periodic_forecast["value"][forecast_idx]
 
     return output_forecast.tolist(), cover_seconds

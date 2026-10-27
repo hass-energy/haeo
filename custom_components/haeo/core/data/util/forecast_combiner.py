@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 
 from . import ForecastSeries, SensorPayload
-from .forecast_fuser import build_extended_block, fuse_to_boundaries, fuse_to_intervals, interpolate
+from .forecast_fuser import build_extended_block, fuse_to_boundaries, fuse_to_intervals
 
 
 def split_sensor_payloads(payloads: Mapping[str, SensorPayload]) -> tuple[float | None, list[ForecastSeries]]:
@@ -59,18 +59,14 @@ def _group(forecast_series: Sequence[ForecastSeries]) -> list[list[ForecastSerie
 
 
 def _repeat(forecast: ForecastSeries, start: float, end: float) -> ForecastSeries:
-    """Return a forecast repeating by time of day from start to end.
-
-    Where the repeat steps exactly at start or end, it starts at the later value
-    and ends at the earlier one.
-    """
+    """Return a forecast repeating by time of day from start to end."""
     block = build_extended_block(forecast, forecast[0][0], end)
     times, values = block["timestamp"], block["value"]
     inside = (times > start) & (times < end)
     return [
-        (start, float(interpolate(start, times, values))),
+        (start, float(np.interp(start, times, values))),
         *zip(times[inside].tolist(), values[inside].tolist(), strict=True),
-        (end, float(interpolate(end, times, values, from_left=True))),
+        (end, float(np.interp(end, times, values))),
     ]
 
 

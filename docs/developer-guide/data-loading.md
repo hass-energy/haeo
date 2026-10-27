@@ -362,6 +362,10 @@ A 6-hour forecast from 2pm-8pm repeats at the same times each day, not offset by
 
 This ensures realistic patterns: expensive electricity in the evening stays expensive in the evening on subsequent days.
 
+A forecast spanning whole days ends at the same time of day it starts, so each cycle's end meets the next cycle's start.
+Cycling moves that end one ulp earlier, the way `separate_duplicate_timestamps()` separates steps within a forecast, so the forecast steps there instead of ramping.
+The gap survives the cycle arithmetic at real timestamps, so fusion needs no special case for steps.
+
 ### Design rationale
 
 Cycling is necessary because users configure long optimization horizons (48-168 hours) but integrations provide shorter forecasts.

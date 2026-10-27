@@ -11,7 +11,9 @@ Tests cover:
 - Edge cases (empty forecasts, constant values, misaligned timestamps)
 
 Cycling behavior (forecast shorter than horizon) is tested in test_forecast_cycle.py.
-Tests use simple integer timestamps to avoid datetime complexity.
+Tests use simple integer timestamps to avoid datetime complexity, except where a forecast steps:
+a step moves its earlier point back one ulp, which only survives the cycle arithmetic at realistic
+epoch timestamps.
 """
 
 import itertools
@@ -21,6 +23,8 @@ import pytest
 
 from custom_components.haeo.core.data.util.forecast_cycle import normalize_forecast_cycle
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+
+_EPOCH = 1_700_000_000.0
 
 
 @pytest.mark.parametrize(
@@ -127,20 +131,20 @@ from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundar
         pytest.param(
             50.0,
             [
-                (0.0, 100.0),
-                (np.nextafter(1000.0, -np.inf), 100.0),
-                (1000.0, 200.0),
-                (np.nextafter(2000.0, -np.inf), 200.0),
+                (_EPOCH, 100.0),
+                (np.nextafter(_EPOCH + 1000.0, -np.inf), 100.0),
+                (_EPOCH + 1000.0, 200.0),
+                (np.nextafter(_EPOCH + 2000.0, -np.inf), 200.0),
             ],
-            [0, 500, 1000, 1500, 2000],
+            [_EPOCH + t for t in (0, 500, 1000, 1500, 2000)],
             # The step at 1000 ends the interval before it at 100 and starts the one after it at 200
             [50.0, 100.0, 200.0, 200.0],
             id="step_function_integration",
         ),
         pytest.param(
             None,
-            [(hour * 3600, float(hour)) for hour in range(25)],
-            [hour * 3600 for hour in (23, 24, 25)],
+            [(_EPOCH + hour * 3600, float(hour)) for hour in range(25)],
+            [_EPOCH + hour * 3600 for hour in (23, 24, 25)],
             # The whole-day forecast reaches 24 at the end of the day, then repeats from 0
             [23.5, 0.5],
             id="cycle_wrap_on_boundary",
@@ -232,15 +236,20 @@ def test_neither_forecast_nor_present_value_raises_error() -> None:
         ),
         pytest.param(
             None,
-            [(0.0, 100.0), (np.nextafter(1000.0, -np.inf), 100.0), (1000.0, 200.0), (2000.0, 200.0)],
-            [0, 500, 1000, 1500],
+            [
+                (_EPOCH, 100.0),
+                (np.nextafter(_EPOCH + 1000.0, -np.inf), 100.0),
+                (_EPOCH + 1000.0, 200.0),
+                (_EPOCH + 2000.0, 200.0),
+            ],
+            [_EPOCH + t for t in (0, 500, 1000, 1500)],
             [100.0, 100.0, 200.0, 200.0],
             id="step_on_boundary_samples_later_value",
         ),
         pytest.param(
             None,
-            [(hour * 3600, float(hour)) for hour in range(25)],
-            [hour * 3600 for hour in (23, 24, 25)],
+            [(_EPOCH + hour * 3600, float(hour)) for hour in range(25)],
+            [_EPOCH + hour * 3600 for hour in (23, 24, 25)],
             [23.0, 0.0, 1.0],
             id="cycle_wrap_on_boundary_samples_later_value",
         ),
@@ -280,11 +289,7 @@ def _reference_interval_averages(
     forecast_series: list[tuple[float, float]],
     horizon_times: list[float],
 ) -> list[float]:
-    """Average each interval with a trapezoid over its own boundaries and the block points strictly inside it.
-
-    An interval takes the value at its start from the right and at its end from the left, so a step
-    exactly on a boundary belongs to the interval on each side of it.
-    """
+    """Average each interval with a trapezoid over its own boundaries and the block points strictly inside it."""
     # The forecast repeats every cycle, from one cycle before the horizon to past its end
     block, cycle = normalize_forecast_cycle(forecast_series, horizon_times[0])
     repeats = range(-1, int(np.ceil((horizon_times[-1] - horizon_times[0]) / cycle)) + 2)
@@ -293,20 +298,14 @@ def _reference_interval_averages(
     result: list[float] = []
     for start, end in itertools.pairwise(horizon_times):
         inside = (times > start) & (times < end)
-        # Interpolate from the last point at or before start, and to the first point at or after end
-        first = np.searchsorted(times, start, side="right") - 1
-        last = np.searchsorted(times, end, side="left") + 1
-        start_value = np.interp(start, times[first:], values[first:])
-        end_value = np.interp(end, times[:last], values[:last])
         knot_times = np.concatenate([[start], times[inside], [end]])
-        knot_values = np.concatenate([[start_value], values[inside], [end_value]])
+        knot_values = np.concatenate(
+            [[np.interp(start, times, values)], values[inside], [np.interp(end, times, values)]]
+        )
         result.append(float(np.trapezoid(knot_values, knot_times) / (end - start)))
     if present_value is not None:
         result[0] = present_value
     return result
-
-
-_EPOCH = 1_700_000_000.0
 
 
 def _random_case(seed: int) -> tuple[float | None, list[tuple[float, float]], list[float]]:
