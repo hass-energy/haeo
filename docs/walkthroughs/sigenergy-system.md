@@ -302,6 +302,7 @@ It drives three entities that the Sigenergy integration provides:
 - `number.sigen_plant_ess_max_charging_limit` and `number.sigen_plant_ess_max_discharging_limit`, the battery's charge and discharge limits in kW.
 
 Enable remote EMS control in the Sigenergy integration first, so the plant accepts these commands.
+The integration disables the two limit entities by default, so enable them on the plant's device too.
 If your entity IDs or mode names differ, check them under **Developer tools** → **States**.
 
 ### Add a manual switch
@@ -476,11 +477,13 @@ Two more automations react to negative prices directly, whatever the plan says.
 They read the current prices from HAEO's `number.grid_export_price` and `number.grid_import_price` [input entities](../user-guide/elements/grid.md#input-entities), and leave the limits alone while a price is unavailable.
 The export guard restores the plant's export limit from `number.grid_export_limit`, so it always matches HAEO.
 
-!!! warning "Replace the placeholders"
+They drive two more of the plant's limits, which the Sigenergy integration disables by default.
+Enable them on the plant's device under **Settings** → **Devices & services** first:
 
-    `number.YOUR_PLANT_EXPORT_LIMIT` and `number.YOUR_PLANT_PV_LIMIT` stand for the plant's grid export limit and PV power limit, which the Sigenergy integration provides on the plant's device.
-    Replace them with your entity IDs, and replace the `30` with your plant's PV rating.
-    No such entities exist, so the guards control nothing until you do.
+- `number.sigen_plant_grid_export_limitation` (**Grid Export Limitation**), the plant's export limit in kW.
+- `number.sigen_plant_pv_max_power_limit` (**PV Max Power Limit**), the plant's solar limit in kW.
+
+Replace the `30` in the import price guard with your plant's PV rating.
 
 Add each as its own automation, the same way as the mode automation:
 
@@ -502,7 +505,7 @@ conditions:
 actions:
   - action: number.set_value
     target:
-      entity_id: number.YOUR_PLANT_EXPORT_LIMIT
+      entity_id: number.sigen_plant_grid_export_limitation
     data:
       # kW: 0 while exporting costs money, otherwise the grid's export limit in HAEO
       value: >-
@@ -525,7 +528,7 @@ conditions:
 actions:
   - action: number.set_value
     target:
-      entity_id: number.YOUR_PLANT_PV_LIMIT
+      entity_id: number.sigen_plant_pv_max_power_limit
     data:
       # kW: 0 while importing pays, otherwise the 30 kW inverter rating
       value: "{{ 0 if states('number.grid_import_price') | float < 0 else 30 }}"
