@@ -2,7 +2,7 @@
 
 HAEO plans how your battery, grid, and solar should run, but it does not control any hardware itself.
 You turn the plan into action with Home Assistant automations that drive your inverter.
-This page explains how to do that well: which outputs to read, how to choose your inverter's mode from them, where to set limits, and which price guards to add.
+This page explains how to do that well: which outputs to read, how to choose your inverter's mode from them, where to set limits, which price guards to add, and how to drive chargers and appliances.
 
 The [Sigenergy walkthrough](../walkthroughs/sigenergy-system.md#automate-the-plant) builds the complete automation for one real system.
 Read this page first to understand why it is built the way it is, then adapt it to your own inverter.
@@ -50,13 +50,8 @@ These are the limits the rules below set.
 
 ## Choosing a mode
 
-HAEO's battery and grid each have an **Active power** sensor whose state is the planned power for the current period:
-
-| Element                                     | Sensor                       | Positive values  | Negative values |
-| ------------------------------------------- | ---------------------------- | ---------------- | --------------- |
-| [Battery](elements/battery.md#active-power) | `sensor.{name}_active_power` | Discharging (kW) | Charging (kW)   |
-| [Grid](elements/grid.md#active-power)       | `sensor.{name}_active_power` | Importing (kW)   | Exporting (kW)  |
-
+HAEO's battery and grid each have an **Active power** sensor whose state is the planned power for the current period.
+The [battery's](elements/battery.md#active-power) and the [grid's](elements/grid.md#active-power) pages say which direction each sign means.
 An element's entity IDs start with its name, so a battery named "Battery" has `sensor.battery_active_power` and a grid named "Grid" has `sensor.grid_active_power`.
 Treat values close to zero, such as within 0.1 kW, as zero.
 
@@ -73,14 +68,14 @@ flowchart TD
     Chg -- No --> Zero{Grid near zero?}
     Zero -- Yes --> SC3[Self-consumption]
     Zero -- No --> Exp{Grid exporting?}
-    Exp -- Yes --> FD[Forced discharge<br/>discharge limit = planned rate,<br/>or full at the export limit]
+    Exp -- Yes --> FD[Forced discharge<br/>discharge limit = planned rate,<br/>or full when discharging at the export limit]
     Exp -- No --> Dis{Battery discharging?}
     Dis -- Yes --> SC4[Self-consumption<br/>discharge limit = planned rate]
     Dis -- No --> SB[Standby]
 ```
 
 1. **No plan: self-consumption.**
-    When HAEO's outputs are unavailable, for example because an optimization failed, there is no plan to follow.
+    When HAEO's outputs are unavailable or have stopped updating, for example because an optimization failed or **Auto optimize** is off, there is no current plan to follow.
     Self-consumption is the safe default, because it never deliberately trades with the grid.
 
 2. **Charging while importing: forced charge at the planned rate.**
@@ -101,8 +96,10 @@ flowchart TD
 5. **Exporting: forced discharge at the planned rate.**
     The plan sells energy to the grid, either from the battery or from solar while the battery idles.
     Self-consumption would never export from the battery, and would put surplus solar into the battery rather than the grid.
-    When the grid is planned at its export limit, set the discharge limit to full rather than the planned rate.
+    When the plan exports only solar, the planned discharge rate is zero, so the battery stays idle if solar falls short.
+    When the battery discharges with the grid planned at its export limit, set the discharge limit to full rather than the planned rate.
     The export limit is what decides the battery's power there, so the inverter can top up exports from the battery whenever solar falls short.
+    Only do this while the battery is planned to discharge: a battery planned idle is keeping its energy for later, and topping up exports from it would drain it.
 
 6. **Discharging while importing: self-consumption, with the discharge limit at the planned rate.**
     The plan covers part of the house from the battery and imports the rest, rationing the battery for later.
@@ -124,6 +121,7 @@ A limit left over from an earlier period would otherwise keep holding the batter
 
 Set your inverter's own export limit to match the export limit in HAEO.
 Rule 5 relies on the inverter stopping exports at that limit when the battery discharges at full rate.
+If the grid has an export limit, its `number.{name}_export_limit` [input entity](elements/grid.md#input-entities) holds the current value, so an automation can read it from HAEO instead of repeating it.
 
 ## Price guards
 
@@ -137,8 +135,15 @@ They hold even when the forecast is off, because they read the price rather than
     Importing pays you, so stop solar generating and let the grid supply the house and the battery.
 
 HAEO's grid has `number.{name}_import_price` and `number.{name}_export_price` [input entities](elements/grid.md#input-entities) whose state is the current price, so the guards can use the same prices as the plan.
-Create each as its own automation.
-Replace `number.inverter_export_limit` and `number.inverter_solar_limit` with your inverter's controls, and replace the `10` in each with your inverter's normal limit:
+While a price is unavailable the guards leave the limits as they are, rather than treating the missing price as zero.
+
+!!! warning "Replace the placeholders"
+
+    `number.YOUR_INVERTER_EXPORT_LIMIT` and `number.YOUR_INVERTER_SOLAR_LIMIT` stand for your inverter's export and solar limit controls.
+    Replace them with your inverter's entity IDs, and replace the `10` in each with your inverter's normal limit.
+    No such entities exist, so the guards control nothing until you do.
+
+Create each as its own automation:
 
 ```yaml
 alias: HAEO export price guard
@@ -146,15 +151,18 @@ description: Stop exporting while the export price is negative.
 triggers:
   - trigger: state
     entity_id: number.grid_export_price
+    to:
   - trigger: homeassistant
     event: start
+conditions:
+  - "{{ has_value('number.grid_export_price') }}"
 actions:
   - action: number.set_value
     target:
-      entity_id: number.inverter_export_limit
+      entity_id: number.YOUR_INVERTER_EXPORT_LIMIT
     data:
       # kW: 0 while exporting costs money, otherwise your normal export limit
-      value: "{{ 0 if states('number.grid_export_price') | float(0) < 0 else 10 }}"
+      value: "{{ 0 if states('number.grid_export_price') | float < 0 else 10 }}"
 mode: queued
 ```
 
@@ -164,24 +172,26 @@ description: Stop solar generating while the import price is negative.
 triggers:
   - trigger: state
     entity_id: number.grid_import_price
+    to:
   - trigger: homeassistant
     event: start
+conditions:
+  - "{{ has_value('number.grid_import_price') }}"
 actions:
   - action: number.set_value
     target:
-      entity_id: number.inverter_solar_limit
+      entity_id: number.YOUR_INVERTER_SOLAR_LIMIT
     data:
       # kW: 0 while importing pays, otherwise your inverter's full solar rating
-      value: "{{ 0 if states('number.grid_import_price') | float(0) < 0 else 10 }}"
+      value: "{{ 0 if states('number.grid_import_price') | float < 0 else 10 }}"
 mode: queued
 ```
 
 The [solar element's curtailment](elements/solar.md#curtailment) setting should be enabled when your inverter can limit solar, so the plan also expects curtailment at these times.
 
-## How well this works
+## Why this works
 
-In a comparison over 300 plans, this approach came within a fraction of a cent, on average, of a general controller that chose the inverter settings by optimization.
-They work because each rule only steps in where the plan does something the inverter would not do on its own:
+Each rule only steps in where the plan does something the inverter would not do on its own:
 
 - A negative export price caps export.
 - A negative import price caps solar.
@@ -189,20 +199,48 @@ They work because each rule only steps in where the plan does something the inve
 
 The rest of the time the inverter runs in self-consumption and absorbs forecast errors by itself.
 The third rule matters most.
-Charging from solar in forced charge rather than self-consumption caused every one of the most expensive outcomes in that comparison.
+Avoid charging from solar in forced charge rather than self-consumption above all, because every shortfall in solar is then bought from the grid.
+
+## Chargers and appliances
+
+An EV charger or an appliance such as a pool pump or hot water system is simpler to drive than an inverter.
+Nothing else decides its power, so its planned power is the setpoint to follow:
+
+- **Follow the planned power.**
+    An [EV](elements/ev.md#power-sensors) has a `sensor.{name}_charge_power` sensor, and a [deferrable load](elements/deferrable_load.md#sensors-created) has `sensor.{name}_power`.
+    Set your charger's current or power limit from it whenever it changes.
+- **Start and stop at a threshold.**
+    Start the device when the planned power rises above a threshold, and stop it when the plan drops below.
+    Pick a threshold at or above the lowest power the device can run at, such as an EV charger's minimum current or an appliance's rated power.
+    Small planned powers below it are skipped rather than run at a power the device cannot hold.
+- **Convert for efficiency.**
+    HAEO plans an EV's charge power on the home side of its charging losses, and its charge efficiency is the share that reaches the car.
+    If your charger's limit applies to the power it delivers to the car, multiply the planned power by the charge efficiency first, or the charger draws more than planned.
+- **Re-check periodically.**
+    Run the automation every few minutes as well as on changes, so a missed start or stop is corrected.
+
+The [EV walkthrough](../walkthroughs/adding-an-ev.md#automate-the-charger) builds a complete charger automation that does all of this.
 
 ## Keep it safe
 
 - **Add a manual switch.**
     Create an `input_boolean` helper and add it as a condition, so you can stop the automation and take over at any time.
     When it turns off, return the inverter to self-consumption with full limits once, so it is not left in a forced mode.
+    If the inverter is unreachable at that moment, hand back when it reconnects.
 - **Fall back to self-consumption.**
     Use it whenever HAEO's outputs are unavailable.
     Skip a run entirely when the inverter's own controls are unavailable, rather than writing values you cannot check.
     You can add your own conditions to the fallback too, such as your internet connection being down, so the inverter stops following a plan built on stale prices.
+- **Fall back when the plan stops updating.**
+    HAEO's output sensors keep their last state when it stops optimizing without failing, such as while [Auto optimize](optimization.md#auto-optimize) is off.
+    The [optimizer status](optimization.md#status) sensor's `last_run` attribute is the time the latest plan finished.
+    Treat the plan as unavailable once that is older than a few periods, and run the automation every few minutes so it notices.
 - **Watch for failures.**
     HAEO's outputs become unavailable when an optimization fails, so the fallback applies automatically.
     [Monitor with automations](data-updates.md#monitor-with-automations) shows how to be notified when it happens.
+- **Write only what changes.**
+    Every optimization updates the forecast attributes of HAEO's sensors, even when the current value stays the same.
+    Add an empty `to:` to state triggers so they fire only when the state itself changes, not when only its attributes do, and skip writes that would not change the inverter's current value.
 - **Commission in monitor-only mode.**
     Replace the hardware actions with notifications at first, and compare them with what your inverter does on its own.
 - **Check where values are measured.**
@@ -234,6 +272,14 @@ If the mode is right but the inverter behaves differently, check the option name
     Build the full automation for a Sigenergy system, step by step.
 
     [:material-arrow-right: Sigenergy walkthrough](../walkthroughs/sigenergy-system.md#automate-the-plant)
+
+- :material-car-electric:{ .lg .middle } **Automate an EV charger**
+
+    ---
+
+    Follow HAEO's charging plan with a Sigenergy DC charger.
+
+    [:material-arrow-right: EV walkthrough](../walkthroughs/adding-an-ev.md#automate-the-charger)
 
 - :material-graph:{ .lg .middle } **Optimization results**
 

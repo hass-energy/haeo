@@ -166,6 +166,6 @@ All sensors include a `forecast` attribute with optimized future values — driv
 
     Use optimization results to control your appliances.
 
-    [:material-arrow-right: Automating your hardware](../automations.md)
+    [:material-arrow-right: Automating your hardware](../automations.md#chargers-and-appliances)
 
 </div>
