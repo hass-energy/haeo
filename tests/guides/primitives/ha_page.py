@@ -899,11 +899,12 @@ class HAPage:
         self._pick_multi(button, field_label, options)
 
     def _pick_multi(self, picker: Locator, field_label: str, options: list[str]) -> None:
-        """Pick each option from a multi-select picker by clicking it once per option.
+        """Pick each option from a multi-select picker by searching for it and clicking it once per option.
 
         HA renders multi-select DROPDOWN as ``ha-generic-picker`` which opens
         a "Select option" dialog when its field or add button is clicked. HA closes the dialog after
-        each selection, so we re-open the picker for each option.
+        each selection, so we re-open the picker for each option. Searching for the option first
+        also offers it as a custom value when the selector allows one and does not list it.
 
         Screenshots per option: dialog open, option indicator, result chip.
         """
@@ -918,6 +919,7 @@ class HAPage:
                     with ctx.scope(option_text):
                         picker.click()
                         select_dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                        select_dialog.get_by_role("textbox", name="Search").fill(option_text)
                         item = select_dialog.locator(f":text('{option_text}')").first
                         item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                         self._capture("dialog")
@@ -929,6 +931,7 @@ class HAPage:
             for option_text in options:
                 picker.click()
                 select_dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                select_dialog.get_by_role("textbox", name="Search").fill(option_text)
                 item = select_dialog.locator(f":text('{option_text}')").first
                 item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 item.click()

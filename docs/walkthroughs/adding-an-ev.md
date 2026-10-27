@@ -160,12 +160,14 @@ add_ev(
     odometer=EntityInput("BYD ATTO 2 Odometer", "BYD ATTO 2 Odometer"),
     public_charging_price=ConstantInput(0.60),
     charge_efficiency=ConstantInput(93),
-    unplugged_states=["Idle"],
+    unplugged_states=["Idle", "Fault", "Alarm"],
 )
 ```
 
 After you submit, HAEO asks which of the Running State's states mean on and off.
-Choose `Idle` as the state meaning off: every other state, such as `Occupied` or `Charging`, then counts as plugged in.
+Choose `Idle`, `Fault`, and `Alarm` as the states meaning off: every other state, such as `Occupied` or `Charging`, then counts as plugged in.
+In `Fault` or `Alarm` the charger cannot charge until the car is replugged, so counting them as unplugged keeps HAEO from planning a charge that cannot happen.
+HAEO lists the states the charger has reported recently, so type any that are missing and add them as a custom item.
 
 !!! tip "Charge only, at 93%"
 
@@ -238,25 +240,25 @@ Avoid the other modes:
 
 - **Bidirectional (V2X)** makes the car part of the plant's battery.
     The plant's mode then sets one direction for both, so the car charges barely at all in Maximum Self Consumption and can never charge while the home battery discharges.
-- **Solar surplus** caps charging at spare solar, which silently overrides any plan to charge from the home battery or the grid.
+- **Solar surplus** is meant to charge from spare solar only, which would override any plan to charge from the home battery or the grid.
 
 Also in the app:
 
 - **Turn off any charging schedule**, or the charger starts at its scheduled time regardless of HAEO.
-- **Set the battery boost minimum** to the home battery's min charge in HAEO, 10% in the [Sigenergy walkthrough](sigenergy-system.md#step-3-add-battery).
-    It is the lowest the home battery may go while feeding the car.
-    If the two differ, HAEO plans on energy below that floor and the grid quietly supplies the difference.
+- **Match the battery boost minimum** to the home battery's min charge in HAEO, 10% in the [Sigenergy walkthrough](sigenergy-system.md#step-3-add-battery).
+    The plant does not discharge the home battery below this level to charge the car, and may hold it there for the house too.
+    If HAEO's min charge is lower, HAEO plans on energy the plant will not release, and the grid quietly supplies the difference.
 
 ### Match HAEO's EV settings
 
 The EV you added in [step 3](#step-3-add-the-ev-element) is already set up for this charger:
 
 - **Max charge rate** is the charger's rated charging power.
-- **Plugged in** is the charger's running state, with `Idle` as the only state meaning unplugged.
+- **Plugged in** is the charger's running state, with `Idle`, `Fault`, and `Alarm` meaning unplugged.
 - **Charge efficiency** is 93%.
     HAEO plans the charge power on the home side of the charger, but the charger's limit caps the power it delivers to the car.
     This charger loses about 7% of its power across its range, so the automation multiplies the plan by the charge efficiency to get the limit.
-    With the default 95%, the charger draws more than planned, and at high power the grid supplies the difference at whatever price it is.
+    With an efficiency above the charger's real one, the charger draws more than planned, and when the home battery is already at its limit the grid supplies the difference at whatever price it is.
 - **Max discharge rate** is empty, so HAEO treats the car as charge-only, as Fast charging mode does.
 
 ### Add a manual switch
@@ -368,8 +370,7 @@ If your EV has another name, replace `atto_2` with it.
 
 - **Restarting without replugging is unreliable.**
     After a stop, a start often resumes charging, but sometimes the charger instead ends the session and raises a "Charging fault" alarm on the plant and inverter.
-    Unplugging and replugging the car clears it.
-- **Changing the charging mode mid-session** in the app may end the session.
+    The running state then reads `Alarm`, which HAEO treats as unplugged, and unplugging and replugging the car clears it.
 
 ## Next steps
 

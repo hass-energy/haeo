@@ -216,6 +216,9 @@ Nothing else decides its power, so its planned power is the setpoint to follow:
 - **Convert for efficiency.**
     HAEO plans an EV's charge power on the home side of its charging losses, and its charge efficiency is the share that reaches the car.
     If your charger's limit applies to the power it delivers to the car, multiply the planned power by the charge efficiency first, or the charger draws more than planned.
+- **Count faults as unplugged.**
+    If your plugged-in sensor reports words, choose its fault and alarm states as well as its idle state as the states meaning unplugged.
+    The charger cannot charge in them, so HAEO then plans around a charger that cannot deliver rather than counting on it.
 - **Re-check periodically.**
     Run the automation every few minutes as well as on changes, so a missed start or stop is corrected.
 
