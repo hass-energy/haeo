@@ -44,6 +44,7 @@ from tools.live_hass import (
     _ensure_http_started,
     _find_free_port,
     _require_component,
+    _store_http_config,
     auth_provider_configs,
     ensure_dev_user,
 )
@@ -155,6 +156,7 @@ async def _setup_sim_home_assistant_async(
 
     await ar.async_load(hass)
     await cr.async_load(hass)
+    dr.async_setup(hass)
     await dr.async_load(hass)
     await er.async_load(hass)
     await fr.async_load(hass)
@@ -181,7 +183,8 @@ async def _setup_sim_home_assistant_async(
     except ImportError:
         pass
 
-    await _require_component(hass, "http", {"http": {"server_port": port}})
+    await _store_http_config(hass, port)
+    await _require_component(hass, "http", {})
     await _require_component(hass, "websocket_api", {})
     await _require_component(hass, "auth", {})
     await _require_component(hass, "onboarding", {})

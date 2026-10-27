@@ -1,14 +1,14 @@
 """Test the HAEO integration."""
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import AsyncIterator, Iterable
 from pathlib import Path
 from types import MappingProxyType
 from typing import ClassVar
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, UrlManager
-from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.http.server import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState, ConfigSubentry
 from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
 from homeassistant.core import HomeAssistant
@@ -96,8 +96,13 @@ from custom_components.haeo.util import (
 
 
 @pytest.fixture
-def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
-    """Create a mock hub config entry."""
+async def mock_hub_entry(hass: HomeAssistant) -> AsyncIterator[MockConfigEntry]:
+    """Create a mock hub config entry.
+
+    Tests that call ``async_setup_entry`` directly leave the entry unloaded, so
+    Home Assistant never runs the unload callbacks that setup registered. They
+    run here instead, stopping the horizon timer and the input loaders.
+    """
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -112,7 +117,9 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         title="Test HAEO Integration",
     )
     entry.add_to_hass(hass)
-    return entry
+    yield entry
+    if entry.state is not ConfigEntryState.LOADED:
+        await entry._async_process_on_unload(hass)
 
 
 @pytest.fixture

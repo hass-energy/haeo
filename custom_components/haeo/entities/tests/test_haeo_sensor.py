@@ -64,7 +64,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         output_data=initial_output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    sensor.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
     forecast_time = datetime(2024, 1, 1, tzinfo=UTC)
     updated_output = make_output(
@@ -123,7 +123,7 @@ def test_handle_coordinator_update_scales_percentage_outputs(device_entry: Devic
         output_data=output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    sensor.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
     coordinator.data = make_coordinator_data({"battery": {"battery": {BATTERY_STATE_OF_CHARGE: output}}})
     sensor._handle_coordinator_update()
@@ -171,7 +171,7 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
         output_data=initial_output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    sensor.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
     coordinator.data = make_coordinator_data(coordinator_data)
     sensor._handle_coordinator_update()
@@ -282,7 +282,7 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
         output_data=initial_output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    sensor.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
     updated_output = make_output(
         type_=OutputType.POWER,
@@ -378,7 +378,7 @@ def test_handle_coordinator_update_sets_fixed_attribute(device_entry: DeviceEntr
         output_data=initial_output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    sensor.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
     fixed_output = CoordinatorOutput(
         type=OutputType.POWER,
@@ -428,7 +428,7 @@ def test_handle_coordinator_update_sets_state_of_charge_direction(
         output_data=output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    sensor.async_write_ha_state = Mock()  # type: ignore[method-assign]
     coordinator.data = make_coordinator_data({"buffer": {"buffer": {LOAD_POWER: replace(output, direction=direction)}}})
 
     sensor._handle_coordinator_update()

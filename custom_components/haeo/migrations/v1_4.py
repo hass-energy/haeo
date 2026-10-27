@@ -107,7 +107,7 @@ def _swap_node_for_junction(
     """Replace a node subentry with a junction that keeps its subentry ID, device, and sensor.
 
     Home Assistant deletes a removed subentry's devices and entities, so the
-    device is held by the config entry alone and the sensor is detached while
+    device is moved to the config entry alone and the sensor is detached while
     the subentry is swapped. The junction reuses the subentry ID, and the device
     and sensor are re-keyed to the junction's identifiers, so their IDs,
     customizations, and history carry over. The role switches have no junction
@@ -124,10 +124,6 @@ def _swap_node_for_junction(
         ),
     }
 
-    device = device_registry.async_get_device(identifiers={(DOMAIN, node_device_key)})
-    if device is not None:
-        device_registry.async_update_device(device.id, add_config_entry_id=entry.entry_id, add_config_subentry_id=None)
-
     kept_entity_ids: list[str] = []
     for entity_entry, _ in entities:
         new_unique_id = rekeyed_unique_ids.get(entity_entry.unique_id)
@@ -139,13 +135,11 @@ def _swap_node_for_junction(
         )
         kept_entity_ids.append(entity_entry.entity_id)
 
-    # Home Assistant 2026.9+ gives a device a single owner, so the config entry link
-    # above only takes effect once the subentry link is removed in a separate call.
-    # Entities still linked to the subentry would be removed with it, so this follows them
+    # Moving a device removes its entities still linked to the subentry it leaves,
+    # so each move follows the sensor
+    device = device_registry.async_get_device(identifiers={(DOMAIN, node_device_key)})
     if device is not None:
-        device_registry.async_update_device(
-            device.id, remove_config_entry_id=entry.entry_id, remove_config_subentry_id=subentry.subentry_id
-        )
+        device_registry.async_update_device(device.id, new_config_subentry_id=None)
 
     hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
     hass.config_entries.async_add_subentry(
@@ -159,19 +153,11 @@ def _swap_node_for_junction(
         ),
     )
 
-    if device is not None:
-        device_registry.async_update_device(
-            device.id,
-            add_config_entry_id=entry.entry_id,
-            add_config_subentry_id=subentry.subentry_id,
-            new_identifiers={(DOMAIN, junction_device_key)},
-        )
     for entity_id in kept_entity_ids:
         entity_registry.async_update_entity(entity_id, config_subentry_id=subentry.subentry_id)
-    # Entities linked to the config entry alone would be removed with this link, so it goes last
     if device is not None:
         device_registry.async_update_device(
-            device.id, remove_config_entry_id=entry.entry_id, remove_config_subentry_id=None
+            device.id, new_config_subentry_id=subentry.subentry_id, new_identifiers={(DOMAIN, junction_device_key)}
         )
 
 

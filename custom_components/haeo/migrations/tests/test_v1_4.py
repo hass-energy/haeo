@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import MappingProxyType
+from unittest.mock import patch
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -42,6 +43,10 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.migrations import v1_4
+
+_DEPRECATED_DEVICE_UPDATE_ARGS = frozenset(
+    ("add_config_entry_id", "add_config_subentry_id", "remove_config_entry_id", "remove_config_subentry_id")
+)
 
 
 def _create_subentry(data: dict[str, object], *, subentry_type: str | None = None) -> ConfigSubentry:
@@ -313,10 +318,14 @@ async def test_async_migrate_entry_replaces_junction_node(hass: HomeAssistant, a
 
 
 @pytest.mark.parametrize("entities_linked", [True, False], ids=["linked", "unlinked"])
-async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAssistant, entities_linked: bool) -> None:
+async def test_async_migrate_entry_junction_keeps_device_and_sensor(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture, entities_linked: bool
+) -> None:
     """The junction adopts the node's device and power balance sensor, so their IDs and customizations carry over.
 
     Entities added before HAEO linked them to their subentry are linked to the junction's.
+    The device is moved with the device registry arguments that replace the
+    deprecated add and remove config entry and subentry arguments.
     """
     entry = _add_hub_in_mode(hass, advanced_mode=False)
     switchboard = _node("Switchboard")
@@ -350,8 +359,16 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
     )
     horizon = entity_registry.async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_horizon", config_entry=entry)
 
-    assert await v1_4.async_migrate_entry(hass, entry)
+    with patch.object(
+        dr.DeviceRegistry, "async_update_device", autospec=True, side_effect=dr.DeviceRegistry.async_update_device
+    ) as update_device:
+        assert await v1_4.async_migrate_entry(hass, entry)
 
+    assert [call.kwargs.keys() & _DEPRECATED_DEVICE_UPDATE_ARGS for call in update_device.call_args_list] == [
+        set(),
+        set(),
+    ]
+    assert "stop working in Home Assistant" not in caplog.text
     adopted_device = device_registry.async_get(device.id)
     assert adopted_device is not None
     assert adopted_device.identifiers == {(DOMAIN, f"{prefix}junction")}

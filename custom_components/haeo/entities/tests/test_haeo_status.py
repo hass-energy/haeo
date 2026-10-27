@@ -27,7 +27,7 @@ def _status_sensor(*, status: str, data: object, error: str | None) -> HaeoStatu
     sensor = HaeoStatusSensor(
         coordinator, device_entry=Mock(spec=DeviceEntry), network_subentry=network, unique_id="id"
     )
-    sensor.async_write_ha_state = Mock()
+    sensor.async_write_ha_state = Mock()  # type: ignore[method-assign]
     sensor._handle_coordinator_update()
     return sensor
 

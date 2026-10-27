@@ -39,6 +39,8 @@ from freezegun import freeze_time
 from homeassistant import loader
 from homeassistant.auth import auth_manager_from_config
 from homeassistant.auth.models import Credentials
+from homeassistant.components.http.config import async_get_and_load_store
+from homeassistant.components.http.const import CONF_SERVER_PORT
 from homeassistant.config_entries import ConfigEntries, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState, HomeAssistant, callback
@@ -182,16 +184,31 @@ async def _require_component(
         raise RuntimeError(msg)
 
 
+async def _store_http_config(hass: HomeAssistant, port: int) -> None:
+    """Store the HTTP server config, listening on this port, as the confirmed config.
+
+    Home Assistant keeps its HTTP config in storage and reads YAML only once,
+    so a config directory from an earlier run, or restored from a prerequisite
+    snapshot, would listen on the port that run used. Storing the config
+    directly, rather than passing YAML, also keeps the YAML deprecation repair
+    out of the screenshots.
+    """
+    store = await async_get_and_load_store(hass)
+    await store.async_migrate_yaml({CONF_SERVER_PORT: port})
+    if store.pending is not None:
+        await store.async_promote_pending()
+
+
 async def _ensure_http_started(hass: HomeAssistant) -> None:
     """Start the HTTP server exactly once.
 
     Setting up the frontend normally starts the server through Home Assistant's
     ``async_when_setup_or_start`` lifecycle hook. That hook runs standalone but
     not under pytest, so we start it ourselves when it has not already bound.
-    Guarding on the existing site avoids binding the socket twice, which would
+    Guarding on the existing runner avoids binding the socket twice, which would
     orphan the already-listening server behind a failed second bind.
     """
-    if hass.http.site is None:
+    if hass.http.runner is None:
         await hass.http.start()
 
 
@@ -439,6 +456,7 @@ async def _setup_home_assistant_async(
 
     await ar.async_load(hass)
     await cr.async_load(hass)
+    dr.async_setup(hass)
     await dr.async_load(hass)
     await er.async_load(hass)
     await fr.async_load(hass)
@@ -462,7 +480,8 @@ async def _setup_home_assistant_async(
     except ImportError:
         pass
 
-    await _require_component(hass, "http", {"http": {"server_port": port}})
+    await _store_http_config(hass, port)
+    await _require_component(hass, "http", {})
     await _require_component(hass, "websocket_api", {})
     await _require_component(hass, "auth", {})
     await _require_component(hass, "onboarding", {})

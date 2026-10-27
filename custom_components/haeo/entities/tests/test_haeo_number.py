@@ -529,7 +529,7 @@ async def test_editable_mode_set_native_value(
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
     # Mock async_write_ha_state and config entry update
-    entity.async_write_ha_state = Mock()
+    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
     hass.config_entries.async_update_subentry = Mock()
     await _add_entity_to_hass(hass, entity)
     entity.async_write_ha_state.reset_mock()
@@ -561,7 +561,7 @@ async def test_source_change_writes_state(
     config_entry.runtime_data = None
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
-    entity.async_write_ha_state = Mock()
+    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
     await _add_entity_to_hass(hass, entity)
     entity.async_write_ha_state.reset_mock()
 
@@ -611,7 +611,7 @@ async def test_store_listener_syncs_when_store_mutates_externally(
     config_entry.runtime_data = None
 
     entity = _make_entity(hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager)
-    entity.async_write_ha_state = Mock()
+    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
     await _add_entity_to_hass(hass, entity)
 
     entity._store.set_value(12.0)
@@ -637,7 +637,7 @@ async def test_negate_surfaces_running_value(
     assert entity._store.native_value == -0.15
     assert entity.native_value == 0.15
 
-    entity.async_write_ha_state = Mock()
+    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
     hass.config_entries.async_update_subentry = Mock()
     await _add_entity_to_hass(hass, entity)
 
@@ -676,7 +676,7 @@ async def test_editable_set_value_updates_config_before_state_change(
         live_subentry = config_entry.subentries[subentry.subentry_id]
         captured_config_value.append(live_subentry.data[SECTION_EFFICIENCY]["power_limit"])
 
-    entity.async_write_ha_state = Mock(side_effect=_capture_config_on_state_write)
+    entity.async_write_ha_state = Mock(side_effect=_capture_config_on_state_write)  # type: ignore[method-assign]
     await _add_entity_to_hass(hass, entity)
     entity.async_write_ha_state.reset_mock()
     captured_config_value.clear()
@@ -705,7 +705,7 @@ async def test_editable_mode_set_native_value_with_runtime_data(
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
     # Mock async_write_ha_state and config entry update
-    entity.async_write_ha_state = Mock()
+    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
     hass.config_entries.async_update_subentry = Mock()
     await _add_entity_to_hass(hass, entity)
     entity.async_write_ha_state.reset_mock()
@@ -778,7 +778,7 @@ async def test_driven_mode_ignores_user_set_value(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
     entity._attr_native_value = 10.0  # Simulate loaded value
-    entity.async_write_ha_state = Mock()
+    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
     await entity.async_set_native_value(999.0)
 

@@ -337,7 +337,7 @@ async def test_editable_turn_on_updates_config_before_state_change(
         live_subentry = config_entry.subentries[subentry.subentry_id]
         captured_config_value.append(live_subentry.data[SECTION_CURTAILMENT]["allow_curtailment"])
 
-    entity.async_write_ha_state = Mock(side_effect=_capture_config_on_state_write)
+    entity.async_write_ha_state = Mock(side_effect=_capture_config_on_state_write)  # type: ignore[method-assign]
     await _add_entity_to_hass(hass, entity)
     entity.async_write_ha_state.reset_mock()
     captured_config_value.clear()
@@ -390,7 +390,7 @@ async def test_driven_mode_ignores_turn_on_off(
 
     entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
     entity._attr_is_on = not turn_on  # Simulate loaded state
-    entity.async_write_ha_state = Mock()
+    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
     await (entity.async_turn_on() if turn_on else entity.async_turn_off())
 
@@ -743,7 +743,7 @@ async def test_source_change_updates_switch(
     config_entry.runtime_data = None
     entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
     await _add_entity_to_hass(hass, entity)
-    entity.async_write_ha_state = Mock()
+    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
 
     hass.states.async_set("input_boolean.curtail", source_state)
     await hass.async_block_till_done()

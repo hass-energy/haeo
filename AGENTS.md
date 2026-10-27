@@ -1,6 +1,6 @@
 # HAEO agent instructions
 
-This repository contains **HAEO** (Home Assistant Energy Optimizer) - a Python 3.13+ Home Assistant custom component for energy network optimization using linear programming.
+This repository contains **HAEO** (Home Assistant Energy Optimizer) - a Python 3.14+ Home Assistant custom component for energy network optimization using linear programming.
 
 ## Project overview
 

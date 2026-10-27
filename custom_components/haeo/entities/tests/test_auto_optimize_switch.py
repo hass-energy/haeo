@@ -16,7 +16,9 @@ def _create_switch(hass: HomeAssistant) -> AutoOptimizeSwitch:
     """Create an auto-optimize switch for a config entry added to hass."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
     entry.add_to_hass(hass)
-    return AutoOptimizeSwitch(config_entry=entry, device_entry=DeviceEntry(id="test_device_id"))
+    return AutoOptimizeSwitch(
+        config_entry=entry, device_entry=DeviceEntry(id="test_device_id", config_entry_id=entry.entry_id)
+    )
 
 
 @pytest.mark.parametrize(
