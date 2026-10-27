@@ -61,7 +61,9 @@ List all sensors this device creates, organized by device.
 | `sensor_name`    | kW   | Real-time | Description of sensor purpose |
 | `another_sensor` | kWh  | Real-time | Description of sensor purpose |
 
-See [Element Configuration](../../user-guide/elements/%7Belement%7D.md) for detailed sensor and configuration documentation.
+<!-- Point this link at the element's own page, user-guide/elements/{element}.md. -->
+
+See [Element Configuration](../../user-guide/elements/index.md) for detailed sensor and configuration documentation.
 
 ## Configuration example
 

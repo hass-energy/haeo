@@ -50,7 +50,7 @@ Everything still failing needs a real change:
     Confirm that is intended before regenerating with `--snapshot-update`.
     See the `scenarios` skill.
 - **Docs build**: `uv run zensical build` must succeed.
-    It does not check links or anchors, so a passing build says nothing about them; see the `documentation` skill.
+    It runs in strict mode, so a broken internal link or `#anchor` fails it with the file and line; see the `documentation` skill.
 - **Version consistency**: `pyproject.toml` and `custom_components/haeo/manifest.json` versions must match, and `homeassistant>=X` in `pyproject.toml` must equal `homeassistant` in `hacs.json`.
     Run `uv sync` after changing either.
 
