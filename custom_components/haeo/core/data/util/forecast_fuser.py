@@ -55,7 +55,7 @@ def fuse_to_boundaries(
     Returns:
         n+1 point-in-time values where:
         - Position 0: Present value at horizon_times[0] (actual current state if provided)
-        - Position k (k≥1): Interpolated value at horizon_times[k]
+        - Position k (k≥1): Interpolated value at horizon_times[k], the later value where the forecast steps there
 
     """
     if not horizon_times:
@@ -100,7 +100,9 @@ def fuse_to_intervals(
         - Position k (k≥1): Trapezoidal average over interval [horizon_times[k], horizon_times[k+1]]
 
     Trapezoidal integration accounts for internal forecast points within each interval,
-    not just the endpoint values.
+    not just the endpoint values. Where the forecast steps exactly on a boundary, the
+    interval before it ends at the earlier value and the interval after it starts at
+    the later one.
 
     """
     if not horizon_times or len(horizon_times) < MIN_BOUNDARIES:
@@ -121,19 +123,23 @@ def fuse_to_intervals(
     boundaries = np.asarray(horizon_times, dtype=np.float64)
 
     # Integrate the piecewise linear forecast through each interval's internal block
-    # points and its boundaries. A block point exactly on a boundary is replaced by
-    # the interpolated boundary value, as the block may hold a step there.
+    # points and its boundaries. The block may step exactly on a boundary, so each
+    # boundary appears twice: ending the interval before it with the value from the
+    # left, then starting the interval after it with the value from the right.
+    # np.interp takes the last of equal timestamps, so reversing the block gives the first.
+    from_left = np.interp(-boundaries, -block_times[::-1], block_values[::-1])
+    from_right = np.interp(boundaries, block_times, block_values)
     internal = ~np.isin(block_times, boundaries)
-    times = np.concatenate([block_times[internal], boundaries])
-    values = np.concatenate([block_values[internal], np.interp(boundaries, block_times, block_values)])
+    times = np.concatenate([block_times[internal], boundaries, boundaries])
+    values = np.concatenate([block_values[internal], from_left, from_right])
     order = np.argsort(times, kind="stable")
     times = times[order]
     values = values[order]
     segment_areas = np.diff(times) * (values[:-1] + values[1:]) / 2
 
-    # Sum the segments lying between consecutive boundaries, then average over each interval
-    boundary_positions = np.flatnonzero(order >= np.count_nonzero(internal))
-    areas = np.add.reduceat(segment_areas[: boundary_positions[-1]], boundary_positions[:-1])
+    # Sum the segments from each interval's start to the next one's, then average over each interval
+    start_positions = np.flatnonzero(order >= np.count_nonzero(internal) + len(boundaries))
+    areas = np.add.reduceat(segment_areas[: start_positions[-1]], start_positions[:-1])
     result: list[float] = (areas / np.diff(boundaries)).tolist()
 
     # Replace first interval with present_value if provided

@@ -133,19 +133,22 @@ from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundar
                 (np.nextafter(2000.0, -np.inf), 200.0),
             ],
             [0, 500, 1000, 1500, 2000],
-            # Interval [0,500]: present value override = 50.0
-            # Interval [500,1000]: trapezoidal from 500 to 1000, includes step at boundary
-            #   - Most of interval at 100, but includes point at t=1000 with value=200
-            #   - Result: ~150 (average of 100 and 200 at the boundary)
-            # Interval [1000,1500]: constant at 200
-            # Interval [1500,2000]: constant at 200
-            [50.0, 150.0, 200.0, 200.0],
+            # The step at 1000 ends the interval before it at 100 and starts the one after it at 200
+            [50.0, 100.0, 200.0, 200.0],
             id="step_function_integration",
+        ),
+        pytest.param(
+            None,
+            [(hour * 3600, float(hour)) for hour in range(25)],
+            [hour * 3600 for hour in (23, 24, 25)],
+            # The whole-day forecast reaches 24 at the end of the day, then repeats from 0
+            [23.5, 0.5],
+            id="cycle_wrap_on_boundary",
         ),
     ],
 )
 def test_fuse_to_intervals(
-    present_value: float,
+    present_value: float | None,
     forecast_series: list[tuple[int, float]],
     horizon_times: list[int],
     expected: list[float],
@@ -227,6 +230,20 @@ def test_neither_forecast_nor_present_value_raises_error() -> None:
             [100.0, 150.0, 200.0, 250.0],
             id="no_present_value_uses_forecast",
         ),
+        pytest.param(
+            None,
+            [(0.0, 100.0), (np.nextafter(1000.0, -np.inf), 100.0), (1000.0, 200.0), (2000.0, 200.0)],
+            [0, 500, 1000, 1500],
+            [100.0, 100.0, 200.0, 200.0],
+            id="step_on_boundary_samples_later_value",
+        ),
+        pytest.param(
+            None,
+            [(hour * 3600, float(hour)) for hour in range(25)],
+            [hour * 3600 for hour in (23, 24, 25)],
+            [23.0, 0.0, 1.0],
+            id="cycle_wrap_on_boundary_samples_later_value",
+        ),
     ],
 )
 def test_fuse_to_boundaries(
@@ -263,7 +280,11 @@ def _reference_interval_averages(
     forecast_series: list[tuple[float, float]],
     horizon_times: list[float],
 ) -> list[float]:
-    """Average each interval with a trapezoid over its own boundaries and the block points strictly inside it."""
+    """Average each interval with a trapezoid over its own boundaries and the block points strictly inside it.
+
+    An interval takes the value at its start from the right and at its end from the left, so a step
+    exactly on a boundary belongs to the interval on each side of it.
+    """
     # The forecast repeats every cycle, from one cycle before the horizon to past its end
     block, cycle = normalize_forecast_cycle(forecast_series, horizon_times[0])
     repeats = range(-1, int(np.ceil((horizon_times[-1] - horizon_times[0]) / cycle)) + 2)
@@ -272,10 +293,13 @@ def _reference_interval_averages(
     result: list[float] = []
     for start, end in itertools.pairwise(horizon_times):
         inside = (times > start) & (times < end)
+        # Interpolate from the last point at or before start, and to the first point at or after end
+        first = np.searchsorted(times, start, side="right") - 1
+        last = np.searchsorted(times, end, side="left") + 1
+        start_value = np.interp(start, times[first:], values[first:])
+        end_value = np.interp(end, times[:last], values[:last])
         knot_times = np.concatenate([[start], times[inside], [end]])
-        knot_values = np.concatenate(
-            [[np.interp(start, times, values)], values[inside], [np.interp(end, times, values)]]
-        )
+        knot_values = np.concatenate([[start_value], values[inside], [end_value]])
         result.append(float(np.trapezoid(knot_values, knot_times) / (end - start)))
     if present_value is not None:
         result[0] = present_value
