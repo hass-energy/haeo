@@ -243,6 +243,7 @@ In the HAEO integration page, you should see:
 
 - `sensor.battery_charge_power` - Charging power (kW)
 - `sensor.battery_discharge_power` - Discharging power (kW)
+- `sensor.battery_active_power` - Net power, positive while discharging (kW)
 - `sensor.battery_energy_stored` - Current energy level (kWh)
 - `sensor.battery_state_of_charge` - SOC percentage (%)
 
@@ -255,6 +256,7 @@ In the HAEO integration page, you should see:
 
 - `sensor.grid_import_power` - Import from grid (kW)
 - `sensor.grid_export_power` - Export to grid (kW)
+- `sensor.grid_active_power` - Net power, positive while importing (kW)
 - `sensor.grid_import_cost` - Import cost (\$)
 - `sensor.grid_export_revenue` - Export revenue (\$)
 
@@ -280,6 +282,240 @@ All sensors include a `forecast` attribute with future optimized values.
     - Entity IDs for use in automations
 
     This is helpful for understanding what data each element provides and troubleshooting configuration issues.
+
+## Automate the plant
+
+HAEO plans the battery, but the Sigenergy plant keeps running on its own until something tells it what to do.
+This section builds the automations that follow the plan through the plant's remote EMS control.
+[Automating your hardware](../user-guide/automations.md) explains the rules they use and why each one exists.
+
+The mode automation reads two of HAEO's outputs for the current period:
+
+- `sensor.battery_active_power`: positive while the battery discharges, negative while it charges.
+- `sensor.grid_active_power`: positive while the house imports, negative while it exports.
+
+It drives three entities that the Sigenergy integration provides:
+
+- `select.sigen_plant_remote_ems_control_mode`, the plant's operating mode.
+- `number.sigen_plant_ess_max_charging_limit` and `number.sigen_plant_ess_max_discharging_limit`, the battery's charge and discharge limits in kW.
+
+Enable remote EMS control in the Sigenergy integration first, so the plant accepts these commands.
+If your entity IDs or mode names differ, check them under **Developer tools** → **States**.
+
+### Add a manual switch
+
+Create a toggle helper so you can stop the automation and control the plant yourself at any time:
+
+1. Go to **Settings** → **Devices & services** → **Helpers**.
+2. Select **Create helper** → **Toggle**.
+3. Name it "HAEO battery control", which gives it the entity ID `input_boolean.haeo_battery_control`.
+
+### Add the mode automation
+
+Go to **Settings** → **Automations & scenes**, create a new automation, select **Edit in YAML** from its menu, and paste:
+
+```yaml
+alias: HAEO Sigenergy battery control
+description: Follow HAEO's plan with the Sigenergy plant's remote EMS modes.
+triggers:
+  - trigger: state
+    entity_id:
+      - sensor.battery_active_power
+      - sensor.grid_active_power
+      - input_boolean.haeo_battery_control
+  - trigger: homeassistant
+    event: start
+conditions:
+  # Turn the helper off to take manual control of the plant.
+  - "{{ is_state('input_boolean.haeo_battery_control', 'on') }}"
+actions:
+  - variables:
+      mode_select: select.sigen_plant_remote_ems_control_mode
+      charge_limit: number.sigen_plant_ess_max_charging_limit
+      discharge_limit: number.sigen_plant_ess_max_discharging_limit
+      # The grid export limit configured in HAEO and in the plant, in kW.
+      export_limit_kw: 30
+      # Planned flows smaller than this, in kW, count as zero.
+      deadband_kw: 0.1
+      plan_available: >-
+        {{ has_value('sensor.battery_active_power')
+           and has_value('sensor.grid_active_power') }}
+      # HAEO's plan for the current period, in kW.
+      # Battery: positive discharges, negative charges.
+      # Grid: positive imports, negative exports.
+      battery_kw: "{{ states('sensor.battery_active_power') | float(0) }}"
+      grid_kw: "{{ states('sensor.grid_active_power') | float(0) }}"
+      charging: '{{ battery_kw < -deadband_kw }}'
+      discharging: '{{ battery_kw > deadband_kw }}'
+      importing: '{{ grid_kw > deadband_kw }}'
+      exporting: '{{ grid_kw < -deadband_kw }}'
+      at_export_limit: '{{ grid_kw <= -(export_limit_kw - deadband_kw) }}'
+      # The battery's full rates are the highest values its limits accept.
+      full_charge_kw: "{{ state_attr(charge_limit, 'max') | float(0) }}"
+      full_discharge_kw: "{{ state_attr(discharge_limit, 'max') | float(0) }}"
+      planned_charge_kw: '{{ [-battery_kw, full_charge_kw] | min | round(2) }}'
+      planned_discharge_kw: '{{ [battery_kw, full_discharge_kw] | min | round(2) }}'
+  - choose:
+      - alias: No plan, so self-consume freely
+        conditions: '{{ not plan_available }}'
+        sequence:
+          - action: select.select_option
+            target:
+              entity_id: '{{ mode_select }}'
+            data:
+              option: Maximum Self Consumption
+          - action: number.set_value
+            target:
+              entity_id: '{{ charge_limit }}'
+            data:
+              value: '{{ full_charge_kw }}'
+          - action: number.set_value
+            target:
+              entity_id: '{{ discharge_limit }}'
+            data:
+              value: '{{ full_discharge_kw }}'
+      - alias: Charging from the grid, so force a charge at the planned rate
+        conditions: '{{ charging and importing }}'
+        sequence:
+          - action: select.select_option
+            target:
+              entity_id: '{{ mode_select }}'
+            data:
+              option: Command Charging (PV First)
+          - action: number.set_value
+            target:
+              entity_id: '{{ charge_limit }}'
+            data:
+              value: '{{ planned_charge_kw }}'
+      - alias: Charging from solar, so self-consume up to the planned rate
+        conditions: '{{ charging }}'
+        sequence:
+          - action: select.select_option
+            target:
+              entity_id: '{{ mode_select }}'
+            data:
+              option: Maximum Self Consumption
+          - action: number.set_value
+            target:
+              entity_id: '{{ charge_limit }}'
+            data:
+              value: '{{ planned_charge_kw }}'
+          - action: number.set_value
+            target:
+              entity_id: '{{ discharge_limit }}'
+            data:
+              value: '{{ full_discharge_kw }}'
+      - alias: Grid near zero, so self-consume freely
+        conditions: '{{ not importing and not exporting }}'
+        sequence:
+          - action: select.select_option
+            target:
+              entity_id: '{{ mode_select }}'
+            data:
+              option: Maximum Self Consumption
+          - action: number.set_value
+            target:
+              entity_id: '{{ charge_limit }}'
+            data:
+              value: '{{ full_charge_kw }}'
+          - action: number.set_value
+            target:
+              entity_id: '{{ discharge_limit }}'
+            data:
+              value: '{{ full_discharge_kw }}'
+      - alias: Discharging or exporting, so force a discharge
+        conditions: '{{ discharging or exporting }}'
+        sequence:
+          - action: select.select_option
+            target:
+              entity_id: '{{ mode_select }}'
+            data:
+              option: Command Discharging (PV First)
+          # At the export limit, the limit decides the power, so leave the battery free.
+          - action: number.set_value
+            target:
+              entity_id: '{{ discharge_limit }}'
+            data:
+              value: '{{ full_discharge_kw if at_export_limit else planned_discharge_kw
+                }}'
+    # Battery idle while importing: keep its energy for later.
+    default:
+      - action: select.select_option
+        target:
+          entity_id: '{{ mode_select }}'
+        data:
+          option: Standby
+mode: queued
+```
+
+Set `export_limit_kw` to the export limit you gave the grid in [step 5](#step-5-add-grid-connection), and give the plant the same export limit.
+The automation checks these rules in order and applies the first that matches:
+
+| Plan for the current period           | Plant mode                     | Limits                                                     |
+| ------------------------------------- | ------------------------------ | ---------------------------------------------------------- |
+| No plan available                     | Maximum Self Consumption       | Both at full rate                                          |
+| Battery charging, grid importing      | Command Charging (PV First)    | Charge at the planned rate                                 |
+| Battery charging otherwise            | Maximum Self Consumption       | Charge at the planned rate, discharge at full rate         |
+| Grid near zero                        | Maximum Self Consumption       | Both at full rate                                          |
+| Battery discharging or grid exporting | Command Discharging (PV First) | Discharge at the planned rate, or full at the export limit |
+| Battery idle, grid importing          | Standby                        | Unchanged                                                  |
+
+When the plan charges from surplus solar, the automation uses self-consumption with a charge limit rather than Command Charging.
+If solar then comes in below forecast, the battery charges less instead of importing to make up the planned rate.
+
+To also fall back to self-consumption when your internet connection is down, so the plant stops following a plan built on stale prices, add your connectivity sensor to the first rule's condition.
+For example, `{{ not plan_available or is_state('binary_sensor.internet', 'off') }}`.
+
+### Add the price guards
+
+Two more automations react to negative prices directly, whatever the plan says.
+They read the current prices from HAEO's `number.grid_export_price` and `number.grid_import_price` [input entities](../user-guide/elements/grid.md#input-entities).
+
+The Sigenergy integration also provides the plant's grid export limit and PV power limit.
+Find them on the plant's device, and use their entity IDs in place of `number.plant_export_limit` and `number.plant_pv_limit` below.
+Add each as its own automation, the same way as the mode automation:
+
+```yaml
+alias: HAEO Sigenergy export price guard
+description: Stop exporting while the export price is negative.
+triggers:
+  - trigger: state
+    entity_id: number.grid_export_price
+  - trigger: homeassistant
+    event: start
+actions:
+  - action: number.set_value
+    target:
+      entity_id: number.plant_export_limit
+    data:
+      # kW: 0 while exporting costs money, otherwise the 30 kW export limit
+      value: "{{ 0 if states('number.grid_export_price') | float(0) < 0 else 30 }}"
+mode: queued
+```
+
+```yaml
+alias: HAEO Sigenergy import price guard
+description: Stop solar generating while the import price is negative.
+triggers:
+  - trigger: state
+    entity_id: number.grid_import_price
+  - trigger: homeassistant
+    event: start
+actions:
+  - action: number.set_value
+    target:
+      entity_id: number.plant_pv_limit
+    data:
+      # kW: 0 while importing pays, otherwise the 30 kW inverter rating
+      value: "{{ 0 if states('number.grid_import_price') | float(0) < 0 else 30 }}"
+mode: queued
+```
+
+### Check it
+
+Turn on **HAEO battery control**, then open the mode automation's trace after its next run.
+The trace shows which rule matched and the values it read.
+Compare the plant's mode with the plan on the [forecast card](../user-guide/lovelace-card.md) at the same time.
 
 ## Architecture notes
 
@@ -332,5 +568,13 @@ See [Junction](../user-guide/elements/junction.md#hybrid-inverter-example) for m
     Interpret costs, power flows, and shadow prices.
 
     [:material-arrow-right: Optimization guide](../user-guide/optimization.md)
+
+- :material-robot-outline:{ .lg .middle } **Automating your hardware**
+
+    ---
+
+    Understand the rules behind the plant automation and adapt them to other inverters.
+
+    [:material-arrow-right: Automating your hardware](../user-guide/automations.md)
 
 </div>

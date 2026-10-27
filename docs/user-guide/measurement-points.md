@@ -42,7 +42,7 @@ When it refers to a different point, convert it first.
 For example, if your battery's charge limit is specified on the cell side, divide it by the charge efficiency to get the terminal-side limit HAEO expects.
 
 The same applies in the other direction.
-Before comparing HAEO's power sensors with your own, or sending them to your hardware as setpoints in [automations](automations.md),
+Before comparing HAEO's power sensors with your own, or sending them to your hardware as limits in [automations](automations.md),
 check that your sensor or setpoint refers to the same point, and convert if it does not.
 
 ## Efficiency below 100%
@@ -91,8 +91,8 @@ Policy prices on a battery's discharge or an inverter's DC to AC path, such as a
 
     ---
 
-    Send HAEO's setpoints to your battery and inverter.
+    Turn HAEO's plan into control of your battery and inverter.
 
-    [:material-arrow-right: Automation examples](automations.md)
+    [:material-arrow-right: Automating your hardware](automations.md)
 
 </div>

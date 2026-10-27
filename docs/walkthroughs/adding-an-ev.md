@@ -246,6 +246,6 @@ The optimizer balances EV charging against battery storage, solar generation, an
 
     Use optimization results to control your EV charger.
 
-    [:material-arrow-right: Automations](../user-guide/automations.md)
+    [:material-arrow-right: Automating your hardware](../user-guide/automations.md)
 
 </div>
