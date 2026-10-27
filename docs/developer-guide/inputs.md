@@ -75,16 +75,21 @@ A source update that resolves to the same value, timestamps, and availability as
 
 A store keeps the last state with a reading from each of its sources.
 When a source has no reading, the store resolves from that last reading instead, alongside the live readings of its other sources and over the current horizon, so the input stays available and the coordinator keeps optimizing.
-`held_sources` maps each such source to when the store first saw it without a reading.
+Only a source's own state is held.
+A state the calendar input loader annotates with data fetched for the current horizon, a calendar's events or a meter's totals, describes only that horizon, so a calendar whose events no longer cover the horizon, or a meter without a reading, makes its input unavailable at once.
 
 The hold lasts for the hub's `input_hold_seconds` from that moment, 60 seconds unless set otherwise, and 0 turns it off.
 It is timed on the monotonic clock, so setting the wall clock does not lengthen or end it.
-Once it passes, the store is unavailable exactly as it is without a hold, and the coordinator's `unavailable_input` repair issue names the sources with no reading.
+Once it passes, the store is unavailable exactly as it is without a hold, and the coordinator's `unavailable_input` repair issue names every source with no reading, including any still within its hold.
 A source that has never had a reading is never held, so setup still waits for every input.
 A source that reads again is live at once, and a later gap starts a new hold.
 
+A hold starting or ending leaves the value as it is, so it does not notify the store's `add_listener` listeners, and the coordinator does not re-optimize for it.
+It notifies `add_hold_listener` listeners instead: the input entities, which update the attributes naming the held source, and `InputHoldExpiry`.
 A source that stays without a reading does not change, so nothing would reload its store when the hold passes.
-`InputHoldExpiry` in [`inputs/hold_expiry.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/hold_expiry.py) follows every store, waits for the earliest `hold_expires_at`, and then calls `expire_holds()` on each store and notifies those that became unavailable.
+`InputHoldExpiry` in [`inputs/hold_expiry.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/hold_expiry.py) waits for the earliest `hold_expires_at`, and then calls `expire_holds()` on each store and notifies those that became unavailable.
+
+Diagnostics capture a held source as its last reading with a `haeo_held_since` attribute, the time it lost that reading, so a replay resolves the same value and the held reading is told apart from a live one.
 
 The Home Assistant side of reading inputs lives in [`inputs/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/inputs):
 

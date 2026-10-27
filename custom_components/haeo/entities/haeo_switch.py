@@ -185,6 +185,8 @@ class HaeoInputSwitch(SwitchEntity):
         await super().async_added_to_hass()
         self._apply_recorder_attribute_filtering()
         self.async_on_remove(self._store.add_listener(self._handle_change))
+        # A held reading changes only the attributes naming it, not the value
+        self.async_on_remove(self._store.add_hold_listener(self._handle_change))
         # The forecast attribute spans the horizon, which moves without the value changing
         self.async_on_remove(self._horizon_manager.subscribe(self._handle_change))
         self._sync_from_store()

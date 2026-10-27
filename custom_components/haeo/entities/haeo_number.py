@@ -171,6 +171,8 @@ class HaeoInputNumber(NumberEntity):
         await super().async_added_to_hass()
         self._apply_recorder_attribute_filtering()
         self.async_on_remove(self._store.add_listener(self._handle_store_change))
+        # A held reading changes only the attributes naming it, not the value
+        self.async_on_remove(self._store.add_hold_listener(self._handle_store_change))
         self._sync_from_store()
 
     def _apply_recorder_attribute_filtering(self) -> None:

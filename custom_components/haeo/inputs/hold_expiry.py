@@ -37,17 +37,17 @@ class InputHoldExpiry:
     @callback
     def start(self) -> None:
         """Follow every store, so a store that starts holding a reading schedules its expiry."""
-        self._unsubs.extend(store.add_listener(self._follower(store)) for store in self._stores)
+        self._unsubs.extend(store.add_hold_listener(self._follower(store)) for store in self._stores)
 
     def _follower(self, store: InputStore) -> Callable[[], None]:
-        """Return a listener that schedules the store's expiry when it changes."""
+        """Return a listener that schedules the store's expiry when the readings it holds change."""
 
         @callback
-        def _store_changed() -> None:
+        def _hold_changed() -> None:
             if (expires_at := store.hold_expires_at) is not None:
                 self._schedule(expires_at)
 
-        return _store_changed
+        return _hold_changed
 
     @callback
     def _schedule(self, expires_at: float) -> None:

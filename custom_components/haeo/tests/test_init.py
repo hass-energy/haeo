@@ -602,6 +602,9 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
         def add_listener(self, _listener: object) -> Callable[[], None]:
             return lambda: None
 
+        def add_hold_listener(self, _listener: object) -> Callable[[], None]:
+            return lambda: None
+
     # Create mock horizon manager
     mock_horizon = _create_mock_horizon_manager()
 
@@ -742,6 +745,9 @@ async def test_setup_reentry_after_timeout_failure(
             return False
 
         def add_listener(self, _listener: object) -> Callable[[], None]:
+            return lambda: None
+
+        def add_hold_listener(self, _listener: object) -> Callable[[], None]:
             return lambda: None
 
     # Create a runtime data factory that uses our conditional store

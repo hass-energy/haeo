@@ -14,6 +14,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
@@ -159,11 +160,15 @@ async def hub(hass: HomeAssistant, freezer: FrozenDateTimeFactory, hold_seconds:
     return entry
 
 
-def _status(entry: MockConfigEntry) -> str:
+def _coordinator(entry: MockConfigEntry) -> HaeoDataUpdateCoordinator:
     runtime_data = entry.runtime_data
     assert runtime_data is not None
     assert runtime_data.coordinator is not None
-    return runtime_data.coordinator.optimization_status
+    return runtime_data.coordinator
+
+
+def _status(entry: MockConfigEntry) -> str:
+    return _coordinator(entry).optimization_status
 
 
 def _price_entity_id(hass: HomeAssistant, entry: MockConfigEntry) -> str:
@@ -201,10 +206,13 @@ async def test_short_gap_keeps_optimizing_on_the_held_reading(
     """A sensor gap shorter than the hold keeps the input available and optimizing, and names the held sensor."""
     price_entity = _price_entity_id(hass, hub)
     lost_at = dt_util.utcnow()
+    plan = _coordinator(hub).data
 
     await _set_price(hass, freezer, "unavailable")
 
     assert _status(hub) == "success"
+    # The held reading is the value already planned on, so the gap does not re-optimize
+    assert _coordinator(hub).data is plan
     state = hass.states.get(price_entity)
     assert state is not None
     assert state.state == "0.3"
@@ -215,6 +223,7 @@ async def test_short_gap_keeps_optimizing_on_the_held_reading(
     await _set_price(hass, freezer, "0.4")
 
     assert _status(hub) == "success"
+    assert _coordinator(hub).data is not plan
     state = hass.states.get(price_entity)
     assert state is not None
     assert state.state == "0.4"

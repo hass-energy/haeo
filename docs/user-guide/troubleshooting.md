@@ -194,6 +194,7 @@ A sensor that one of your inputs reads has stopped reporting, and shows as `unav
 - For a short gap, HAEO keeps planning with the sensor's last reading
 - The input's entity then shows `held_source_entity`, naming the sensor, and `held_since`, the time it stopped reporting
 - If the gap lasts longer than the hub's **Sensor gap tolerance**, the input shows as unavailable, the optimization status is **Failed**, and the other output sensors are unavailable
+- A calendar HAEO cannot read upcoming events from, or an energy meter read over a window, is not given that tolerance: its input shows as unavailable at once
 - A repair issue titled "… has no reading for …" names the element, the input, and the sensors with no reading
 
 ### Solutions
