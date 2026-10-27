@@ -78,6 +78,7 @@ When a source has no reading, the store resolves from that last reading instead,
 `held_sources` maps each such source to when the store first saw it without a reading.
 
 The hold lasts for the hub's `input_hold_seconds` from that moment, 60 seconds unless set otherwise, and 0 turns it off.
+It is timed on the monotonic clock, so setting the wall clock does not lengthen or end it.
 Once it passes, the store is unavailable exactly as it is without a hold, and the coordinator's `unavailable_input` repair issue names the sources with no reading.
 A source that has never had a reading is never held, so setup still waits for every input.
 A source that reads again is live at once, and a later gap starts a new hold.

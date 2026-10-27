@@ -19,6 +19,7 @@ An ``InputStore`` is the single source of truth for one field's value:
 
 import asyncio
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import tzinfo
 from enum import Enum
 import logging
@@ -37,6 +38,14 @@ from custom_components.haeo.core.state import NO_READING_STATES, EntityState, St
 type InputValue = bool | float | np.ndarray
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class _LostReading:
+    """When a source lost its reading, on the monotonic clock for its age and the wall clock for display."""
+
+    monotonic: float
+    wall: float
 
 
 class InputMode(Enum):
@@ -105,9 +114,9 @@ class InputStore:
         self._captured_source_states: dict[str, EntityState] = {}
         # The last state with a reading from each source, and when each source without a reading lost it
         self._last_readings: dict[str, EntityState] = {}
-        self._missing_since: dict[str, float] = {}
+        self._missing_since: dict[str, _LostReading] = {}
         # When each source whose last reading the current value holds lost its reading
-        self._held_sources: dict[str, float] = {}
+        self._held_sources: dict[str, _LostReading] = {}
         self._data_ready = asyncio.Event()
         # Set once the store has data or has rejected its source's value
         self._settled = asyncio.Event()
@@ -186,21 +195,26 @@ class InputStore:
         epoch, at which it was first seen without one. Empty while every source
         has a reading, and while the store is unavailable.
         """
-        return self._held_sources
+        return {eid: lost.wall for eid, lost in self._held_sources.items()}
 
     @property
     def oldest_held_source(self) -> tuple[str, float] | None:
         """Return the held source that lost its reading first and when it did, or None when no reading is held."""
         if not self._held_sources:
             return None
-        return min(self._held_sources.items(), key=lambda item: item[1])
+        eid, lost = min(self._held_sources.items(), key=lambda item: item[1].monotonic)
+        return eid, lost.wall
 
     @property
     def hold_expires_at(self) -> float | None:
-        """Return when the oldest held reading becomes too old to use, or None when no reading is held."""
-        if (oldest := self.oldest_held_source) is None:
+        """Return when the oldest held reading becomes too old to use, on the monotonic clock.
+
+        None when no reading is held. The monotonic clock keeps the hold its
+        configured length when the wall clock is set.
+        """
+        if not self._held_sources:
             return None
-        return oldest[1] + self._hold_seconds
+        return min(lost.monotonic for lost in self._held_sources.values()) + self._hold_seconds
 
     @property
     def native_value(self) -> float | bool | None:
@@ -325,7 +339,7 @@ class InputStore:
         been without one for ``hold_seconds``, and is listed in
         :attr:`held_sources` meanwhile.
         """
-        now = time.time()
+        now = _LostReading(monotonic=time.monotonic(), wall=time.time())
         states = {eid: sm.get(eid) for eid in self._source_entity_ids}
         for eid, state in states.items():
             if state is not None and state.state not in NO_READING_STATES:
@@ -335,8 +349,8 @@ class InputStore:
                 self._missing_since.setdefault(eid, now)
         held = {
             eid: self._last_readings[eid]
-            for eid, since in self._missing_since.items()
-            if eid in self._last_readings and now - since < self._hold_seconds
+            for eid, lost in self._missing_since.items()
+            if eid in self._last_readings and now.monotonic - lost.monotonic < self._hold_seconds
         }
         unavailable_sources = tuple(
             eid for eid in self._source_entity_ids if eid in self._missing_since and eid not in held
@@ -408,7 +422,7 @@ class InputStore:
         once :attr:`hold_expires_at` has passed.
         """
         expires_at = self.hold_expires_at
-        if expires_at is None or time.time() < expires_at:
+        if expires_at is None or time.monotonic() < expires_at:
             return False
         return self._mark_unavailable(tuple(eid for eid in self._source_entity_ids if eid in self._missing_since))
 

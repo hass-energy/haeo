@@ -706,7 +706,7 @@ def test_held_reading_keeps_the_store_available_and_follows_live_sources(freezer
     store.load(_prices("1.0", "2.0"))
 
     freezer.tick(5)
-    lost_at = time.time()
+    lost_at, lost_monotonic = time.time(), time.monotonic()
     assert store.load(_prices("1.0", "unavailable")) is True
 
     assert store.available
@@ -714,7 +714,7 @@ def test_held_reading_keeps_the_store_available_and_follows_live_sources(freezer
     assert store.unavailable_sources == ()
     assert store.held_sources == {"sensor.b": lost_at}
     assert store.oldest_held_source == ("sensor.b", lost_at)
-    assert store.hold_expires_at == lost_at + 60
+    assert store.hold_expires_at == lost_monotonic + 60
     assert store.captured_source_states["sensor.b"].state == "2.0"
 
     freezer.tick(30)
@@ -800,13 +800,13 @@ def test_oldest_held_source_is_the_one_without_a_reading_longest(freezer: Frozen
     store = _held_store(60)
     store.load(_prices("1.0", "2.0"))
     store.load(_prices("1.0", "unavailable"))
-    b_lost_at = time.time()
+    b_lost_at, b_lost_monotonic = time.time(), time.monotonic()
 
     freezer.tick(10)
     store.load(_prices("unavailable", "unavailable"))
 
     assert store.oldest_held_source == ("sensor.b", b_lost_at)
-    assert store.hold_expires_at == b_lost_at + 60
+    assert store.hold_expires_at == b_lost_monotonic + 60
 
 
 @pytest.mark.parametrize("expired", [False, True], ids=["while_held", "after_expiry"])
