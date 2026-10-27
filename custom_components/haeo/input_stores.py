@@ -18,6 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_INPUT_HOLD_SECONDS, DEFAULT_INPUT_HOLD_SECONDS, HUB_SECTION_ADVANCED
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.config_loader import element_inputs, input_value
 from custom_components.haeo.core.data.util.input_values import InputError
@@ -124,9 +125,13 @@ def build_input_stores(
 
     Iterates every configured input field across element subentries and creates
     a store bound to the originating subentry. Disabled (none) and absent fields
-    are skipped, mirroring entity creation.
+    are skipped, mirroring entity creation. Every store holds a source's last
+    reading for as long as the hub's input hold setting allows.
     """
     stores: InputStoreMap = {}
+    hold_seconds = float(
+        config_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_INPUT_HOLD_SECONDS, DEFAULT_INPUT_HOLD_SECONDS)
+    )
 
     negated_paths = negated_price_paths(
         {subentry.title: subentry.data for subentry in config_entry.subentries.values()}
@@ -150,6 +155,7 @@ def build_input_stores(
                 hint=element_input.hint,
                 get_forecast_timestamps=horizon_manager.get_forecast_timestamps,
                 negate=element_input.path in subentry_negated_paths,
+                hold_seconds=hold_seconds,
             )
             stores[(subentry.title, element_input.path)] = store
 

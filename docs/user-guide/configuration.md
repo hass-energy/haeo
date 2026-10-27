@@ -225,6 +225,11 @@ Renaming an element renames it everywhere it is named.
 Click **Configure** on the hub entry to modify the planning horizon or advanced settings.
 Changes trigger immediate re-optimization with the new parameters.
 
+**Sensor gap tolerance**, in the advanced settings, is how long HAEO keeps planning with a sensor's last reading when the sensor stops reporting, such as while its integration reloads or a cloud service is briefly down.
+It is 60 seconds by default, which covers a short dropout without planning on out-of-date values for long.
+Once it passes, the input becomes unavailable and HAEO stops planning until the sensor reports again; set it to 0 to stop as soon as a sensor has no reading.
+See [an input has no reading](troubleshooting.md#an-input-has-no-reading) for what happens and how to tell.
+
 **Relax impossible plans**, in the advanced settings, keeps planning when your forecasts ask for more than your system can do.
 It is off by default, so an impossible plan fails and a repair issue names the constraints that conflict.
 See [no plan meets every constraint](troubleshooting.md#no-plan-meets-every-constraint) for what each setting does.

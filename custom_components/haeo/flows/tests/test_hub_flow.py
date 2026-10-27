@@ -23,8 +23,10 @@ from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
     CONF_HORIZON,
+    CONF_INPUT_HOLD_SECONDS,
     CONF_NAME,
     DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_INPUT_HOLD_SECONDS,
     HORIZON_PRESET_3_DAYS,
     HORIZON_PRESET_5_DAYS,
     HUB_SECTION_TIERS,
@@ -107,8 +109,9 @@ async def test_user_flow_success(hass: HomeAssistant, horizon_input: object, exp
     assert data[HUB_SECTION_COMMON] == {CONF_NAME: "Test Hub", CONF_HORIZON: expected}
     assert data["integration_type"] == INTEGRATION_TYPE_HUB
     assert HUB_SECTION_TIERS not in data
-    # Debounce is hidden during setup and takes its default
+    # Debounce and the input hold are hidden during setup and take their defaults
     assert data[HUB_SECTION_ADVANCED][CONF_DEBOUNCE_SECONDS] == DEFAULT_DEBOUNCE_SECONDS
+    assert data[HUB_SECTION_ADVANCED][CONF_INPUT_HOLD_SECONDS] == DEFAULT_INPUT_HOLD_SECONDS
 
     # Verify entry was created with a junction Switchboard
     entries = hass.config_entries.async_entries(DOMAIN)

@@ -8,8 +8,10 @@ loader (``resolve_field``/``resolve_constant``).
 
 import asyncio
 import logging
+import time
 from unittest.mock import patch
 
+from freezegun.api import FrozenDateTimeFactory
 import numpy as np
 import pytest
 
@@ -676,3 +678,153 @@ async def test_driven_store_reads_listed_states_as_on_and_off() -> None:
     store.load(FakeStateMachine({"sensor.charger": FakeEntityState("sensor.charger", "Idle", {})}))
     np.testing.assert_allclose(np.asarray(store.value), [0.0, 0.0])
     assert store.captured_source_states["sensor.charger"].state == "Idle"
+
+
+def _held_store(hold_seconds: float, *, time_series: bool = False) -> InputStore:
+    """Build a store summing two price sensors that holds a missing sensor's reading for ``hold_seconds``."""
+    storage = _MemStorage(as_entity_value(["sensor.a", "sensor.b"]))
+    hint = FieldHint(output_type=OutputType.PRICE, time_series=time_series)
+    return create_input_store(
+        value=storage.value,
+        storage=storage,
+        hint=hint,
+        get_forecast_timestamps=_timestamps,
+        hold_seconds=hold_seconds,
+    )
+
+
+def _prices(a: str, b: str) -> FakeStateMachine:
+    """Return a state machine where the two price sensors read ``a`` and ``b``."""
+    return FakeStateMachine(
+        {"sensor.a": FakeEntityState("sensor.a", a, {}), "sensor.b": FakeEntityState("sensor.b", b, {})}
+    )
+
+
+def test_held_reading_keeps_the_store_available_and_follows_live_sources(freezer: FrozenDateTimeFactory) -> None:
+    """A source without a reading resolves from its last reading, while the other sources stay live."""
+    store = _held_store(60)
+    store.load(_prices("1.0", "2.0"))
+
+    freezer.tick(5)
+    lost_at = time.time()
+    assert store.load(_prices("1.0", "unavailable")) is True
+
+    assert store.available
+    assert store.value == pytest.approx(3.0)
+    assert store.unavailable_sources == ()
+    assert store.held_sources == {"sensor.b": lost_at}
+    assert store.oldest_held_source == ("sensor.b", lost_at)
+    assert store.hold_expires_at == lost_at + 60
+    assert store.captured_source_states["sensor.b"].state == "2.0"
+
+    freezer.tick(30)
+    assert store.load(_prices("4.0", "unknown")) is True
+    assert store.available
+    assert store.value == pytest.approx(6.0)
+    assert store.held_sources == {"sensor.b": lost_at}
+
+
+def test_held_reading_resolves_over_the_current_horizon(freezer: FrozenDateTimeFactory) -> None:
+    """A held reading of a forecast input is resolved over the horizon the store loads for."""
+    horizon = [FORECAST_TIMESTAMPS]
+    storage = _MemStorage(as_entity_value(["sensor.a", "sensor.b"]))
+    store = create_input_store(
+        value=storage.value,
+        storage=storage,
+        hint=FieldHint(output_type=OutputType.PRICE, time_series=True),
+        get_forecast_timestamps=lambda: horizon[0],
+        hold_seconds=60,
+    )
+    store.load(_prices("1.0", "2.0"))
+
+    freezer.tick(5)
+    horizon[0] = (300.0, 600.0, 900.0)
+    store.load(_prices("1.0", "unavailable"))
+
+    assert store.available
+    assert store.forecast_timestamps == (300.0, 600.0, 900.0)
+    assert isinstance(store.value, np.ndarray)
+    np.testing.assert_allclose(store.value, [3.0, 3.0])
+
+
+@pytest.mark.parametrize("hold_seconds", [0, 60], ids=["strict", "held"])
+def test_reading_older_than_the_hold_makes_the_store_unavailable(
+    freezer: FrozenDateTimeFactory, hold_seconds: float
+) -> None:
+    """A source without a reading for the hold or longer makes the store unavailable, keeping its value."""
+    store = _held_store(hold_seconds)
+    store.load(_prices("1.0", "2.0"))
+
+    store.load(_prices("1.0", "unavailable"))
+    assert store.available is (hold_seconds > 0)
+    freezer.tick(hold_seconds)
+    store.load(_prices("1.0", "unavailable"))
+
+    assert not store.available
+    assert store.value == pytest.approx(3.0)
+    assert store.unavailable_sources == ("sensor.b",)
+    assert store.held_sources == {}
+    assert store.hold_expires_at is None
+
+
+def test_source_without_a_previous_reading_is_not_held() -> None:
+    """A source that has never had a reading leaves the store unavailable, whatever the hold."""
+    store = _held_store(60)
+
+    store.load(_prices("1.0", "unavailable"))
+
+    assert not store.available
+    assert store.unavailable_sources == ("sensor.b",)
+    assert store.held_sources == {}
+
+
+def test_expire_holds_marks_the_store_unavailable_once_the_hold_passes(freezer: FrozenDateTimeFactory) -> None:
+    """Expiring a hold with no reload makes the store unavailable, naming every source without a reading."""
+    store = _held_store(60)
+    store.load(_prices("1.0", "2.0"))
+    store.load(_prices("unavailable", "unavailable"))
+
+    freezer.tick(59)
+    assert store.expire_holds() is False
+    assert store.available
+
+    freezer.tick(1)
+    assert store.expire_holds() is True
+    assert not store.available
+    assert store.unavailable_sources == ("sensor.a", "sensor.b")
+    assert store.expire_holds() is False
+
+
+def test_oldest_held_source_is_the_one_without_a_reading_longest(freezer: FrozenDateTimeFactory) -> None:
+    """With several sources held, the hold expires with the one that lost its reading first."""
+    store = _held_store(60)
+    store.load(_prices("1.0", "2.0"))
+    store.load(_prices("1.0", "unavailable"))
+    b_lost_at = time.time()
+
+    freezer.tick(10)
+    store.load(_prices("unavailable", "unavailable"))
+
+    assert store.oldest_held_source == ("sensor.b", b_lost_at)
+    assert store.hold_expires_at == b_lost_at + 60
+
+
+@pytest.mark.parametrize("expired", [False, True], ids=["while_held", "after_expiry"])
+def test_reading_returning_clears_the_hold(freezer: FrozenDateTimeFactory, expired: bool) -> None:
+    """A source that reads again is live, and a later gap starts a new hold."""
+    store = _held_store(60)
+    store.load(_prices("1.0", "2.0"))
+    store.load(_prices("1.0", "unavailable"))
+    freezer.tick(61 if expired else 5)
+    store.expire_holds()
+
+    assert store.load(_prices("1.0", "5.0")) is True
+    assert store.available
+    assert store.value == pytest.approx(6.0)
+    assert store.held_sources == {}
+    assert store.unavailable_sources == ()
+
+    freezer.tick(1)
+    store.load(_prices("1.0", "unavailable"))
+    assert store.available
+    assert store.held_sources == {"sensor.b": time.time()}

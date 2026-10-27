@@ -8,7 +8,9 @@ An ``InputStore`` is the single source of truth for one field's value:
 
 - It is built from configuration (via :func:`create_input_store`) and bound to
   a ``Storage`` that backs it to persistent config.
-- DRIVEN stores resolve from source entities through ``async_load``.
+- DRIVEN stores resolve from source entities through ``async_load``. A source
+  that loses its reading has its last reading held for up to ``hold_seconds``,
+  so a short gap in one sensor does not make the input unavailable.
 - EDITABLE stores hold a constant that is persisted through the storage on
   ``set_value``.
 - Consumers (the coordinator) read the resolved ``value`` and subscribe to
@@ -16,10 +18,12 @@ An ``InputStore`` is the single source of truth for one field's value:
 """
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from datetime import tzinfo
 from enum import Enum
 import logging
 from numbers import Real
+import time
 
 import numpy as np
 
@@ -58,6 +62,8 @@ class InputStore:
         storage: Persistence binding backing this store.
         initial_value: Initial constant value (display units) for editable mode.
         negate: When True, values resolved from source entities are negated.
+        hold_seconds: How long a source's last reading is held once the source
+            has no reading. 0 makes the store unavailable as soon as one does.
 
     """
 
@@ -71,6 +77,7 @@ class InputStore:
         storage: Storage,
         initial_value: float | bool | None = None,
         negate: bool = False,
+        hold_seconds: float = 0.0,
     ) -> None:
         """Initialize the input store."""
         self._mode = mode
@@ -85,6 +92,7 @@ class InputStore:
         # values are negated at the storage layer instead, so this only affects
         # the driven path; see ``async_load``.
         self._negate = negate
+        self._hold_seconds = hold_seconds
 
         self._constant: float | bool | None = initial_value
         self._value: InputValue | None = None
@@ -95,6 +103,11 @@ class InputStore:
         self._unavailable_sources: tuple[str, ...] = ()
         self._loaded_timestamps: tuple[float, ...] = ()
         self._captured_source_states: dict[str, EntityState] = {}
+        # The last state with a reading from each source, and when each source without a reading lost it
+        self._last_readings: dict[str, EntityState] = {}
+        self._missing_since: dict[str, float] = {}
+        # When each source whose last reading the current value holds lost its reading
+        self._held_sources: dict[str, float] = {}
         self._data_ready = asyncio.Event()
         # Set once the store has data or has rejected its source's value
         self._settled = asyncio.Event()
@@ -164,6 +177,30 @@ class InputStore:
         reason, such as sources whose readings could not be combined.
         """
         return self._unavailable_sources
+
+    @property
+    def held_sources(self) -> Mapping[str, float]:
+        """Return when each source whose last reading the current value holds lost its reading.
+
+        Maps each source with no reading to the time, in seconds since the
+        epoch, at which it was first seen without one. Empty while every source
+        has a reading, and while the store is unavailable.
+        """
+        return self._held_sources
+
+    @property
+    def oldest_held_source(self) -> tuple[str, float] | None:
+        """Return the held source that lost its reading first and when it did, or None when no reading is held."""
+        if not self._held_sources:
+            return None
+        return min(self._held_sources.items(), key=lambda item: item[1])
+
+    @property
+    def hold_expires_at(self) -> float | None:
+        """Return when the oldest held reading becomes too old to use, or None when no reading is held."""
+        if (oldest := self.oldest_held_source) is None:
+            return None
+        return oldest[1] + self._hold_seconds
 
     @property
     def native_value(self) -> float | bool | None:
@@ -283,15 +320,32 @@ class InputStore:
         nothing. A failed load keeps the previous value. A rejected value is
         recorded in :attr:`error`, so consumers report it rather than silently
         keeping the previous value.
+
+        A source with no reading resolves from its last reading until it has
+        been without one for ``hold_seconds``, and is listed in
+        :attr:`held_sources` meanwhile.
         """
-        self._captured_source_states = {
-            eid: state for eid in self._source_entity_ids if (state := sm.get(eid)) is not None
+        now = time.time()
+        states = {eid: sm.get(eid) for eid in self._source_entity_ids}
+        for eid, state in states.items():
+            if state is not None and state.state not in NO_READING_STATES:
+                self._last_readings[eid] = state
+                self._missing_since.pop(eid, None)
+            else:
+                self._missing_since.setdefault(eid, now)
+        held = {
+            eid: self._last_readings[eid]
+            for eid, since in self._missing_since.items()
+            if eid in self._last_readings and now - since < self._hold_seconds
         }
         unavailable_sources = tuple(
-            eid
-            for eid in self._source_entity_ids
-            if (state := self._captured_source_states.get(eid)) is None or state.state in NO_READING_STATES
+            eid for eid in self._source_entity_ids if eid in self._missing_since and eid not in held
         )
+        self._captured_source_states = {
+            eid: state for eid in self._source_entity_ids if (state := held.get(eid, states[eid])) is not None
+        }
+        if held:
+            sm = _HeldStateMachine(sm, held)
 
         if self._sources is None or not self._source_entity_ids:
             return self._mark_unavailable(unavailable_sources)
@@ -310,6 +364,7 @@ class InputStore:
             self._error = err
             self._available = False
             self._unavailable_sources = ()
+            self._held_sources = {}
             self._settled.set()
             return changed
         except Exception as err:
@@ -338,10 +393,24 @@ class InputStore:
             )
             return self._mark_unavailable(unavailable_sources)
 
-        changed = self._commit(resolved, forecast_timestamps)
+        held_sources = {eid: self._missing_since[eid] for eid in held}
+        changed = self._commit(resolved, forecast_timestamps) or held_sources != self._held_sources
+        self._held_sources = held_sources
         self._data_ready.set()
         self._settled.set()
         return changed
+
+    def expire_holds(self) -> bool:
+        """Mark the store unavailable once its oldest held reading is too old, and return whether it was.
+
+        A held source that is still without a reading reloads no differently
+        before it expires, so nothing reloads the store when it does. Call this
+        once :attr:`hold_expires_at` has passed.
+        """
+        expires_at = self.hold_expires_at
+        if expires_at is None or time.time() < expires_at:
+            return False
+        return self._mark_unavailable(tuple(eid for eid in self._source_entity_ids if eid in self._missing_since))
 
     def _resolve_from_constant(self) -> bool:
         """Resolve the stored constant, mark the store ready, and return whether consumers should be told."""
@@ -385,7 +454,26 @@ class InputStore:
         self._available = False
         self._error = None
         self._unavailable_sources = unavailable_sources
+        self._held_sources = {}
         return changed
+
+
+class _HeldStateMachine(StateMachine):
+    """State machine decorator that reads held sources from their last reading."""
+
+    def __init__(self, base: StateMachine, held: Mapping[str, EntityState]) -> None:
+        """Initialize with a base state machine and the last reading of each held source."""
+        self._base = base
+        self._held = held
+
+    @property
+    def time_zone(self) -> tzinfo:
+        """Return the base state machine's time zone."""
+        return self._base.time_zone
+
+    def get(self, entity_id: str) -> EntityState | None:
+        """Return the held reading of a held source, or the entity's state."""
+        return self._held.get(entity_id) or self._base.get(entity_id)
 
 
 def _same_value(previous: InputValue | None, resolved: InputValue) -> bool:
@@ -413,6 +501,7 @@ def create_input_store(
     hint: FieldHint,
     get_forecast_timestamps: Callable[[], tuple[float, ...]],
     negate: bool = False,
+    hold_seconds: float = 0.0,
 ) -> InputStore:
     """Create an InputStore from the value it resolves from, its storage binding, and field hint.
 
@@ -425,7 +514,8 @@ def create_input_store(
 
     When ``negate`` is True, values resolved from source entities are negated.
     Constant values are already stored negated, so the flag only changes the
-    driven path.
+    driven path. ``hold_seconds`` is how long a driven store holds a source's
+    last reading once the source has no reading.
     """
     mode = InputMode.EDITABLE
     sources: EntityValue | None = None
@@ -452,6 +542,7 @@ def create_input_store(
         storage=storage,
         initial_value=initial_value,
         negate=negate,
+        hold_seconds=hold_seconds,
     )
 
 
