@@ -54,8 +54,7 @@ Elsewhere, favour neutral language such as "elements" or "devices".
 
 ## Link checking
 
-- `uv run zensical build` must succeed, but it does not check links or anchors.
-- Confirm each new or updated internal link and `#anchor` resolves, by following it in `uv run zensical serve` or with a script.
+- `uv run zensical build` must succeed, and it fails on any internal link or `#anchor` that does not resolve.
 - Verify external Home Assistant links still lead to maintained content.
 - Replace redirected URLs with their final destinations.
 

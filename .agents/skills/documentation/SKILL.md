@@ -1,6 +1,6 @@
 ---
 name: documentation
-description: Documentation standards for docs/ and the zensical site built from mkdocs.yml — semantic line breaks, sentence case headings, mermaid diagrams, Next steps grid cards on user pages, link-don't-duplicate, and checking links by hand because the build does not. Use when writing or updating any user guide, developer guide, walkthrough, or modeling page.
+description: Documentation standards for docs/ and the zensical site built from mkdocs.yml — semantic line breaks, sentence case headings, mermaid diagrams, Next steps grid cards on user pages, link-don't-duplicate, and the strict build that fails on broken links and anchors. Use when writing or updating any user guide, developer guide, walkthrough, or modeling page.
 ---
 
 # Documentation standards
@@ -16,8 +16,9 @@ uv run zensical serve   # live preview
 uv run zensical build   # what the docs gate runs
 ```
 
-**The build does not check links or anchors.**
-A passing build says nothing about whether a relative link or `#anchor` resolves, so confirm every one you write: check the target file exists and the anchor matches its heading slug.
+**The build fails on a broken link or anchor.**
+`mkdocs.yml` sets `strict: true`, so a relative link to a missing page or a `#anchor` that matches no heading stops the build and names the file and line.
+External links are not checked.
 
 Markdown is formatted by mdformat and JSON by Prettier; `uv run check --fix` applies both.
 
