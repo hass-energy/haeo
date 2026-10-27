@@ -308,6 +308,7 @@ The `fuse_to_intervals()` function produces values for each optimization period:
 
 - Uses trapezoidal integration to compute accurate period averages
 - Accounts for value changes within periods
+- Where the forecast steps exactly on a boundary, such as at a cycle wrap, the period before it ends at the earlier value and the period after it starts at the later one
 
 This matches optimization requirements: linear programming operates on energy quantities (power × time), not instantaneous values.
 
@@ -316,6 +317,7 @@ This matches optimization requirements: linear programming operates on energy qu
 The `fuse_to_boundaries()` function produces values at each timestamp boundary:
 
 - Uses linear interpolation to get values at exact fence post times
+- Takes the later value where the forecast steps exactly at a fence post, as where [one forecast meets the next](#timestamp-alignment)
 - Preserves point-in-time nature of quantities like capacity and SOC limits
 
 This is appropriate for energy storage values that represent states at specific moments, not averages over periods.

@@ -40,6 +40,23 @@ def build_extended_block(
     return extended
 
 
+def interpolate(
+    at: float | NDArray[np.float64],
+    times: NDArray[np.float64],
+    values: NDArray[np.float64],
+    *,
+    from_left: bool = False,
+) -> NDArray[np.float64]:
+    """Interpolate a forecast at each time in ``at``.
+
+    Where the forecast steps exactly at a time, holding several points there, the
+    value is the last of them, approaching from the right, or the first from_left.
+    """
+    point = np.searchsorted(times, at, side="left") if from_left else np.searchsorted(times, at, side="right") - 1
+    point = np.clip(point, 0, len(times) - 1)
+    return np.where(times[point] == at, values[point], np.interp(at, times, values))
+
+
 def fuse_to_boundaries(
     present_value: float | None,
     forecast_series: ForecastSeries,
@@ -73,7 +90,7 @@ def fuse_to_boundaries(
     block_array = build_extended_block(forecast_series, horizon_times[0], horizon_times[-1])
 
     # Interpolate at boundary times
-    values = np.interp(horizon_times, block_array["timestamp"], block_array["value"])
+    values = interpolate(np.asarray(horizon_times, dtype=np.float64), block_array["timestamp"], block_array["value"])
 
     # Replace position 0 with present_value if provided
     result = [float(v) for v in values]
@@ -126,9 +143,8 @@ def fuse_to_intervals(
     # points and its boundaries. The block may step exactly on a boundary, so each
     # boundary appears twice: ending the interval before it with the value from the
     # left, then starting the interval after it with the value from the right.
-    # np.interp takes the last of equal timestamps, so reversing the block gives the first.
-    from_left = np.interp(-boundaries, -block_times[::-1], block_values[::-1])
-    from_right = np.interp(boundaries, block_times, block_values)
+    from_left = interpolate(boundaries, block_times, block_values, from_left=True)
+    from_right = interpolate(boundaries, block_times, block_values)
     internal = ~np.isin(block_times, boundaries)
     times = np.concatenate([block_times[internal], boundaries, boundaries])
     values = np.concatenate([block_values[internal], from_left, from_right])
