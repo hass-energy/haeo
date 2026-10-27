@@ -41,6 +41,7 @@ from custom_components.haeo.core.schema.util import get_nested_config_value_by_p
 from custom_components.haeo.elements import find_nested_config_path, get_input_fields, iter_input_field_paths
 from custom_components.haeo.elements.input_fields import InputFieldInfo, is_number_field_info
 from custom_components.haeo.entities.haeo_number import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputNumber
+from custom_components.haeo.entities.tests.entity_helpers import mock_state_writes
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.inputs.source_loader import SourceInputLoader
@@ -529,15 +530,15 @@ async def test_editable_mode_set_native_value(
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
     # Mock async_write_ha_state and config entry update
-    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
+    write_state = mock_state_writes(entity)
     hass.config_entries.async_update_subentry = Mock()
     await _add_entity_to_hass(hass, entity)
-    entity.async_write_ha_state.reset_mock()
+    write_state.reset_mock()
 
     await entity.async_set_native_value(15.0)
 
     assert entity.native_value == 15.0
-    entity.async_write_ha_state.assert_called_once()
+    write_state.assert_called_once()
     # Value should be persisted to config entry
     hass.config_entries.async_update_subentry.assert_called_once()
 
@@ -561,14 +562,14 @@ async def test_source_change_writes_state(
     config_entry.runtime_data = None
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
-    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
+    write_state = mock_state_writes(entity)
     await _add_entity_to_hass(hass, entity)
-    entity.async_write_ha_state.reset_mock()
+    write_state.reset_mock()
 
     hass.states.async_set("sensor.power", reload_state)
     await hass.async_block_till_done()
 
-    entity.async_write_ha_state.assert_called_once()
+    write_state.assert_called_once()
     assert entity.available is available
 
 
@@ -611,13 +612,13 @@ async def test_store_listener_syncs_when_store_mutates_externally(
     config_entry.runtime_data = None
 
     entity = _make_entity(hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager)
-    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
+    write_state = mock_state_writes(entity)
     await _add_entity_to_hass(hass, entity)
 
     entity._store.set_value(12.0)
 
     assert entity.native_value == 12.0
-    entity.async_write_ha_state.assert_called()
+    write_state.assert_called()
 
 
 async def test_negate_surfaces_running_value(
@@ -637,7 +638,7 @@ async def test_negate_surfaces_running_value(
     assert entity._store.native_value == -0.15
     assert entity.native_value == 0.15
 
-    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
+    mock_state_writes(entity)
     hass.config_entries.async_update_subentry = Mock()
     await _add_entity_to_hass(hass, entity)
 
@@ -676,9 +677,9 @@ async def test_editable_set_value_updates_config_before_state_change(
         live_subentry = config_entry.subentries[subentry.subentry_id]
         captured_config_value.append(live_subentry.data[SECTION_EFFICIENCY]["power_limit"])
 
-    entity.async_write_ha_state = Mock(side_effect=_capture_config_on_state_write)  # type: ignore[method-assign]
+    write_state = mock_state_writes(entity, _capture_config_on_state_write)
     await _add_entity_to_hass(hass, entity)
-    entity.async_write_ha_state.reset_mock()
+    write_state.reset_mock()
     captured_config_value.clear()
 
     await entity.async_set_native_value(15.0)
@@ -705,15 +706,15 @@ async def test_editable_mode_set_native_value_with_runtime_data(
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
     # Mock async_write_ha_state and config entry update
-    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
+    write_state = mock_state_writes(entity)
     hass.config_entries.async_update_subentry = Mock()
     await _add_entity_to_hass(hass, entity)
-    entity.async_write_ha_state.reset_mock()
+    write_state.reset_mock()
 
     await entity.async_set_native_value(15.0)
 
     assert entity.native_value == 15.0
-    entity.async_write_ha_state.assert_called_once()
+    write_state.assert_called_once()
     hass.config_entries.async_update_subentry.assert_called_once()
     # Flag stays set — the update listener is responsible for clearing it
     assert mock_runtime_data.value_update_in_progress is True
@@ -778,13 +779,13 @@ async def test_driven_mode_ignores_user_set_value(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
     entity._attr_native_value = 10.0  # Simulate loaded value
-    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
+    write_state = mock_state_writes(entity)
 
     await entity.async_set_native_value(999.0)
 
     # Value should NOT change in driven mode
     assert entity.native_value == 10.0
-    entity.async_write_ha_state.assert_called_once()
+    write_state.assert_called_once()
 
 
 # --- Tests for unique ID generation ---
@@ -1073,7 +1074,7 @@ async def test_horizon_change_updates_forecast_timestamps_editable(
         state_writes.append({"forecast": attrs.get("forecast") if attrs else None})
         original_write()
 
-    entity.async_write_ha_state = capturing_write  # type: ignore[method-assign]
+    mock_state_writes(entity, capturing_write)
 
     # Change horizon and trigger update
     horizon_manager.get_forecast_timestamps.return_value = (100.0, 400.0, 700.0)

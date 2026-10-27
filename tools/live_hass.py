@@ -185,7 +185,7 @@ async def _require_component(
 
 
 async def _store_http_config(hass: HomeAssistant, port: int) -> None:
-    """Store the HTTP server config, listening on this port, as the confirmed config.
+    """Set the port in the stored HTTP server config and confirm it, keeping its other settings.
 
     Home Assistant keeps its HTTP config in storage and reads YAML only once,
     so a config directory from an earlier run, or restored from a prerequisite
@@ -194,7 +194,9 @@ async def _store_http_config(hass: HomeAssistant, port: int) -> None:
     out of the screenshots.
     """
     store = await async_get_and_load_store(hass)
-    await store.async_migrate_yaml({CONF_SERVER_PORT: port})
+    config = store.stable.copy()
+    config[CONF_SERVER_PORT] = port
+    await store.async_set_pending(config)
     if store.pending is not None:
         await store.async_promote_pending()
 
@@ -426,7 +428,7 @@ async def _setup_home_assistant_async(
 ) -> HomeAssistant:
     """Set up a Home Assistant instance with HTTP server and pre-authenticated user."""
     storage_dir = Path(config_dir) / ".storage"
-    storage_dir.mkdir(exist_ok=True)
+    storage_dir.mkdir(parents=True, exist_ok=True)
     onboarding_storage = storage_dir / "onboarding"
     onboarding_data = {
         "version": 4,

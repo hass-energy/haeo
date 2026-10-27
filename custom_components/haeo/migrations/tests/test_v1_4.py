@@ -44,7 +44,8 @@ from custom_components.haeo.core.schema.sections import (
 )
 from custom_components.haeo.migrations import v1_4
 
-_DEPRECATED_DEVICE_UPDATE_ARGS = frozenset(
+# Device registry arguments that move a device in two steps, through a pending move to another config entry
+_TWO_STEP_MOVE_ARGS = frozenset(
     ("add_config_entry_id", "add_config_subentry_id", "remove_config_entry_id", "remove_config_subentry_id")
 )
 
@@ -322,8 +323,8 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
     """The junction adopts the node's device and power balance sensor, so their IDs and customizations carry over.
 
     Entities added before HAEO linked them to their subentry are linked to the junction's.
-    The device is moved with the device registry arguments that replace the
-    deprecated add and remove config entry and subentry arguments.
+    The device moves straight to the junction's subentry, not through a pending
+    move to another config entry.
     """
     entry = _add_hub_in_mode(hass, advanced_mode=False)
     switchboard = _node("Switchboard")
@@ -362,10 +363,7 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
     ) as update_device:
         assert await v1_4.async_migrate_entry(hass, entry)
 
-    assert [call.kwargs.keys() & _DEPRECATED_DEVICE_UPDATE_ARGS for call in update_device.call_args_list] == [
-        set(),
-        set(),
-    ]
+    assert not any(call.kwargs.keys() & _TWO_STEP_MOVE_ARGS for call in update_device.call_args_list)
     adopted_device = device_registry.async_get(device.id)
     assert adopted_device is not None
     assert adopted_device.identifiers == {(DOMAIN, f"{prefix}junction")}
@@ -378,6 +376,38 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
     assert adopted_sensor.device_id == device.id
     assert entity_registry.async_get(switch.entity_id) is None
     assert entity_registry.async_get(horizon.entity_id) is not None
+
+
+@pytest.mark.parametrize("entity_linked", [True, False], ids=["linked", "unlinked"])
+async def test_async_migrate_entry_junction_keeps_other_entities_on_the_device(
+    hass: HomeAssistant, entity_linked: bool
+) -> None:
+    """An entity of the config entry on the node's device that is not one of the node's moves with the device."""
+    entry = _add_hub_in_mode(hass, advanced_mode=False)
+    switchboard = _node("Switchboard")
+    hass.config_entries.async_add_subentry(entry, switchboard)
+    device_registry = dr.async_get(hass)
+    entity_registry = er.async_get(hass)
+    device = device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        config_subentry_id=switchboard.subentry_id,
+        identifiers={(DOMAIN, f"{entry.entry_id}_{switchboard.subentry_id}_node")},
+    )
+    other = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{entry.entry_id}_switchboard_legacy",
+        config_entry=entry,
+        config_subentry_id=switchboard.subentry_id if entity_linked else None,
+        device_id=device.id,
+    )
+
+    assert await v1_4.async_migrate_entry(hass, entry)
+
+    kept = entity_registry.async_get(other.entity_id)
+    assert kept is not None
+    assert kept.device_id == device.id
+    assert kept.config_subentry_id == switchboard.subentry_id
 
 
 @pytest.mark.parametrize(

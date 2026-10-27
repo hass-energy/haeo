@@ -324,7 +324,7 @@ def build_choose_selector(
         raise RuntimeError(msg)
 
     # Move preferred choice to the start
-    # Needed in HA version 2026.1.1, as it currently only supports providing a suggested value for the first choice.
+    # Still needed as of HA 2026.8.0, whose choose selector starts on the first choice when the field has no value.
     if preferred_choice in choice_order:
         choice_order.remove(preferred_choice)
         choice_order.insert(0, preferred_choice)

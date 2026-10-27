@@ -39,6 +39,7 @@ from custom_components.haeo.core.schema.util import get_nested_config_value_by_p
 from custom_components.haeo.elements import find_nested_config_path, get_input_fields, iter_input_field_paths
 from custom_components.haeo.elements.input_fields import InputFieldInfo, is_switch_field_info
 from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputSwitch
+from custom_components.haeo.entities.tests.entity_helpers import mock_state_writes
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.inputs.source_loader import SourceInputLoader
@@ -337,9 +338,9 @@ async def test_editable_turn_on_updates_config_before_state_change(
         live_subentry = config_entry.subentries[subentry.subentry_id]
         captured_config_value.append(live_subentry.data[SECTION_CURTAILMENT]["allow_curtailment"])
 
-    entity.async_write_ha_state = Mock(side_effect=_capture_config_on_state_write)  # type: ignore[method-assign]
+    write_state = mock_state_writes(entity, _capture_config_on_state_write)
     await _add_entity_to_hass(hass, entity)
-    entity.async_write_ha_state.reset_mock()
+    write_state.reset_mock()
     captured_config_value.clear()
 
     await entity.async_turn_on()
@@ -390,12 +391,12 @@ async def test_driven_mode_ignores_turn_on_off(
 
     entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
     entity._attr_is_on = not turn_on  # Simulate loaded state
-    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
+    write_state = mock_state_writes(entity)
 
     await (entity.async_turn_on() if turn_on else entity.async_turn_off())
 
     assert entity.is_on is (not turn_on)
-    entity.async_write_ha_state.assert_called_once()
+    write_state.assert_called_once()
 
 
 @pytest.mark.parametrize(("source_state", "expected"), [(STATE_ON, True), (STATE_OFF, False)])
@@ -710,7 +711,7 @@ async def test_horizon_change_updates_forecast_timestamps(
     def capture_write() -> None:
         written_forecasts.append(_forecast_points(entity))
 
-    entity.async_write_ha_state = capture_write  # type: ignore[method-assign]
+    mock_state_writes(entity, capture_write)
 
     horizon_manager.get_forecast_timestamps.return_value = (100.0, 400.0, 700.0)
     (on_horizon_change,) = [call.args[0] for call in horizon_manager.subscribe.call_args_list]
@@ -743,14 +744,14 @@ async def test_source_change_updates_switch(
     config_entry.runtime_data = None
     entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
     await _add_entity_to_hass(hass, entity)
-    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
+    write_state = mock_state_writes(entity)
 
     hass.states.async_set("input_boolean.curtail", source_state)
     await hass.async_block_till_done()
 
     assert entity.is_on is is_on
     assert entity.available is available
-    entity.async_write_ha_state.assert_called_once()
+    write_state.assert_called_once()
 
 
 # --- Tests for readiness ---

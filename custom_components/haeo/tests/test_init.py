@@ -1,7 +1,7 @@
 """Test the HAEO integration."""
 
 import asyncio
-from collections.abc import AsyncIterator, Iterable
+from collections.abc import Iterable
 from pathlib import Path
 from types import MappingProxyType
 from typing import ClassVar
@@ -96,13 +96,8 @@ from custom_components.haeo.util import (
 
 
 @pytest.fixture
-async def mock_hub_entry(hass: HomeAssistant) -> AsyncIterator[MockConfigEntry]:
-    """Create a mock hub config entry.
-
-    Tests that call ``async_setup_entry`` directly leave the entry unloaded, so
-    Home Assistant never runs the unload callbacks that setup registered. They
-    run here instead, stopping the horizon timer and the input loaders.
-    """
+def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
+    """Create a mock hub config entry."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -117,9 +112,7 @@ async def mock_hub_entry(hass: HomeAssistant) -> AsyncIterator[MockConfigEntry]:
         title="Test HAEO Integration",
     )
     entry.add_to_hass(hass)
-    yield entry
-    if entry.state is not ConfigEntryState.LOADED:
-        await entry._async_process_on_unload(hass)
+    return entry
 
 
 @pytest.fixture
@@ -279,9 +272,8 @@ async def test_async_setup_entry_initializes_coordinator(
     # No input stores to wait for in this test
     monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
 
-    result = await async_setup_entry(hass, mock_hub_entry)
+    assert await hass.config_entries.async_setup(mock_hub_entry.entry_id)
 
-    assert result is True
     assert created, "Coordinator should be instantiated"
     coordinator = created[0]
     runtime_data = mock_hub_entry.runtime_data
@@ -291,6 +283,9 @@ async def test_async_setup_entry_initializes_coordinator(
     coordinator.async_refresh.assert_awaited_once()
     # forward_mock is called twice: once for INPUT_PLATFORMS, once for OUTPUT_PLATFORMS
     assert forward_mock.await_count == 2
+
+    monkeypatch.setattr(hass.config_entries, "async_unload_platforms", AsyncMock(return_value=True))
+    assert await hass.config_entries.async_unload(mock_hub_entry.entry_id)
 
 
 async def test_ensure_required_subentries_network_already_exists(
@@ -578,12 +573,11 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     expected_translation_key: str,
     expected_issues: list[str],
 ) -> None:
-    """Setup raises ConfigEntryNotReady when input stores don't become ready in time.
+    """Setup waits to retry when input stores don't become ready in time.
 
     An input with no reading names its sensors in the error and in a repair
     issue. A store that rejected its source's value reports that check's
-    translation instead. Cleanup is handled via async_on_unload callbacks
-    registered during setup.
+    translation instead.
     """
 
     # Create a mock input store that never becomes ready
@@ -645,13 +639,11 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 
     monkeypatch.setattr("asyncio.timeout", short_timeout)
 
-    # Run setup - should raise ConfigEntryNotReady
-    with pytest.raises(ConfigEntryNotReady) as exc_info:
-        await async_setup_entry(hass, mock_hub_entry)
+    assert not await hass.config_entries.async_setup(mock_hub_entry.entry_id)
 
-    # Verify the exception has the correct translation key
-    assert exc_info.value.translation_key == expected_translation_key
-    assert exc_info.value.translation_placeholders == {
+    assert mock_hub_entry.state is ConfigEntryState.SETUP_RETRY
+    assert mock_hub_entry.error_reason_translation_key == expected_translation_key
+    assert mock_hub_entry.error_reason_translation_placeholders == {
         "element": "Test Element",
         "field": "section.field",
         "entities": "sensor.limit, sensor.other" if input_error else "sensor.limit",
@@ -660,11 +652,6 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     assert [issue_id for _, issue_id in ir.async_get(hass).issues if issue_id.startswith("unavailable_input_")] == [
         issue_id.format(entry_id=mock_hub_entry.entry_id) for issue_id in expected_issues
     ]
-
-    # Note: Platform cleanup is handled via async_on_unload callbacks.
-    # When testing directly (not via hass.config_entries.async_setup), the HA
-    # lifecycle that calls _async_process_on_unload is not exercised.
-    # The async_on_unload mechanism is tested separately via the HA test framework.
 
 
 async def test_first_refresh_continues_when_the_last_input_settles_as_the_wait_times_out(

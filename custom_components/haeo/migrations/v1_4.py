@@ -111,7 +111,8 @@ def _swap_node_for_junction(
     the subentry is swapped. The junction reuses the subentry ID, and the device
     and sensor are re-keyed to the junction's identifiers, so their IDs,
     customizations, and history carry over. The role switches have no junction
-    equivalent and are removed.
+    equivalent and are removed. Any other entity of the config entry on the
+    device is detached and linked to the junction alongside the sensor.
     """
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
@@ -136,9 +137,17 @@ def _swap_node_for_junction(
         kept_entity_ids.append(entity_entry.entity_id)
 
     # Moving a device removes its entities still linked to the subentry it leaves,
-    # so each move follows the sensor
+    # so each move follows the sensor and any other entity of the entry on the device
     device = device_registry.async_get_device(identifiers={(DOMAIN, node_device_key)})
     if device is not None:
+        for entity_entry in er.async_entries_for_device(entity_registry, device.id, include_disabled_entities=True):
+            if (
+                entity_entry.config_entry_id == entry_id
+                and entity_entry.config_subentry_id in (None, subentry_id)
+                and entity_entry.entity_id not in kept_entity_ids
+            ):
+                entity_registry.async_update_entity(entity_entry.entity_id, config_subentry_id=None)
+                kept_entity_ids.append(entity_entry.entity_id)
         device_registry.async_update_device(device.id, new_config_subentry_id=None)
 
     hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)

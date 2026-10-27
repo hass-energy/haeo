@@ -29,6 +29,7 @@ from custom_components.haeo.core.const import (
 from custom_components.haeo.core.schema.entity_value import as_entity_value
 from custom_components.haeo.core.schema.horizon_value import HorizonValue, as_horizon_preset_value
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+from custom_components.haeo.entities.tests.entity_helpers import mock_state_writes
 from custom_components.haeo.horizon import HorizonManager
 
 ADELAIDE = ZoneInfo("Australia/Adelaide")
@@ -294,16 +295,16 @@ async def test_horizon_entity_updates_on_manager_change(
     )
 
     # Mock async_write_ha_state
-    entity.async_write_ha_state = Mock()  # type: ignore[method-assign]
+    write_state = mock_state_writes(entity)
 
     await _add_entity_to_hass(hass, entity)
-    entity.async_write_ha_state.reset_mock()
+    write_state.reset_mock()
 
     # Call the horizon change handler directly
     entity._async_horizon_changed()
 
     # Should have written state
-    entity.async_write_ha_state.assert_called_once()
+    write_state.assert_called_once()
 
 
 # --- Tests for HorizonManager ---
