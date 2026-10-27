@@ -13,7 +13,7 @@ from . import ForecastSeries
 MIN_BOUNDARIES = 2
 
 
-def _build_extended_block(
+def build_extended_block(
     forecast_series: ForecastSeries,
     horizon_start: float,
     horizon_end: float,
@@ -70,7 +70,7 @@ def fuse_to_boundaries(
     if not forecast_series and present_value is not None:
         return [present_value] * len(horizon_times)
 
-    block_array = _build_extended_block(forecast_series, horizon_times[0], horizon_times[-1])
+    block_array = build_extended_block(forecast_series, horizon_times[0], horizon_times[-1])
 
     # Interpolate at boundary times
     values = np.interp(horizon_times, block_array["timestamp"], block_array["value"])
@@ -115,7 +115,7 @@ def fuse_to_intervals(
             raise ValueError(msg)
         return [present_value] * n_intervals
 
-    block_array = _build_extended_block(forecast_series, horizon_times[0], horizon_times[-1])
+    block_array = build_extended_block(forecast_series, horizon_times[0], horizon_times[-1])
     block_times = block_array["timestamp"]
     block_values = block_array["value"]
     boundaries = np.asarray(horizon_times, dtype=np.float64)

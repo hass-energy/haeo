@@ -124,9 +124,13 @@ HAEO combines them automatically.
 
 **How combining works**:
 
+Sensors whose forecasts follow on from each other without overlapping join into one.
+Each sensor, or joined group, then repeats by time of day past its own forecast, and they all add up.
+
 - Present values **sum together**
-- Forecast series **merge on shared timestamps and sum**, then repeat together if they end before the horizon does
-- A forecast that already covers the whole horizon, such as a [calendar](#calendars-as-forecasts), adds on its own, so it never stops the others from repeating
+- Forecasts for windows that follow on from each other join, such as [today and tomorrow](#multiple-forecast-windows)
+- Forecasts over the same time add up, such as two solar arrays, or a price and a [calendar](#calendars-as-forecasts) of surcharges
+- Each forecast, or joined group, fills the rest of the horizon by [repeating by time of day](#forecast-coverage-and-cycling), so a short forecast beside a long one still applies on every day
 - With only present values, the summed value repeats across the horizon
 - With a forecast, the summed present value is the value for now (the first period) and the summed forecast covers the rest
 - If any of the sensors is unavailable, the whole field is unavailable, as it would be for a single unavailable sensor
@@ -201,8 +205,15 @@ Combine them using multiple sensors:
 | --------- | ----------------------------------------------------------- |
 | **Power** | sensor.solar_forecast_today, sensor.solar_forecast_tomorrow |
 
-HAEO merges all forecast series on shared timestamps and sums values.
-This gives you complete horizon coverage from multiple shorter forecast windows.
+Tomorrow's forecast starts where today's ends, so the two join into one forecast covering both days:
+
+- With a horizon that ends tonight, only today's forecast falls inside it, so tomorrow's adds nothing
+- With a horizon reaching into tomorrow, the plan uses today's forecast and then tomorrow's
+- With a horizon longer than both, the joined two days [repeat by time of day](#forecast-coverage-and-cycling) after tomorrow ends
+
+If the windows leave a gap between them, such as today and the day after tomorrow, the joined forecast fills the gap by repeating the same way.
+
+Forecasts that should continue one another must meet rather than overlap: two that overlap, even by an hour, each repeat on their own and add up.
 
 ### Visual example: Combining today and tomorrow forecasts
 
@@ -245,7 +256,7 @@ HAEO handles partial coverage automatically through **forecast cycling**.
 When forecast data ends before your horizon:
 
 1. **Single sensor values** repeat for the entire horizon (already covered above)
-2. **Forecast series** cycle using natural period alignment
+2. **Forecast series** cycle using natural period alignment, each forecast or [joined group](#multiple-sensors) on its own
 
 **Natural period alignment** means HAEO identifies the pattern duration in your forecast and repeats it intelligently:
 
@@ -378,6 +389,7 @@ The issue clears once every event's value can be used.
 **Example**: A demand charge of 0.30 \$/kWh on weekday evenings.
 Create a recurring event from 4 pm to 9 pm with `0.30 $/kWh` in its description, then add the calendar to the grid's import price next to the price sensor.
 HAEO adds 0.30 \$/kWh to the import price during each event.
+The price sensor's forecast still repeats past its end, and the calendar adds to it.
 
 Calendar events are fetched whenever the calendar or the horizon changes.
 If a calendar cannot be read, the field is unavailable and optimization pauses until it can, as it would for an unavailable sensor.

@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 
 from . import ForecastSeries, SensorPayload
-from .forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from .forecast_fuser import build_extended_block, fuse_to_boundaries, fuse_to_intervals
 
 
 def split_sensor_payloads(payloads: Mapping[str, SensorPayload]) -> tuple[float | None, list[ForecastSeries]]:
@@ -38,34 +38,54 @@ def _end_before(series: ForecastSeries) -> ForecastSeries:
     return [*points, (before, value)]
 
 
-def _merge_forecasts(forecast_series: Sequence[ForecastSeries]) -> ForecastSeries:
-    """Sum forecasts on the union of their timestamps, each zero outside its own range.
+def _group(forecast_series: Sequence[ForecastSeries]) -> list[list[ForecastSeries]]:
+    """Group forecasts that follow on from each other without overlapping.
 
-    Where one forecast ends at the timestamp another starts, the later one
-    alone sets the value there: the ending forecast steps down just before
-    it, so the merged forecast steps from one to the other.
+    Forecasts are taken in order of their start, then their end, then input
+    order, and each joins the first group it follows on from: it starts at or
+    after the group's end and ends after it. Otherwise it starts a new group.
     """
-    forecast_series = [
-        _end_before(series)
-        if any(other is not series and other[0][0] == series[-1][0] for other in forecast_series)
-        else series
-        for series in forecast_series
+    groups: list[list[ForecastSeries]] = []
+    for series in sorted(forecast_series, key=lambda series: (series[0][0], series[-1][0])):
+        group = next(
+            (group for group in groups if group[-1][-1][0] <= series[0][0] and group[-1][-1][0] < series[-1][0]),
+            None,
+        )
+        if group is None:
+            groups.append([series])
+        else:
+            group.append(series)
+    return groups
+
+
+def _repeat(forecast: ForecastSeries, start: float, end: float) -> ForecastSeries:
+    """Return a forecast repeating by time of day from start to end."""
+    block = build_extended_block(forecast, forecast[0][0], end)
+    times, values = block["timestamp"], block["value"]
+    inside = (times > start) & (times < end)
+    return [
+        (start, float(np.interp(start, times, values))),
+        *zip(times[inside].tolist(), values[inside].tolist(), strict=True),
+        (end, float(np.interp(end, times, values))),
     ]
-    unique_timestamps = sorted({timestamp for series in forecast_series for timestamp, _ in series})
-    all_timestamps = np.array(unique_timestamps, dtype=np.float64)
-    total_values = np.zeros(all_timestamps.size, dtype=np.float64)
-
-    for series in forecast_series:
-        timestamps = np.array([timestamp for timestamp, _ in series], dtype=np.float64)
-        values = np.array([value for _, value in series], dtype=np.float64)
-        total_values += np.interp(all_timestamps, timestamps, values, left=0.0, right=0.0)
-
-    return list(zip(all_timestamps.tolist(), total_values.tolist(), strict=True))
 
 
-def _covers(series: ForecastSeries, horizon_times: Sequence[float]) -> bool:
-    """Return True when a forecast spans the whole horizon, so it never repeats."""
-    return series[0][0] <= horizon_times[0] and series[-1][0] >= horizon_times[-1]
+def _join(group: Sequence[ForecastSeries]) -> ForecastSeries:
+    """Join forecasts that follow on from each other into one.
+
+    Where one forecast ends at the timestamp the next starts, the later one
+    alone sets the value there: the ending forecast steps down just before
+    it, so the joined forecast steps from one to the other. A gap between
+    two forecasts fills with the forecast before it repeating by time of day,
+    which steps to the next forecast where it starts.
+    """
+    joined = group[0]
+    for series in group[1:]:
+        gap_start, gap_end = joined[-1][0], series[0][0]
+        if gap_start < gap_end:
+            joined = [*_end_before(joined), *_repeat(joined, gap_start, gap_end)]
+        joined = [*_end_before(joined), *series]
+    return joined
 
 
 def fuse_sensor_payloads(
@@ -77,11 +97,9 @@ def fuse_sensor_payloads(
 ) -> list[float]:
     """Fuse sensor payloads to the horizon and sum them.
 
-    Forecasts that only cover part of the horizon merge first, each zero
-    outside its own range, so forecasts for consecutive windows (today and
-    tomorrow) join into one, which then repeats to fill the horizon. A
-    forecast covering the whole horizon fuses on its own and adds to the
-    result, so it never stops the partial forecasts from repeating.
+    Sensors whose forecasts follow on from each other without overlapping
+    join into one. Each sensor, or joined group, then repeats by time of day
+    past its own forecast, and they all add up.
 
     The present value is the value for now: it replaces the first interval
     (or boundary), and repeats across the horizon when there is no forecast.
@@ -93,12 +111,7 @@ def fuse_sensor_payloads(
             return [0.0] * (len(horizon_times) if boundaries else max(len(horizon_times) - 1, 0))
         return fuse(present_value, [], horizon_times)
 
-    covering = [series for series in forecast_series if _covers(series, horizon_times)]
-    partial = [series for series in forecast_series if not _covers(series, horizon_times)]
-    fused = [fuse(None, series, horizon_times) for series in covering]
-    if partial:
-        fused.append(fuse(None, _merge_forecasts(partial), horizon_times))
-
+    fused = [fuse(None, _join(group), horizon_times) for group in _group(forecast_series)]
     result: list[float] = np.sum(fused, axis=0).tolist()
     if present_value is not None and result:
         result[0] = present_value
