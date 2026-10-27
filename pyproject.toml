@@ -19,7 +19,7 @@ dev = [
     "freezegun>=1.5.2",
     "ical==12.1.2",  # matches the local_calendar requirement of the locked Home Assistant
     "home-assistant-frontend>=20260107.1",
-    "playwright>=1.57.0",
+    "playwright>=1.64.1",
     "tabulate>=0.9.0",
     "mdformat-beautysh>=1.0.0",
     "mdformat-config>=0.2.1",
