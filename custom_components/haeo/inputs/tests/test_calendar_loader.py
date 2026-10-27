@@ -7,6 +7,7 @@ import logging
 from unittest.mock import Mock, patch
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
+from homeassistant.components.calendar.const import DATA_COMPONENT as CALENDAR_DATA_COMPONENT
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -93,8 +94,7 @@ def horizon_manager() -> Mock:
 async def remove_stub_calendars(hass: HomeAssistant) -> AsyncIterator[None]:
     """Remove the stub calendars after each test, cancelling the updates they schedule at their event's end."""
     yield
-    component: EntityComponent[CalendarEntity] | None = hass.data.get(CALENDAR_DOMAIN)
-    if component is not None:
+    if (component := hass.data.get(CALENDAR_DATA_COMPONENT)) is not None:
         for entity in list(component.entities):
             await entity.async_remove()
 

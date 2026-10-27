@@ -113,7 +113,7 @@ This avoids false positives and redundant feedback that linting tools already pr
 
 ## Universal code standards
 
-- **Python**: 3.13+ with modern features (pattern matching, `str | None` syntax, f-strings, dataclasses)
+- **Python**: 3.14+ with modern features (pattern matching, `str | None` syntax, f-strings, dataclasses)
 - **Type hints**: Required on all functions, methods, and variables
 - **Typing philosophy**: Type at boundaries, use TypedDict/TypeGuard for narrowing, prefer types over runtime checks
 - **Formatting**: Ruff (Python), Prettier (JSON), mdformat (Markdown)

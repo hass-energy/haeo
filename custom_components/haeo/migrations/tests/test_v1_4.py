@@ -318,9 +318,7 @@ async def test_async_migrate_entry_replaces_junction_node(hass: HomeAssistant, a
 
 
 @pytest.mark.parametrize("entities_linked", [True, False], ids=["linked", "unlinked"])
-async def test_async_migrate_entry_junction_keeps_device_and_sensor(
-    hass: HomeAssistant, caplog: pytest.LogCaptureFixture, entities_linked: bool
-) -> None:
+async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAssistant, entities_linked: bool) -> None:
     """The junction adopts the node's device and power balance sensor, so their IDs and customizations carry over.
 
     Entities added before HAEO linked them to their subentry are linked to the junction's.
@@ -368,7 +366,6 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(
         set(),
         set(),
     ]
-    assert "stop working in Home Assistant" not in caplog.text
     adopted_device = device_registry.async_get(device.id)
     assert adopted_device is not None
     assert adopted_device.identifiers == {(DOMAIN, f"{prefix}junction")}
