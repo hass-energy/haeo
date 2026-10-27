@@ -65,19 +65,21 @@ Check these rules in order and use the first that matches:
 ```mermaid
 flowchart TD
     Start([New plan]) --> Avail{Plan available?}
-    Avail -- No --> SC1[Self-consumption<br/>full limits]
+    Avail -- No --> SC1[Self-consumption]
     Avail -- Yes --> Chg{Battery charging?}
     Chg -- Yes --> Imp{Grid importing?}
     Imp -- Yes --> FC[Forced charge<br/>charge limit = planned rate]
     Imp -- No --> SC2[Self-consumption<br/>charge limit = planned rate]
     Chg -- No --> Zero{Grid near zero?}
-    Zero -- Yes --> SC3[Self-consumption<br/>full limits]
-    Zero -- No --> DisExp{Battery discharging<br/>or grid exporting?}
-    DisExp -- Yes --> FD[Forced discharge<br/>discharge limit = planned rate,<br/>or full at the export limit]
-    DisExp -- No --> SB[Standby]
+    Zero -- Yes --> SC3[Self-consumption]
+    Zero -- No --> Exp{Grid exporting?}
+    Exp -- Yes --> FD[Forced discharge<br/>discharge limit = planned rate,<br/>or full at the export limit]
+    Exp -- No --> Dis{Battery discharging?}
+    Dis -- Yes --> SC4[Self-consumption<br/>discharge limit = planned rate]
+    Dis -- No --> SB[Standby]
 ```
 
-1. **No plan: self-consumption with full limits.**
+1. **No plan: self-consumption.**
     When HAEO's outputs are unavailable, for example because an optimization failed, there is no plan to follow.
     Self-consumption is the safe default, because it never deliberately trades with the grid.
 
@@ -92,18 +94,21 @@ flowchart TD
     The charge limit keeps the planned share of the surplus going to the grid, for example when exporting now is worth more than storing.
     A forced charge here would import whenever solar falls short of the forecast.
 
-4. **Grid near zero: self-consumption with full limits.**
+4. **Grid near zero: self-consumption.**
     The plan balances the house, solar, and battery with no grid flow, which is exactly what self-consumption does.
     With full limits, the inverter follows the real solar and load instead of the forecast.
 
-5. **Discharging or exporting: forced discharge at the planned rate.**
-    The plan sends energy out at a set rate while the grid is in use.
-    Usually it is selling, either from the battery or from solar while the battery idles.
+5. **Exporting: forced discharge at the planned rate.**
+    The plan sells energy to the grid, either from the battery or from solar while the battery idles.
     Self-consumption would never export from the battery, and would put surplus solar into the battery rather than the grid.
     When the grid is planned at its export limit, set the discharge limit to full rather than the planned rate.
     The export limit is what decides the battery's power there, so the inverter can top up exports from the battery whenever solar falls short.
 
-6. **Anything else: standby.**
+6. **Discharging while importing: self-consumption, with the discharge limit at the planned rate.**
+    The plan covers part of the house from the battery and imports the rest, rationing the battery for later.
+    Self-consumption follows the real load, so the battery never exports when the house uses less than forecast, and the limit keeps the rest of its energy for later.
+
+7. **Anything else: standby.**
     The battery is planned idle while the house imports, because its energy is worth more later than it saves now.
     Self-consumption would discharge it to cover the house.
 
@@ -112,9 +117,9 @@ flowchart TD
 Each rule sets a limit only where the plan's number carries meaning:
 
 - The charge limit when the battery charges, because it sets how much energy the battery takes from the grid or the surplus.
-- The discharge limit in forced discharge, because it sets how much the battery sends out.
+- The discharge limit when the battery discharges, because it sets how much energy the battery gives up now.
 
-Everywhere else, set the limits to the battery's full rating.
+Set every other limit to the battery's full rating, every time the rules run.
 A limit left over from an earlier period would otherwise keep holding the battery back after the plan has changed.
 
 Set your inverter's own export limit to match the export limit in HAEO.
@@ -132,49 +137,50 @@ They hold even when the forecast is off, because they read the price rather than
     Importing pays you, so stop solar generating and let the grid supply the house and the battery.
 
 HAEO's grid has `number.{name}_import_price` and `number.{name}_export_price` [input entities](elements/grid.md#input-entities) whose state is the current price, so the guards can use the same prices as the plan.
-Replace `number.inverter_export_limit` and `number.inverter_solar_limit` with your inverter's controls, and set the restored values to your inverter's normal limits:
+Create each as its own automation.
+Replace `number.inverter_export_limit` and `number.inverter_solar_limit` with your inverter's controls, and replace the `10` in each with your inverter's normal limit:
 
 ```yaml
-  - alias: HAEO export price guard
-    description: Stop exporting while the export price is negative.
-    triggers:
-      - trigger: state
-        entity_id: number.grid_export_price
-      - trigger: homeassistant
-        event: start
-    actions:
-      - action: number.set_value
-        target:
-          entity_id: number.inverter_export_limit
-        data:
-        # kW: 0 while exporting costs money, otherwise your normal export limit (10 here)
-          value: "{{ 0 if states('number.grid_export_price') | float(0) < 0 else 10
-            }}"
-    mode: queued
+alias: HAEO export price guard
+description: Stop exporting while the export price is negative.
+triggers:
+  - trigger: state
+    entity_id: number.grid_export_price
+  - trigger: homeassistant
+    event: start
+actions:
+  - action: number.set_value
+    target:
+      entity_id: number.inverter_export_limit
+    data:
+      # kW: 0 while exporting costs money, otherwise your normal export limit
+      value: "{{ 0 if states('number.grid_export_price') | float(0) < 0 else 10 }}"
+mode: queued
+```
 
-  - alias: HAEO import price guard
-    description: Stop solar generating while the import price is negative.
-    triggers:
-      - trigger: state
-        entity_id: number.grid_import_price
-      - trigger: homeassistant
-        event: start
-    actions:
-      - action: number.set_value
-        target:
-          entity_id: number.inverter_solar_limit
-        data:
-        # kW: 0 while importing pays, otherwise your inverter's full solar rating (10 here)
-          value: "{{ 0 if states('number.grid_import_price') | float(0) < 0 else 10
-            }}"
-    mode: queued
+```yaml
+alias: HAEO import price guard
+description: Stop solar generating while the import price is negative.
+triggers:
+  - trigger: state
+    entity_id: number.grid_import_price
+  - trigger: homeassistant
+    event: start
+actions:
+  - action: number.set_value
+    target:
+      entity_id: number.inverter_solar_limit
+    data:
+      # kW: 0 while importing pays, otherwise your inverter's full solar rating
+      value: "{{ 0 if states('number.grid_import_price') | float(0) < 0 else 10 }}"
+mode: queued
 ```
 
 The [solar element's curtailment](elements/solar.md#curtailment) setting should be enabled when your inverter can limit solar, so the plan also expects curtailment at these times.
 
 ## How well this works
 
-In a comparison over 300 plans, these rules and price guards came within a fraction of a cent, on average, of a general controller that chose the inverter settings by optimization.
+In a comparison over 300 plans, this approach came within a fraction of a cent, on average, of a general controller that chose the inverter settings by optimization.
 They work because each rule only steps in where the plan does something the inverter would not do on its own:
 
 - A negative export price caps export.
@@ -189,8 +195,10 @@ Charging from solar in forced charge rather than self-consumption caused every o
 
 - **Add a manual switch.**
     Create an `input_boolean` helper and add it as a condition, so you can stop the automation and take over at any time.
+    When it turns off, return the inverter to self-consumption with full limits once, so it is not left in a forced mode.
 - **Fall back to self-consumption.**
     Use it whenever HAEO's outputs are unavailable.
+    Skip a run entirely when the inverter's own controls are unavailable, rather than writing values you cannot check.
     You can add your own conditions to the fallback too, such as your internet connection being down, so the inverter stops following a plan built on stale prices.
 - **Watch for failures.**
     HAEO's outputs become unavailable when an optimization fails, so the fallback applies automatically.

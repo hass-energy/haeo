@@ -304,7 +304,8 @@ If your entity IDs or mode names differ, check them under **Developer tools** �
 
 ### Add a manual switch
 
-Create a toggle helper so you can stop the automation and control the plant yourself at any time:
+Create a toggle helper so you can stop the automation and control the plant yourself at any time.
+Turning it off returns the plant to Maximum Self Consumption with full limits once, then leaves it alone until you turn it back on.
 
 1. Go to **Settings** → **Devices & services** → **Helpers**.
 2. Select **Create helper** → **Toggle**.
@@ -322,12 +323,22 @@ triggers:
     entity_id:
       - sensor.battery_active_power
       - sensor.grid_active_power
-      - input_boolean.haeo_battery_control
+  - trigger: state
+    entity_id: input_boolean.haeo_battery_control
+    id: switch
   - trigger: homeassistant
     event: start
 conditions:
-  # Turn the helper off to take manual control of the plant.
-  - "{{ is_state('input_boolean.haeo_battery_control', 'on') }}"
+  # Follow the plan while the helper is on, and hand back once when it turns off.
+  - >-
+    {{ is_state('input_boolean.haeo_battery_control', 'on')
+       or trigger.id == 'switch' }}
+  # Only write to the plant while it is reachable.
+  - "{{ has_value('select.sigen_plant_remote_ems_control_mode') }}"
+  - >-
+    {{ state_attr('number.sigen_plant_ess_max_charging_limit', 'max') is number
+       and state_attr('number.sigen_plant_ess_max_discharging_limit', 'max') is number
+    }}
 actions:
   - variables:
       mode_select: select.sigen_plant_remote_ems_control_mode
@@ -337,6 +348,7 @@ actions:
       export_limit_kw: 30
       # Planned flows smaller than this, in kW, count as zero.
       deadband_kw: 0.1
+      control_on: "{{ is_state('input_boolean.haeo_battery_control', 'on') }}"
       plan_available: >-
         {{ has_value('sensor.battery_active_power')
            and has_value('sensor.grid_active_power') }}
@@ -351,120 +363,76 @@ actions:
       exporting: '{{ grid_kw < -deadband_kw }}'
       at_export_limit: '{{ grid_kw <= -(export_limit_kw - deadband_kw) }}'
       # The battery's full rates are the highest values its limits accept.
-      full_charge_kw: "{{ state_attr(charge_limit, 'max') | float(0) }}"
-      full_discharge_kw: "{{ state_attr(discharge_limit, 'max') | float(0) }}"
-      planned_charge_kw: '{{ [-battery_kw, full_charge_kw] | min | round(2) }}'
-      planned_discharge_kw: '{{ [battery_kw, full_discharge_kw] | min | round(2) }}'
-  - choose:
-      - alias: No plan, so self-consume freely
-        conditions: '{{ not plan_available }}'
-        sequence:
-          - action: select.select_option
-            target:
-              entity_id: '{{ mode_select }}'
-            data:
-              option: Maximum Self Consumption
-          - action: number.set_value
-            target:
-              entity_id: '{{ charge_limit }}'
-            data:
-              value: '{{ full_charge_kw }}'
-          - action: number.set_value
-            target:
-              entity_id: '{{ discharge_limit }}'
-            data:
-              value: '{{ full_discharge_kw }}'
-      - alias: Charging from the grid, so force a charge at the planned rate
-        conditions: '{{ charging and importing }}'
-        sequence:
-          - action: select.select_option
-            target:
-              entity_id: '{{ mode_select }}'
-            data:
-              option: Command Charging (PV First)
-          - action: number.set_value
-            target:
-              entity_id: '{{ charge_limit }}'
-            data:
-              value: '{{ planned_charge_kw }}'
-      - alias: Charging from solar, so self-consume up to the planned rate
-        conditions: '{{ charging }}'
-        sequence:
-          - action: select.select_option
-            target:
-              entity_id: '{{ mode_select }}'
-            data:
-              option: Maximum Self Consumption
-          - action: number.set_value
-            target:
-              entity_id: '{{ charge_limit }}'
-            data:
-              value: '{{ planned_charge_kw }}'
-          - action: number.set_value
-            target:
-              entity_id: '{{ discharge_limit }}'
-            data:
-              value: '{{ full_discharge_kw }}'
-      - alias: Grid near zero, so self-consume freely
-        conditions: '{{ not importing and not exporting }}'
-        sequence:
-          - action: select.select_option
-            target:
-              entity_id: '{{ mode_select }}'
-            data:
-              option: Maximum Self Consumption
-          - action: number.set_value
-            target:
-              entity_id: '{{ charge_limit }}'
-            data:
-              value: '{{ full_charge_kw }}'
-          - action: number.set_value
-            target:
-              entity_id: '{{ discharge_limit }}'
-            data:
-              value: '{{ full_discharge_kw }}'
-      - alias: Discharging or exporting, so force a discharge
-        conditions: '{{ discharging or exporting }}'
-        sequence:
-          - action: select.select_option
-            target:
-              entity_id: '{{ mode_select }}'
-            data:
-              option: Command Discharging (PV First)
-          # At the export limit, the limit decides the power, so leave the battery free.
-          - action: number.set_value
-            target:
-              entity_id: '{{ discharge_limit }}'
-            data:
-              value: '{{ full_discharge_kw if at_export_limit else planned_discharge_kw
-                }}'
-    # Battery idle while importing: keep its energy for later.
-    default:
-      - action: select.select_option
-        target:
-          entity_id: '{{ mode_select }}'
-        data:
-          option: Standby
+      full_charge_kw: "{{ state_attr(charge_limit, 'max') }}"
+      full_discharge_kw: "{{ state_attr(discharge_limit, 'max') }}"
+      planned_charge_kw: >-
+        {{ ([-battery_kw, 0] | max, full_charge_kw) | min | round(2) }}
+      planned_discharge_kw: >-
+        {{ ([battery_kw, 0] | max, full_discharge_kw) | min | round(2) }}
+      # Choose the mode and both limits from the first rule that matches.
+      rule: >-
+        {% if not control_on or not plan_available %}free
+        {% elif charging and importing %}grid_charge
+        {% elif charging %}solar_charge
+        {% elif not importing and not exporting %}free
+        {% elif exporting %}export
+        {% elif discharging %}discharge
+        {% else %}hold
+        {% endif %}
+      ems_mode: >-
+        {{ {'free': 'Maximum Self Consumption',
+            'grid_charge': 'Command Charging (PV First)',
+            'solar_charge': 'Maximum Self Consumption',
+            'export': 'Command Discharging (PV First)',
+            'discharge': 'Maximum Self Consumption',
+            'hold': 'Standby'}[rule] }}
+      charge_kw: >-
+        {{ planned_charge_kw if rule in ['grid_charge', 'solar_charge']
+           else full_charge_kw }}
+      # At the export limit, the limit decides the power, so leave the battery free.
+      discharge_kw: >-
+        {{ planned_discharge_kw if rule == 'discharge'
+           or (rule == 'export' and not at_export_limit)
+           else full_discharge_kw }}
+  - action: select.select_option
+    target:
+      entity_id: '{{ mode_select }}'
+    data:
+      option: '{{ ems_mode }}'
+  - action: number.set_value
+    target:
+      entity_id: '{{ charge_limit }}'
+    data:
+      value: '{{ charge_kw }}'
+  - action: number.set_value
+    target:
+      entity_id: '{{ discharge_limit }}'
+    data:
+      value: '{{ discharge_kw }}'
 mode: queued
 ```
 
 Set `export_limit_kw` to the export limit you gave the grid in [step 5](#step-5-add-grid-connection), and give the plant the same export limit.
-The automation checks these rules in order and applies the first that matches:
+The automation checks these rules in order, and the first that matches sets the mode and both limits:
 
-| Plan for the current period           | Plant mode                     | Limits                                                     |
-| ------------------------------------- | ------------------------------ | ---------------------------------------------------------- |
-| No plan available                     | Maximum Self Consumption       | Both at full rate                                          |
-| Battery charging, grid importing      | Command Charging (PV First)    | Charge at the planned rate                                 |
-| Battery charging otherwise            | Maximum Self Consumption       | Charge at the planned rate, discharge at full rate         |
-| Grid near zero                        | Maximum Self Consumption       | Both at full rate                                          |
-| Battery discharging or grid exporting | Command Discharging (PV First) | Discharge at the planned rate, or full at the export limit |
-| Battery idle, grid importing          | Standby                        | Unchanged                                                  |
+| Plan for the current period         | `rule`         | Plant mode                     | Limits                                                     |
+| ----------------------------------- | -------------- | ------------------------------ | ---------------------------------------------------------- |
+| No plan available, or helper off    | `free`         | Maximum Self Consumption       | Both at full rate                                          |
+| Battery charging, grid importing    | `grid_charge`  | Command Charging (PV First)    | Charge at the planned rate                                 |
+| Battery charging otherwise          | `solar_charge` | Maximum Self Consumption       | Charge at the planned rate                                 |
+| Grid near zero                      | `free`         | Maximum Self Consumption       | Both at full rate                                          |
+| Grid exporting                      | `export`       | Command Discharging (PV First) | Discharge at the planned rate, or full at the export limit |
+| Battery discharging, grid importing | `discharge`    | Maximum Self Consumption       | Discharge at the planned rate                              |
+| Battery idle, grid importing        | `hold`         | Standby                        | Both at full rate                                          |
 
+Any limit the table does not name is set to full rate, so a limit from an earlier period never holds the battery back.
+The forced modes run only while the battery trades energy with the grid.
 When the plan charges from surplus solar, the automation uses self-consumption with a charge limit rather than Command Charging.
 If solar then comes in below forecast, the battery charges less instead of importing to make up the planned rate.
 
-To also fall back to self-consumption when your internet connection is down, so the plant stops following a plan built on stale prices, add your connectivity sensor to the first rule's condition.
-For example, `{{ not plan_available or is_state('binary_sensor.internet', 'off') }}`.
+The automation only runs while the plant's mode and limits are available, so it never writes a limit it cannot read the range of.
+To also fall back to self-consumption when your internet connection is down, so the plant stops following a plan built on stale prices, add your connectivity sensor to the first line of `rule`.
+For example, `{% if not control_on or not plan_available or is_state('binary_sensor.internet', 'off') %}free`.
 
 ### Add the price guards
 
@@ -514,7 +482,7 @@ mode: queued
 ### Check it
 
 Turn on **HAEO battery control**, then open the mode automation's trace after its next run.
-The trace shows which rule matched and the values it read.
+Its variables show the `rule` it chose and the values it read.
 Compare the plant's mode with the plan on the [forecast card](../user-guide/lovelace-card.md) at the same time.
 
 ## Architecture notes
