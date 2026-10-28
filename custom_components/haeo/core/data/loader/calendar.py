@@ -15,6 +15,7 @@ import re
 from typing import TYPE_CHECKING, Final, TypedDict
 
 from custom_components.haeo.core.data.util.field_units import to_field_unit
+from custom_components.haeo.core.units import is_unit
 
 if TYPE_CHECKING:
     from custom_components.haeo.core.model.const import OutputType
@@ -45,33 +46,70 @@ class CalendarWindow:
 
 _NUMBER: Final = r"[-+]?(?:\d+(?:\.\d+)?|\.\d+)"
 
+# A word typed as a unit, which does not start with a digit or punctuation
+_WORD: Final = r"""[^\s\d.,;:!?()\[\]{}"'/+\u2013-][^\s,;:!?()\[\]{}"']*"""
+
 # A number standing as its own word, optionally signed and with decimals,
-# then the word typed after it as its unit, if any. A digit inside a word,
-# such as in "EV2" or "v1.2", is not a number, nor is the part of a number
+# then the text its unit is typed in, if any: a word, and any more joined to
+# it by a slash or following a digit, as in "16 kWh / 100 km". A digit inside
+# a word, such as in "EV2" or "v1.2", is not a number, nor is the part of a number
 # after a comma, slash, colon, or dash, as in "1,500", "1/2", or "10:30".
 # A number after a word and one of these, as in "Trip:50km", is its own.
 # A range, such as "8-10 kWh" or "8 to 10 kWh", is one number whose unit is
 # the rest of the range, so no input reads it as a value.
-# Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3", "EV 8 kWh tonight", "Charge:8kWh"
+# Examples: "50 km", "5kW", "0.30 € / kWh", "-2.5 kW", "3", "EV 8 kWh tonight", "Charge:8kWh"
 _QUANTITY_PATTERN: Final = re.compile(
     rf"""
     (?<![\w.])(?<!\d[-\u2013,/:])
     (?P<number>{_NUMBER})
     (?P<range>\s*(?:[-\u2013]|\bto\b)\s*{_NUMBER})?
-    (?:\s*(?P<unit>[^\s\d.,;:!?()\[\]{{}}"'/+\u2013-][^\s,;:!?()\[\]{{}}"']*))?
+    (?:\s*(?P<unit>{_WORD}(?:\s*/\s*(?:\d+\s*)?{_WORD}|(?<=\d)\s+{_WORD})*))?
     """,
     re.VERBOSE,
 )
+
+
+_UNIT_PART_SEPARATOR: Final = re.compile(r"\s*/\s*|\s+")
+
+
+def _typed_unit(text: str) -> str:
+    """Return the unit typed in the text after a number.
+
+    The unit is the longest leading part of the text HAEO reads as a unit, so
+    "kWh / night" is kWh. A slash and another unit after that part, as in
+    "kWh / h", make the whole text the unit, a rate rather than its first
+    part. Text starting with no unit HAEO reads gives its first word.
+    """
+    separators = list(_UNIT_PART_SEPARATOR.finditer(text))
+    ends = [separator.start() for separator in separators] + [len(text)]
+    for index in reversed(range(len(ends))):
+        if is_unit(text[: ends[index]]):
+            if index < len(separators) and "/" in separators[index][0]:
+                following = text[separators[index].end() : ends[index + 1]]
+                if is_unit(following):
+                    return text
+            return text[: ends[index]]
+    return text[: ends[0]]
 
 
 def find_quantities(text: str) -> list[tuple[float, str | None]]:
     """Return every number in text with the unit typed after it, if any.
 
     A unit ending a sentence, as in "Charge 8 kWh.", leaves its full stop.
+    The text after the part of it read as a unit is searched for more
+    numbers, so "8 kWh / 3 kW" holds both.
     """
     quantities: list[tuple[float, str | None]] = []
-    for match in _QUANTITY_PATTERN.finditer(text):
-        unit = text[match.end("number") : match.end()].strip() if match["range"] else match["unit"]
+    position = 0
+    while (match := _QUANTITY_PATTERN.search(text, position)) is not None:
+        position = match.end()
+        if match["range"]:
+            unit: str | None = text[match.end("number") : match.end()].strip()
+        elif match["unit"]:
+            unit = _typed_unit(match["unit"].rstrip("."))
+            position = match.start("unit") + len(unit)
+        else:
+            unit = None
         quantities.append((float(match["number"]), unit.rstrip(".") if unit else None))
     return quantities
 

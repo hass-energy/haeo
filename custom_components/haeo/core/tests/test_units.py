@@ -256,6 +256,34 @@ def test_price_currency(unit: str | None, expected: str | None) -> None:
     assert price_currency(unit) == expected
 
 
+@pytest.mark.parametrize(
+    ("unit", "expected"),
+    [
+        pytest.param("kwh", UnitOfMeasurement.KILO_WATT_HOUR, id="lower_case"),
+        pytest.param("kWH", UnitOfMeasurement.KILO_WATT_HOUR, id="upper_case_after_prefix"),
+        pytest.param("MWH", UnitOfMeasurement.MEGA_WATT_HOUR, id="mega"),
+        pytest.param("kwh/100km", UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER, id="lower_case_parts"),
+        pytest.param("kWh / 100 KM", None, id="part_starting_in_wrong_case"),
+        pytest.param("mW", None, id="milli_is_not_mega"),
+        pytest.param("KW", None, id="capital_k_is_not_kilo"),
+        pytest.param("w", None, id="weeks_are_not_watts"),
+        pytest.param("Ft", None, id="forint_is_not_feet"),
+        pytest.param("W", UnitOfMeasurement.WATT, id="exact"),
+        pytest.param(UnitOfMeasurement.WATT, UnitOfMeasurement.WATT, id="member"),
+        pytest.param(" kWh / 100 km ", UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER, id="spaced"),
+        pytest.param(None, None, id="not_a_string"),
+    ],
+)
+def test_unit_of_measurement_ignores_case_but_for_prefixes(unit: object, expected: UnitOfMeasurement | None) -> None:
+    """A unit reads in any spacing, and in any case but for the first letter of each part."""
+    assert UnitOfMeasurement.of(unit) is expected
+
+
+def test_units_stay_distinct_when_case_is_ignored() -> None:
+    """No two units HAEO reads differ only in the case it ignores, so each reads as itself."""
+    assert all(UnitOfMeasurement.of(unit.value) is unit for unit in UnitOfMeasurement)
+
+
 def test_convert_to_base_unit_rejects_zero_in_a_reciprocal_unit() -> None:
     """Zero km/kWh has no finite value in kWh/km."""
     with pytest.raises(ValueError, match="reciprocal"):

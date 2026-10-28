@@ -64,19 +64,36 @@ class UnitOfMeasurement(StrEnum):
 
     @classmethod
     def of(cls, value: object) -> "UnitOfMeasurement | None":
-        """Parse an untyped value into a known unit of measurement, ignoring whitespace.
+        """Parse an untyped value into a known unit of measurement.
 
-        Integrations write some units with spaces, such as ``kWh/100 km``.
+        Whitespace is ignored, as some integrations write ``kWh/100 km``.
+        The first letter of each part of a unit keeps its case, as it is a
+        metric prefix or the symbol itself, while later letters may be in
+        any case: ``kwh`` reads as kWh, but ``mW`` is never read as MW, nor
+        the weeks unit ``w`` as W.
         """
-        try:
-            return cls(_compact(value) if isinstance(value, str) else value)
-        except (TypeError, ValueError):
-            return None
+        if isinstance(value, cls):
+            return value
+        return _UNITS_BY_KEY.get(_unit_key(value)) if isinstance(value, str) else None
 
 
 def _compact(unit: str) -> str:
     """Remove the whitespace from a unit, which no unit HAEO reads contains."""
     return "".join(unit.split())
+
+
+def _unit_key(unit: str) -> str:
+    """Return a unit as it is compared: without whitespace, and in lower case but for each part's first letter.
+
+    A part starts the unit or follows a slash or a number, as ``km`` does in ``kWh/100km``.
+    """
+    compact = _compact(unit)
+    return "".join(
+        char.lower() if index and compact[index - 1].isalpha() else char for index, char in enumerate(compact)
+    )
+
+
+_UNITS_BY_KEY: Final[dict[str, UnitOfMeasurement]] = {_unit_key(unit.value): unit for unit in UnitOfMeasurement}
 
 
 BASE_UNITS: Final[dict[DeviceClass, UnitOfMeasurement]] = {
@@ -301,6 +318,11 @@ def _price_parts(unit: object) -> tuple[str | None, float] | None:
     if currency in _MINOR_CURRENCIES:
         return _MINOR_CURRENCIES[currency], factor * 0.01
     return currency, factor
+
+
+def is_unit(unit: str) -> bool:
+    """Return True when HAEO reads text as a unit, of a quantity or a price, as typed."""
+    return UnitOfMeasurement.of(unit) is not None or _price_parts(unit) is not None
 
 
 def price_currency(unit: object) -> str | None:

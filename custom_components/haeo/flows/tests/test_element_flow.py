@@ -1,8 +1,10 @@
 """Tests for the shared element flow helpers."""
 
 from collections.abc import Mapping
+from enum import StrEnum
 from types import MappingProxyType
 
+from homeassistant import const as ha_const
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -25,7 +27,7 @@ from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, MeterFieldHint
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.core.units import UnitOfMeasurement, convert_to_base_unit
+from custom_components.haeo.core.units import CURRENCY_SYMBOLS, UnitOfMeasurement, convert_to_base_unit
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.conftest import create_flow
@@ -164,6 +166,26 @@ async def test_energy_per_distance_fields_offer_every_energy_per_distance_unit(
     assert value == pytest.approx(
         EnergyDistanceConverter.convert(6.0, unit, UnitOfEnergyDistance.KILO_WATT_HOUR_PER_100_KM) / 100
     )
+
+
+_HOME_ASSISTANT_UNITS = sorted(
+    {
+        member.value
+        for name in dir(ha_const)
+        if name.startswith("UnitOf")
+        and isinstance(units := getattr(ha_const, name), type)
+        and issubclass(units, StrEnum)
+        for member in units
+    }
+)
+
+
+@pytest.mark.parametrize("unit", [*_HOME_ASSISTANT_UNITS, *CURRENCY_SYMBOLS.values()])
+def test_no_other_unit_reads_as_a_haeo_unit(unit: str) -> None:
+    """A Home Assistant unit or currency symbol reads as a HAEO unit only when it is that unit."""
+    parsed = UnitOfMeasurement.of(unit)
+
+    assert parsed is None or parsed.value == unit
 
 
 def test_build_inclusion_map_offers_only_running_totals_for_meter_fields() -> None:
