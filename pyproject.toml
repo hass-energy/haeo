@@ -1,6 +1,6 @@
 [project]
 name = "haeo"
-version = "0.5.0rc3"
+version = "0.5.0"
 description = "Home Assistant Energy Network Optimizer"
 readme = "README.md"
 requires-python = ">=3.14.2,<3.15"
@@ -19,7 +19,7 @@ dev = [
     "freezegun>=1.5.2",
     "ical==12.1.2",  # matches the local_calendar requirement of the locked Home Assistant
     "home-assistant-frontend>=20260107.1",
-    "playwright>=1.57.0",
+    "playwright>=1.64.1",
     "tabulate>=0.9.0",
     "mdformat-beautysh>=1.0.0",
     "mdformat-config>=0.2.1",
@@ -40,7 +40,7 @@ dev = [
     "ruff>=0.14.10",
     "setuptools>=80.9.0",
     "syrupy>=5.0.0",
-    "zensical>=0.0.30",
+    "zensical>=0.0.73",
     "import-linter>=2.10",
     "pytest-benchmark>=5.2.3",
 ]

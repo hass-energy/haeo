@@ -178,7 +178,7 @@ Run `uv run check` before considering work complete.
 It runs every CI job that can run locally — ruff, pyright, import boundaries, mdformat, prettier, version consistency, unit tests, scenario tests, frontend card checks, and the documentation build — in about 65 seconds.
 `--fast` runs ruff, pyright, and unit tests in about 35.
 HACS validation has no local equivalent and runs only in GitHub Actions.
-The documentation build does not check links or anchors, so verify any you add or move.
+The documentation build runs in strict mode, so a broken internal link or `#anchor` fails it.
 `hassfest` is not part of `uv run check`, but the `lint` skill shows how to run it from Home Assistant's source; do so after changing translations, the manifest, services, or repair issues.
 
 Tests run under `timeout = 5` per test with `filterwarnings = ["error"]`, so a new warning is a hard failure and a hang surfaces as a 5-second timeout.
