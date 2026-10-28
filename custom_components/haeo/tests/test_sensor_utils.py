@@ -211,6 +211,31 @@ async def test_get_output_sensors_handles_non_numeric_states(hass: HomeAssistant
     assert output_sensors[haeo_entry.entity_id]["state"] == "unavailable"
 
 
+async def test_rounding_keeps_a_non_numeric_state_beside_a_numeric_forecast(hass: HomeAssistant) -> None:
+    """A non-numeric state is kept while the forecast beside it is rounded."""
+    entry = _build_hub_entry()
+    entry.add_to_hass(hass)
+
+    registered = er.async_get(hass).async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id="unknown_state_unique",
+        config_entry=entry,
+    )
+    hass.states.async_set(
+        registered.entity_id,
+        "unknown",
+        {"unit_of_measurement": "kW", "forecast": [{"time": "2024-01-01T00:00:00", "value": 1.23456}]},
+    )
+
+    output_sensors = get_output_sensors(hass, entry)
+
+    assert output_sensors[registered.entity_id]["state"] == "unknown"
+    forecast = output_sensors[registered.entity_id]["attributes"]["forecast"]
+    assert isinstance(forecast, list)
+    assert forecast[0]["value"] == 1.23
+
+
 async def test_get_output_sensors_handles_zero_values(hass: HomeAssistant) -> None:
     """Sensors with zero values use default decimal places."""
     entry = MockConfigEntry(
