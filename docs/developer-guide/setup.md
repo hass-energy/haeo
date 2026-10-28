@@ -87,7 +87,7 @@ uv run zensical serve
 Visit http://127.0.0.1:8000
 
 `uv run zensical build` is the documentation gate in `uv run check`.
-It does not check links or anchors, so confirm any you add.
+It runs in strict mode, so a broken internal link or anchor fails it.
 
 ### Deploy
 

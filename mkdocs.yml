@@ -6,6 +6,9 @@ repo_url: https://github.com/hass-energy/haeo
 repo_name: hass-energy/haeo
 edit_uri: edit/main/docs/
 
+# Fail the build on any broken link or anchor
+strict: true
+
 copyright: Copyright &copy; 2025 Trent Houliston
 
 theme:
