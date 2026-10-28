@@ -248,3 +248,14 @@ async def test_extract_entity_metadata_includes_other_hub_entities(
 
     entity_ids = {meta.entity_id for meta in result}
     assert other_entity.entity_id in entity_ids
+
+
+async def test_extract_entity_metadata_reports_base_units_without_a_reading(hass: HomeAssistant) -> None:
+    """An entity reports the base unit of its stated unit, whether or not it has a reading right now."""
+    hass.states.async_set("sensor.power", "500", {"unit_of_measurement": "W"})
+    hass.states.async_set("sensor.unavailable_power", "unavailable", {"unit_of_measurement": "W"})
+    hass.states.async_set("sensor.consumption", "unknown", {"unit_of_measurement": "km/kWh"})
+
+    result = {meta.entity_id: meta.unit_of_measurement for meta in extract_entity_metadata(hass, _hub_entry(hass))}
+
+    assert result == {"sensor.power": "kW", "sensor.unavailable_power": "kW", "sensor.consumption": "kWh/km"}

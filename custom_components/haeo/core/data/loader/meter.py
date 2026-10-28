@@ -120,11 +120,11 @@ def _rise_in_base_unit(state: EntityState, since: float, output_type: OutputType
     if rise is None:
         return None
     unit = state.attributes.get("unit_of_measurement")
-    factor, base_unit, _ = base_unit_conversion(
+    conversion, base_unit, _ = base_unit_conversion(
         unit if isinstance(unit, str) else None, DeviceClass.of(state.attributes.get("device_class"))
     )
     check_source_unit(None if base_unit is None else str(base_unit), output_type)
-    return rise * factor
+    return conversion.apply(rise)
 
 
 __all__ = [

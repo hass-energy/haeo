@@ -152,22 +152,22 @@ The EV element creates a single Home Assistant device:
 
 ## Parameter mapping
 
-| User configuration         | Model element(s)              | Model parameter               | Notes                                   |
-| -------------------------- | ----------------------------- | ----------------------------- | --------------------------------------- |
-| `capacity`                 | Battery `{name}`              | `capacity`                    | kWh, time-series boundary array         |
-| `current_soc`              | Battery `{name}`              | `initial_charge`              | SOC ratio × capacity                    |
-| `min_charge_percentage`    | Battery `{name}`              | `min_charge`                  | Ratio × capacity                        |
-| `charge_limit_cost`        | Battery `{name}`              | `charge_limit_cost`           | Defaults to \$100/kWh per hour          |
-| `trip_calendar`            | Deferrable load `{name}:trip` | Window masks, `opened`, `due` | Distances × energy per distance         |
-| `max_charge_rate`          | Connection `{name}:charge`    | Power limit segment           | Masked by connected flag                |
-| `max_discharge_rate`       | Connection `{name}:discharge` | Power limit segment           | Masked by connected flag                |
-| `connected`                | Connections                   | Home and away masks           | Pins the current interval               |
-| `energy_per_distance`      | Trip energy calculation       | Multiplied by distance        | Wh/km and kWh/100km converted to kWh/km |
-| `odometer`                 | Deferrable load `{name}:trip` | `initial_energy`              | Distance since the trip began × rate    |
-| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`               | Starts at \$0.60/kWh                    |
-| `public_charging_price`    | Battery `{name}`              | `salvage_value`               | 90% of the price at the horizon end     |
-| `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment            | Discharge direction                     |
-| `efficiency_target_source` | Connection `{name}:charge`    | Efficiency segment            | Charge direction                        |
+| User configuration         | Model element(s)              | Model parameter               | Notes                                |
+| -------------------------- | ----------------------------- | ----------------------------- | ------------------------------------ |
+| `capacity`                 | Battery `{name}`              | `capacity`                    | kWh, time-series boundary array      |
+| `current_soc`              | Battery `{name}`              | `initial_charge`              | SOC ratio × capacity                 |
+| `min_charge_percentage`    | Battery `{name}`              | `min_charge`                  | Ratio × capacity                     |
+| `charge_limit_cost`        | Battery `{name}`              | `charge_limit_cost`           | Defaults to \$100/kWh per hour       |
+| `trip_calendar`            | Deferrable load `{name}:trip` | Window masks, `opened`, `due` | Distances × energy per distance      |
+| `max_charge_rate`          | Connection `{name}:charge`    | Power limit segment           | Masked by connected flag             |
+| `max_discharge_rate`       | Connection `{name}:discharge` | Power limit segment           | Masked by connected flag             |
+| `connected`                | Connections                   | Home and away masks           | Pins the current interval            |
+| `energy_per_distance`      | Trip energy calculation       | Multiplied by distance        | Converted to kWh/km                  |
+| `odometer`                 | Deferrable load `{name}:trip` | `initial_energy`              | Distance since the trip began × rate |
+| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`               | Starts at \$0.60/kWh                 |
+| `public_charging_price`    | Battery `{name}`              | `salvage_value`               | 90% of the price at the horizon end  |
+| `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment            | Discharge direction                  |
+| `efficiency_target_source` | Connection `{name}:charge`    | Efficiency segment            | Charge direction                     |
 
 ## Output mapping
 

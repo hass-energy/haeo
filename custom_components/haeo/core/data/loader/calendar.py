@@ -49,12 +49,13 @@ _NUMBER: Final = r"[-+]?(?:\d+(?:\.\d+)?|\.\d+)"
 # then the word typed after it as its unit, if any. A digit inside a word,
 # such as in "EV2" or "v1.2", is not a number, nor is the part of a number
 # after a comma, slash, colon, or dash, as in "1,500", "1/2", or "10:30".
+# A number after a word and one of these, as in "Trip:50km", is its own.
 # A range, such as "8-10 kWh" or "8 to 10 kWh", is one number whose unit is
 # the rest of the range, so no input reads it as a value.
-# Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3", "EV 8 kWh tonight"
+# Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3", "EV 8 kWh tonight", "Charge:8kWh"
 _QUANTITY_PATTERN: Final = re.compile(
     rf"""
-    (?<![\w.,/:])(?<!\d[-\u2013])
+    (?<![\w.])(?<!\d[-\u2013,/:])
     (?P<number>{_NUMBER})
     (?P<range>\s*(?:[-\u2013]|\bto\b)\s*{_NUMBER})?
     (?:\s*(?P<unit>[^\s\d.,;:!?()\[\]{{}}"'/+\u2013-][^\s,;:!?()\[\]{{}}"']*))?

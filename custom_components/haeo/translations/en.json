@@ -724,7 +724,7 @@
       "message": "Input {field} of {element} has no reading from {entities}, so HAEO cannot optimize until it does."
     },
     "input_unit_incompatible": {
-      "message": "Input {field} of {element} needs a value in {expected}, but {entities} supplied one in {unit}, which does not convert."
+      "message": "Input {field} of {element} reads values in {expected}, but {entities} supplied one in {unit}, which does not convert to any of them."
     },
     "inputs_not_aligned": {
       "message": "The forecast inputs are still loading for the new planning horizon. Try again in a moment."

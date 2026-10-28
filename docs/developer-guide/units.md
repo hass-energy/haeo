@@ -77,12 +77,15 @@ Again, no conversions!
 ## Converting external data
 
 Sources are converted to base units as they load, in [`core/units.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/units.py).
-`base_unit_conversion()` returns the factor from a unit to its base unit: W, MW, and GW to kW, Wh and MWh to kWh, minutes and days to hours, and a price per energy unit, such as €/MWh, to the same currency per kWh, with a price in cents or pence, such as c/kWh, converting to the main currency unit (`ct` to `€` and `p` to `£`, while `c` and `¢` name no currency and convert to HAEO's `$` placeholder).
+`base_unit_conversion()` returns the `UnitConversion` from a unit to its base unit: W, MW, and GW to kW, Wh and MWh to kWh, minutes and days to hours, and a price per energy unit, such as €/MWh, to the same currency per kWh, with a price in cents or pence, such as c/kWh, converting to the main currency unit (`ct` to `€` and `p` to `£`, while `c` and `¢` name no currency and convert to HAEO's `$` placeholder).
+A unit stated as the reciprocal of its base unit, such as km/kWh or mi/kWh for energy per distance in kWh/km, is scaled and then inverted, and a zero in it raises `ValueError`, so the source has no reading rather than an infinite one.
+Units are read ignoring whitespace, as some integrations write `kWh/100 km`.
 Other currencies cannot be converted, so the coordinator groups price sources with `price_currency_sources()` and raises a repair issue, without stopping the optimization, when they report more than one currency.
 
 Each source's base unit must then fit the input field's unit, checked by [`core/data/util/field_units.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/util/field_units.py).
-A source in a unit that does not convert raises an `InputError`, which the input reports instead of reading the value as the field's unit.
+A source in a unit that does not convert raises an `InputError`, which the input reports instead of reading the value as the field's unit, naming every unit that does convert to it.
 A sensor that states no unit passes.
+The entity selector offers an entity for a field by the same test: its unit, converted to base units, must be the field's unit.
 
 A value a user types, such as in a calendar event, must state its unit: `to_field_unit()` converts it to the field's unit and rejects a bare number for a field with a unit, so no number is ever taken to be in HAEO's own units.
 

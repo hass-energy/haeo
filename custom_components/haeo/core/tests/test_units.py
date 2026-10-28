@@ -1,9 +1,11 @@
 """Tests for base unit conversion utilities."""
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.core.units import (
     DeviceClass,
+    UnitConversion,
     UnitOfMeasurement,
     base_unit_for_device_class,
     convert_to_base_unit,
@@ -122,24 +124,37 @@ def test_scale_factor(
             "energy_distance",
             (0.18, UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER, DeviceClass.ENERGY_DISTANCE),
         ),
+        # Spaces some integrations write inside a unit are ignored
+        (
+            18.0,
+            "kWh/100 km",
+            "energy_distance",
+            (0.18, UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER, DeviceClass.ENERGY_DISTANCE),
+        ),
+        (
+            1500.0,
+            " W ",
+            None,
+            (1.5, UnitOfMeasurement.KILO_WATT, None),
+        ),
         (
             12.0,
             "unknown_unit",
             None,
             (12.0, "unknown_unit", None),
         ),
-        # Reciprocal efficiency units cannot convert, so they keep their own unit
+        # Distance per energy units convert to their reciprocal, energy per distance
         (
             4.0,
             "mi/kWh",
             "energy_distance",
-            (4.0, "mi/kWh", DeviceClass.ENERGY_DISTANCE),
+            (1 / (4.0 * 1.609344), UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER, DeviceClass.ENERGY_DISTANCE),
         ),
         (
-            6.0,
+            5.0,
             "km/kWh",
-            "energy_distance",
-            (6.0, "km/kWh", DeviceClass.ENERGY_DISTANCE),
+            None,
+            (0.2, UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER, None),
         ),
         # A power sensor in a unit with no kW conversion is not reported as kW
         (
@@ -209,6 +224,8 @@ def test_currency_symbol(currency: str, expected: str) -> None:
         pytest.param("p/MWh", 0.000003, "£/kWh", id="pence_per_mwh"),
         pytest.param("$/kWh/h", 0.3, "$/kWh/h", id="price_rate_unchanged"),
         pytest.param("ct/kWh", 0.003, "€/kWh", id="euro_cents_per_kwh"),
+        pytest.param("c / kWh", 0.003, "$/kWh", id="spaced_cents_per_kwh"),
+        pytest.param("€ / MWh", 0.0003, "€/kWh", id="spaced_per_mwh"),
     ],
 )
 def test_prices_convert_to_currency_per_kwh(unit: str, expected_value: float, expected_unit: str) -> None:
@@ -228,6 +245,7 @@ def test_prices_convert_to_currency_per_kwh(unit: str, expected_value: float, ex
         pytest.param("c/kWh", None, id="cents"),
         pytest.param("ct/kWh", "€", id="euro_cents"),
         pytest.param("p/MWh", "£", id="pence"),
+        pytest.param("£ / kWh", "£", id="spaced"),
         pytest.param("$/kWh/h", None, id="price_rate"),
         pytest.param("kWh", None, id="energy"),
         pytest.param(None, None, id="no_unit"),
@@ -236,3 +254,15 @@ def test_prices_convert_to_currency_per_kwh(unit: str, expected_value: float, ex
 def test_price_currency(unit: str | None, expected: str | None) -> None:
     """A price names its currency, pence and euro cents name their main currency, and plain cents name none."""
     assert price_currency(unit) == expected
+
+
+def test_convert_to_base_unit_rejects_zero_in_a_reciprocal_unit() -> None:
+    """Zero km/kWh has no finite value in kWh/km."""
+    with pytest.raises(ValueError, match="reciprocal"):
+        convert_to_base_unit(0.0, "km/kWh", None)
+
+
+def test_unit_conversion_applies_to_a_series() -> None:
+    """A series of values sharing a unit converts element by element."""
+    np.testing.assert_allclose(UnitConversion(0.5).apply(np.array([2.0, 4.0])), [1.0, 2.0])
+    np.testing.assert_allclose(UnitConversion(1.0, reciprocal=True).apply(np.array([4.0, 5.0])), [0.25, 0.2])

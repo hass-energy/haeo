@@ -85,9 +85,10 @@ def extract_reading(state: EntityState) -> ExtractedData[float]:
     sources, such as an EV charger's "connected" binary sensor, load as 1/0.
 
     Raises:
-        ValueError: If the state is not a reading, such as ``unknown`` or a
-            value that is not finite, or is a calendar's, whose state only
-            says whether an event is on.
+        ValueError: If the state is not a reading, such as ``unknown``, a
+            value that is not finite, or zero in a reciprocal unit such as
+            km/kWh, or is a calendar's, whose state only says whether an
+            event is on.
 
     """
     if calendar_events.Parser.detect(state):
@@ -131,11 +132,11 @@ def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | 
 
     # Convert values to base units
     if isinstance(data, Sequence):
-        factor, base_unit, _ = base_unit_conversion(unit_str, device_class)
+        conversion, base_unit, _ = base_unit_conversion(unit_str, device_class)
         points = np.asarray(data, dtype=np.float64).reshape(-1, 2)
 
         # Separate duplicate timestamps to prevent interpolation
-        separated_data = separate_duplicate_timestamps(points[:, 0], points[:, 1] * factor)
+        separated_data = separate_duplicate_timestamps(points[:, 0], conversion.apply(points[:, 1]))
         return ExtractedData(separated_data, base_unit)
 
     # Convert single value

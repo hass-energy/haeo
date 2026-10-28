@@ -102,6 +102,13 @@ def test_invalid_sensor_handling(hass: HomeAssistant, parser_type: str, sensor_d
             "test_unit",
             id="unknown_with_unit",
         ),
+        pytest.param(
+            "16.3",
+            {"unit_of_measurement": "kWh/100 km"},
+            pytest.approx(0.163),
+            "kWh/km",
+            id="unit_with_spaces",
+        ),
         pytest.param("on", {}, 1.0, None, id="binary_on"),
         pytest.param("off", {}, 0.0, None, id="binary_off"),
         pytest.param("true", {}, 1.0, None, id="binary_true"),
@@ -139,6 +146,14 @@ def test_extract_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
     )
 
     with pytest.raises(ValueError, match="could not convert string to float"):
+        extractors.extract(state, time_zone=UTC)
+
+
+def test_extract_raises_for_zero_in_a_reciprocal_unit(hass: HomeAssistant) -> None:
+    """Zero km/kWh is not a reading, as it has no finite energy per distance."""
+    state = _create_sensor_state(hass, "sensor.efficiency", "0", {"unit_of_measurement": "km/kWh"})
+
+    with pytest.raises(ValueError, match="reciprocal"):
         extractors.extract(state, time_zone=UTC)
 
 

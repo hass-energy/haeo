@@ -1,7 +1,6 @@
 """Shared utilities and mixin for element subentry config flows.
 
 This module provides:
-- get_unit_spec_for_output_type(): Map OutputType to UnitSpec for entity filtering
 - build_inclusion_map(): Generate field → compatible entities mapping from input fields
 - filter_compatible_entities(): Filter entity metadata by unit compatibility
 - build_participant_selector(): Create dropdown selector for element names
@@ -13,7 +12,6 @@ from typing import ClassVar
 
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
-from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfLength, UnitOfPower
 from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
@@ -28,11 +26,11 @@ from custom_components.haeo.core.const import (
     ConnectivityLevel,
 )
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
-from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.data.util.field_units import field_unit_spec
 from custom_components.haeo.core.schema import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.util import UnitSpec
-from custom_components.haeo.core.units import DURATION_UNITS, ENERGY_DISTANCE_UNITS, PRICE_UNIT_SPEC, currency_symbol
+from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.elements.input_fields import (
     AnyInputFieldInfo,
@@ -50,40 +48,6 @@ from custom_components.haeo.flows.on_off_states import (
     fields_reading_words,
 )
 from custom_components.haeo.util import rename_element_references
-
-
-def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[UnitSpec] | None:
-    """Map OutputType to the appropriate UnitSpec for entity filtering.
-
-    Args:
-        output_type: The output type from InputFieldInfo.
-
-    Returns:
-        UnitSpec for filtering compatible entities, or None if no filtering needed.
-
-    """
-    match output_type:
-        case OutputType.POWER | OutputType.POWER_FLOW:
-            return UnitOfPower
-        case OutputType.POWER_LIMIT:
-            return UnitOfPower
-        case OutputType.ENERGY:
-            return UnitOfEnergy
-        case OutputType.STATE_OF_CHARGE | OutputType.EFFICIENCY:
-            return [PERCENTAGE]
-        case OutputType.PRICE:
-            return PRICE_UNIT_SPEC
-        case OutputType.DURATION:
-            return [unit.value for unit in DURATION_UNITS]
-        case OutputType.PRICE_RATE:
-            return None
-        case OutputType.DISTANCE:
-            return UnitOfLength
-        case OutputType.ENERGY_PER_DISTANCE:
-            return [unit.value for unit in ENERGY_DISTANCE_UNITS]
-        case _:
-            # STATUS, AVAILABILITY, COST, SHADOW_PRICE - no unit filtering
-            return None
 
 
 def filter_compatible_entities(
@@ -110,7 +74,8 @@ def build_inclusion_map(
     """Build field name → compatible entity IDs mapping from input fields.
 
     This dynamically generates the inclusion map by looking up each field's
-    output_type and computing which entities are compatible. A field feeding
+    output_type and computing which entities are compatible: those whose unit,
+    converted to base units, is the field's unit. A field feeding
     calendar inputs includes only calendars, and a field that can read a
     calendar as a forecast also includes every calendar. A meter field only
     includes entities the recorder keeps a running total for, as it reads
@@ -129,7 +94,7 @@ def build_inclusion_map(
     calendars = [v.entity_id for v in entity_metadata if v.entity_id.startswith(f"{CALENDAR_DOMAIN}.")]
     totals = {v.entity_id for v in entity_metadata if v.keeps_running_total}
     for field_info in input_fields.values():
-        unit_spec = get_unit_spec_for_output_type(field_info.output_type)
+        unit_spec = field_unit_spec(field_info.output_type)
         if reads_calendar(field_info):
             result[field_info.field_name] = calendars
         elif unit_spec is not None:
@@ -385,5 +350,4 @@ __all__ = [
     "build_inclusion_map",
     "build_participant_selector",
     "filter_compatible_entities",
-    "get_unit_spec_for_output_type",
 ]
