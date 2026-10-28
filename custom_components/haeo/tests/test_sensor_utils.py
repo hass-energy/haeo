@@ -1,10 +1,12 @@
 """Tests for HAEO sensor_utils module."""
 
+import math
 from types import MappingProxyType
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
@@ -258,13 +260,11 @@ def _build_hub_entry(entry_id: str = "hub_entry") -> MockConfigEntry:
     )
 
 
-async def test_rounding_two_pass_per_value_then_per_entity(hass: HomeAssistant) -> None:
-    """Values are first stabilized per-value, then capped to the entity's scale.
+async def test_rounding_caps_values_to_the_entity_scale(hass: HomeAssistant) -> None:
+    """Every value is rounded to the decimal places of 3 sig figs at the entity's largest value.
 
-    Pass 1 rounds each value to 3 sig figs independently, stabilizing midpoint
-    ties and boundary values.  Pass 2 re-rounds all values to the decimal places
-    derived from the entity's (now stable) maximum, suppressing noise in small
-    values while keeping the entity's precision uniform.
+    This suppresses noise in small values while keeping the entity's precision
+    uniform.
     """
     entry = _build_hub_entry()
     entry.add_to_hass(hass)
@@ -306,11 +306,10 @@ async def test_rounding_two_pass_per_value_then_per_entity(hass: HomeAssistant) 
 
     output_sensors = get_output_sensors(hass, entry)
 
-    # Policy entity: 10.0 -> pass 1: 10.0, pass 2 (dp=1): 10.0
+    # Policy entity: max 10.0 (magnitude=1, dp=1): 10.0
     assert output_sensors[policy_entry.entity_id]["state"] == "10.0"
 
-    # Amber entity: max after pass 1 is 0.147 (magnitude=-1, dp=3).
-    # Pass 2 re-rounds all values to 3 dp.
+    # Amber entity: max 0.147 (magnitude=-1, dp=3), so all values round to 3 dp.
     amber_data = output_sensors[amber_entry.entity_id]
     assert amber_data["state"] == "0.08"
     attributes = amber_data["attributes"]
@@ -350,10 +349,57 @@ async def test_rounding_handles_mixed_magnitudes_same_unit(hass: HomeAssistant) 
 
     output_sensors = get_output_sensors(hass, entry)
 
-    # max=55 -> pass 1: 55.4, pass 2 (magnitude=1, dp=1): 55.4
+    # max 55.4 (magnitude=1, dp=1): 55.4
     assert output_sensors[big.entity_id]["state"] == "55.4"
-    # max=0.004321 -> pass 1: 0.00432, pass 2 (magnitude=-3, dp=5): 0.00432
+    # max 0.00432 (magnitude=-3, dp=5): 0.00432
     assert output_sensors[small.entity_id]["state"] == "0.00432"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param(18.25, 18.3, id="midpoint"),
+        pytest.param(math.nextafter(18.25, math.inf), 18.3, id="midpoint_ulp_above"),
+        pytest.param(math.nextafter(18.25, -math.inf), 18.3, id="midpoint_ulp_below"),
+        pytest.param(-18.25, -18.3, id="negative_midpoint"),
+        pytest.param(8.0498, 8.0, id="just_below_midpoint"),
+    ],
+)
+async def test_rounding_is_decimal_and_ignores_solver_noise(hass: HomeAssistant, value: float, expected: float) -> None:
+    """Values round once, half away from zero, whichever side of a midpoint solver noise puts them.
+
+    An EV trip of 18.25 kWh is delivered in full, and one platform's solver
+    returns it exactly while another's is a unit in the last place above.
+    A value just below a midpoint at the entity's scale, here set by 10.0,
+    rounds down rather than first onto the midpoint at its own scale and then up.
+    """
+    entry = _build_hub_entry()
+    entry.add_to_hass(hass)
+
+    registered = er.async_get(hass).async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id="trip_energy_unique",
+        config_entry=entry,
+    )
+    hass.states.async_set(
+        registered.entity_id,
+        repr(value),
+        {
+            "unit_of_measurement": "kWh",
+            "forecast": [
+                {"time": "2024-01-01T00:00:00", "value": value},
+                {"time": "2024-01-01T01:00:00", "value": 10.0},
+            ],
+        },
+    )
+
+    output_sensors = get_output_sensors(hass, entry)
+
+    assert output_sensors[registered.entity_id]["state"] == str(expected)
+    forecast = output_sensors[registered.entity_id]["attributes"]["forecast"]
+    assert isinstance(forecast, list)
+    assert forecast[0]["value"] == expected
 
 
 def test_get_duration_sensor_entity_id_found(hass: HomeAssistant) -> None:
