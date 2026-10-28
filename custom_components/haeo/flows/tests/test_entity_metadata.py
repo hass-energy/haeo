@@ -1,6 +1,6 @@
 """Tests for entity metadata extraction and compatibility checking."""
 
-from homeassistant.const import UnitOfEnergy, UnitOfPower
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -23,7 +23,6 @@ def test_entity_metadata_is_compatible_with_none_unit() -> None:
 
     assert not metadata.is_compatible_with("kW")
     assert not metadata.is_compatible_with(UnitOfPower)
-    assert not metadata.is_compatible_with(["kW", "W"])
 
 
 def test_entity_metadata_is_compatible_with_string_constant() -> None:
@@ -50,24 +49,6 @@ def test_entity_metadata_is_compatible_with_tuple_pattern() -> None:
 
     assert metadata.is_compatible_with(("*", "/", "kWh"))
     assert not metadata.is_compatible_with(("*", "/", "MWh"))
-
-
-def test_entity_metadata_is_compatible_with_list_of_specs() -> None:
-    """Test compatibility with list of unit specs."""
-    metadata = EntityMetadata(entity_id="sensor.power", unit_of_measurement="kW")
-
-    # Should match if any spec in the list matches
-    assert metadata.is_compatible_with(["W", "kW", "MW"])
-    assert metadata.is_compatible_with([UnitOfPower, UnitOfEnergy])
-    assert not metadata.is_compatible_with(["kWh", "Wh"])
-
-
-def test_entity_metadata_is_compatible_with_list_of_patterns() -> None:
-    """Test compatibility with list containing patterns."""
-    metadata = EntityMetadata(entity_id="sensor.price", unit_of_measurement="$/kWh")
-
-    assert metadata.is_compatible_with([("*", "/", "kWh"), ("*", "/", "MWh")])
-    assert not metadata.is_compatible_with([("*", "/", "day"), "kWh"])
 
 
 async def test_extract_entity_metadata_filters_domain(

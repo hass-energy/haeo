@@ -52,13 +52,13 @@ from custom_components.haeo.util import rename_element_references
 
 def filter_compatible_entities(
     entity_metadata: list[EntityMetadata],
-    accepted_units: UnitSpec | list[UnitSpec],
+    accepted_units: UnitSpec,
 ) -> list[str]:
     """Return entity IDs that ARE compatible with the accepted units.
 
     Args:
         entity_metadata: List of entity metadata from extract_entity_metadata.
-        accepted_units: UnitSpec or list of UnitSpecs to match against.
+        accepted_units: UnitSpec to match against.
 
     Returns:
         List of entity IDs that should be included in selection.

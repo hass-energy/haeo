@@ -6,8 +6,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.core.data.loader.extractors import EntityMetadata, extract
-from custom_components.haeo.core.units import DeviceClass, base_unit_conversion
+from custom_components.haeo.core.data.loader.extractors import EntityMetadata, extract, state_unit_conversion
 
 
 def extract_entity_metadata(hass: HomeAssistant, hub_entry: ConfigEntry) -> list[EntityMetadata]:
@@ -34,10 +33,7 @@ def extract_entity_metadata(hass: HomeAssistant, hub_entry: ConfigEntry) -> list
         try:
             unit = extract(state, time_zone=dt_util.get_default_time_zone()).unit
         except (ValueError, KeyError, HomeAssistantError):
-            stated = state.attributes.get("unit_of_measurement")
-            unit = base_unit_conversion(
-                stated if isinstance(stated, str) else None, DeviceClass.of(state.attributes.get("device_class"))
-            )[1]
+            unit = state_unit_conversion(state)[1]
 
         state_class = state.attributes.get("state_class")
         entities.append(

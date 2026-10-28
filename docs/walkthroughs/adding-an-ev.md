@@ -93,7 +93,7 @@ The car's integration provides its battery level, odometer, and consumption, and
 - **Odometer** (optional): tells HAEO how far the car has gone on the current trip, so a car that is back early is not planned as if it had not left.
     It needs a state class of `total_increasing`, which car integrations usually set.
 - **Average consumption**: turns each trip's distance into the energy it needs, so it is required.
-    A sensor in `kWh/100km`, `Wh/km`, `km/kWh`, or `mi/kWh` lets trip energy follow how the car is actually driven; you can enter a fixed figure instead.
+    A sensor in `kWh/100km`, `kWh/km`, `Wh/km`, `km/kWh`, or `mi/kWh` lets trip energy follow how the car is actually driven; you can enter a fixed figure instead.
 
 ## Step 1: Create a trip calendar
 
