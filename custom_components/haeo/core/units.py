@@ -1,10 +1,12 @@
 """Core unit conversion helpers with no Home Assistant dependencies."""
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final
+from typing import Final, overload
 
-from custom_components.haeo.core.schema.util import UnitSpec
+import numpy as np
+from numpy.typing import NDArray
 
 
 class DeviceClass(StrEnum):
@@ -57,14 +59,53 @@ class UnitOfMeasurement(StrEnum):
     WATT_HOUR_PER_KILOMETER = "Wh/km"
     KILO_WATT_HOUR_PER_KILOMETER = "kWh/km"
     KILO_WATT_HOUR_PER_100_KILOMETER = "kWh/100km"
+    KILOMETER_PER_KILO_WATT_HOUR = "km/kWh"
+    MILE_PER_KILO_WATT_HOUR = "mi/kWh"
 
     @classmethod
     def of(cls, value: object) -> "UnitOfMeasurement | None":
-        """Parse an untyped value into a known unit of measurement."""
-        try:
-            return cls(value)
-        except (TypeError, ValueError):
+        """Parse an untyped value into a known unit of measurement.
+
+        Whitespace is ignored, as some integrations write ``kWh/100 km``, and
+        so is case, except where it tells units apart: an m or M starting a
+        unit or a part of one, which is milli or mega, and a unit of one
+        letter. So ``KWH`` and ``KM`` read as kWh and km, but ``mW`` is never
+        read as MW, nor the weeks unit ``w`` as W. A currency symbol, such as
+        the forint's ``Ft``, is never a unit.
+        """
+        if isinstance(value, cls):
+            return value
+        if not isinstance(value, str) or value in CURRENCY_SYMBOLS.values():
             return None
+        return _UNITS_BY_KEY.get(_unit_key(value))
+
+
+def _compact(unit: str) -> str:
+    """Remove the whitespace from a unit, which no unit HAEO reads contains."""
+    return "".join(unit.split())
+
+
+# Prefixes told apart only by case, milli and mega
+_CASED_PREFIXES: Final = frozenset("mM")
+
+
+def _unit_key(unit: str) -> str:
+    """Return a unit as it is compared: without whitespace, and in lower case where case tells no units apart.
+
+    A unit of one letter keeps its case, and so does an m or M starting a
+    part, which starts the unit or follows a slash or a number, as ``MWh``
+    and the ``mm`` in ``kWh/100mm`` do.
+    """
+    compact = _compact(unit)
+    if len(compact) == 1:
+        return compact
+    return "".join(
+        char if char in _CASED_PREFIXES and (index == 0 or not compact[index - 1].isalpha()) else char.lower()
+        for index, char in enumerate(compact)
+    )
+
+
+_UNITS_BY_KEY: Final[dict[str, UnitOfMeasurement]] = {_unit_key(unit.value): unit for unit in UnitOfMeasurement}
 
 
 BASE_UNITS: Final[dict[DeviceClass, UnitOfMeasurement]] = {
@@ -113,15 +154,17 @@ _LENGTH_TO_KM: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.NAUTICAL_MILE: 1.852,
 }
 
-# Consumption units only: distance-per-energy units (km/kWh, mi/kWh) are
-# reciprocal and have no finite conversion for a zero reading.
 _ENERGY_DISTANCE_TO_KWH_PER_KM: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.WATT_HOUR_PER_KILOMETER: 0.001,
     UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER: 1.0,
     UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER: 0.01,
 }
 
-ENERGY_DISTANCE_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_ENERGY_DISTANCE_TO_KWH_PER_KM)
+# Distance per energy, the reciprocal of energy per distance, to km/kWh
+_DISTANCE_ENERGY_TO_KM_PER_KWH: Final[dict[UnitOfMeasurement, float]] = {
+    UnitOfMeasurement.KILOMETER_PER_KILO_WATT_HOUR: 1.0,
+    UnitOfMeasurement.MILE_PER_KILO_WATT_HOUR: 1.609344,
+}
 
 # Factors to each device class's base unit, for every device class that has one
 _TO_BASE_UNIT: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]]] = {
@@ -133,18 +176,42 @@ _TO_BASE_UNIT: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]]] = {
     DeviceClass.ENERGY_DISTANCE: _ENERGY_DISTANCE_TO_KWH_PER_KM,
 }
 
-# Durations HAEO reads from sensors, in units it converts to hours
-DURATION_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_DURATION_TO_HOURS)
+# Factors to the reciprocal of each device class's base unit, for units stated that way
+_TO_RECIPROCAL_BASE_UNIT: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]]] = {
+    DeviceClass.ENERGY_DISTANCE: _DISTANCE_ENERGY_TO_KM_PER_KWH,
+}
 
-ENERGY_UNITS: Final[tuple[UnitOfMeasurement, ...]] = (
-    UnitOfMeasurement.WATT_HOUR,
-    UnitOfMeasurement.KILO_WATT_HOUR,
-    UnitOfMeasurement.MEGA_WATT_HOUR,
-    UnitOfMeasurement.GIGA_WATT_HOUR,
-)
 
-# Matches any currency followed by / and an energy unit (e.g. "£/kWh", "€/MWh")
-PRICE_UNIT_SPEC: Final[list[UnitSpec]] = [("*", "/", u.value) for u in ENERGY_UNITS]
+@dataclass(frozen=True, slots=True)
+class UnitConversion:
+    """How values in a unit convert to their base unit.
+
+    Values are scaled by ``factor``, then inverted when the unit is the
+    reciprocal of the base unit, as km/kWh is of kWh/km.
+    """
+
+    factor: float = 1.0
+    reciprocal: bool = False
+
+    @overload
+    def apply(self, values: float) -> float: ...
+    @overload
+    def apply(self, values: NDArray[np.float64]) -> NDArray[np.float64]: ...
+    def apply(self, values: float | NDArray[np.float64]) -> float | NDArray[np.float64]:
+        """Convert values to the base unit.
+
+        Raises:
+            ValueError: If a value in a reciprocal unit is zero, which has no
+                finite value in the base unit.
+
+        """
+        scaled = values * self.factor
+        if not self.reciprocal:
+            return scaled
+        if np.any(np.equal(scaled, 0)):
+            msg = "A zero in a reciprocal unit has no finite value in the base unit"
+            raise ValueError(msg)
+        return 1 / scaled
 
 
 # Display symbols for common ISO 4217 currency codes. Codes not listed are shown
@@ -221,7 +288,7 @@ def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass
     if unit in _LENGTH_TO_KM:
         return DeviceClass.DISTANCE
 
-    if unit in _ENERGY_DISTANCE_TO_KWH_PER_KM:
+    if unit in _ENERGY_DISTANCE_TO_KWH_PER_KM or unit in _DISTANCE_ENERGY_TO_KM_PER_KWH:
         return DeviceClass.ENERGY_DISTANCE
 
     return None
@@ -232,14 +299,18 @@ def base_unit_for_device_class(device_class: DeviceClass | None) -> UnitOfMeasur
     return BASE_UNITS.get(device_class) if device_class is not None else None
 
 
-def _base_factor(unit: UnitOfMeasurement | None, device_class: DeviceClass | None) -> float | None:
-    """Return the factor converting *unit* to the device class's base unit, or None if it cannot."""
+def _base_conversion(unit: UnitOfMeasurement | None, device_class: DeviceClass | None) -> UnitConversion | None:
+    """Return how *unit* converts to the device class's base unit, or None if it cannot."""
     base_unit = base_unit_for_device_class(device_class)
     if unit is None or base_unit is None or device_class is None:
         return None
     if unit == base_unit:
-        return 1.0
-    return _TO_BASE_UNIT[device_class].get(unit)
+        return UnitConversion()
+    if (factor := _TO_BASE_UNIT[device_class].get(unit)) is not None:
+        return UnitConversion(factor)
+    if (factor := _TO_RECIPROCAL_BASE_UNIT.get(device_class, {}).get(unit)) is not None:
+        return UnitConversion(factor, reciprocal=True)
+    return None
 
 
 def _price_parts(unit: object) -> tuple[str | None, float] | None:
@@ -251,7 +322,7 @@ def _price_parts(unit: object) -> tuple[str | None, float] | None:
     """
     if not isinstance(unit, str):
         return None
-    currency, separator, energy = unit.rpartition("/")
+    currency, separator, energy = _compact(unit).rpartition("/")
     energy_unit = UnitOfMeasurement.of(energy)
     if not separator or not currency or energy_unit is None or energy_unit not in _ENERGY_TO_KWH:
         return None
@@ -259,6 +330,11 @@ def _price_parts(unit: object) -> tuple[str | None, float] | None:
     if currency in _MINOR_CURRENCIES:
         return _MINOR_CURRENCIES[currency], factor * 0.01
     return currency, factor
+
+
+def is_unit(unit: str) -> bool:
+    """Return True when HAEO reads text as a unit, of a quantity or a price, as typed."""
+    return UnitOfMeasurement.of(unit) is not None or _price_parts(unit) is not None
 
 
 def price_currency(unit: object) -> str | None:
@@ -271,8 +347,8 @@ def price_currency(unit: object) -> str | None:
     return parts[0] if parts is not None else None
 
 
-def _price_conversion(unit: object) -> tuple[float, str] | None:
-    """Return the factor and base unit for a price per energy unit, such as ``€/MWh`` to ``€/kWh``.
+def _price_conversion(unit: object) -> tuple[UnitConversion, str] | None:
+    """Return the conversion and base unit for a price per energy unit, such as ``€/MWh`` to ``€/kWh``.
 
     Cents that name no currency convert to HAEO's ``$`` currency placeholder.
     """
@@ -281,22 +357,20 @@ def _price_conversion(unit: object) -> tuple[float, str] | None:
         return None
     currency, factor = parts
     if currency is None:
-        return factor, UnitOfMeasurement.DOLLAR_PER_KWH.value
-    return factor, f"{currency}/{UnitOfMeasurement.KILO_WATT_HOUR}"
+        return UnitConversion(factor), UnitOfMeasurement.DOLLAR_PER_KWH.value
+    return UnitConversion(factor), f"{currency}/{UnitOfMeasurement.KILO_WATT_HOUR}"
 
 
 def base_unit_conversion(
     unit: str | UnitOfMeasurement | None,
     device_class: str | DeviceClass | None,
-) -> tuple[float, UnitOfMeasurement | str | None, DeviceClass | None]:
-    """Return the scale factor to the base unit, the base unit, and the parsed device class.
+) -> tuple[UnitConversion, UnitOfMeasurement | str | None, DeviceClass | None]:
+    """Return the conversion to the base unit, the base unit, and the parsed device class.
 
-    Conversion to base units is a pure scaling, so a series of values sharing a
-    unit converts by multiplying every value by the one factor. A price per
-    energy unit converts to the same currency per kWh. A unit with no
-    conversion to the base unit, such as the reciprocal km/kWh for energy per
-    distance, keeps its own unit and a factor of 1, so it never matches the
-    unit an input expects.
+    A series of values sharing a unit converts with the one conversion. A price
+    per energy unit converts to the same currency per kWh. A unit with no
+    conversion to the base unit keeps its own unit and converts unchanged, so
+    it never matches the unit an input expects.
     """
     parsed_unit = UnitOfMeasurement.of(unit)
     parsed_device_class = DeviceClass.of(device_class)
@@ -305,13 +379,13 @@ def base_unit_conversion(
     effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
 
     if unit is None:
-        return 1.0, base_unit_for_device_class(effective_device_class), parsed_device_class
+        return UnitConversion(), base_unit_for_device_class(effective_device_class), parsed_device_class
 
-    factor = _base_factor(parsed_unit, effective_device_class)
-    if factor is None:
-        return 1.0, parsed_unit or unit, parsed_device_class
+    conversion = _base_conversion(parsed_unit, effective_device_class)
+    if conversion is None:
+        return UnitConversion(), parsed_unit or unit, parsed_device_class
 
-    return factor, base_unit_for_device_class(effective_device_class), parsed_device_class
+    return conversion, base_unit_for_device_class(effective_device_class), parsed_device_class
 
 
 def convert_to_base_unit(
@@ -319,6 +393,11 @@ def convert_to_base_unit(
     unit: str | UnitOfMeasurement | None,
     device_class: str | DeviceClass | None,
 ) -> tuple[float, UnitOfMeasurement | str | None, DeviceClass | None]:
-    """Convert value to base unit, parsing string unit/device_class if needed."""
-    factor, base_unit, parsed_device_class = base_unit_conversion(unit, device_class)
-    return value * factor, base_unit, parsed_device_class
+    """Convert value to base unit, parsing string unit/device_class if needed.
+
+    Raises:
+        ValueError: If the value is zero in a reciprocal unit.
+
+    """
+    conversion, base_unit, parsed_device_class = base_unit_conversion(unit, device_class)
+    return conversion.apply(value), base_unit, parsed_device_class

@@ -1,18 +1,22 @@
 """Tests for the shared element flow helpers."""
 
+from collections.abc import Mapping
+from enum import StrEnum
 from types import MappingProxyType
 
+from homeassistant import const as ha_const
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.const import UnitOfEnergyDistance, UnitOfLength
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.util.unit_conversion import DistanceConverter
+from homeassistant.util.unit_conversion import DistanceConverter, EnergyDistanceConverter
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
@@ -23,11 +27,12 @@ from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, MeterFieldHint
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.core.units import UnitOfMeasurement, convert_to_base_unit
+from custom_components.haeo.core.units import CURRENCY_SYMBOLS, UnitOfMeasurement, convert_to_base_unit
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.conftest import create_flow
 from custom_components.haeo.flows.element_flow import build_inclusion_map
+from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 
 
 def _field(field_name: str, output_type: OutputType) -> InputFieldInfo[NumberEntityDescription]:
@@ -38,11 +43,26 @@ def _field(field_name: str, output_type: OutputType) -> InputFieldInfo[NumberEnt
     )
 
 
+def _sensor_metadata(hass: HomeAssistant, units: Mapping[str, str]) -> list[EntityMetadata]:
+    """Set a sensor reading 6 in each unit and extract their metadata as a flow does."""
+    for entity_id, unit in units.items():
+        hass.states.async_set(entity_id, "6", {"unit_of_measurement": unit})
+    hub_entry = MockConfigEntry(domain=DOMAIN, title="Test Hub")
+    hub_entry.add_to_hass(hass)
+    return extract_entity_metadata(hass, hub_entry)
+
+
 @pytest.mark.parametrize(
     ("output_type", "unit", "other_units"),
     [
-        *(pytest.param(OutputType.POWER_LIMIT, unit, ["kWh"], id=f"power_{unit}") for unit in ("W", "kW", "MW")),
-        *(pytest.param(OutputType.ENERGY, unit, ["kW"], id=f"energy_{unit}") for unit in ("Wh", "kWh", "MWh", "GWh")),
+        *(
+            pytest.param(OutputType.POWER_LIMIT, unit, ["kWh", "mW", "BTU/h"], id=f"power_{unit}")
+            for unit in ("W", "kW", "MW")
+        ),
+        *(
+            pytest.param(OutputType.ENERGY, unit, ["kW", "mWh", "MJ"], id=f"energy_{unit}")
+            for unit in ("Wh", "kWh", "MWh", "GWh")
+        ),
         *(
             pytest.param(OutputType.PRICE, unit, ["kW"], id=f"price_{unit}")
             for unit in ("$/kWh", "€/MWh", "AUD/Wh", "£/GWh")
@@ -51,19 +71,20 @@ def _field(field_name: str, output_type: OutputType) -> InputFieldInfo[NumberEnt
             pytest.param(OutputType.DURATION, unit, ["ms", "kW"], id=f"duration_{unit}")
             for unit in ("s", "min", "h", "d")
         ),
+        pytest.param(OutputType.ENERGY_PER_DISTANCE, "kWh/100 km", ["kWh"], id="unit_with_spaces"),
     ],
 )
-def test_build_inclusion_map_includes_compatible_units(
-    output_type: OutputType, unit: str, other_units: list[str]
+async def test_build_inclusion_map_includes_compatible_units(
+    hass: HomeAssistant, output_type: OutputType, unit: str, other_units: list[str]
 ) -> None:
-    """A field accepts any unit that converts to its own, in any currency for prices, and no other unit."""
-    entity_metadata = [
-        EntityMetadata(entity_id="sensor.compatible", unit_of_measurement=unit),
-        *(
-            EntityMetadata(entity_id=f"sensor.other_{index}", unit_of_measurement=other_unit)
-            for index, other_unit in enumerate(other_units)
-        ),
-    ]
+    """A field offers sensors in any unit that converts to its own, in any currency for prices, and no other unit."""
+    entity_metadata = _sensor_metadata(
+        hass,
+        {
+            "sensor.compatible": unit,
+            **{f"sensor.other_{index}": other_unit for index, other_unit in enumerate(other_units)},
+        },
+    )
     inclusion_map = build_inclusion_map({"field": _field("field", output_type)}, entity_metadata)
 
     assert inclusion_map["field"] == ["sensor.compatible"]
@@ -115,9 +136,9 @@ def test_build_inclusion_map_offers_only_calendars_for_calendar_fields() -> None
 
 
 @pytest.mark.parametrize("unit", list(UnitOfLength))
-def test_selectable_distance_units_convert_to_kilometers(unit: UnitOfLength) -> None:
-    """Every length unit a distance field accepts converts to kilometers like Home Assistant does."""
-    entity_metadata = [EntityMetadata(entity_id="sensor.odometer", unit_of_measurement=unit)]
+async def test_distance_fields_offer_every_length_unit(hass: HomeAssistant, unit: UnitOfLength) -> None:
+    """Every Home Assistant length unit is offered and converts to kilometers like Home Assistant does."""
+    entity_metadata = _sensor_metadata(hass, {"sensor.odometer": unit})
     inclusion_map = build_inclusion_map({"odometer": _field("odometer", OutputType.DISTANCE)}, entity_metadata)
     assert inclusion_map["odometer"] == ["sensor.odometer"]
 
@@ -127,26 +148,44 @@ def test_selectable_distance_units_convert_to_kilometers(unit: UnitOfLength) -> 
     assert value == pytest.approx(DistanceConverter.convert(123.0, unit, UnitOfLength.KILOMETERS))
 
 
-@pytest.mark.parametrize(
-    ("unit", "included"),
-    [
-        ("kWh/km", True),
-        (UnitOfEnergyDistance.KILO_WATT_HOUR_PER_100_KM, True),
-        (UnitOfEnergyDistance.WATT_HOUR_PER_KM, True),
-        (UnitOfEnergyDistance.MILES_PER_KILO_WATT_HOUR, False),
-        (UnitOfEnergyDistance.KM_PER_KILO_WATT_HOUR, False),
-        ("kWh", False),
-    ],
-)
-def test_energy_per_distance_accepts_only_convertible_consumption_units(unit: str, *, included: bool) -> None:
-    """Energy per distance fields accept consumption units that convert to kWh/km."""
-    entity_metadata = [EntityMetadata(entity_id="sensor.consumption", unit_of_measurement=unit)]
+@pytest.mark.parametrize("unit", list(UnitOfEnergyDistance))
+async def test_energy_per_distance_fields_offer_every_energy_per_distance_unit(
+    hass: HomeAssistant, unit: UnitOfEnergyDistance
+) -> None:
+    """Every Home Assistant energy per distance unit is offered and converts to kWh/km like Home Assistant does."""
+    entity_metadata = _sensor_metadata(hass, {"sensor.consumption": unit, "sensor.energy": "kWh"})
     inclusion_map = build_inclusion_map(
         {"energy_per_distance": _field("energy_per_distance", OutputType.ENERGY_PER_DISTANCE)},
         entity_metadata,
     )
+    assert inclusion_map["energy_per_distance"] == ["sensor.consumption"]
 
-    assert (inclusion_map["energy_per_distance"] == ["sensor.consumption"]) is included
+    value, base_unit, _ = convert_to_base_unit(6.0, unit, SensorDeviceClass.ENERGY_DISTANCE)
+
+    assert base_unit == UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER
+    assert value == pytest.approx(
+        EnergyDistanceConverter.convert(6.0, unit, UnitOfEnergyDistance.KILO_WATT_HOUR_PER_100_KM) / 100
+    )
+
+
+_HOME_ASSISTANT_UNITS = sorted(
+    {
+        member.value
+        for name in dir(ha_const)
+        if name.startswith("UnitOf")
+        and isinstance(units := getattr(ha_const, name), type)
+        and issubclass(units, StrEnum)
+        for member in units
+    }
+)
+
+
+@pytest.mark.parametrize("unit", [*_HOME_ASSISTANT_UNITS, *CURRENCY_SYMBOLS.values()])
+def test_no_other_unit_reads_as_a_haeo_unit(unit: str) -> None:
+    """A Home Assistant unit or currency symbol reads as a HAEO unit only when it is that unit."""
+    parsed = UnitOfMeasurement.of(unit)
+
+    assert parsed is None or parsed.value == unit
 
 
 def test_build_inclusion_map_offers_only_running_totals_for_meter_fields() -> None:
