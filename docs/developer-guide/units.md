@@ -80,7 +80,9 @@ Sources are converted to base units as they load, in [`core/units.py`](https://g
 `base_unit_conversion()` returns the `UnitConversion` from a unit to its base unit: W, MW, and GW to kW, Wh and MWh to kWh, minutes and days to hours, and a price per energy unit, such as €/MWh, to the same currency per kWh, with a price in cents or pence, such as c/kWh, converting to the main currency unit (`ct` to `€` and `p` to `£`, while `c` and `¢` name no currency and convert to HAEO's `$` placeholder).
 A unit stated as the reciprocal of its base unit, such as km/kWh or mi/kWh for energy per distance in kWh/km, is scaled and then inverted, and a zero in it raises `ValueError`, so the source has no reading rather than an infinite one.
 `UnitOfMeasurement.of()` reads a unit ignoring whitespace, as some integrations write `kWh/100 km`.
-It also ignores the case of every letter but the first of each part, which starts the unit or follows a slash or a number, as that letter is the metric prefix or the symbol: `kwh` reads as kWh, while `mW` is never read as MW, nor Home Assistant's weeks unit `w` as W.
+It also ignores case, except where case tells units apart: an `m` or `M` starting a part, which starts the unit or follows a slash or a number, is milli or mega, and a one-letter unit keeps its case.
+So `KWH` and `KM` read as kWh and km, while `mW` is never read as MW, nor Home Assistant's weeks unit `w` as W.
+A currency symbol from `CURRENCY_SYMBOLS`, such as the forint's `Ft`, is never read as a unit.
 A calendar event's unit is the longest leading part of the text after its number that `is_unit()` accepts, so `kWh / night` is kWh, while `kWh / h` is a rate HAEO does not read.
 Other currencies cannot be converted, so the coordinator groups price sources with `price_currency_sources()` and raises a repair issue, without stopping the optimization, when they report more than one currency.
 

@@ -66,15 +66,18 @@ class UnitOfMeasurement(StrEnum):
     def of(cls, value: object) -> "UnitOfMeasurement | None":
         """Parse an untyped value into a known unit of measurement.
 
-        Whitespace is ignored, as some integrations write ``kWh/100 km``.
-        The first letter of each part of a unit keeps its case, as it is a
-        metric prefix or the symbol itself, while later letters may be in
-        any case: ``kwh`` reads as kWh, but ``mW`` is never read as MW, nor
-        the weeks unit ``w`` as W.
+        Whitespace is ignored, as some integrations write ``kWh/100 km``, and
+        so is case, except where it tells units apart: an m or M starting a
+        unit or a part of one, which is milli or mega, and a unit of one
+        letter. So ``KWH`` and ``KM`` read as kWh and km, but ``mW`` is never
+        read as MW, nor the weeks unit ``w`` as W. A currency symbol, such as
+        the forint's ``Ft``, is never a unit.
         """
         if isinstance(value, cls):
             return value
-        return _UNITS_BY_KEY.get(_unit_key(value)) if isinstance(value, str) else None
+        if not isinstance(value, str) or value in CURRENCY_SYMBOLS.values():
+            return None
+        return _UNITS_BY_KEY.get(_unit_key(value))
 
 
 def _compact(unit: str) -> str:
@@ -82,14 +85,23 @@ def _compact(unit: str) -> str:
     return "".join(unit.split())
 
 
-def _unit_key(unit: str) -> str:
-    """Return a unit as it is compared: without whitespace, and in lower case but for each part's first letter.
+# Prefixes told apart only by case, milli and mega
+_CASED_PREFIXES: Final = frozenset("mM")
 
-    A part starts the unit or follows a slash or a number, as ``km`` does in ``kWh/100km``.
+
+def _unit_key(unit: str) -> str:
+    """Return a unit as it is compared: without whitespace, and in lower case where case tells no units apart.
+
+    A unit of one letter keeps its case, and so does an m or M starting a
+    part, which starts the unit or follows a slash or a number, as ``MWh``
+    and the ``mm`` in ``kWh/100mm`` do.
     """
     compact = _compact(unit)
+    if len(compact) == 1:
+        return compact
     return "".join(
-        char.lower() if index and compact[index - 1].isalpha() else char for index, char in enumerate(compact)
+        char if char in _CASED_PREFIXES and (index == 0 or not compact[index - 1].isalpha()) else char.lower()
+        for index, char in enumerate(compact)
     )
 
 

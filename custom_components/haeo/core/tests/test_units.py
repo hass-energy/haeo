@@ -262,12 +262,15 @@ def test_price_currency(unit: str | None, expected: str | None) -> None:
         pytest.param("kwh", UnitOfMeasurement.KILO_WATT_HOUR, id="lower_case"),
         pytest.param("kWH", UnitOfMeasurement.KILO_WATT_HOUR, id="upper_case_after_prefix"),
         pytest.param("MWH", UnitOfMeasurement.MEGA_WATT_HOUR, id="mega"),
-        pytest.param("kwh/100km", UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER, id="lower_case_parts"),
-        pytest.param("kWh / 100 KM", None, id="part_starting_in_wrong_case"),
+        pytest.param("KWH / 100 KM", UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER, id="upper_case"),
+        pytest.param("KW", UnitOfMeasurement.KILO_WATT, id="capital_k"),
+        pytest.param("Mw", UnitOfMeasurement.MEGA_WATT, id="mega_in_its_case"),
         pytest.param("mW", None, id="milli_is_not_mega"),
-        pytest.param("KW", None, id="capital_k_is_not_kilo"),
+        pytest.param("mw", None, id="milli_in_another_case_is_not_mega"),
+        pytest.param("MM", None, id="mega_is_not_milli"),
         pytest.param("w", None, id="weeks_are_not_watts"),
         pytest.param("Ft", None, id="forint_is_not_feet"),
+        pytest.param("FT", UnitOfMeasurement.FOOT, id="feet_in_upper_case"),
         pytest.param("W", UnitOfMeasurement.WATT, id="exact"),
         pytest.param(UnitOfMeasurement.WATT, UnitOfMeasurement.WATT, id="member"),
         pytest.param(" kWh / 100 km ", UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER, id="spaced"),
@@ -275,7 +278,7 @@ def test_price_currency(unit: str | None, expected: str | None) -> None:
     ],
 )
 def test_unit_of_measurement_ignores_case_but_for_prefixes(unit: object, expected: UnitOfMeasurement | None) -> None:
-    """A unit reads in any spacing, and in any case but for the first letter of each part."""
+    """A unit reads in any spacing and case, except where case tells units apart."""
     assert UnitOfMeasurement.of(unit) is expected
 
 

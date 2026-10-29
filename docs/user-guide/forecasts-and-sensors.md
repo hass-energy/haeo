@@ -93,7 +93,7 @@ This approach accurately represents energy consumption and costs over time.
 HAEO automatically converts sensor units to the internal representation used for optimization.
 You don't need to create template sensors for unit conversion.
 A unit can be written with spaces or in another case, such as `kWh / 100 km` or `kwh`.
-Only the first letter of a unit, and of each part after a slash or number, must be in its usual case, as it is the metric prefix or the symbol: `mW` is milliwatts and `MW` megawatts, so `kwh` reads as kWh but `KWh` does not.
+Case doesn't matter either, so `kwh`, `KWH`, and `KM` all read, except where it tells units apart: `m` is milli and `M` mega at the start of a unit, as in `mW` and `MW`, and a one-letter unit keeps its case, as `w` is weeks and `W` watts.
 Currency symbols, such as `c` for cents, are read as typed.
 
 **Power conversions**:
@@ -378,7 +378,7 @@ HAEO reads the value by these rules:
     A number straight after a word and a colon, comma, or slash is read, so `Charge:8kWh` holds 8 kWh.
     Use a dot for decimals and no thousands separators: write `1.5 kWh` rather than `1,5 kWh`, and `1500 Wh` rather than `1,500 Wh`.
 - The unit is typed right after the number, with or without a space between them.
-    It reads as a sensor's unit does, so spaces around a slash and the case of letters after a unit's first do not matter: `16 kWh / 100 km`, `0.30 € / kWh`, and `5 kwh` all hold their value.
+    It reads as a sensor's unit does, so spaces around a slash and letter case do not matter, except where case tells units apart: `16 kWh / 100 km`, `0.30 € / kWh`, and `5 kwh` all hold their value.
     A unit is only as long as a unit HAEO knows, so `8 kWh / night` and `8 kWh/day` hold 8 kWh, while a rate between two units HAEO knows, such as `5 kWh/h`, is not a value.
 - The location, summary, and description are checked in that order, and the first holding any number is the value's field.
     Fields after it are not read, even when its numbers cannot be used, so a mistyped value is reported rather than replaced.
