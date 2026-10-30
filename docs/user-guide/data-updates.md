@@ -108,26 +108,16 @@ automation:
             Check configuration and logs.
 ```
 
-See the [Automations guide](automations.md) for more monitoring examples.
-
 ## Using updated sensors in automations
 
 HAEO sensors update automatically when new optimizations complete.
 Automations can trigger on state changes to respond to updated recommendations.
 
-**See the [Automations guide](automations.md) for complete examples** of:
+[Automating your hardware](automations.md) explains how to turn each new plan into control of your inverter, with:
 
-- Applying battery charge/discharge recommendations
-- Solar curtailment based on optimization
-- Notifications on optimization failure
-- Safety checks and override patterns
-
-**Key considerations when building automations**:
-
-- Check sensor availability before using values
-- Add rate limiting to prevent rapid hardware changes
-- Include manual override mechanisms
-- Prioritize safety systems above optimization recommendations
+- Rules for choosing your inverter's mode from the plan
+- Price guards for negative prices
+- A manual override and a safe fallback when no plan is available
 
 ## Frequently asked questions
 
@@ -197,7 +187,7 @@ Focus on these areas to keep data updates reliable and useful.
 
     Trigger actions when HAEO publishes fresh recommendations.
 
-    [:material-arrow-right: Automation patterns](automations.md)
+    [:material-arrow-right: Automating your hardware](automations.md)
 
 - :material-help-circle-outline:{ .lg .middle } __Resolve persistent issues__
 

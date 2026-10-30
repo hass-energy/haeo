@@ -299,7 +299,7 @@ Try these resources if you still need assistance after working through the troub
 
     Ensure follow-up automations react correctly to optimizer outputs.
 
-    [:material-arrow-right: Automation patterns](automations.md)
+    [:material-arrow-right: Automating your hardware](automations.md)
 
 - :material-forum:{ .lg .middle } __Ask the community for help__
 
