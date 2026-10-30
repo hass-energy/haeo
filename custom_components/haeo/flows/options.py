@@ -14,6 +14,7 @@ from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON,
+    CONF_INPUT_HOLD_SECONDS,
     CONF_RELAX_INFEASIBLE,
 )
 from custom_components.haeo.flows.horizon import async_horizon_preset_labels, validate_horizon
@@ -48,6 +49,7 @@ def hub_settings_data(entry: ConfigEntry, user_input: Mapping[str, Any]) -> dict
         HUB_SECTION_ADVANCED: {
             **entry.data.get(HUB_SECTION_ADVANCED, {}),
             CONF_DEBOUNCE_SECONDS: advanced[CONF_DEBOUNCE_SECONDS],
+            CONF_INPUT_HOLD_SECONDS: advanced[CONF_INPUT_HOLD_SECONDS],
             CONF_ADVANCED_MODE: advanced[CONF_ADVANCED_MODE],
             CONF_RELAX_INFEASIBLE: advanced[CONF_RELAX_INFEASIBLE],
         },

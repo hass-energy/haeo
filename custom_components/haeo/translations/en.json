@@ -30,11 +30,13 @@
             "data": {
               "advanced_mode": "Expose raw model elements",
               "debounce_seconds": "Debounce window (seconds)",
+              "input_hold_seconds": "Sensor gap tolerance (seconds)",
               "record_forecasts": "Record forecast data",
               "relax_infeasible": "Relax impossible plans"
             },
             "data_description": {
               "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
+              "input_hold_seconds": "When a sensor an input reads has no reading, keep planning with its last reading for this long. Once this passes, the input becomes unavailable and planning stops until the sensor reports again. Set to 0 to stop planning as soon as a sensor has no reading.",
               "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
               "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
             },
@@ -71,11 +73,13 @@
             "data": {
               "advanced_mode": "Expose raw model elements",
               "debounce_seconds": "Debounce window (seconds)",
+              "input_hold_seconds": "Sensor gap tolerance (seconds)",
               "record_forecasts": "Record forecast data",
               "relax_infeasible": "Relax impossible plans"
             },
             "data_description": {
               "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
+              "input_hold_seconds": "When a sensor an input reads has no reading, keep planning with its last reading for this long. Once this passes, the input becomes unavailable and planning stops until the sensor reports again. Set to 0 to stop planning as soon as a sensor has no reading.",
               "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
               "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
             },
@@ -822,7 +826,7 @@
     },
     "unavailable_input": {
       "title": "{element} has no reading for {field}",
-      "description": "HAEO skips every optimization while input {field} of {element} has no reading, so the whole plan stays out of date.\n\nSensors with no reading: {entities}\n\nTo fix this issue:\n1. Check that these sensors are available and reporting values in Developer tools > States\n2. If a sensor was removed or renamed, reconfigure {element} to read one that exists\n3. This issue clears automatically once the input has a reading again"
+      "description": "HAEO skips every optimization while input {field} of {element} has no reading, so the whole plan stays out of date.\n\nSensors with no reading: {entities}\n\nTo fix this issue:\n1. Check that these sensors are available and reporting values in Developer tools > States\n2. If a sensor was removed or renamed, reconfigure {element} to read one that exists\n3. If a sensor often drops out briefly, raise **Sensor gap tolerance** in the hub's advanced settings, so HAEO keeps planning with its last reading through short gaps\n4. This issue clears automatically once the input has a reading again"
     }
   },
   "selector": {

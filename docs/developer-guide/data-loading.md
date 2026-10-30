@@ -375,6 +375,7 @@ A source value an input cannot use, such as a unit that does not convert to the 
 `InputError` carries the translation key and placeholders describing the problem, so consumers report it without knowing which check raised it.
 
 Each input store records whether it has data and any `InputError` its source raised.
+A source with no reading is resolved from its last reading for a short while, so a brief gap does not leave the input without data; see [holding a reading through a gap](inputs.md#holding-a-reading-through-a-gap).
 Before optimizing, the coordinator skips the run with `UpdateFailed` when any input rejected its value or has no data, naming the input and its sensors, and keeps a repair issue for each unavailable input.
 
 ## Testing

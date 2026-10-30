@@ -22,7 +22,9 @@ from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
     CONF_HORIZON,
+    CONF_INPUT_HOLD_SECONDS,
     DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_INPUT_HOLD_SECONDS,
 )
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.flows.horizon import async_horizon_preset_labels, validate_horizon
@@ -118,6 +120,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
                 HUB_SECTION_ADVANCED: {
                     CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
+                    CONF_INPUT_HOLD_SECONDS: DEFAULT_INPUT_HOLD_SECONDS,
                     CONF_ADVANCED_MODE: user_input[HUB_SECTION_ADVANCED][CONF_ADVANCED_MODE],
                 },
             },

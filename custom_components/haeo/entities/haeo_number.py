@@ -18,6 +18,7 @@ from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.entities.input_attributes import held_reading_attributes
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.unique_id import element_unique_id
@@ -170,6 +171,8 @@ class HaeoInputNumber(NumberEntity):
         await super().async_added_to_hass()
         self._apply_recorder_attribute_filtering()
         self.async_on_remove(self._store.add_listener(self._handle_store_change))
+        # A held reading changes only the attributes naming it, not the value
+        self.async_on_remove(self._store.add_hold_listener(self._handle_store_change))
         self._sync_from_store()
 
     def _apply_recorder_attribute_filtering(self) -> None:
@@ -193,6 +196,7 @@ class HaeoInputNumber(NumberEntity):
             extra_attrs["forecast"] = self._build_forecast_attribute()
             if not self._field_info.boundaries:
                 extra_attrs["interpolation_mode"] = InterpolationMode.PREVIOUS
+        extra_attrs.update(held_reading_attributes(self._store))
         self._attr_extra_state_attributes = extra_attrs
 
     def _build_forecast_attribute(self) -> list[dict[str, datetime | float | None]]:

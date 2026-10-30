@@ -147,6 +147,7 @@ Setup waits for every input store to settle.
 If one rejects its source's value, or the stores do not settle in time, setup raises `ConfigEntryNotReady` naming the input.
 
 Before each solve, `_check_inputs()` raises a repair issue per input without a reading, naming its sources, and dismisses issues for inputs that have recovered.
+An input holding a source's last reading through a short gap is available, so it neither raises an issue nor stops the solve until its [hold](inputs.md#holding-a-reading-through-a-gap) passes.
 It then fails the update with the `input_unavailable` translation, or with the error of a store that rejected its source's value.
 It also keeps the mixed price currencies issue current.
 

@@ -42,7 +42,7 @@ The hub flow creates the main integration entry that acts as the parent of eleme
 
 Hub entries are identified by `integration_type: "hub"` in their data.
 Hub settings are stored in `data` under section keys, not in `options`.
-This is the shape after the options flow has saved every setting; the hub flow itself stores only the name, horizon, debounce window, and advanced mode.
+This is the shape after the options flow has saved every setting; the hub flow itself stores only the name, horizon, debounce window, input hold, and advanced mode.
 
 ```python
 {
@@ -53,6 +53,7 @@ This is the shape after the options flow has saved every setting; the hub flow i
     },
     "advanced": {
         "debounce_seconds": 30,
+        "input_hold_seconds": 60,
         "advanced_mode": False,
         "relax_infeasible": False,
     },
@@ -263,7 +264,7 @@ For details on loading, see [Data loading](data-loading.md).
 
 ## Options flow
 
-The options flow edits the hub settings after initial setup: the planning horizon, the debounce window, **Expose raw model elements**, relaxing infeasible plans, and forecast recording.
+The options flow edits the hub settings after initial setup: the planning horizon, the debounce window, the input hold, **Expose raw model elements**, relaxing infeasible plans, and forecast recording.
 Elements are managed as subentries, not through the options flow.
 
 The options flow implementation is in [`flows/options.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/options.py).
