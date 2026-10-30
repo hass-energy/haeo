@@ -188,6 +188,7 @@ A value that is constant over a period, such as a tariff price or an optimizer's
 `step_points()` emits two points per period, `(start, value)` and `(end, value)`.
 Adjacent periods share a boundary timestamp, and `extract()` separates it with `separate_duplicate_timestamps()` so the fuser steps there instead of ramping.
 A source that gives only start times ends each period where the next one starts (`hold_until_next()`).
+Both order by time only, so points at the same time keep the order they were written in, and a step written as two points at one time holds the second value from then on.
 
 A quantity that varies continuously, such as solar or load power, stays as points and is interpolated.
 An instantaneous value sits at its instant.

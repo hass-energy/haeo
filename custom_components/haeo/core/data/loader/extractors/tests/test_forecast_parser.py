@@ -271,6 +271,30 @@ def test_previous_mode_holds_each_value_until_the_next(hass: HomeAssistant) -> N
     ]
 
 
+def test_previous_mode_keeps_steps_written_as_two_points_at_one_time(hass: HomeAssistant) -> None:
+    """Previous mode keeps a step written as two points at one time, in the order they were written."""
+    start = 1704067200
+    state = _create_sensor_state(
+        hass,
+        "sensor.haeo_forecast",
+        "25.0",
+        {
+            "forecast": [
+                {"time": datetime.fromtimestamp(start + 3600 * hour, tz=UTC), "value": value}
+                for hour, value in [(0, 25.0), (2, 25.0), (2, 0.0), (4, 0.0), (4, 25.0), (5, 25.0)]
+            ],
+            "unit_of_measurement": "kW",
+            "interpolation_mode": "previous",
+        },
+    )
+
+    result = extractors.extract(state, time_zone=UTC)
+    assert isinstance(result.data, list)
+    horizon_times = [start + 3600 * hour for hour in range(6)]
+
+    assert fuse_to_intervals(None, result.data, horizon_times) == pytest.approx([25.0, 25.0, 0.0, 0.0, 25.0], abs=1e-9)
+
+
 def test_next_mode_adds_synthetic_points(hass: HomeAssistant) -> None:
     """Next mode adds synthetic points for forward step behavior."""
     state = _create_sensor_state(
