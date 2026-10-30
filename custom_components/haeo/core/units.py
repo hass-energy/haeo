@@ -19,7 +19,7 @@ class DeviceClass(StrEnum):
     ENERGY_DISTANCE = "energy_distance"
 
     @classmethod
-    def of(cls, value: object) -> "DeviceClass | None":
+    def of(cls, value: object) -> DeviceClass | None:
         """Parse an untyped value into a known device class."""
         try:
             return cls(value)
@@ -59,7 +59,7 @@ class UnitOfMeasurement(StrEnum):
     KILO_WATT_HOUR_PER_100_KILOMETER = "kWh/100km"
 
     @classmethod
-    def of(cls, value: object) -> "UnitOfMeasurement | None":
+    def of(cls, value: object) -> UnitOfMeasurement | None:
         """Parse an untyped value into a known unit of measurement."""
         try:
             return cls(value)

@@ -431,7 +431,7 @@ def _unavailable_input_issue_prefix(entry_id: str) -> str:
 def sync_unavailable_input_issues(
     hass: HomeAssistant,
     entry_id: str,
-    unavailable: Mapping["InputStoreKey", Sequence[str]],
+    unavailable: Mapping[InputStoreKey, Sequence[str]],
 ) -> None:
     """Raise a repair issue for each unavailable input and dismiss those that recovered.
 

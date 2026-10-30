@@ -1,6 +1,7 @@
 """Tests for when the coordinator optimizes: debouncing, alignment, auto-optimize, and overlapping requests."""
 
 import asyncio
+from collections.abc import Iterator
 from datetime import timedelta
 import threading
 import time
@@ -291,8 +292,12 @@ def test_handle_auto_optimize_switch_change_none_state_returns_early(
 
 
 @pytest.fixture
-def live_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> HaeoRuntimeData:
-    """Create runtime data with a real horizon manager, which notifies its subscribers, and auto-optimize on."""
+def live_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> Iterator[HaeoRuntimeData]:
+    """Create runtime data with a real horizon manager, which notifies its subscribers, and auto-optimize on.
+
+    The horizon manager is stopped afterwards, cancelling the period boundary
+    timer the coordinator starts.
+    """
     # Avoid circular import with entities and horizon modules
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch  # noqa: PLC0415
     from custom_components.haeo.horizon import HorizonManager  # noqa: PLC0415
@@ -302,7 +307,8 @@ def live_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> H
     switch.entity_id = "switch.haeo_auto_optimize"
     runtime_data = HaeoRuntimeData(horizon_manager=HorizonManager(hass, mock_hub_entry), auto_optimize_switch=switch)
     mock_hub_entry.runtime_data = runtime_data
-    return runtime_data
+    yield runtime_data
+    runtime_data.horizon_manager.stop()
 
 
 class BlockingSolves:
