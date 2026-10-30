@@ -89,6 +89,13 @@ CALENDAR = [
             id="consecutive_windows_join_then_repeat",
         ),
         pytest.param(
+            [[(T0 + hour * HOUR, float(hour)) for hour in range(25)], _flat(2 * DAY, 3 * DAY, 100.0)],
+            0.0,
+            3 * DAY,
+            [6.0, 18.0, 6.0, 18.0, 100.0, 100.0],
+            id="gap_repeat_reaches_its_end_value_before_the_next_window",
+        ),
+        pytest.param(
             [_flat(0.0, DAY, 1.0), _flat(0.0, DAY, 2.0)],
             0.0,
             2 * DAY,

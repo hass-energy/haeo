@@ -1,6 +1,7 @@
 """Tests for forecast cycle normalisation."""
 
 from dataclasses import dataclass
+import itertools
 
 import pytest
 
@@ -47,7 +48,7 @@ test_cases = [
     ),
     ForecastCycleTestCase(
         description="24 hour forecast including its closing midnight",
-        expectation="Reaches its last value at the seam before repeating from its first, with no point added twice",
+        expectation="Reaches its last value just before the seam, then repeats from its first, adding no point twice",
         now=6,
         forecast=_block(time_range=(0, 25), start_value=0.0),
         expected=[
@@ -193,5 +194,10 @@ def test_normalize_forecast_cycle(offset_hours: int, offset_cycles: int, case: F
     expected = [((hour + offset_hours + cycle_offset) * SECONDS_PER_HOUR, value) for hour, value in case.expected]
     expected_cycle_length = case.expected_cycle_length * SECONDS_PER_HOUR
 
-    assert cycle == expected
+    # A step moves its earlier point back one ulp, so no two points share a timestamp
+    times, values = zip(*cycle, strict=True)
+    expected_times, expected_values = zip(*expected, strict=True)
+    assert values == expected_values
+    assert times == pytest.approx(expected_times, rel=0, abs=1e-6)
+    assert all(earlier < later for earlier, later in itertools.pairwise(times))
     assert cycle_length == expected_cycle_length
