@@ -64,19 +64,19 @@ hass.set_state(
     },
 )
 hass.set_state(
-    "sensor.sigen_dc_charger_rated_charging_power",
+    "sensor.sigen_inverter_dc_charger_rated_charging_power",
     "25.0",
     {
         "state_class": "measurement",
         "unit_of_measurement": "kW",
         "device_class": "power",
-        "friendly_name": "Sigen DC Charger Rated Charging Power",
+        "friendly_name": "Sigen Inverter DC Charger Rated Charging Power",
     },
 )
 hass.set_state(
-    "sensor.sigen_dc_charger_running_state",
+    "sensor.sigen_inverter_dc_charger_running_state",
     "Idle",
-    {"icon": "mdi:ev-station", "friendly_name": "Sigen DC Charger Running State"},
+    {"icon": "mdi:ev-station", "friendly_name": "Sigen Inverter DC Charger Running State"},
 )
 ```
 
@@ -152,23 +152,27 @@ add_ev(
     ),
     current_soc=EntityInput("BYD ATTO 2 Battery level", "BYD ATTO 2 Battery level"),
     min_charge_percentage=ConstantInput(20),
-    max_charge_rate=EntityInput("Sigen DC Charger Rated Charging Power", "Sigen DC Charger Rated Charging Power"),
-    max_discharge_rate=ConstantInput(3.3),
-    connected=EntityInput("Sigen DC Charger Running State", "Sigen DC Charger Running State"),
+    max_charge_rate=EntityInput(
+        "Sigen Inverter DC Charger Rated Charging Power", "Sigen Inverter DC Charger Rated Charging Power"
+    ),
+    connected=EntityInput("Sigen Inverter DC Charger Running State", "Sigen Inverter DC Charger Running State"),
     trip_calendar=EntityInput("EV trips", "EV trips"),
     odometer=EntityInput("BYD ATTO 2 Odometer", "BYD ATTO 2 Odometer"),
     public_charging_price=ConstantInput(0.60),
-    unplugged_states=["Idle"],
+    charge_efficiency=ConstantInput(93),
+    unplugged_states=["Idle", "Fault", "Alarm"],
 )
 ```
 
 After you submit, HAEO asks which of the Running State's states mean on and off.
-Choose `Idle` as the state meaning off: every other state, such as `Occupied` or `Charging`, then counts as plugged in.
+Choose `Idle`, `Fault`, and `Alarm` as the states meaning off: every other state, such as `Occupied` or `Charging`, then counts as plugged in.
+In `Fault` or `Alarm` the charger cannot charge until the car is replugged, so counting them as unplugged keeps HAEO from planning a charge that cannot happen.
+HAEO lists the states the charger has reported recently, so type any that are missing and add them as a custom item.
 
-!!! tip "Discharging to the house"
+!!! tip "Charge only, at 93%"
 
-    The charger can discharge at 25 kW, but the car only allows its vehicle-to-load limit, 3.3 kW for the Atto 2, so the max discharge rate is a constant.
-    Leave it empty if your car or charger cannot discharge.
+    The max discharge rate is left empty, so HAEO only ever plans to charge the car, and the charge efficiency is set to this charger's measured 93%.
+    [Match HAEO's EV settings](#match-haeos-ev-settings) explains both.
 
 !!! tip "Min charge and public charging"
 
@@ -220,6 +224,154 @@ With the commute scheduled:
 
 The optimizer balances EV charging against battery storage, solar generation, and grid prices to minimize total system cost.
 
+## Automate the charger
+
+HAEO plans when the car charges, but the Sigen DC charger only charges when something starts it and sets its limit.
+This section builds an automation that follows the plan through the charger's controls from the Sigenergy Local Modbus integration.
+[Automating your hardware](../user-guide/automations.md#chargers-and-appliances) explains the pattern it follows.
+
+### Set up the charger
+
+In the mySigen app, set the charger's charging mode to **Fast charging**.
+In this mode the charger is an independent load that follows its charge limit exactly, whatever mode the plant runs in, so HAEO's plan runs as written.
+That includes charging the car from the home battery while the home battery discharges.
+
+Avoid the other modes:
+
+- **Bidirectional (V2X)** makes the car part of the plant's battery.
+    The plant's mode then sets one direction for both, so the car charges barely at all in Maximum Self Consumption and can never charge while the home battery discharges.
+- **Solar surplus** is meant to charge from spare solar only, which would override any plan to charge from the home battery or the grid.
+
+Also in the app:
+
+- **Turn off any charging schedule**, or the charger starts at its scheduled time regardless of HAEO.
+- **Match the battery boost minimum** to the home battery's min charge in HAEO, 10% in the [Sigenergy walkthrough](sigenergy-system.md#step-3-add-battery).
+    The plant does not discharge the home battery below this level to charge the car, and may hold it there for the house too.
+    If HAEO's min charge is lower, HAEO plans on energy the plant will not release, and the grid quietly supplies the difference.
+
+### Match HAEO's EV settings
+
+The EV you added in [step 3](#step-3-add-the-ev-element) is already set up for this charger:
+
+- **Max charge rate** is the charger's rated charging power.
+- **Plugged in** is the charger's running state, with `Idle`, `Fault`, and `Alarm` meaning unplugged.
+- **Charge efficiency** is 93%.
+    HAEO plans the charge power on the home side of the charger, but the charger's limit caps the power it delivers to the car.
+    This charger loses about 7% of its power across its range, so the automation multiplies the plan by the charge efficiency to get the limit.
+    With an efficiency above the charger's real one, the charger draws more than planned, and when the home battery is already at its limit the grid supplies the difference at whatever price it is.
+- **Max discharge rate** is empty, so HAEO treats the car as charge-only, as Fast charging mode does.
+
+### Add a manual switch
+
+Create a toggle helper so you can stop the automation and control the charger yourself at any time.
+
+1. Go to **Settings** → **Devices & services** → **Helpers**.
+2. Select **Create helper** → **Toggle**.
+3. Name it "HAEO EV charging control", which gives it the entity ID `input_boolean.haeo_ev_charging_control`.
+
+### Add the charging automation
+
+The automation reads HAEO's `sensor.atto_2_charge_power` and `number.atto_2_charge_efficiency`, whose IDs start with the EV's name.
+It reads the charger's running state and drives its charge and discharge limits and its start and stop buttons.
+Their IDs start with `sigen_inverter_dc_charger`, which depends on how your plant and inverter are named, so check yours on the charger's device.
+
+Go to **Settings** → **Automations & scenes**, create a new automation, select **Edit in YAML** from its menu, and paste:
+
+```yaml
+alias: HAEO EV DC Charging
+description: >-
+  Start, stop and limit the Sigen DC charger to follow the charge power
+  HAEO plans for the Atto 2.
+triggers:
+  - trigger: state
+    entity_id: sensor.atto_2_charge_power
+    to:
+    for:
+      minutes: 1
+  - trigger: state
+    entity_id: sensor.sigen_inverter_dc_charger_running_state
+    to: [Occupied, Scheduled, Charging]
+    for:
+      seconds: 10
+  - trigger: state
+    entity_id: input_boolean.haeo_ev_charging_control
+  - trigger: time_pattern
+    minutes: /5
+conditions:
+  - "{{ is_state('input_boolean.haeo_ev_charging_control', 'on') }}"
+actions:
+  - variables:
+      charge_limit: number.sigen_inverter_dc_charger_max_charging_power_limit
+      discharge_limit: >-
+        number.sigen_inverter_dc_charger_max_discharging_power_limit
+      plan_kw: "{{ states('sensor.atto_2_charge_power') | float(0) }}"
+      charger: "{{ states('sensor.sigen_inverter_dc_charger_running_state') }}"
+      efficiency: "{{ states('number.atto_2_charge_efficiency') | float(100) }}"
+      min_kw: 1.0
+  - if:
+      - condition: template
+        value_template: '{{ states(discharge_limit) | float(0) != 0 }}'
+    then:
+      - action: number.set_value
+        target: {entity_id: '{{ discharge_limit }}'}
+        data: {value: 0}
+    alias: Never discharge the car
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ plan_kw >= min_kw
+                 and charger in ['Occupied', 'Scheduled', 'Charging'] }}
+        sequence:
+          - action: number.set_value
+            target: {entity_id: '{{ charge_limit }}'}
+            data:
+              value: '{{ (plan_kw * efficiency / 100) | round(1) }}'
+          - if:
+              - condition: template
+                value_template: "{{ charger != 'Charging' }}"
+            then:
+              - action: button.press
+                target:
+                  entity_id: button.sigen_inverter_dc_charger_start_charging
+        alias: Charge at the planned power
+      - conditions:
+          - condition: template
+            value_template: "{{ plan_kw < min_kw and charger == 'Charging' }}"
+        sequence:
+          - action: button.press
+            target:
+              entity_id: button.sigen_inverter_dc_charger_stop_charging
+        alias: Stop when no charge is planned
+mode: queued
+max: 3
+```
+
+If your EV has another name, replace `atto_2` with it.
+
+### How it works
+
+- **Follows the plan.**
+    While at least 1 kW is planned, it sets the charger's limit to the planned power times the charge efficiency, and presses **Start** if the car is plugged in and not yet charging.
+    A start takes about 45 seconds of handshaking before the charger ramps up.
+- **Stops when the plan does.**
+    When the plan drops below 1 kW while the car charges, it presses **Stop**.
+    Planned charges below 1 kW are skipped.
+- **Never discharges the car.**
+    It holds the charger's discharge limit at zero.
+- **Runs when something changes.**
+    It runs once a new planned power has held for a minute, when the car is plugged in or starts charging, when you turn the helper on, and every 5 minutes as a backstop.
+    The empty `to:` on the plan trigger ignores the forecast updates of every optimization, so it only runs when the planned power itself changes.
+- **Leaves the plant alone.**
+    It never changes the plant's mode, which the [plant automation](sigenergy-system.md#automate-the-plant) controls.
+    In Fast charging mode the charger does not depend on it.
+
+### Known behavior
+
+- **Restarting without replugging is unreliable.**
+    After a stop, a start often resumes charging, but sometimes the charger instead ends the session and raises a "Charging fault" alarm on the plant and inverter.
+    The running state then reads `Alarm`, which HAEO treats as unplugged, and unplugging and replugging the car clears it.
+
 ## Next steps
 
 <div class="grid cards" markdown>
@@ -244,8 +396,8 @@ The optimizer balances EV charging against battery storage, solar generation, an
 
     ---
 
-    Use optimization results to control your EV charger.
+    Adapt the charger automation to other chargers and appliances.
 
-    [:material-arrow-right: Automations](../user-guide/automations.md)
+    [:material-arrow-right: Automating your hardware](../user-guide/automations.md#chargers-and-appliances)
 
 </div>

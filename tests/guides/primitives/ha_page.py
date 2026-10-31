@@ -734,13 +734,22 @@ class HAPage:
 
     # region: ChooseSelector
 
+    def _choose_field(self, field_label: str) -> Locator:
+        """Locate a ChooseSelector field by its label.
+
+        The label must start a word with matching case, so "Charge efficiency"
+        does not also match "Discharge efficiency".
+        """
+        label = re.compile(rf"\b{re.escape(field_label)}")
+        return self.page.locator("ha-selector-choose").filter(has_text=label)
+
     def choose_select_option(self, field_label: str, choice: str) -> None:
         """Select a choice in a ChooseSelector field (Entity/Constant/None).
 
         ChooseSelector renders toggle buttons via ``ha-button-toggle-group``.
         Each button shows a choice label (e.g., "Entity", "Constant", "None").
         """
-        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
+        choose = self._choose_field(field_label)
         choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
         button = choose.get_by_role("button", name=choice)
         button.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
@@ -766,7 +775,7 @@ class HAPage:
         Assumes the "Entity" choice is already active (the default for entity-mode fields).
         The nested entity picker uses the same combo-box-item -> dialog -> search pattern.
         """
-        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
+        choose = self._choose_field(field_label)
         choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
         picker = choose.locator("ha-combo-box-item").first
         picker.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
@@ -807,7 +816,7 @@ class HAPage:
         entity_name: str,
     ) -> None:
         """Add another entity to a multi-select ChooseSelector field."""
-        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
+        choose = self._choose_field(field_label)
         add_btn = choose.get_by_role("button", name="Add entity")
         add_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
@@ -854,7 +863,7 @@ class HAPage:
         Assumes the "Constant" choice is already active. The nested NumberSelector
         renders as a spinbutton.
         """
-        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
+        choose = self._choose_field(field_label)
         choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
         spinbutton = choose.get_by_role("spinbutton")
         spinbutton.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
@@ -876,7 +885,7 @@ class HAPage:
 
         Assumes a choice with a multi-select DROPDOWN is already active.
         """
-        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
+        choose = self._choose_field(field_label)
         choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
         self._pick_multi(choose.locator("ha-picker-field"), field_label, options)
 
@@ -890,11 +899,12 @@ class HAPage:
         self._pick_multi(button, field_label, options)
 
     def _pick_multi(self, picker: Locator, field_label: str, options: list[str]) -> None:
-        """Pick each option from a multi-select picker by clicking it once per option.
+        """Pick each option from a multi-select picker by searching for it and clicking it once per option.
 
         HA renders multi-select DROPDOWN as ``ha-generic-picker`` which opens
         a "Select option" dialog when its field or add button is clicked. HA closes the dialog after
-        each selection, so we re-open the picker for each option.
+        each selection, so we re-open the picker for each option. Searching for the option first
+        also offers it as a custom value when the selector allows one and does not list it.
 
         Screenshots per option: dialog open, option indicator, result chip.
         """
@@ -909,6 +919,7 @@ class HAPage:
                     with ctx.scope(option_text):
                         picker.click()
                         select_dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                        select_dialog.get_by_role("textbox", name="Search").fill(option_text)
                         item = select_dialog.locator(f":text('{option_text}')").first
                         item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                         self._capture("dialog")
@@ -920,6 +931,7 @@ class HAPage:
             for option_text in options:
                 picker.click()
                 select_dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                select_dialog.get_by_role("textbox", name="Search").fill(option_text)
                 item = select_dialog.locator(f":text('{option_text}')").first
                 item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 item.click()

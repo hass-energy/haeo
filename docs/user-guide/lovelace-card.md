@@ -117,6 +117,6 @@ For forecast data issues, also confirm:
 
     Use forecast and optimization outputs in automations.
 
-    [:material-arrow-right: Automation examples](automations.md)
+    [:material-arrow-right: Automating your hardware](automations.md)
 
 </div>
