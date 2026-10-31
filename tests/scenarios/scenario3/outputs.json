@@ -1280,7 +1280,7 @@
         { "time": "2025-11-07T05:00:00.000000+0000", "value": 0.06 },
         { "time": "2025-11-07T06:00:00.000000+0000", "value": 0.115 },
         { "time": "2025-11-07T07:00:00.000000+0000", "value": 0.155 },
-        { "time": "2025-11-07T08:00:00.000000+0000", "value": 0.193 },
+        { "time": "2025-11-07T08:00:00.000000+0000", "value": 0.175 },
         { "time": "2025-11-07T09:00:00.000000+0000", "value": 0.241 },
         { "time": "2025-11-07T10:00:00.000000+0000", "value": 0.165 },
         { "time": "2025-11-07T11:00:00.000000+0000", "value": 0.16 },
@@ -1304,7 +1304,7 @@
         { "time": "2025-11-08T05:00:00.000000+0000", "value": 0.06 },
         { "time": "2025-11-08T06:00:00.000000+0000", "value": 0.115 },
         { "time": "2025-11-08T07:00:00.000000+0000", "value": 0.155 },
-        { "time": "2025-11-08T08:00:00.000000+0000", "value": 0.193 },
+        { "time": "2025-11-08T08:00:00.000000+0000", "value": 0.175 },
         { "time": "2025-11-08T09:00:00.000000+0000", "value": 0.241 },
         { "time": "2025-11-08T10:00:00.000000+0000", "value": 0.165 },
         { "time": "2025-11-08T11:00:00.000000+0000", "value": 0.16 },
@@ -1328,7 +1328,7 @@
         { "time": "2025-11-09T05:00:00.000000+0000", "value": 0.06 },
         { "time": "2025-11-09T06:00:00.000000+0000", "value": 0.115 },
         { "time": "2025-11-09T07:00:00.000000+0000", "value": 0.155 },
-        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.193 }
+        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.175 }
       ],
       "friendly_name": "Grid Export price",
       "interpolation_mode": "previous",
@@ -1520,7 +1520,7 @@
         { "time": "2025-11-07T05:00:00.000000+0000", "value": 0.38 },
         { "time": "2025-11-07T06:00:00.000000+0000", "value": 0.44 },
         { "time": "2025-11-07T07:00:00.000000+0000", "value": 0.48 },
-        { "time": "2025-11-07T08:00:00.000000+0000", "value": 0.528 },
+        { "time": "2025-11-07T08:00:00.000000+0000", "value": 0.51 },
         { "time": "2025-11-07T09:00:00.000000+0000", "value": 0.579 },
         { "time": "2025-11-07T10:00:00.000000+0000", "value": 0.275 },
         { "time": "2025-11-07T11:00:00.000000+0000", "value": 0.27 },
@@ -1544,7 +1544,7 @@
         { "time": "2025-11-08T05:00:00.000000+0000", "value": 0.38 },
         { "time": "2025-11-08T06:00:00.000000+0000", "value": 0.44 },
         { "time": "2025-11-08T07:00:00.000000+0000", "value": 0.48 },
-        { "time": "2025-11-08T08:00:00.000000+0000", "value": 0.528 },
+        { "time": "2025-11-08T08:00:00.000000+0000", "value": 0.51 },
         { "time": "2025-11-08T09:00:00.000000+0000", "value": 0.579 },
         { "time": "2025-11-08T10:00:00.000000+0000", "value": 0.275 },
         { "time": "2025-11-08T11:00:00.000000+0000", "value": 0.27 },
@@ -1568,7 +1568,7 @@
         { "time": "2025-11-09T05:00:00.000000+0000", "value": 0.38 },
         { "time": "2025-11-09T06:00:00.000000+0000", "value": 0.44 },
         { "time": "2025-11-09T07:00:00.000000+0000", "value": 0.48 },
-        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.528 }
+        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.51 }
       ],
       "friendly_name": "Grid Import price",
       "interpolation_mode": "previous",
@@ -3230,7 +3230,7 @@
         { "time": "2025-11-09T05:00:00.000000+0000", "value": 0.06 },
         { "time": "2025-11-09T06:00:00.000000+0000", "value": 0.115 },
         { "time": "2025-11-09T07:00:00.000000+0000", "value": 0.155 },
-        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.193 }
+        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.175 }
       ],
       "friendly_name": "Constant Load Forecast limit shadow price",
       "interpolation_mode": "previous",
@@ -3344,7 +3344,7 @@
         { "time": "2025-11-09T05:00:00.000000+0000", "value": 0.06 },
         { "time": "2025-11-09T06:00:00.000000+0000", "value": 0.115 },
         { "time": "2025-11-09T07:00:00.000000+0000", "value": 0.155 },
-        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.193 }
+        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.175 }
       ],
       "friendly_name": "Constant Load Horizon average marginal price",
       "interpolation_mode": "previous",
@@ -3469,7 +3469,7 @@
   },
   "sensor.constant_load_horizon_marginal_cost": {
     "entity_id": "sensor.constant_load_horizon_marginal_cost",
-    "state": "8.7",
+    "state": "8.68",
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
@@ -3573,7 +3573,7 @@
         { "time": "2025-11-09T05:00:00.000000+0000", "value": 0.06 },
         { "time": "2025-11-09T06:00:00.000000+0000", "value": 0.12 },
         { "time": "2025-11-09T07:00:00.000000+0000", "value": 0.16 },
-        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.19 }
+        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.18 }
       ],
       "friendly_name": "Constant Load Horizon marginal cost",
       "interpolation_mode": "previous",
@@ -4508,7 +4508,7 @@
   },
   "sensor.grid_export_revenue": {
     "entity_id": "sensor.grid_export_revenue",
-    "state": "23.7",
+    "state": "23.4",
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
@@ -4612,7 +4612,7 @@
         { "time": "2025-11-09T05:00:00.000000+0000", "value": 17.2 },
         { "time": "2025-11-09T06:00:00.000000+0000", "value": 18.1 },
         { "time": "2025-11-09T07:00:00.000000+0000", "value": 20.1 },
-        { "time": "2025-11-09T08:00:00.000000+0000", "value": 23.7 }
+        { "time": "2025-11-09T08:00:00.000000+0000", "value": 23.4 }
       ],
       "friendly_name": "Grid Export revenue",
       "interpolation_mode": "previous",
@@ -5083,7 +5083,7 @@
   },
   "sensor.grid_net_cost": {
     "entity_id": "sensor.grid_net_cost",
-    "state": "-23.4",
+    "state": "-23.0",
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
@@ -5186,7 +5186,7 @@
         { "time": "2025-11-09T05:00:00.000000+0000", "value": -16.8 },
         { "time": "2025-11-09T06:00:00.000000+0000", "value": -17.7 },
         { "time": "2025-11-09T07:00:00.000000+0000", "value": -19.8 },
-        { "time": "2025-11-09T08:00:00.000000+0000", "value": -23.4 }
+        { "time": "2025-11-09T08:00:00.000000+0000", "value": -23.0 }
       ],
       "friendly_name": "Grid Net cost",
       "interpolation_mode": "previous",
@@ -5533,7 +5533,7 @@
         { "time": "2025-11-09T05:00:00.000000+0000", "value": 0.06 },
         { "time": "2025-11-09T06:00:00.000000+0000", "value": 0.115 },
         { "time": "2025-11-09T07:00:00.000000+0000", "value": 0.155 },
-        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.193 }
+        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.175 }
       ],
       "friendly_name": "Inverter DC bus power balance shadow price",
       "interpolation_mode": "previous",
@@ -5887,7 +5887,7 @@
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-23.4", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "field_type": "cost", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "source_role": "output", "unit_of_measurement": "$" } },
+  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-23.0", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "field_type": "cost", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "source_role": "output", "unit_of_measurement": "$" } },
   "sensor.optimizer_duration": {
     "entity_id": "sensor.optimizer_duration",
     "state": "0.0",
@@ -6197,7 +6197,7 @@
         { "time": "2025-11-09T05:00:00.000000+0000", "value": -0.06 },
         { "time": "2025-11-09T06:00:00.000000+0000", "value": -0.115 },
         { "time": "2025-11-09T07:00:00.000000+0000", "value": -0.155 },
-        { "time": "2025-11-09T08:00:00.000000+0000", "value": -0.193 }
+        { "time": "2025-11-09T08:00:00.000000+0000", "value": -0.175 }
       ],
       "friendly_name": "Solar Forecast limit shadow price",
       "interpolation_mode": "previous",
@@ -6428,7 +6428,7 @@
         { "time": "2025-11-09T05:00:00.000000+0000", "value": 0.06 },
         { "time": "2025-11-09T06:00:00.000000+0000", "value": 0.115 },
         { "time": "2025-11-09T07:00:00.000000+0000", "value": 0.155 },
-        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.193 }
+        { "time": "2025-11-09T08:00:00.000000+0000", "value": 0.175 }
       ],
       "friendly_name": "Switchboard Power balance shadow price",
       "interpolation_mode": "previous",
