@@ -74,7 +74,7 @@ def _entity_decimal_places(max_abs: float) -> int:
     return max(0, _TARGET_SIG_FIGS - (magnitude + 1))
 
 
-def _try_parse_float(value: "ConvertibleToFloat") -> float | None:
+def _try_parse_float(value: ConvertibleToFloat) -> float | None:
     """Try to parse a value as float, returning None if not possible."""
     try:
         return float(value)

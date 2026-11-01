@@ -95,7 +95,7 @@ class FieldHint:
     default_value: float | bool | None = None
     force_required: bool | None = None
     calendar: CalendarFieldHint | None = None
-    outputs: Mapping[str, "FieldHint"] | None = None
+    outputs: Mapping[str, FieldHint] | None = None
     meter: MeterFieldHint | None = None
 
 

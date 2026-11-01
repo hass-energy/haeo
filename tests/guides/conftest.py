@@ -62,6 +62,15 @@ def _enable_socket_for_guides() -> None:  # pyright: ignore[reportUnusedFunction
     enable_socket()
 
 
+@pytest.fixture(autouse=True)
+def disable_http_server() -> None:
+    """Let guide tests bind and start Home Assistant's HTTP server.
+
+    Overrides the pytest-homeassistant-custom-component fixture of the same
+    name, which patches the server out so that it never listens.
+    """
+
+
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Apply the guide warning filters to every collected guide test."""
     guides_dir = Path(__file__).parent

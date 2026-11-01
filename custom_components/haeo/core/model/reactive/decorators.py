@@ -45,18 +45,18 @@ class ReactiveMethod[R]:
         self._name = name
 
     @overload
-    def __get__(self, obj: None, objtype: type) -> "ReactiveMethod[R]": ...
+    def __get__(self, obj: None, objtype: type) -> ReactiveMethod[R]: ...
 
     @overload
-    def __get__(self, obj: "ReactiveHost", objtype: type) -> Callable[[], R]: ...
+    def __get__(self, obj: ReactiveHost, objtype: type) -> Callable[[], R]: ...
 
-    def __get__(self, obj: "ReactiveHost | None", objtype: type) -> "ReactiveMethod[R] | Callable[[], R]":
+    def __get__(self, obj: ReactiveHost | None, objtype: type) -> ReactiveMethod[R] | Callable[[], R]:
         """Return bound method that uses caching."""
         if obj is None:
             return self
         return partial(self._call, obj)
 
-    def _call(self, obj: "ReactiveHost") -> R:
+    def _call(self, obj: ReactiveHost) -> R:
         """Execute with caching and dependency tracking."""
         # A method calling this one depends on it
         record_access(obj, f"method:{self._name}")
@@ -71,7 +71,7 @@ class ReactiveMethod[R]:
         state["result"] = result
         return result
 
-    def _compute(self, obj: "ReactiveHost", state: DecoratorState) -> R:
+    def _compute(self, obj: ReactiveHost, state: DecoratorState) -> R:
         """Run the method, recording and registering everything it reads."""
         tracking: set[Dependency] = set()
         token = tracking_context.set(tracking)
@@ -118,7 +118,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         self.output = output
         self.unit = unit
 
-    def get_output(self, obj: "ReactiveHost") -> "OutputData | None":
+    def get_output(self, obj: ReactiveHost) -> OutputData | None:
         """Get output data for this constraint (shadow prices if output=True).
 
         Args:
@@ -146,7 +146,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             diagnostic=True,
         )
 
-    def _call(self, obj: "ReactiveHost") -> R:
+    def _call(self, obj: ReactiveHost) -> R:
         """Execute with caching, dependency tracking, and solver lifecycle management."""
         # A method calling this one depends on it
         record_access(obj, f"method:{self._name}")
@@ -189,7 +189,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         return result
 
 
-def applied_constraint(obj: "ReactiveHost", name: str) -> RowIndices | None:
+def applied_constraint(obj: ReactiveHost, name: str) -> RowIndices | None:
     """Return a constraint's row indices if any of them currently binds, otherwise None.
 
     A constraint whose rows are all free is in the LP but does not apply, so it has
@@ -236,12 +236,12 @@ class OutputMethod[R]:
             self._output_name = name
 
     @overload
-    def __get__(self, obj: None, objtype: type) -> "OutputMethod[R]": ...
+    def __get__(self, obj: None, objtype: type) -> OutputMethod[R]: ...
 
     @overload
     def __get__(self, obj: ReactiveHost, objtype: type) -> Callable[[], R]: ...
 
-    def __get__(self, obj: "ReactiveHost | None", objtype: type) -> "OutputMethod[R] | Callable[[], R]":
+    def __get__(self, obj: ReactiveHost | None, objtype: type) -> OutputMethod[R] | Callable[[], R]:
         """Return bound method."""
         if obj is None:
             return self
@@ -252,7 +252,7 @@ class OutputMethod[R]:
         """Return the output name exposed by this method."""
         return self._output_name or self._name
 
-    def get_output(self, obj: ReactiveHost) -> "ModelOutputValue | None":
+    def get_output(self, obj: ReactiveHost) -> ModelOutputValue | None:
         """Get output data for this output method.
 
         Args:

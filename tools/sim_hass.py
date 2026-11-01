@@ -11,42 +11,20 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Generator
 from contextlib import contextmanager
-import json
 from pathlib import Path
 import tempfile
 import threading
 from types import MappingProxyType
-import warnings
 
-from homeassistant import loader
-from homeassistant.auth import auth_manager_from_config
-from homeassistant.config_entries import ConfigEntries, ConfigEntryState, ConfigSubentry
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
-from homeassistant.core import CoreState, HomeAssistant
-from homeassistant.helpers import area_registry as ar
-from homeassistant.helpers import category_registry as cr
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity, translation
-from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers import floor_registry as fr
-from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers import label_registry as lr
-from homeassistant.helpers import restore_state as rs
+from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
+from homeassistant.core import HomeAssistant
 from homeassistant.util.json import JsonValueType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import MIGRATION_MINOR_VERSION
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
-from tools.live_hass import (
-    PROJECT_ROOT,
-    LiveHomeAssistant,
-    _ensure_http_started,
-    _find_free_port,
-    _require_component,
-    auth_provider_configs,
-    ensure_dev_user,
-)
+from tools.live_hass import PROJECT_ROOT, LiveHomeAssistant, _find_free_port, _setup_home_assistant_async
 
 
 def _ensure_haeo_symlink(config_dir: Path) -> None:
@@ -123,94 +101,11 @@ async def _setup_sim_home_assistant_async(
     timezone: str,
     currency: str,
 ) -> HomeAssistant:
-    """Bootstrap Home Assistant for sim with loopback auto-login dev auth."""
-    storage_dir = Path(config_dir) / ".storage"
-    storage_dir.mkdir(parents=True, exist_ok=True)
-    onboarding_storage = storage_dir / "onboarding"
-    onboarding_data = {
-        "version": 4,
-        "minor_version": 1,
-        "key": "onboarding",
-        "data": {"done": ["user", "core_config", "analytics", "integration"]},
-    }
-    onboarding_storage.write_text(json.dumps(onboarding_data))
-
-    hass = HomeAssistant(config_dir)
-
-    hass.config.location_name = "Test Home"
-    hass.config.latitude = 32.87336
-    hass.config.longitude = -117.22743
-    hass.config.elevation = 0
-    await hass.config.async_set_time_zone(timezone)
-    hass.config.currency = currency
-    hass.config.skip_pip = True
-    hass.config.skip_pip_packages = []
-
-    loader.async_setup(hass)
-
-    hass.config_entries = ConfigEntries(hass, {"_": "placeholder"})
-
-    entity.async_setup(hass)
-    translation.async_setup(hass)
-
-    await ar.async_load(hass)
-    await cr.async_load(hass)
-    await dr.async_load(hass)
-    await er.async_load(hass)
-    await fr.async_load(hass)
-    await ir.async_load(hass)
-    await lr.async_load(hass)
-    await rs.async_load(hass)
-    await hass.config_entries.async_initialize()
-
+    """Bootstrap Home Assistant for sim without the HAEO entries of earlier runs."""
+    hass = await _setup_home_assistant_async(port, config_dir, timezone=timezone, currency=currency)
     # Drop entries persisted from earlier sim runs so we do not boot into a
     # pile of parallel HAEO setups that race the browser auto-login redirect.
     await _remove_haeo_entries(hass)
-
-    hass.auth = await auth_manager_from_config(
-        hass,
-        provider_configs=auth_provider_configs(),
-        module_configs=[],
-    )
-
-    warnings.filterwarnings("ignore", category=DeprecationWarning, module="aiohttp")
-    try:
-        from aiohttp.web_exceptions import NotAppKeyWarning  # noqa: PLC0415
-
-        warnings.filterwarnings("ignore", category=NotAppKeyWarning)
-    except ImportError:
-        pass
-
-    await _require_component(hass, "http", {"http": {"server_port": port}})
-    await _require_component(hass, "websocket_api", {})
-    await _require_component(hass, "auth", {})
-    await _require_component(hass, "onboarding", {})
-
-    from homeassistant.components.onboarding import async_is_onboarded  # noqa: PLC0415
-
-    if not async_is_onboarded(hass):
-        msg = "Onboarding bypass failed - check storage file format and timing"
-        raise RuntimeError(msg)
-
-    await ensure_dev_user(hass)
-
-    await _require_component(hass, "frontend", {})
-    await _require_component(hass, "config", {})
-
-    from homeassistant.helpers.recorder import async_initialize_recorder  # noqa: PLC0415
-
-    async_initialize_recorder(hass)
-    await _require_component(hass, "recorder", {"recorder": {"commit_interval": 1}})
-
-    await _require_component(hass, "calendar", {})
-    await _require_component(hass, "local_calendar", {})
-
-    hass.set_state(CoreState.running)
-    hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
-    await hass.async_block_till_done()
-
-    await _ensure_http_started(hass)
-
     return hass
 
 

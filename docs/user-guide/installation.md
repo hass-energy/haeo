@@ -8,7 +8,7 @@ This guide will walk you through installing HAEO on your Home Assistant instance
 
 Before installing HAEO, ensure you have:
 
-- **Home Assistant** version 2026.1.1 or newer
+- **Home Assistant** version 2026.8.0 or newer
 - **[HACS](https://hacs.xyz/)** (Home Assistant Community Store) installed (recommended)
 
 ## Method 1: HACS installation (recommended)

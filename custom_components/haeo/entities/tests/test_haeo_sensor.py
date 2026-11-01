@@ -23,6 +23,7 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
+from custom_components.haeo.entities.tests.entity_helpers import mock_state_writes
 from custom_components.haeo.entities.tests.sensor_helpers import (
     create_mock_coordinator,
     make_coordinator_data,
@@ -64,7 +65,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         output_data=initial_output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    mock_state_writes(sensor)
 
     forecast_time = datetime(2024, 1, 1, tzinfo=UTC)
     updated_output = make_output(
@@ -123,7 +124,7 @@ def test_handle_coordinator_update_scales_percentage_outputs(device_entry: Devic
         output_data=output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    mock_state_writes(sensor)
 
     coordinator.data = make_coordinator_data({"battery": {"battery": {BATTERY_STATE_OF_CHARGE: output}}})
     sensor._handle_coordinator_update()
@@ -171,7 +172,7 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
         output_data=initial_output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    mock_state_writes(sensor)
 
     coordinator.data = make_coordinator_data(coordinator_data)
     sensor._handle_coordinator_update()
@@ -282,7 +283,7 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
         output_data=initial_output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    mock_state_writes(sensor)
 
     updated_output = make_output(
         type_=OutputType.POWER,
@@ -378,7 +379,7 @@ def test_handle_coordinator_update_sets_fixed_attribute(device_entry: DeviceEntr
         output_data=initial_output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    mock_state_writes(sensor)
 
     fixed_output = CoordinatorOutput(
         type=OutputType.POWER,
@@ -428,7 +429,7 @@ def test_handle_coordinator_update_sets_state_of_charge_direction(
         output_data=output,
         unique_id="sensor-id",
     )
-    sensor.async_write_ha_state = Mock()
+    mock_state_writes(sensor)
     coordinator.data = make_coordinator_data({"buffer": {"buffer": {LOAD_POWER: replace(output, direction=direction)}}})
 
     sensor._handle_coordinator_update()

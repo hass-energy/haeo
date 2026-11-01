@@ -13,7 +13,7 @@ Thank you for your interest in contributing!
 
 ## Code standards
 
-- **Python 3.13+** required
+- **Python 3.14+** required
 - **Type hints** on all functions
 - **Docstrings** (Google style)
 - **Tests** for new features
