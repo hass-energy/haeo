@@ -10,7 +10,13 @@ import numpy as np
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.state import ON_OFF_STATE_VALUES, EntityState
-from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, base_unit_conversion, convert_to_base_unit
+from custom_components.haeo.core.units import (
+    DeviceClass,
+    UnitConversion,
+    UnitOfMeasurement,
+    base_unit_conversion,
+    convert_to_base_unit,
+)
 
 from . import (
     aemo_nem,
@@ -78,6 +84,15 @@ class ExtractedData[T: Sequence[tuple[float, float]] | float = Sequence[tuple[fl
     """Unit of measurement after conversion to base units. (None if unknown)"""
 
 
+def state_unit_conversion(state: EntityState) -> tuple[UnitConversion, UnitOfMeasurement | str | None]:
+    """Return how a state's values convert to base units, by its stated unit and device class, and the base unit."""
+    unit = state.attributes.get("unit_of_measurement")
+    conversion, base_unit, _ = base_unit_conversion(
+        unit if isinstance(unit, str) else None, DeviceClass.of(state.attributes.get("device_class"))
+    )
+    return conversion, base_unit
+
+
 def extract_reading(state: EntityState) -> ExtractedData[float]:
     """Read a state's value now, converted to base units, whatever forecast it carries.
 
@@ -85,9 +100,10 @@ def extract_reading(state: EntityState) -> ExtractedData[float]:
     sources, such as an EV charger's "connected" binary sensor, load as 1/0.
 
     Raises:
-        ValueError: If the state is not a reading, such as ``unknown`` or a
-            value that is not finite, or is a calendar's, whose state only
-            says whether an event is on.
+        ValueError: If the state is not a reading, such as ``unknown``, a
+            value that is not finite, or zero in a reciprocal unit such as
+            km/kWh, or is a calendar's, whose state only says whether an
+            event is on.
 
     """
     if calendar_events.Parser.detect(state):
@@ -98,11 +114,8 @@ def extract_reading(state: EntityState) -> ExtractedData[float]:
     if not math.isfinite(value):
         msg = f"{state.entity_id} reads {state.state}, which is not a finite number"
         raise ValueError(msg)
-    unit = state.attributes.get("unit_of_measurement")
-    converted, base_unit, _ = convert_to_base_unit(
-        value, unit if isinstance(unit, str) else None, DeviceClass.of(state.attributes.get("device_class"))
-    )
-    return ExtractedData(converted, base_unit)
+    conversion, base_unit = state_unit_conversion(state)
+    return ExtractedData(conversion.apply(value), base_unit)
 
 
 def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | None = None) -> ExtractedData:
@@ -131,11 +144,11 @@ def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | 
 
     # Convert values to base units
     if isinstance(data, Sequence):
-        factor, base_unit, _ = base_unit_conversion(unit_str, device_class)
+        conversion, base_unit, _ = base_unit_conversion(unit_str, device_class)
         points = np.asarray(data, dtype=np.float64).reshape(-1, 2)
 
         # Separate duplicate timestamps to prevent interpolation
-        separated_data = separate_duplicate_timestamps(points[:, 0], points[:, 1] * factor)
+        separated_data = separate_duplicate_timestamps(points[:, 0], conversion.apply(points[:, 1]))
         return ExtractedData(separated_data, base_unit)
 
     # Convert single value
@@ -150,4 +163,5 @@ __all__ = [
     "Parse",
     "extract",
     "extract_reading",
+    "state_unit_conversion",
 ]
