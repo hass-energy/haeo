@@ -60,3 +60,8 @@ offer_curve:
           max: 1440
           unit_of_measurement: min
           mode: box
+    emissions_intensity:
+      required: false
+      selector:
+        entity:
+          domain: sensor

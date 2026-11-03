@@ -22,7 +22,7 @@ from homeassistant.util.json import JsonValueType
 import voluptuous as vol
 
 from .const import DOMAIN
-from .core.adapters.offer import GridOffer
+from .core.adapters.offer import GridOffer, GridOfferStep
 
 if TYPE_CHECKING:
     from . import HaeoRuntimeData
@@ -40,14 +40,17 @@ ATTR_END = "end"
 ATTR_MIN_PRICE = "min_price"
 ATTR_MAX_PRICE = "max_price"
 ATTR_INTERVAL = "interval"
+ATTR_EMISSIONS_INTENSITY = "emissions_intensity"
 # The NEM's price floor and, roughly, its cap, in $/kWh
 DEFAULT_MIN_PRICE: Final = -1.0
 DEFAULT_MAX_PRICE: Final = 20.0
 # Minutes a price change lasts, the NEM's trading interval
 DEFAULT_INTERVAL: Final = 30
-# Decimal places offers are reported to: a hundredth of a cent, and a watt
+# Decimal places offers are reported to: a hundredth of a cent, a watt, a gram per kWh and a gram
 _PRICE_DIGITS: Final = 4
 _POWER_DIGITS: Final = 3
+_INTENSITY_DIGITS: Final = 3
+_EMISSIONS_DIGITS: Final = 3
 
 
 def _format_manifest(manifest: Manifest) -> Manifest:
@@ -167,35 +170,38 @@ def _rounded(value: float, digits: int) -> float:
     return round(value, digits) + 0.0
 
 
+def _offer_step(step: GridOfferStep) -> dict[str, JsonValueType]:
+    """Return an offer step as service response data, with its emissions when they were worked out."""
+    data: dict[str, JsonValueType] = {
+        "import_price": _rounded(step.import_price, _PRICE_DIGITS),
+        "export_price": _rounded(step.export_price, _PRICE_DIGITS),
+        "power": _rounded(step.power, _POWER_DIGITS),
+    }
+    if step.emissions is not None:
+        data["emissions"] = _rounded(step.emissions, _EMISSIONS_DIGITS)
+    return data
+
+
 def _offer_response(timestamps: Sequence[float], offers: Mapping[str, Sequence[GridOffer]]) -> dict[str, JsonValueType]:
     """Return grid offers as service response data, each window named by its start and end time."""
 
     def time(timestamp: float) -> str:
         return dt_util.as_local(dt_util.utc_from_timestamp(timestamp)).isoformat()
 
-    return {
-        "grids": {
-            grid: [
-                {
-                    "start": time(timestamps[offer.periods[0]]),
-                    "end": time(timestamps[offer.periods[-1] + 1]),
-                    "import_price": _rounded(offer.import_price, _PRICE_DIGITS),
-                    "export_price": _rounded(offer.export_price, _PRICE_DIGITS),
-                    "power": _rounded(offer.power, _POWER_DIGITS),
-                    "offer": [
-                        {
-                            "import_price": _rounded(step.import_price, _PRICE_DIGITS),
-                            "export_price": _rounded(step.export_price, _PRICE_DIGITS),
-                            "power": _rounded(step.power, _POWER_DIGITS),
-                        }
-                        for step in offer.steps
-                    ],
-                }
-                for offer in grid_offers
-            ]
-            for grid, grid_offers in offers.items()
+    def window(offer: GridOffer) -> dict[str, JsonValueType]:
+        data: dict[str, JsonValueType] = {
+            "start": time(timestamps[offer.periods[0]]),
+            "end": time(timestamps[offer.periods[-1] + 1]),
+            "import_price": _rounded(offer.import_price, _PRICE_DIGITS),
+            "export_price": _rounded(offer.export_price, _PRICE_DIGITS),
+            "power": _rounded(offer.power, _POWER_DIGITS),
         }
-    }
+        if offer.emissions_intensity is not None:
+            data["emissions_intensity"] = _rounded(offer.emissions_intensity, _INTENSITY_DIGITS)
+        data["offer"] = [_offer_step(step) for step in offer.steps]
+        return data
+
+    return {"grids": {grid: [window(offer) for offer in grid_offers] for grid, grid_offers in offers.items()}}
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
@@ -297,6 +303,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             start=_service_timestamp(start) if start is not None else -math.inf,
             end=_service_timestamp(end) if end is not None else math.inf,
             interval=call.data[ATTR_INTERVAL] * 60.0,
+            emissions_intensity=call.data.get(ATTR_EMISSIONS_INTENSITY),
             min_price=min_price,
             max_price=max_price,
         )
@@ -314,6 +321,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 vol.Optional(ATTR_MIN_PRICE, default=DEFAULT_MIN_PRICE): vol.Coerce(float),
                 vol.Optional(ATTR_MAX_PRICE, default=DEFAULT_MAX_PRICE): vol.Coerce(float),
                 vol.Optional(ATTR_INTERVAL, default=DEFAULT_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=1)),
+                vol.Optional(ATTR_EMISSIONS_INTENSITY): cv.entity_id,
             }
         ),
         supports_response=SupportsResponse.ONLY,

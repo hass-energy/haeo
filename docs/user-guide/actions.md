@@ -87,14 +87,15 @@ with the prices outside it left as forecast.
 This is an offer: the information a retailer, aggregator or market operator needs to know how your home responds to a price,
 while every decision stays with HAEO in your home.
 
-| Field                | Required | Description                                                                     |
-| -------------------- | -------- | ------------------------------------------------------------------------------- |
-| System               | Yes      | The HAEO system to get offer curves for                                         |
-| Start                | No       | Includes intervals that end after this time. Leave it out to start from now     |
-| End                  | No       | Includes intervals that start before this time. Leave it out for the whole plan |
-| Interval             | No       | How long a price change lasts, in minutes. Defaults to 30                       |
-| Lowest import price  | No       | Lowest average import price per kWh each curve covers. Defaults to -1           |
-| Highest import price | No       | Highest average import price per kWh each curve covers. Defaults to 20          |
+| Field                | Required | Description                                                                                         |
+| -------------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| System               | Yes      | The HAEO system to get offer curves for                                                             |
+| Start                | No       | Includes intervals that end after this time. Leave it out to start from now                         |
+| End                  | No       | Includes intervals that start before this time. Leave it out for the whole plan                     |
+| Interval             | No       | How long a price change lasts, in minutes. Defaults to 30                                           |
+| Lowest import price  | No       | Lowest average import price per kWh each curve covers. Defaults to -1                               |
+| Highest import price | No       | Highest average import price per kWh each curve covers. Defaults to 20                              |
+| Emissions intensity  | No       | A sensor giving the grid's emissions intensity, to report how each step changes your grid emissions |
 
 The plan is split into intervals of this length on the clock, such as each half hour,
 and the price changes across the whole of an interval.
@@ -102,9 +103,13 @@ How long a price change lasts matters a great deal.
 A price that holds for one minute can be met by emptying the battery for that minute at almost no cost to the rest of the plan,
 while one that holds for half an hour uses far more of the battery's charge, so the home responds less to it.
 The default of 30 minutes is the length of a trading interval in the Australian market and of most price forecasts.
-Use 5 minutes for the market's dispatch intervals.
-The first interval runs from now to the next boundary, and an interval is never shorter than the plan's own periods in it,
-which grow longer further ahead.
+Use 5 minutes for the market's dispatch intervals, or the length of an event, such as two hours, for a network's demand response event.
+
+Short intervals give an all-or-nothing curve: a cent or two above the forecast and the battery exports flat out.
+Longer intervals give a gentler curve with more steps, as the battery's stored energy is spread across the whole interval,
+and the energy the home can move into one stops growing once the interval is longer than its battery can cover.
+The first interval runs from now to the next boundary, and an interval is never shorter than the plan's own periods in it.
+Those grow longer further ahead, often to an hour, so 5 minute curves are only 5 minutes long for the next half hour or so.
 
 The default prices cover the full range of Australian wholesale market prices, -\$1000 to about \$20,000 per MWh.
 Each curve always includes the forecast price.
@@ -155,6 +160,14 @@ Below an export price of 14.48c it would stop exporting,
 below an import price of 15.19c it would start importing,
 and below an import price of zero it would charge from the grid as fast as it can.
 
+With **Emissions intensity** set, each interval also gives its average `emissions_intensity` in kg/kWh,
+and each step gives `emissions`: how many kg the plan's grid emissions over the whole horizon would change by, compared with the plan at the forecast prices.
+It counts the battery refilling at other times, so exporting into a high price can raise emissions overall
+when the energy is made up later from a dirtier grid.
+Exported energy counts as avoiding emissions at the grid's intensity when it is exported.
+The sensor can give a single reading or a forecast, in g, kg or t of CO2 or CO2-e per kWh or MWh,
+such as an emissions intensity sensor from your region's market data.
+
 Each curve holds the prices outside its interval at their forecast,
 so curves of different intervals do not add up:
 a battery's charge can only be spent once,
@@ -182,6 +195,8 @@ The actions stop with an error message when they cannot run:
 | The latest optimization found no plan …                              | Only from `haeo.offer_curve`: the last optimization failed, or none has run yet                        | Fix the reported problem, then try again once a plan is found       |
 | The latest plan relaxed constraints …                                | Only from `haeo.offer_curve`: the plan was found with **Relax impossible plans**                       | Fix the conflict the repair issue names                             |
 | The lowest import price must be below the highest                    | Only from `haeo.offer_curve`: the price range is empty                                                 | Set **Lowest import price** below **Highest import price**          |
+| The emissions intensity sensor … has no reading                      | Only from `haeo.offer_curve`: the sensor is missing or unavailable                                     | Check the sensor, or leave **Emissions intensity** out              |
+| The emissions intensity sensor … is in …                             | Only from `haeo.offer_curve`: the sensor's unit is not a mass of CO2 per unit of energy                | Choose a sensor in g, kg or t per kWh or MWh                        |
 
 ## Next steps
 

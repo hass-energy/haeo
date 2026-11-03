@@ -122,6 +122,20 @@ def test_offer_curve_of_a_window_shifts_every_period_in_it() -> None:
     ]
 
 
+def test_offer_curve_measures_the_whole_plan_at_each_step() -> None:
+    """A measured quantity is read from the whole plan, so it sees where the battery makes up for a step.
+
+    Weighting each period's grid energy by 1.0 then 0.5, exporting the battery's
+    last kWh in the first period costs the second period 2 kWh of import.
+    """
+    network, flow = _home(initial_charge=3.0)
+    measure = (flow * np.array([1.0, 0.5])).total()
+
+    (curve,) = network.offer_curves(flow, windows=[[0]], low=[-1.0], high=[1.0], measure=measure)
+
+    assert [round(step.measure, 6) for step in curve.steps] == [2.5, 1.0, 0.5, 0.0]
+
+
 def test_offer_curve_leaves_the_plan_unchanged() -> None:
     """Tracing curves runs on a copy, so the plan and its warm start are untouched."""
     network, flow = _home(initial_charge=3.0)
@@ -132,14 +146,14 @@ def test_offer_curve_leaves_the_plan_unchanged() -> None:
     np.testing.assert_array_equal(network._solver.getSolution().col_value, plan)
 
 
-def test_offer_curve_power_at_takes_the_step_above_on_an_edge() -> None:
+def test_offer_curve_step_at_takes_the_step_above_on_an_edge() -> None:
     """A price on a step's edge reads the step that starts there."""
     network, flow = _home(initial_charge=3.0)
     (curve,) = network.offer_curves(flow, windows=[[0]], low=[-1.0], high=[1.0])
 
-    assert curve.power_at(-1.0) == pytest.approx(4.0)
-    assert curve.power_at(0.0) == pytest.approx(1.0)
-    assert curve.power_at(curve.steps[2].price) == pytest.approx(0.0)
+    assert curve.step_at(-1.0).power == pytest.approx(4.0)
+    assert curve.step_at(0.0).power == pytest.approx(1.0)
+    assert curve.step_at(curve.steps[2].price).power == pytest.approx(0.0)
     assert curve.steps[-1].price == pytest.approx(0.4)
 
 

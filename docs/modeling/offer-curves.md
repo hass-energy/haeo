@@ -52,6 +52,36 @@ Because the net energy is the slope of $V$, it is the same in every cheapest pla
 The curve therefore needs none of the tie-breaking the plan itself uses,
 and it is traced against the cost alone.
 
+### How window length shapes the curve
+
+Across the scenario networks, at the start of the plan, at the evening peak and at midday:
+
+- Short windows give an almost vertical curve.
+    The battery's power limit binds before its stored energy does, so a cent or two above the forecast moves it from idle to flat out.
+- Long windows give a gentler curve with more steps.
+    Stored energy binds first, and the average power it supports falls as the window grows.
+- The energy moved into a window rises with its length and then levels off once the window outlasts the battery,
+    at about 27 kWh near the start of scenario 7.
+- The curve's shape can change with length in either direction,
+    since a longer window also takes in periods whose forecast prices sit nearer or further from a step.
+- A window is never shorter than the plan's periods in it.
+    Periods grow to an hour further ahead, so a short window's curve there is the curve of a whole period.
+
+Each window takes well under a second to trace.
+
+## Emissions
+
+Given the grid's emissions intensity in each period, each step also reports the change in the plan's grid emissions over the whole horizon,
+compared with the plan at the forecast prices.
+The power in a window is the same in every cheapest plan at a price off a step's edge,
+but how the rest of the plan makes up for it need not be.
+The emissions are therefore also minimized among equally cheap plans,
+with a weight too small to move a step's edge by more than a thousandth of a cent per kWh.
+
+Because the whole horizon is counted, the emissions of a step include the battery refilling elsewhere.
+Exporting into a high price can raise emissions overall, when the energy is made up later from a dirtier grid,
+so a price signal and a carbon signal can ask for opposite responses.
+
 ## How it is traced
 
 The edges are found with Eisner and Severance's method for parametric linear programs.

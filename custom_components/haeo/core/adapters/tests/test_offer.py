@@ -99,3 +99,31 @@ def test_grid_offer_window_prices_are_averaged_over_time() -> None:
 
     assert (offer.import_price, offer.export_price) == pytest.approx((0.24, 0.06))
     assert offer.steps[0].import_price == pytest.approx(-1.0)
+
+
+def test_grid_offer_emissions_are_the_change_from_the_planned_grid_emissions() -> None:
+    """Each step's emissions are its plan's grid emissions less the plan's at the forecast prices.
+
+    Importing for the load in the second hour adds 2.5 kWh at 0.2 kg/kWh, and
+    exporting the generator's spare power avoids as much.
+    """
+    network = build_network("offer", _participants(), [3600, 3600])
+    network.optimize()
+
+    (offer,) = grid_offers(
+        network, GRID, windows=[[1]], min_price=-1.0, max_price=1.0, emissions_intensity=np.array([0.8, 0.2])
+    )
+
+    assert offer.emissions_intensity == pytest.approx(0.2)
+    assert [step.emissions for step in offer.steps] == pytest.approx([0.5, 0.0, -0.5])
+
+
+def test_grid_offer_without_an_emissions_intensity_reports_no_emissions() -> None:
+    """Without an emissions intensity, no step reports emissions."""
+    network = build_network("offer", _participants(), [3600, 3600])
+    network.optimize()
+
+    (offer,) = grid_offers(network, GRID, windows=[[1]], min_price=-1.0, max_price=1.0)
+
+    assert offer.emissions_intensity is None
+    assert {step.emissions for step in offer.steps} == {None}

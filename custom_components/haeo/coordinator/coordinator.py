@@ -45,7 +45,9 @@ from custom_components.haeo.core.const import (
 )
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
+from custom_components.haeo.core.data.loader.emissions import load_emissions_intensity
 from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType, SolverError
 from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel, listing
 from custom_components.haeo.core.model.topology import serialize_topology
@@ -65,6 +67,7 @@ from custom_components.haeo.input_stores import (
     unavailable_input_placeholders,
     unavailable_input_sources,
 )
+from custom_components.haeo.inputs.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import (
     create_optimization_infeasible_issue,
     create_optimization_persistent_failure_issue,
@@ -573,18 +576,27 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="inputs_not_aligned")
 
     async def async_grid_offers(
-        self, *, start: float, end: float, interval: float, min_price: float, max_price: float
+        self,
+        *,
+        start: float,
+        end: float,
+        interval: float,
+        min_price: float,
+        max_price: float,
+        emissions_intensity: str | None = None,
     ) -> tuple[tuple[float, ...], dict[str, list[GridOffer]]]:
         """Return each grid's offer curves over the plan's periods that overlap a time range.
 
         The periods are grouped into windows by the interval of the clock they
         start in, such as each half hour, and a price is shifted across a whole
         window. The curves are traced from the plan the latest optimization found,
-        while no optimization can change it. Returns the plan's period boundaries,
-        as timestamps, and the offers of each grid by name.
+        while no optimization can change it. With an emissions intensity sensor,
+        each step also says how it changes the plan's grid emissions. Returns the
+        plan's period boundaries, as timestamps, and the offers of each grid by name.
 
         Raises:
-            HomeAssistantError: When the latest optimization found no plan.
+            HomeAssistantError: When the latest optimization found no plan, or
+                the emissions intensity sensor cannot be read.
 
         """
         async with self._optimization_lock:
@@ -607,10 +619,29 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 for name, config in self._participant_configs.items()
                 if config[CONF_ELEMENT_TYPE] == ElementType.GRID
             ]
+            try:
+                intensity = (
+                    None
+                    if emissions_intensity is None
+                    else load_emissions_intensity(HomeAssistantStateMachine(self.hass), emissions_intensity, timestamps)
+                )
+            except InputError as error:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key=error.translation_key,
+                    translation_placeholders=error.translation_placeholders,
+                ) from error
 
             def trace() -> dict[str, list[GridOffer]]:
                 return {
-                    grid: grid_offers(self.network, grid, windows=windows, min_price=min_price, max_price=max_price)
+                    grid: grid_offers(
+                        self.network,
+                        grid,
+                        windows=windows,
+                        min_price=min_price,
+                        max_price=max_price,
+                        emissions_intensity=intensity,
+                    )
                     for grid in grids
                 }
 

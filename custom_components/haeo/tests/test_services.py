@@ -477,9 +477,10 @@ async def test_offer_curve_service_returns_each_grids_offers(
                     import_price=0.25,
                     export_price=0.08,
                     power=-1.23456,
+                    emissions_intensity=0.61234,
                     steps=(
-                        GridOfferStep(import_price=-1.0, export_price=-1.17, power=9.0),
-                        GridOfferStep(import_price=0.170004, export_price=-0.000004, power=-1.23456),
+                        GridOfferStep(import_price=-1.0, export_price=-1.17, power=9.0, emissions=3.21),
+                        GridOfferStep(import_price=0.170004, export_price=-0.000004, power=-1.23456, emissions=0.0),
                     ),
                 )
             ]
@@ -490,14 +491,25 @@ async def test_offer_curve_service_returns_each_grids_offers(
     response = await hass.services.async_call(
         DOMAIN,
         "offer_curve",
-        {"config_entry": mock_hub_entry.entry_id, "start": "2026-11-03 16:00:00", "max_price": 5, "interval": 5},
+        {
+            "config_entry": mock_hub_entry.entry_id,
+            "start": "2026-11-03 16:00:00",
+            "max_price": 5,
+            "interval": 5,
+            "emissions_intensity": "sensor.intensity",
+        },
         blocking=True,
         return_response=True,
     )
 
     # A start without a zone is in Home Assistant's
     mock_coordinator.async_grid_offers.assert_awaited_once_with(
-        start=start, end=float("inf"), interval=300.0, min_price=-1.0, max_price=5.0
+        start=start,
+        end=float("inf"),
+        interval=300.0,
+        min_price=-1.0,
+        max_price=5.0,
+        emissions_intensity="sensor.intensity",
     )
     assert response == {
         "grids": {
@@ -508,9 +520,10 @@ async def test_offer_curve_service_returns_each_grids_offers(
                     "import_price": 0.25,
                     "export_price": 0.08,
                     "power": -1.235,
+                    "emissions_intensity": 0.612,
                     "offer": [
-                        {"import_price": -1.0, "export_price": -1.17, "power": 9.0},
-                        {"import_price": 0.17, "export_price": 0.0, "power": -1.235},
+                        {"import_price": -1.0, "export_price": -1.17, "power": 9.0, "emissions": 3.21},
+                        {"import_price": 0.17, "export_price": 0.0, "power": -1.235, "emissions": 0.0},
                     ],
                 }
             ]

@@ -717,6 +717,10 @@
     "config_entry_not_found": { "message": "Config entry {entry_id} not found" },
     "config_entry_not_loaded": { "message": "Config entry {entry_id} is not loaded (state: {state})" },
     "config_entry_wrong_domain": { "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})" },
+    "emissions_intensity_unavailable": { "message": "The emissions intensity sensor {entity_id} has no reading" },
+    "emissions_intensity_unit": {
+      "message": "The emissions intensity sensor {entity_id} is in {unit}, but needs g, kg or t of CO2 per kWh or MWh"
+    },
     "horizon_entity_not_ready": {
       "message": "The planning horizon sensor {entity_id} does not report a usable HAEO-format forecast yet."
     },
@@ -840,8 +844,12 @@
       "description": "Returns, for each interval of the plan, the average grid power the plan would take at each import and export price that interval could have, with every other interval's prices as forecast",
       "fields": {
         "config_entry": { "description": "The HAEO system to get offer curves for", "name": "System" },
+        "emissions_intensity": {
+          "description": "A sensor giving the grid's emissions intensity, now or as a forecast, in g, kg or t of CO2 per kWh or MWh. Each step then says how much it changes the plan's grid emissions.",
+          "name": "Emissions intensity"
+        },
         "end": {
-          "description": "Includes periods that start before this time. Runs to the end of the plan if omitted.",
+          "description": "Includes intervals that start before this time. Runs to the end of the plan if omitted.",
           "name": "End"
         },
         "interval": {
@@ -857,7 +865,7 @@
           "name": "Lowest import price"
         },
         "start": {
-          "description": "Includes periods that end after this time. Starts from the beginning of the plan if omitted.",
+          "description": "Includes intervals that end after this time. Starts from the beginning of the plan if omitted.",
           "name": "Start"
         }
       },

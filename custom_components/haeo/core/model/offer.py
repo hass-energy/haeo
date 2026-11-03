@@ -20,6 +20,12 @@ them; otherwise each half is searched the same way. A curve with ``k`` steps
 takes ``2k + 1`` solves, each warm-started from the last, and needs no ranging
 or basis bookkeeping, so primal degeneracy cannot mislead it.
 
+A curve can also read a second quantity of the plan at each step, such as its
+emissions. The power in a window is the same in every cheapest plan at a price
+off a step's edge, but how the rest of the plan makes up for it need not be,
+so the quantity is also minimized among equally cheap plans, with a weight too
+small to move a step's edge by more than a thousandth of a cent per kWh.
+
 The solves run on a copy of the solved model, so the plan, its duals and the
 basis the next optimization starts from are never touched.
 """
@@ -42,6 +48,8 @@ _POWER_TOLERANCE: Final = 1e-6
 # Kinks searched for before a price range is taken as one step, which only
 # numerical noise in the costs can reach
 _MAX_DEPTH: Final = 64
+# $ per unit of the measured quantity added to the cost to choose among equally cheap plans
+_MEASURE_WEIGHT: Final = 1e-5
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,11 +59,14 @@ class OfferStep:
     Attributes:
         price: Shift in $/kWh from the window's forecast prices at which the step starts.
         power: Average power in kW of the flow over the window at prices in the step.
+        measure: The measured quantity of the plan at prices in the step, or
+            zero when nothing is measured.
 
     """
 
     price: float
     power: float
+    measure: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,29 +84,36 @@ class OfferCurve:
     periods: tuple[int, ...]
     steps: tuple[OfferStep, ...]
 
-    def power_at(self, price: float) -> float:
-        """Return the power at a price shift, taking the step above when it is on a step's edge."""
-        power = self.steps[0].power
+    def step_at(self, price: float) -> OfferStep:
+        """Return the step a price shift is in, taking the step above when it is on a step's edge."""
+        found = self.steps[0]
         for step in self.steps[1:]:
             if price < step.price:
                 break
-            power = step.power
-        return power
+            found = step
+        return found
 
 
 @dataclass(frozen=True, slots=True)
 class _Point:
-    """A solve at one price shift: its cheapest cost and the energy at that shift."""
+    """A solve at one price shift: its cheapest cost, and the energy and measured quantity of its plan."""
 
     price: float
     cost: float
     energy: float
+    measure: float
 
 
 class _Probe:
     """Solves a copy of a solved model with the price of some energy shifted."""
 
-    def __init__(self, live: Solver, cost: NDArray[np.float64], options: Callable[[Solver], None]) -> None:
+    def __init__(
+        self,
+        live: Solver,
+        cost: NDArray[np.float64],
+        options: Callable[[Solver], None],
+        measure: NDArray[np.float64],
+    ) -> None:
         self._solver = Solver()
         self._solver.setOptionValue("output_flag", False)  # noqa: FBT003 (HiGHS option value)
         self._solver.setOptionValue("log_to_console", False)  # noqa: FBT003 (HiGHS option value)
@@ -104,7 +122,8 @@ class _Probe:
         self._basis = live.getBasis()
         self._solver.setBasis(self._basis)
         self._columns = np.arange(self._solver.getNumCol(), dtype=np.int32)
-        self._cost = cost
+        self._cost = cost + _MEASURE_WEIGHT * measure
+        self._measure = measure
 
     def restart(self) -> None:
         """Start the next solve from the plan's basis."""
@@ -119,7 +138,7 @@ class _Probe:
         if status != HighsModelStatus.kOptimal:
             raise SolverError(self._solver.modelStatusToString(status))
         columns = np.asarray(self._solver.getSolution().col_value)
-        return _Point(price, float(costs @ columns), float(energy @ columns))
+        return _Point(price, float(costs @ columns), float(energy @ columns), float(self._measure @ columns))
 
 
 def _kinks(probe: _Probe, energy: NDArray[np.float64], low: _Point, high: _Point, depth: int = 0) -> list[_Point]:
@@ -133,7 +152,8 @@ def _kinks(probe: _Probe, energy: NDArray[np.float64], low: _Point, high: _Point
     middle = probe.solve(energy, crossing)
     on_lines = low.cost + low.energy * (crossing - low.price)
     if on_lines - middle.cost <= _COST_TOLERANCE or depth >= _MAX_DEPTH:
-        return [_Point(crossing, on_lines, high.energy)]
+        # The plan solved at the top is cheapest all the way down to the crossing
+        return [_Point(crossing, on_lines, high.energy, high.measure)]
     return [*_kinks(probe, energy, low, middle, depth + 1), *_kinks(probe, energy, middle, high, depth + 1)]
 
 
@@ -147,6 +167,7 @@ def offer_curves(
     windows: Sequence[Sequence[int]],
     low: Sequence[float],
     high: Sequence[float],
+    measure: LinearArray | None = None,
 ) -> list[OfferCurve]:
     """Return the offer curve of a flow over each of the given windows.
 
@@ -162,9 +183,12 @@ def offer_curves(
             shifted by the same amount in all of its periods.
         low: Lowest price shift in $/kWh to trace each window from.
         high: Highest price shift in $/kWh to trace each window to.
+        measure: A quantity of the plan, as a single row, to read at each step
+            and to minimize among equally cheap plans.
 
     """
-    probe = _Probe(solver, cost, options)
+    measured = np.zeros(len(cost)) if measure is None else measure.column_coefficients(len(cost))
+    probe = _Probe(solver, cost, options, measured)
     curves: list[OfferCurve] = []
     for window, bottom_price, top_price in zip(windows, low, high, strict=True):
         probe.restart()
@@ -179,7 +203,7 @@ def offer_curves(
             power = point.energy / duration
             if steps and abs(steps[-1].power - power) <= _POWER_TOLERANCE:
                 continue
-            steps.append(OfferStep(point.price, power))
+            steps.append(OfferStep(point.price, power, point.measure))
         curves.append(OfferCurve(tuple(window), tuple(steps)))
     return curves
 

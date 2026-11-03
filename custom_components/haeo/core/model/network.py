@@ -480,6 +480,7 @@ class Network:
         windows: Sequence[Sequence[int]],
         low: Sequence[float],
         high: Sequence[float],
+        measure: LinearArray | None = None,
     ) -> list[OfferCurve]:
         """Return how a flow over each window of periods responds to its price, from the plan the last optimize left.
 
@@ -497,7 +498,15 @@ class Network:
             raise ValueError(msg)
         cost = Objective.of(primary, self._solver.numVariables).costs
         return offer_curves(
-            self._solver, cost, self.options.apply, self.periods, flow, windows=windows, low=low, high=high
+            self._solver,
+            cost,
+            self.options.apply,
+            self.periods,
+            flow,
+            windows=windows,
+            low=low,
+            high=high,
+            measure=measure,
         )
 
     def constraints(self) -> dict[str, dict[str, RowIndices]]:
