@@ -1,12 +1,15 @@
 """Service actions for HAEO integration."""
 
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 import json
 import logging
+import math
 from pathlib import Path
+from typing import TYPE_CHECKING, Final
 
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
@@ -15,16 +18,36 @@ from homeassistant.helpers.system_info import async_get_system_info
 from homeassistant.loader import Manifest, async_get_custom_components, async_get_integration
 from homeassistant.setup import async_get_domain_setup_times
 from homeassistant.util import dt as dt_util
+from homeassistant.util.json import JsonValueType
 import voluptuous as vol
 
 from .const import DOMAIN
+from .core.adapters.offer import GridOffer
+
+if TYPE_CHECKING:
+    from . import HaeoRuntimeData
+    from .coordinator import HaeoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_SAVE_DIAGNOSTICS = "save_diagnostics"
 SERVICE_OPTIMIZE = "optimize"
+SERVICE_OFFER_CURVE = "offer_curve"
 ATTR_CONFIG_ENTRY = "config_entry"
 ATTR_TIMESTAMP = "time"
+ATTR_START = "start"
+ATTR_END = "end"
+ATTR_MIN_PRICE = "min_price"
+ATTR_MAX_PRICE = "max_price"
+ATTR_INTERVAL = "interval"
+# The NEM's price floor and, roughly, its cap, in $/kWh
+DEFAULT_MIN_PRICE: Final = -1.0
+DEFAULT_MAX_PRICE: Final = 20.0
+# Minutes a price change lasts, the NEM's trading interval
+DEFAULT_INTERVAL: Final = 30
+# Decimal places offers are reported to: a hundredth of a cent, and a watt
+_PRICE_DIGITS: Final = 4
+_POWER_DIGITS: Final = 3
 
 
 def _format_manifest(manifest: Manifest) -> Manifest:
@@ -95,6 +118,84 @@ async def async_save_diagnostics(hass: HomeAssistant, data: dict[str, object], k
     await hass.async_add_executor_job(write_diagnostics)
     _LOGGER.info("HAEO diagnostics saved to %s", filepath)
     return filepath
+
+
+def _loaded_coordinator(hass: HomeAssistant, entry_id: str) -> "HaeoDataUpdateCoordinator":
+    """Return the coordinator of a loaded HAEO config entry, raising when there is none."""
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if entry is None:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="config_entry_not_found",
+            translation_placeholders={"entry_id": entry_id},
+        )
+
+    if entry.domain != DOMAIN:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="config_entry_wrong_domain",
+            translation_placeholders={"entry_id": entry_id, "domain": entry.domain},
+        )
+
+    if entry.state is not ConfigEntryState.LOADED:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="config_entry_not_loaded",
+            translation_placeholders={"entry_id": entry_id, "state": str(entry.state)},
+        )
+
+    # A loaded HAEO entry holds HAEO's runtime data
+    runtime_data: HaeoRuntimeData | None = entry.runtime_data
+    if not runtime_data or not runtime_data.coordinator:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="config_entry_not_loaded",
+            translation_placeholders={"entry_id": entry_id, "state": "no coordinator"},
+        )
+    return runtime_data.coordinator
+
+
+def _service_timestamp(time: datetime) -> float:
+    """Return a service call's time as a timestamp, reading a time without a zone in Home Assistant's."""
+    if time.tzinfo is None:
+        time = time.replace(tzinfo=dt_util.get_default_time_zone())
+    return time.timestamp()
+
+
+def _rounded(value: float, digits: int) -> float:
+    """Return a value rounded to some decimal places, with a rounded negative zero as zero."""
+    return round(value, digits) + 0.0
+
+
+def _offer_response(timestamps: Sequence[float], offers: Mapping[str, Sequence[GridOffer]]) -> dict[str, JsonValueType]:
+    """Return grid offers as service response data, each window named by its start and end time."""
+
+    def time(timestamp: float) -> str:
+        return dt_util.as_local(dt_util.utc_from_timestamp(timestamp)).isoformat()
+
+    return {
+        "grids": {
+            grid: [
+                {
+                    "start": time(timestamps[offer.periods[0]]),
+                    "end": time(timestamps[offer.periods[-1] + 1]),
+                    "import_price": _rounded(offer.import_price, _PRICE_DIGITS),
+                    "export_price": _rounded(offer.export_price, _PRICE_DIGITS),
+                    "power": _rounded(offer.power, _POWER_DIGITS),
+                    "offer": [
+                        {
+                            "import_price": _rounded(step.import_price, _PRICE_DIGITS),
+                            "export_price": _rounded(step.export_price, _PRICE_DIGITS),
+                            "power": _rounded(step.power, _POWER_DIGITS),
+                        }
+                        for step in offer.steps
+                    ],
+                }
+                for offer in grid_offers
+            ]
+            for grid, grid_offers in offers.items()
+        }
+    }
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
@@ -169,53 +270,51 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         Manually triggers optimization, bypassing debouncing and the auto-optimize setting.
         """
-        # Import here to avoid circular imports
-        from . import HaeoConfigEntry  # noqa: PLC0415
-
         entry_id = call.data[ATTR_CONFIG_ENTRY]
-
-        # Validate config entry exists
-        entry = hass.config_entries.async_get_entry(entry_id)
-        if entry is None:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="config_entry_not_found",
-                translation_placeholders={"entry_id": entry_id},
-            )
-
-        # Validate it's a HAEO entry
-        if entry.domain != DOMAIN:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="config_entry_wrong_domain",
-                translation_placeholders={"entry_id": entry_id, "domain": entry.domain},
-            )
-
-        # Validate entry is loaded
-        if entry.state is not ConfigEntryState.LOADED:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="config_entry_not_loaded",
-                translation_placeholders={"entry_id": entry_id, "state": str(entry.state)},
-            )
-
-        # Get runtime data and coordinator
-        typed_entry: HaeoConfigEntry = entry
-        runtime_data = typed_entry.runtime_data
-        if not runtime_data or not runtime_data.coordinator:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="config_entry_not_loaded",
-                translation_placeholders={"entry_id": entry_id, "state": "no coordinator"},
-            )
+        coordinator = _loaded_coordinator(hass, entry_id)
 
         # Run optimization
         _LOGGER.info("Running optimization for %s (manual trigger)", entry_id)
-        await runtime_data.coordinator.async_run_optimization()
+        await coordinator.async_run_optimization()
 
     hass.services.async_register(
         DOMAIN,
         SERVICE_OPTIMIZE,
         async_handle_run_optimizer,
         schema=vol.Schema({vol.Required(ATTR_CONFIG_ENTRY): cv.string}),
+    )
+
+    async def async_handle_offer_curve(call: ServiceCall) -> ServiceResponse:
+        """Return each grid's offer curve over each interval of the plan between a start and end time."""
+        coordinator = _loaded_coordinator(hass, call.data[ATTR_CONFIG_ENTRY])
+        start: datetime | None = call.data.get(ATTR_START)
+        end: datetime | None = call.data.get(ATTR_END)
+        min_price: float = call.data[ATTR_MIN_PRICE]
+        max_price: float = call.data[ATTR_MAX_PRICE]
+        if min_price >= max_price:
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="offer_price_range")
+        timestamps, offers = await coordinator.async_grid_offers(
+            start=_service_timestamp(start) if start is not None else -math.inf,
+            end=_service_timestamp(end) if end is not None else math.inf,
+            interval=call.data[ATTR_INTERVAL] * 60.0,
+            min_price=min_price,
+            max_price=max_price,
+        )
+        return _offer_response(timestamps, offers)
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_OFFER_CURVE,
+        async_handle_offer_curve,
+        schema=vol.Schema(
+            {
+                vol.Required(ATTR_CONFIG_ENTRY): cv.string,
+                vol.Optional(ATTR_START): cv.datetime,
+                vol.Optional(ATTR_END): cv.datetime,
+                vol.Optional(ATTR_MIN_PRICE, default=DEFAULT_MIN_PRICE): vol.Coerce(float),
+                vol.Optional(ATTR_MAX_PRICE, default=DEFAULT_MAX_PRICE): vol.Coerce(float),
+                vol.Optional(ATTR_INTERVAL, default=DEFAULT_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=1)),
+            }
+        ),
+        supports_response=SupportsResponse.ONLY,
     )

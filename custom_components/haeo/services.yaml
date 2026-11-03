@@ -17,3 +17,46 @@ optimize:
       selector:
         config_entry:
           integration: haeo
+
+offer_curve:
+  fields:
+    config_entry:
+      required: true
+      selector:
+        config_entry:
+          integration: haeo
+    start:
+      required: false
+      selector:
+        datetime:
+    end:
+      required: false
+      selector:
+        datetime:
+    min_price:
+      required: false
+      default: -1.0
+      selector:
+        number:
+          min: -1000
+          max: 1000
+          step: 0.01
+          mode: box
+    max_price:
+      required: false
+      default: 20.0
+      selector:
+        number:
+          min: -1000
+          max: 1000
+          step: 0.01
+          mode: box
+    interval:
+      required: false
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 1440
+          unit_of_measurement: min
+          mode: box

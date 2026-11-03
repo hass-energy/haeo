@@ -1,6 +1,6 @@
 """Network class for electrical system modeling and optimization."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import partial
 import logging
@@ -29,25 +29,14 @@ from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
 from .infeasibility import InfeasibleError, Relaxation, RowLabel, conflicting_rows, listing, row_labels, solve_relaxed
 from .linear import LinearArray, total
-from .solver import Solver
+from .offer import OfferCurve, offer_curves
+from .solver import Solver, SolverError
 from .util.solver_rows import RowIndices
 
 _LOGGER = logging.getLogger(__name__)
 
 
 OnOffChoose = Literal["on", "off", "choose"]
-
-
-class SolverError(ValueError):
-    """The solver stopped without a plan for a reason other than infeasibility.
-
-    The status is HiGHS's name for how the solve ended, such as ``Unbounded``.
-    """
-
-    def __init__(self, status: str) -> None:
-        """Record the solver status the solve ended with."""
-        super().__init__(f"Optimization failed with status: {status}")
-        self.status = status
 
 
 # Calibration search bounds in log10 space.  The secondary objective can
@@ -483,6 +472,33 @@ class Network:
         weight = 10.0 ** max(lo, upper - _CAL_MARGIN)
         _LOGGER.debug("Calibrated blend weight: %.2e", weight)
         return weight
+
+    def offer_curves(
+        self,
+        flow: LinearArray,
+        *,
+        windows: Sequence[Sequence[int]],
+        low: Sequence[float],
+        high: Sequence[float],
+    ) -> list[OfferCurve]:
+        """Return how a flow over each window of periods responds to its price, from the plan the last optimize left.
+
+        Each curve is traced on a copy of the solved model, so the plan and the
+        next optimization's warm start are unchanged. ``core.model.offer``
+        describes the curves and the arguments.
+        """
+        if self.relaxations:
+            # The relaxed rows' bounds were restored after the plan was read, so the model has no plan to vary
+            msg = "The plan was found by relaxing constraints, so it has no offer curve"
+            raise ValueError(msg)
+        primary, _ = self.cost()
+        if primary is None:
+            msg = "Network has no primary cost — add pricing to connections or nodes"
+            raise ValueError(msg)
+        cost = Objective.of(primary, self._solver.numVariables).costs
+        return offer_curves(
+            self._solver, cost, self.options.apply, self.periods, flow, windows=windows, low=low, high=high
+        )
 
     def constraints(self) -> dict[str, dict[str, RowIndices]]:
         """Return all constraints from all elements in the network.

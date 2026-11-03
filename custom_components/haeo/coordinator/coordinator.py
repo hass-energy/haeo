@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import itertools
 import logging
 import time
 from typing import TYPE_CHECKING, Literal, TypedDict
@@ -34,6 +35,7 @@ from custom_components.haeo.core.adapters.network_builder import (
     build_network,
     periods_in_hours,
 )
+from custom_components.haeo.core.adapters.offer import GridOffer, grid_offers
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -47,7 +49,7 @@ from custom_components.haeo.core.data.loader.extractors.haeo import Interpolatio
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType, SolverError
 from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel, listing
 from custom_components.haeo.core.model.topology import serialize_topology
-from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import currency_symbol, localize_currency, price_currency
 from custom_components.haeo.elements import (
@@ -399,6 +401,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._rerun_wanted: bool = False
         # The horizon start the latest optimization planned from
         self._planned_horizon_start: float | None = None
+        # Boundaries of the periods of the plan the network holds, set once a solve finds one
+        self._plan_timestamps: tuple[float, ...] = ()
         # When optimizations started failing, and whether that failure raises an issue of its own
         self._failing_since: float | None = None
         self._failure_reported = False
@@ -567,6 +571,50 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """
         if not await self._optimize():
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="inputs_not_aligned")
+
+    async def async_grid_offers(
+        self, *, start: float, end: float, interval: float, min_price: float, max_price: float
+    ) -> tuple[tuple[float, ...], dict[str, list[GridOffer]]]:
+        """Return each grid's offer curves over the plan's periods that overlap a time range.
+
+        The periods are grouped into windows by the interval of the clock they
+        start in, such as each half hour, and a price is shifted across a whole
+        window. The curves are traced from the plan the latest optimization found,
+        while no optimization can change it. Returns the plan's period boundaries,
+        as timestamps, and the offers of each grid by name.
+
+        Raises:
+            HomeAssistantError: When the latest optimization found no plan.
+
+        """
+        async with self._optimization_lock:
+            timestamps = self._plan_timestamps
+            if not self.last_update_success or not timestamps:
+                raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_no_plan")
+            if self.network.relaxations:
+                raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_relaxed_plan")
+            periods = [
+                index
+                for index, (period_start, period_end) in enumerate(itertools.pairwise(timestamps))
+                if period_start < end and start < period_end
+            ]
+            windows = [
+                list(window)
+                for _, window in itertools.groupby(periods, key=lambda index: timestamps[index] // interval)
+            ]
+            grids = [
+                name
+                for name, config in self._participant_configs.items()
+                if config[CONF_ELEMENT_TYPE] == ElementType.GRID
+            ]
+
+            def trace() -> dict[str, list[GridOffer]]:
+                return {
+                    grid: grid_offers(self.network, grid, windows=windows, min_price=min_price, max_price=max_price)
+                    for grid in grids
+                }
+
+            return timestamps, await self.hass.async_add_executor_job(trace)
 
     async def async_refresh(self) -> None:
         """Optimize with the current inputs, after any optimization already running."""
@@ -788,7 +836,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             network = self._build_network(loaded_configs)
         self._stale_elements.clear()
 
+        self._plan_timestamps = ()
         cost = await self._solve(network, context, started_at, forecast_timestamps)
+        self._plan_timestamps = tuple(forecast_timestamps)
 
         end_time = time.time()
         self._last_optimization_time = time.monotonic()

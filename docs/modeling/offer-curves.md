@@ -1,0 +1,123 @@
+# Offer curves
+
+An offer curve says how much power a home would take from the grid over a window of time at each price that window could have.
+It answers "if the price from 6 pm to 6:30 pm were X, how much would I import or export?", with every price outside the window left as forecast.
+The `haeo.offer_curve` [action](../user-guide/actions.md#get-offer-curves) returns one for each grid in each interval of the plan.
+
+## What the curve is
+
+Shifting the grid prices of every period in a window $W$ by $d$ adds $d$ times the window's net grid energy to the cost of every plan.
+The cheapest cost as a function of the shift,
+
+$$
+V(d) = \min_x \left( c^\top x + d \sum_{t \in W} E_t(x) \right),
+$$
+
+is a minimum of lines in $d$, one per plan, so it is concave and piecewise linear.
+Its slope at any shift is the window's net grid energy in the cheapest plan there,
+and the curve reports it as the average power over the window.
+That power is therefore a step function of the price that never rises as the price rises:
+each step is a range of prices over which one plan stays cheapest,
+and each edge between steps is a price at which the next kilowatt-hour is worth more somewhere else,
+such as in the battery for later, in an EV, or exported outside the window.
+
+The shift moves the import and export prices together,
+as a change in the wholesale price passes through to both.
+The curve covers every response the model can make, across the whole horizon:
+a higher price in one window can empty the battery into it and refill it in a later one.
+
+### Why a window
+
+The window is how long a price change lasts, and the response depends heavily on it.
+A shift in one short period can be met by moving a little energy into or out of it,
+which costs the rest of the plan almost nothing,
+so a curve of a single minute shows nearly the full power of the battery for a small change in price.
+Over a longer window the same response uses far more energy and costs the rest of the plan far more.
+On scenario 7, raising both prices by 3.5c/kWh from the start of the plan gives:
+
+| Window     | Average export |
+| ---------- | -------------- |
+| 1 minute   | 26.8 kW        |
+| 5 minutes  | 15.3 kW        |
+| 30 minutes | 11.0 kW        |
+
+The action groups the plan's periods into windows by the interval of the clock each starts in,
+30 minutes by default to match the market's trading intervals.
+The shift is the same in every period of the window, so the price shape within it is kept,
+as a change in the wholesale price leaves the tariffs added to it as they are.
+A shift is used rather than a scaling of the price, since scaling does nothing to a price of zero
+and turns a negative price more negative as it raises a positive one.
+
+Because the net energy is the slope of $V$, it is the same in every cheapest plan at a shift that is not on an edge.
+The curve therefore needs none of the tie-breaking the plan itself uses,
+and it is traced against the cost alone.
+
+## How it is traced
+
+The edges are found with Eisner and Severance's method for parametric linear programs.
+Solve at the bottom and top of a price range, and find where the two plans' cost lines cross.
+Solve again at that crossing.
+If its cost is what the lines say, the crossing is the only edge between them;
+otherwise the cheaper plan found there splits the range, and each half is searched the same way.
+A curve with $k$ steps takes $2k + 1$ solves.
+
+Each solve changes only costs, so the model keeps its shape and HiGHS warm-starts from the last basis.
+The solves run on a copy of the solved model,
+so the plan, its shadow prices, and the basis the next optimization starts from are left as they are.
+A plan found by [relaxing constraints](../user-guide/troubleshooting.md#relax-impossible-plans) has no curve,
+since its model has its bounds back once the plan is read.
+
+[`core/model/offer.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/model/offer.py) traces the curve of any flow,
+and [`core/adapters/offer.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/offer.py) applies it to a grid's net import.
+
+### Why not ranging
+
+HiGHS's cost ranging gives the range of one column's cost over which the basis stays optimal.
+Stepping past the end of each range and solving again also traces the curve,
+and a ranging step for both grid prices at once can be read from the reduced costs at the basis.
+It was measured against Eisner and Severance on the scenario networks, tracing every period from -1 to 20 \$/kWh:
+
+| Scenario | Periods | Columns | Eisner and Severance | Ranging steps                              |
+| -------- | ------- | ------- | -------------------- | ------------------------------------------ |
+| 1        | 96      | 2,114   | 0.97 s               | 2.7 s                                      |
+| 6        | 192     | 6,914   | 8.7 s                | 202 s, 9 periods stopped after 2,000 steps |
+
+Both found the same curves where ranging finished.
+A basis change is not a change in the energy:
+the LPs are degenerate, so most basis changes move nothing the curve shows,
+and runs of them a fraction of a cent apart leave ranging creeping forward.
+Eisner and Severance solves only where the cost says another step must be.
+
+## Using the curve
+
+Each window's curve is a set of price bands with a quantity in each,
+the shape a scheduled resource's bid takes in a market.
+Import steps read as a load bid: the power the home would consume at or below each price.
+Export steps read as a generation offer: the power it would supply at or above each price.
+
+Each curve holds every price outside its window fixed.
+Curves of different windows do not add up, since the battery's energy can only be spent once:
+a price spike across several windows draws less from it in each than the separate curves suggest.
+A longer event is better described by a curve over a window of its length.
+
+## Next steps
+
+<div class="grid cards" markdown>
+
+- :material-play-circle-outline:{ .lg .middle } __Get offer curves__
+
+    ---
+
+    Call the action and read its response.
+
+    [:material-arrow-right: Actions](../user-guide/actions.md#get-offer-curves)
+
+- :material-currency-usd:{ .lg .middle } __Shadow prices__
+
+    ---
+
+    The value of one more unit of a limit at the plan.
+
+    [:material-arrow-right: Shadow prices](shadow-prices.md)
+
+</div>

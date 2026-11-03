@@ -14,6 +14,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData, async_setup
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.core.adapters.offer import GridOffer, GridOfferStep
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.diagnostics import DIAGNOSTICS_SCHEMA_VERSION, DiagnosticsResult, EnvironmentInfo
 from custom_components.haeo.services import _format_manifest
@@ -42,6 +43,7 @@ async def test_async_setup_registers_services(hass: HomeAssistant) -> None:
     assert result is True
     assert hass.services.has_service(DOMAIN, "save_diagnostics")
     assert hass.services.has_service(DOMAIN, "optimize")
+    assert hass.services.has_service(DOMAIN, "offer_curve")
 
 
 async def test_save_diagnostics_service_success(
@@ -451,3 +453,87 @@ async def test_optimize_service_no_coordinator(
         )
 
     assert exc_info.value.translation_key == "config_entry_not_loaded"
+
+
+# ===== Tests for the offer_curve service =====
+
+
+async def test_offer_curve_service_returns_each_grids_offers(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Each period is named by its start and end time, with its prices, planned power and offer steps."""
+    await hass.config.async_set_time_zone("Australia/Brisbane")
+    await async_setup(hass, {})
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+    mock_coordinator = AsyncMock()
+    start = datetime(2026, 11, 3, 6, 0, tzinfo=UTC).timestamp()
+    mock_coordinator.async_grid_offers.return_value = (
+        (start - 1800, start, start + 600, start + 1800),
+        {
+            "Grid": [
+                GridOffer(
+                    periods=(1, 2),
+                    import_price=0.25,
+                    export_price=0.08,
+                    power=-1.23456,
+                    steps=(
+                        GridOfferStep(import_price=-1.0, export_price=-1.17, power=9.0),
+                        GridOfferStep(import_price=0.170004, export_price=-0.000004, power=-1.23456),
+                    ),
+                )
+            ]
+        },
+    )
+    mock_hub_entry.runtime_data = HaeoRuntimeData(coordinator=mock_coordinator, horizon_manager=Mock())
+
+    response = await hass.services.async_call(
+        DOMAIN,
+        "offer_curve",
+        {"config_entry": mock_hub_entry.entry_id, "start": "2026-11-03 16:00:00", "max_price": 5, "interval": 5},
+        blocking=True,
+        return_response=True,
+    )
+
+    # A start without a zone is in Home Assistant's
+    mock_coordinator.async_grid_offers.assert_awaited_once_with(
+        start=start, end=float("inf"), interval=300.0, min_price=-1.0, max_price=5.0
+    )
+    assert response == {
+        "grids": {
+            "Grid": [
+                {
+                    "start": "2026-11-03T16:00:00+10:00",
+                    "end": "2026-11-03T16:30:00+10:00",
+                    "import_price": 0.25,
+                    "export_price": 0.08,
+                    "power": -1.235,
+                    "offer": [
+                        {"import_price": -1.0, "export_price": -1.17, "power": 9.0},
+                        {"import_price": 0.17, "export_price": 0.0, "power": -1.235},
+                    ],
+                }
+            ]
+        }
+    }
+
+
+async def test_offer_curve_service_needs_a_price_range(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """The lowest price must be below the highest."""
+    await async_setup(hass, {})
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+    mock_hub_entry.runtime_data = HaeoRuntimeData(coordinator=AsyncMock(), horizon_manager=Mock())
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "offer_curve",
+            {"config_entry": mock_hub_entry.entry_id, "min_price": 1.0, "max_price": 1.0},
+            blocking=True,
+            return_response=True,
+        )
+
+    assert exc_info.value.translation_key == "offer_price_range"
