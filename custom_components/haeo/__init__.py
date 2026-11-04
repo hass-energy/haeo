@@ -45,6 +45,7 @@ from custom_components.haeo.input_stores import (
     unavailable_input_sources,
 )
 from custom_components.haeo.inputs.calendar_loader import CalendarInputLoader
+from custom_components.haeo.inputs.hold_expiry import InputHoldExpiry
 from custom_components.haeo.inputs.source_loader import SourceInputLoader
 from custom_components.haeo.repairs import (
     async_dismiss_entry_issues,
@@ -429,6 +430,12 @@ async def _async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> Non
     # stores are the system's source of truth; entities wrap them for display
     # and the coordinator reads their resolved values.
     runtime_data.input_stores = build_input_stores(hass, entry, horizon_manager)
+
+    # A source that stays without a reading does not reload its stores, so the
+    # readings they hold for it are expired on a timer instead.
+    hold_expiry = InputHoldExpiry(hass, runtime_data.input_stores)
+    hold_expiry.start()
+    entry.async_on_unload(hold_expiry.cleanup)
 
     # A calendar's state carries no events, so stores reading a calendar are
     # loaded by a loader that fetches its events over the horizon.
