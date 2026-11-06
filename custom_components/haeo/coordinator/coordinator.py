@@ -515,7 +515,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """Request an optimization for the new horizon, unless one already plans from its start.
 
         Input stores subscribe to the horizon first, so their reload for the new
-        horizon usually starts that optimization before this runs. The request here
+        horizon usually requests that optimization before this runs. The request here
         covers a roll that no input reloads for.
         """
         if self._planned_horizon_start != self._runtime_data.horizon_manager.get_forecast_timestamps()[0]:
@@ -619,7 +619,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     self.hass, self._debounce_seconds - elapsed, self._debounce_timer_callback
                 )
                 return
-        self.hass.async_create_task(self._optimize())
+        # Not eager, so every input notified in this pass marks its element stale first
+        self.hass.async_create_task(self._optimize_if_wanted(), eager_start=False)
 
     @callback
     def _debounce_timer_callback(self, _now: datetime) -> None:
@@ -627,6 +628,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._debounce_timer = None
         if self._rerun_wanted:
             self.hass.async_create_task(self._optimize())
+
+    async def _optimize_if_wanted(self) -> None:
+        """Optimize unless an optimization has started reading the inputs since the request."""
+        if self._rerun_wanted:
+            await self._optimize()
 
     def _cancel_debounce_timer(self) -> None:
         """Cancel the optimization waiting out the debounce window, if one is."""

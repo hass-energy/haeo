@@ -586,7 +586,7 @@ async def test_horizon_roll_runs_one_optimization(
     """A horizon roll optimizes once, although both the reloaded inputs and the horizon itself request it.
 
     Input stores subscribe to the horizon before the coordinator, so their reload
-    for the new horizon starts the optimization before the coordinator hears of
+    for the new horizon requests the optimization before the coordinator hears of
     the roll.
     """
     horizon_manager = live_runtime_data.horizon_manager
@@ -604,6 +604,26 @@ async def test_horizon_roll_runs_one_optimization(
     await hass.async_block_till_done()
 
     assert solves.calls == 1
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_inputs_notified_in_one_pass_reach_the_optimization_they_request(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """Every input notified in one pass, as a horizon roll notifies them one at a time, reaches one optimization."""
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    updaters = {"First": MagicMock(), "Second": MagicMock()}
+    coordinator._element_updaters = updaters
+    with patch.object(coordinator, "_load_from_input_stores", return_value=dict.fromkeys(updaters)):
+        for element_name in updaters:
+            coordinator._handle_element_update(element_name)
+        await hass.async_block_till_done()
+
+    assert solves.calls == 1
+    for updater in updaters.values():
+        updater.assert_called_once()
     coordinator.cleanup()
 
 
