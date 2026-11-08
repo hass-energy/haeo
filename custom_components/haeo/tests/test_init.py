@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Iterable
 from pathlib import Path
+import threading
 from types import MappingProxyType
 from typing import ClassVar
 from unittest.mock import AsyncMock, Mock
@@ -1131,16 +1132,26 @@ async def test_async_register_static_skips_when_http_unavailable(
 async def test_async_register_static_skips_when_card_not_found(
     hass: HomeAssistant,
 ) -> None:
-    """Test that static registration is skipped when card bundle file is missing."""
+    """Test that static registration is skipped when card bundle file is missing.
+
+    The bundles are looked for in the executor, so the event loop never waits on the filesystem.
+    """
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
+    checked_on_threads: set[int] = set()
+
+    def missing(_self: Path) -> bool:
+        checked_on_threads.add(threading.get_ident())
+        return False
 
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr("custom_components.haeo.Path.exists", lambda _self: False)
+        mp.setattr("custom_components.haeo.Path.exists", missing)
         await _async_register_static_frontend_resources(hass)
 
     mock_http.async_register_static_paths.assert_not_called()
+    assert checked_on_threads
+    assert hass.loop_thread_id not in checked_on_threads
 
 
 def test_card_static_url_changes_with_bundle_contents(tmp_path: Path) -> None:

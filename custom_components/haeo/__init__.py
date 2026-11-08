@@ -135,7 +135,10 @@ async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None
         _LOGGER.debug("HTTP component unavailable; skipping static card registration")
         return
 
-    available_bundles = [name for name in STATIC_CARD_BUNDLES if (CARD_STATIC_DIR / name).exists()]
+    def available_card_bundles() -> list[str]:
+        return [name for name in STATIC_CARD_BUNDLES if (CARD_STATIC_DIR / name).exists()]
+
+    available_bundles = await hass.async_add_executor_job(available_card_bundles)
     if not available_bundles:
         _LOGGER.debug("No static card bundles found in %s", CARD_STATIC_DIR)
         return
