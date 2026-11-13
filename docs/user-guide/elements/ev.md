@@ -144,8 +144,8 @@ The optimizer uses this value when calculating state of charge and trip energy r
 ### Energy per distance
 
 Enter the average energy consumption rate, or select a sensor reporting it.
-Sensors in `Wh/km`, `kWh/km`, or `kWh/100km` are accepted and converted to kWh/km; constants are entered in kWh/km (e.g., 0.15 kWh/km).
-Distance-per-energy units such as `km/kWh` or `mi/kWh` are not supported.
+Sensors in `Wh/km`, `kWh/km`, `kWh/100km`, `km/kWh`, or `mi/kWh` are accepted and converted to kWh/km; constants are entered in kWh/km (e.g., 0.15 kWh/km).
+A `km/kWh` or `mi/kWh` sensor that reads 0 is treated as having no reading, as it says nothing about how much energy a trip needs.
 HAEO multiplies this by trip distance to determine how much energy each trip requires.
 
 ### Current state of charge

@@ -44,6 +44,22 @@ def has_field_unit(output_type: OutputType) -> bool:
     return output_type in _FIELD_UNITS
 
 
+def field_unit_spec(output_type: OutputType) -> UnitSpec | None:
+    """Return the unit an input field's values are in, which a source's values must convert to.
+
+    Returns None for a field without a unit.
+    """
+    return _FIELD_UNITS[output_type][0] if output_type in _FIELD_UNITS else None
+
+
+def source_units(output_type: OutputType) -> tuple[str, ...]:
+    """Return the units a source can state for an input field, those that convert to its unit."""
+    spec = _FIELD_UNITS[output_type][0]
+    return tuple(
+        unit.value for unit in UnitOfMeasurement if matches_unit_spec(str(base_unit_conversion(unit, None)[1]), spec)
+    )
+
+
 def check_source_unit(base_unit: str | None, output_type: OutputType) -> None:
     """Reject a source whose values, converted to base units, are not in the field's unit.
 
@@ -55,11 +71,10 @@ def check_source_unit(base_unit: str | None, output_type: OutputType) -> None:
     """
     if base_unit is None or output_type not in _FIELD_UNITS:
         return
-    spec, expected = _FIELD_UNITS[output_type]
-    if not matches_unit_spec(base_unit, spec):
+    if not matches_unit_spec(base_unit, _FIELD_UNITS[output_type][0]):
         raise InputError(
             translation_key="input_unit_incompatible",
-            translation_placeholders={"unit": base_unit, "expected": expected},
+            translation_placeholders={"unit": base_unit, "expected": ", ".join(source_units(output_type))},
         )
 
 
@@ -74,7 +89,8 @@ def to_field_unit(value: float, unit: str | None, output_type: OutputType) -> fl
     A field with a unit needs the value to state a convertible unit; a bare
     number is never taken to be in HAEO's own units. A field without a unit
     takes a bare number. A quantity that cannot be negative takes no negative
-    value. Returns None for a value the field cannot use.
+    value, and a reciprocal unit, such as km/kWh, takes no zero. Returns None
+    for a value the field cannot use.
     """
     if value < 0 and output_type in NON_NEGATIVE_OUTPUT_TYPES:
         return None
@@ -82,10 +98,21 @@ def to_field_unit(value: float, unit: str | None, output_type: OutputType) -> fl
         return value if unit is None else None
     if unit is None:
         return None
-    factor, base_unit, _ = base_unit_conversion(unit, None)
+    conversion, base_unit, _ = base_unit_conversion(unit, None)
     if not matches_unit_spec(str(base_unit), _FIELD_UNITS[output_type][0]):
         return None
-    return value * factor
+    try:
+        return conversion.apply(value)
+    except ValueError:
+        return None
 
 
-__all__ = ["NON_NEGATIVE_OUTPUT_TYPES", "check_source_unit", "field_unit_label", "has_field_unit", "to_field_unit"]
+__all__ = [
+    "NON_NEGATIVE_OUTPUT_TYPES",
+    "check_source_unit",
+    "field_unit_label",
+    "field_unit_spec",
+    "has_field_unit",
+    "source_units",
+    "to_field_unit",
+]
