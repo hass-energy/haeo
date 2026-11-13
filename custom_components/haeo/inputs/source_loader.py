@@ -114,7 +114,7 @@ class SourceInputLoader:
 
     @callback
     def cleanup(self) -> None:
-        """Stop following sources and the horizon, and cancel a queued reload."""
+        """Stop following sources and the horizon, and cancel a queued reload and any recorder lookups."""
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()

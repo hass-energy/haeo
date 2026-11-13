@@ -1,5 +1,6 @@
 """Tests for holding a source's last reading through a gap, and planning degraded once the hold passes."""
 
+import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
@@ -365,3 +366,32 @@ async def test_sensor_without_a_recorded_reading_leaves_its_input_unavailable(
     assert store.unavailable_sources == (PRICE_SENSOR,)
     assert recorder.async_add_executor_job.await_count == 1
     loader.cleanup()
+
+
+async def test_unloading_cancels_a_recorder_lookup(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    """A lookup still waiting for the recorder when the loader stops is cancelled, so it seeds nothing."""
+    freezer.move_to(START)
+    hass.config.components.add("recorder")
+    hass.states.async_set(PRICE_SENSOR, "unavailable")
+    store = _store(HOLD_SECONDS)
+    horizon_manager = Mock()
+    horizon_manager.subscribe.return_value = lambda: None
+    started = asyncio.Event()
+
+    async def never_answer(_func: Callable[..., object], *_args: object) -> object:
+        started.set()
+        await asyncio.Event().wait()
+        return None
+
+    recorder = Mock()
+    recorder.async_add_executor_job = AsyncMock(side_effect=never_answer)
+    loader = SourceInputLoader(hass, {("Grid", ("price",)): store}, horizon_manager)
+
+    with patch("custom_components.haeo.inputs.recorded_reading.get_instance", return_value=recorder):
+        loader.start()
+        await started.wait()
+        loader.cleanup()
+        await hass.async_block_till_done()
+
+    assert store.sources_without_last_reading == (PRICE_SENSOR,)
+    assert not store.available
