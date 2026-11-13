@@ -15,7 +15,7 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema.constant_value import as_constant_value
+from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.inverter import ELEMENT_TYPE as INVERTER_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
@@ -33,7 +33,7 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_ELEMENT_TYPE
-from custom_components.haeo.core.schema.entity_value import as_entity_value
+from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value
 from custom_components.haeo.flows.elements.policy import (
     ACTION_DELETE,
     ACTION_EDIT,
@@ -42,7 +42,7 @@ from custom_components.haeo.flows.elements.policy import (
     CONF_RULE,
     PolicySubentryFlowHandler,
 )
-from custom_components.haeo.flows.field_schema import CHOICE_ENTITY, CHOICE_NONE
+from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY, CHOICE_NONE
 from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE, find_policy_subentry
 
 
@@ -1433,3 +1433,97 @@ def test_validate_rule_requires_non_empty_price(price_input: object) -> None:
     )
     assert not valid
     assert errors == {CONF_PRICE: "required"}
+
+
+# --- Tests for the first price choice following the value the form shows ---
+
+# Each price choice, as stored and as submitted
+_PRICES: dict[str, tuple[EntityValue | ConstantValue, object]] = {
+    CHOICE_ENTITY: (as_entity_value(["sensor.price"]), ["sensor.price"]),
+    CHOICE_CONSTANT: (as_constant_value(0.02), 0.02),
+}
+
+
+def _price_first_choice(result: SubentryFlowResult) -> str:
+    """Return the first choice of the price selector in a shown rule form."""
+    selector = _get_selector(result, CONF_PRICE)
+    assert selector is not None
+    return next(iter(selector.config["choices"]))
+
+
+async def _edit_rule_flow(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, price: EntityValue | ConstantValue
+) -> PolicySubentryFlowHandler:
+    """Create a flow editing the first of two rules, whose price is the given value."""
+    subentry = _make_policy_subentry(
+        [
+            {"name": "Solar Export", "enabled": True, "source": ["Solar"], "target": ["Grid"], "price": price},
+            {"name": "Grid Charge", "enabled": True, "source": ["Grid"], "target": ["Battery"], "price": price},
+        ]
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    flow = _create_flow(hass, hub_entry)
+    flow.context = {"subentry_id": subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    await flow.async_step_reconfigure(user_input=None)
+    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
+    return flow
+
+
+async def test_new_rule_form_opens_on_constant_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """A new rule's price opens on the constant choice."""
+    result = await _create_flow(hass, hub_entry).async_step_user(user_input=None)
+
+    assert _price_first_choice(result) == CHOICE_CONSTANT
+
+
+@pytest.mark.parametrize("choice", list(_PRICES))
+async def test_reshown_new_rule_form_keeps_the_submitted_price_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    choice: str,
+) -> None:
+    """A new rule form re-shown with an error shows the submitted price in the choice that holds it."""
+    _, submitted = _PRICES[choice]
+
+    result = await _create_flow(hass, hub_entry).async_step_user(
+        user_input={CONF_RULE_NAME: "", CONF_ENABLED: True, CONF_PRICE: submitted}
+    )
+
+    assert result.get("errors") == {CONF_RULE_NAME: "missing_name"}
+    assert _price_first_choice(result) == choice
+
+
+@pytest.mark.parametrize("choice", list(_PRICES))
+async def test_edit_rule_form_opens_on_the_stored_price_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    choice: str,
+) -> None:
+    """Editing a rule shows its stored price in the choice that holds it."""
+    stored, _ = _PRICES[choice]
+    flow = await _edit_rule_flow(hass, hub_entry, stored)
+
+    result = await flow.async_step_edit_rule(user_input=None)
+
+    assert _price_first_choice(result) == choice
+
+
+@pytest.mark.parametrize(
+    ("stored_choice", "submitted_choice"), [(CHOICE_ENTITY, CHOICE_CONSTANT), (CHOICE_CONSTANT, CHOICE_ENTITY)]
+)
+async def test_reshown_edit_rule_form_keeps_the_submitted_price_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    stored_choice: str,
+    submitted_choice: str,
+) -> None:
+    """An edit rule form re-shown with an error shows the submitted price in the choice that holds it."""
+    stored, _ = _PRICES[stored_choice]
+    _, submitted = _PRICES[submitted_choice]
+    flow = await _edit_rule_flow(hass, hub_entry, stored)
+
+    result = await flow.async_step_edit_rule(user_input={CONF_RULE_NAME: "Grid Charge", CONF_PRICE: submitted})
+
+    assert result.get("errors") == {CONF_RULE_NAME: "name_exists"}
+    assert _price_first_choice(result) == submitted_choice

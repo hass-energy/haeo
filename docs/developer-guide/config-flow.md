@@ -182,15 +182,18 @@ The ChooseSelector utilities are in [`flows/field_schema.py`](https://github.com
 
 - `build_choose_schema_entry()`: Creates the ChooseSelector with entity/constant/none options
 - `build_choose_selector()`: Builds the selector with proper choice ordering
-- `get_preferred_choice()`: Determines which choice should be pre-selected based on defaults or current config
+- `get_preferred_choice()`: Determines which choice comes first from the value the form shows, or the field's defaults when it shows none
 - `get_choose_default()`: Provides default values for the nested selector
 - `convert_choose_data_to_config()`: Converts ChooseSelector output to final config format
 - `preprocess_sectioned_choose_input()`: Normalizes sectioned ChooseSelector input
 - `validate_sectioned_choose_fields()`: Validates sectioned choose fields before conversion
 - `convert_sectioned_choose_data_to_config()`: Converts sectioned ChooseSelector data into sectioned config
 
-The choice ordering in `ChooseSelector` determines the pre-selected option.
-The `get_preferred_choice()` function examines field defaults and current configuration to order choices appropriately.
+The choice ordering in `ChooseSelector` determines the pre-selected option, and Home Assistant applies a field's suggested value to the first choice only.
+Every choose field therefore follows one rule: the first choice is the one holding the value the form shows.
+A form shows the stored values when it opens and the submitted input when it is shown again with an error, and its flow passes those same values to `get_preferred_choice()`.
+That function reads both forms of a value: a stored entity, constant, or none, and a submitted list of entity IDs, number, or nothing.
+Element forms, the pricing fields they surface from policy rules, and the policy rule price all build their selectors this way.
 
 ### Entity creation
 

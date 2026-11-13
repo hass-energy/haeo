@@ -38,6 +38,7 @@ from custom_components.haeo.flows.sections import build_common_fields
 from custom_components.haeo.flows.surfaced_policy import (
     build_surfaced_defaults,
     build_surfaced_schema_entries,
+    get_surfaced_prices,
     save_surfaced_rules_from_input,
 )
 
@@ -68,20 +69,21 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
         return {}
 
     def _section_entries(
-        self, subentry_data: Mapping[str, object] | None, entity_metadata: list[EntityMetadata]
+        self,
+        subentry_data: Mapping[str, object] | None,
+        entity_metadata: list[EntityMetadata],
+        shown_data: Mapping[str, object] | None,
     ) -> dict[str, FieldEntries]:
         """Return form fields added to sections beyond their choose inputs, keyed by section."""
+        _ = subentry_data
         surfaced_fields = get_surfaced_input_fields(self.element_type)
-        element_name = as_str(subentry_data.get(CONF_NAME)) if subentry_data else None
         return {
             section: dict(
                 build_surfaced_schema_entries(
                     self.hass,
-                    self._get_entry(),
-                    element_name,
-                    hints,
                     {field_name: surfaced_fields[field_name] for field_name in hints},
                     entity_metadata,
+                    as_mapping(shown_data.get(section)) if shown_data is not None else None,
                 )
             )
             for section, hints in self._surfaced_hints_by_section().items()
@@ -122,6 +124,22 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
             grouped.setdefault(section, {})[field_name] = hint
         return grouped
 
+    def _stored_form_data(self, subentry_data: Mapping[str, object] | None) -> dict[str, object] | None:
+        """Return the values the form opens with: the stored config, with the prices of its policy rules."""
+        if subentry_data is None:
+            return None
+        name = str(subentry_data[CONF_NAME])
+        return {
+            **subentry_data,
+            **{
+                section: {
+                    **as_mapping(subentry_data.get(section)),
+                    **get_surfaced_prices(self._get_entry(), name, hints),
+                }
+                for section, hints in self._surfaced_hints_by_section().items()
+            },
+        }
+
     def _surfaced_fields(self) -> tuple[str, ...]:
         """Return the surfaced pricing fields, which are saved as policy rules rather than in the config."""
         return tuple(get_surfaced_price_hints(self.element_type))
@@ -148,7 +166,12 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
             self._surfaced_input = user_input
             return await self._async_save_entry(str(user_input[CONF_NAME]), self._build_config(user_input))
 
-        schema = self._build_schema(input_fields, extract_entity_metadata(self.hass, self._get_entry()), subentry_data)
+        schema = self._build_schema(
+            input_fields,
+            extract_entity_metadata(self.hass, self._get_entry()),
+            subentry_data,
+            user_input if user_input is not None else self._stored_form_data(subentry_data),
+        )
         defaults = (
             user_input
             if user_input is not None
@@ -165,17 +188,18 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
         self,
         input_fields: InputFieldGroups,
         entity_metadata: list[EntityMetadata],
-        subentry_data: Mapping[str, object] | None = None,
+        subentry_data: Mapping[str, object] | None,
+        shown_data: Mapping[str, object] | None,
     ) -> vol.Schema:
-        """Build the form schema: top-level fields, then choose selectors for the sectioned inputs."""
+        """Build the form schema showing the given values: top-level fields, then the sectioned inputs."""
         return build_sectioned_choose_schema(
             self.sections,
             input_fields,
             get_input_field_schema_info(self.element_type, input_fields),
             build_sectioned_inclusion_map(input_fields, entity_metadata),
-            current_data=sectioned_view(subentry_data),
+            shown_data=sectioned_view(shown_data),
             top_level_entries=self._top_level_entries(subentry_data),
-            extra_field_entries=self._section_entries(subentry_data, entity_metadata),
+            extra_field_entries=self._section_entries(subentry_data, entity_metadata, shown_data),
         )
 
     def _build_defaults(

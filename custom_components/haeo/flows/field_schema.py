@@ -193,31 +193,44 @@ def _get_allowed_choices(field_schema: FieldSchemaInfo, field_info: AnyInputFiel
     return frozenset(choices)
 
 
+def _shown_choice(value: object) -> str:
+    """Return the choice holding a value a form shows.
+
+    The value is either stored (an entity, constant or none schema value) or
+    submitted (a list of entity IDs, a number or boolean, or nothing).
+    """
+    if is_schema_value(value):
+        return value["type"]
+    if value is None or value == "":
+        return CHOICE_NONE
+    if isinstance(value, bool | Real):
+        return CHOICE_CONSTANT
+    return CHOICE_ENTITY
+
+
 def get_preferred_choice(
     field_info: AnyInputFieldInfo,
-    current_data: Mapping[str, object] | None = None,
+    shown_data: Mapping[str, object] | None = None,
     *,
     allowed_choices: Collection[str],
 ) -> str:
     """Determine which choice should be first in the ChooseSelector.
 
-    The ChooseSelector always selects the first choice, so we order
-    choices based on what should be pre-selected.
+    Home Assistant applies a field's suggested value to the first choice only,
+    so the first choice is the one holding the value the form shows: the
+    stored data when the form opens, or the submitted input when it is shown
+    again with an error. A field the form shows no value for falls back to its
+    default choice.
     """
     field_name = field_info.field_name
     choices = set(allowed_choices)
 
-    # Reconfigure: infer from stored value
-    if current_data is not None:
-        value = _get_nested_value(current_data, field_name)
-        if is_entity_value(value) and CHOICE_ENTITY in choices:
-            return CHOICE_ENTITY
-        if is_constant_value(value) and CHOICE_CONSTANT in choices:
-            return CHOICE_CONSTANT
-        if is_none_value(value) and CHOICE_NONE in choices:
-            return CHOICE_NONE
+    if shown_data is not None and field_name in shown_data:
+        shown = _shown_choice(shown_data[field_name])
+        if shown in choices:
+            return shown
 
-    # New entry: check for explicit default mode
+    # Nothing shown: use the field's default mode
     if field_info.defaults is not None:
         if field_info.defaults.mode is None and CHOICE_NONE in choices:
             return CHOICE_NONE
@@ -381,7 +394,7 @@ def build_choose_field_entries(
     *,
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
-    current_data: Mapping[str, object] | None = None,
+    shown_data: Mapping[str, object] | None = None,
 ) -> dict[str, tuple[vol.Marker, NormalizingChooseSelector]]:
     """Build choose selector entries for input fields.
 
@@ -389,7 +402,7 @@ def build_choose_field_entries(
         input_fields: Mapping of InputFieldInfo keyed by field name.
         field_schema: Mapping of field names to schema metadata.
         inclusion_map: Mapping of field name -> compatible entity IDs.
-        current_data: Current configuration data (for reconfigure).
+        shown_data: Values the form shows: stored data, or submitted input.
 
     Returns:
         Mapping of field_name -> (marker, selector) for schema insertion.
@@ -405,7 +418,7 @@ def build_choose_field_entries(
         is_optional = schema_info.is_optional and not field_info.force_required
         allowed_choices = _get_allowed_choices(schema_info, field_info)
         include_entities = inclusion_map.get(field_info.field_name)
-        preferred = get_preferred_choice(field_info, current_data, allowed_choices=allowed_choices)
+        preferred = get_preferred_choice(field_info, shown_data, allowed_choices=allowed_choices)
         marker, selector = build_choose_schema_entry(
             field_info,
             is_optional=is_optional,
@@ -464,7 +477,7 @@ def build_sectioned_choose_schema(
     field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
     inclusion_map: Mapping[str, Mapping[str, list[str]]],
     *,
-    current_data: Mapping[str, Mapping[str, object]] | None = None,
+    shown_data: Mapping[str, Mapping[str, object]] | None = None,
     extra_field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]] | None = None,
     top_level_entries: Mapping[str, tuple[vol.Marker, Any]] | None = None,
 ) -> vol.Schema:
@@ -482,7 +495,7 @@ def build_sectioned_choose_schema(
                 section_fields,
                 field_schema=field_schema.get(section_def.key, {}),
                 inclusion_map=dict(inclusion_map.get(section_def.key, {})),
-                current_data=current_data.get(section_def.key) if current_data else None,
+                shown_data=shown_data.get(section_def.key) if shown_data else None,
             )
         )
 

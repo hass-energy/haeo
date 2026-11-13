@@ -67,6 +67,7 @@ class PolicyConfigSchema(TypedDict):
                 CONF_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=True,
+                    default_mode="value",
                 ),
             },
         ),
