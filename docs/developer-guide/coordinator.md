@@ -81,12 +81,17 @@ An `OutputData` marked `diagnostic` becomes a sensor in the diagnostic entity ca
 Every optimization goes through `_optimize()`, which holds a lock while it runs, so optimizations never overlap.
 A request sets a single "rerun wanted" flag before waiting for the lock.
 Each optimization reads every input as it is when it starts and clears the flag, so requests made while one runs share a single follow-up, and a request already met by an optimization that started after it does nothing.
+When an optimization ends with the flag set, it requests the follow-up through the debounce window, unless another optimization is already waiting for the lock and will read the inputs itself.
 An optimization is skipped while any available forecast input is still loading for a new horizon, since its `horizon_start` does not yet match the horizon's.
 Those stores request another optimization once they load.
 
 `async_refresh()` optimizes as soon as the lock allows, which setup uses for the first optimization.
-The `haeo.optimize` action calls `async_run_optimization()`, which also bypasses the debounce window and the auto-optimize switch.
-It checks alignment under the lock and raises the `inputs_not_aligned` error when inputs are loading for a new horizon, rather than skipping silently.
+The `haeo.optimize` action calls `async_run_optimization()`, which returns once the next optimization to start has finished, whatever the auto-optimize switch says.
+An optimization already scheduled is that next one; otherwise it requests one.
+With the action's `immediate` field on, the default, the request skips the debounce window, and an optimization waiting out the window starts on the next loop iteration instead.
+With it off, the request waits out the window like an automatic one.
+The action registers a future in `_result_waiters` before requesting, and the optimization that next starts reading inputs takes every registered future and resolves it when it ends, with the optimization's own `HomeAssistantError` when it fails.
+While an action waits, input changes request optimizations even with auto-optimize off, and turning auto-optimize off does not cancel the scheduled one, so an optimization skipped while inputs load for a new horizon is retried once they have loaded.
 
 ### Debouncing
 
@@ -94,7 +99,7 @@ Automatic requests wait out the debounce window:
 
 ```mermaid
 sequenceDiagram
-    participant E as Store, horizon, or entity update
+    participant E as Store or entity update
     participant C as Coordinator
     participant Timer
 
@@ -119,7 +124,11 @@ The debounce window, the hub's debounce seconds, starts when an optimization sta
 It is measured on the monotonic clock, so a wall clock set back does not stretch it.
 An input that changes while an optimization runs requests a follow-up through the same window.
 
-Turning the auto-optimize switch off cancels an optimization waiting out the debounce window and pauses the HorizonManager.
+A horizon roll does not wait out the window, since until it optimizes every output plans from a period that has already ended.
+Like the `haeo.optimize` action, it makes an immediate request: it cancels the debounce timer the reloaded inputs started and optimizes on the next loop iteration, after every input notified in the same pass has marked its element stale.
+Requests keep skipping the window until an optimization starts reading the inputs, so one skipped while forecasts load for the new horizon runs as soon as they have loaded.
+
+Turning the auto-optimize switch off cancels an optimization waiting out the debounce window, unless an optimize action waits for it, and pauses the HorizonManager.
 Turning it back on resumes the HorizonManager, whose notification requests an optimization that catches up on changes made while it was off.
 
 ## Error handling
