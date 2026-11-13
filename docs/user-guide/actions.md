@@ -60,6 +60,7 @@ Use it when:
 
 The file is saved in the `haeo/diagnostics/` folder of your Home Assistant configuration directory.
 Its name includes the time it describes.
+Only Home Assistant administrators can run it, because the file is written into the configuration directory.
 
 A **Time** without a time zone is read in Home Assistant's own time zone.
 **Time** needs Home Assistant's recorder, because the recorder is where past values come from.

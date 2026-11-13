@@ -5,9 +5,10 @@ import json
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
+from homeassistant.auth.models import User
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.core import Context, HomeAssistant
+from homeassistant.exceptions import ServiceValidationError, Unauthorized
 from homeassistant.loader import Manifest
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -121,6 +122,35 @@ async def test_save_diagnostics_service_success(
 
     # Verify the actual diagnostics data is in the "data" key
     assert saved_data["data"] == mock_diagnostics.to_dict()
+
+
+async def test_save_diagnostics_requires_admin(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    hass_read_only_user: User,
+    tmp_path: Path,
+) -> None:
+    """A user who is not an administrator cannot write diagnostics into the configuration directory."""
+    await async_setup(hass, {})
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+    hass.config.config_dir = str(tmp_path)
+
+    collect = AsyncMock()
+
+    with (
+        patch("custom_components.haeo.diagnostics.collect_diagnostics", collect),
+        pytest.raises(Unauthorized),
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            "save_diagnostics",
+            {"config_entry": mock_hub_entry.entry_id},
+            blocking=True,
+            context=Context(user_id=hass_read_only_user.id),
+        )
+
+    collect.assert_not_awaited()
+    assert not (tmp_path / "haeo").exists()
 
 
 @pytest.mark.parametrize(
