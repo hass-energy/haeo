@@ -59,7 +59,7 @@ async def test_failures_raise_one_repair_issue_after_failing_for_a_while(
     assert issue.translation_placeholders == {"error_message": "ValueError: Infeasible"}
     assert coordinator.optimization_error == "ValueError: Unbounded"
 
-    with patch.object(coordinator, "_async_update_data", AsyncMock(return_value=Mock())):
+    with patch.object(coordinator, "_async_update_data", AsyncMock(return_value=Mock(degraded_inputs={}))):
         await coordinator.async_refresh()
     assert coordinator.optimization_status == "success"
     assert coordinator.optimization_error is None

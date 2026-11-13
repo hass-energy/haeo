@@ -29,6 +29,7 @@ Total cost over the optimization horizon in dollars.
 State of the latest optimization, as Home Assistant shows it, with the state value automations compare against:
 
 - **Succeeded** (`success`): The latest optimization completed successfully
+- **Degraded** (`degraded`): The latest optimization completed, but planned with the last reading of a sensor that has stopped reporting for longer than the hub's [sensor gap tolerance](configuration.md#editing-hub-settings)
 - **Failed** (`failed`): The latest optimization failed, for example because inputs are unavailable or the problem is infeasible
 - **Pending** (`pending`): No optimization has finished since HAEO started
 
@@ -37,6 +38,7 @@ When the status is **Failed**, its `error` attribute holds the error message, an
 Its `last_run` attribute is the time the latest successful optimization finished.
 
 Some failures, such as an input with no reading or a plan that cannot meet every constraint, raise their own repair issue under **Settings** → **System** → **Repairs** that names the cause.
+A degraded optimization also raises one, naming the sensors HAEO is planning on old readings of, and both clear once the sensors report again.
 If optimizations keep failing for any other reason for five minutes, HAEO raises an "Optimization failed" repair issue with the error message.
 That issue clears on the next successful optimization.
 

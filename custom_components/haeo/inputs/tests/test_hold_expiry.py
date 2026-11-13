@@ -1,4 +1,4 @@
-"""Tests for holding a source's last reading through a short gap, and expiring it."""
+"""Tests for holding a source's last reading through a gap, and planning degraded once the hold passes."""
 
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
@@ -63,10 +63,10 @@ def _price(state: str) -> FakeStateMachine:
     return FakeStateMachine({PRICE_SENSOR: FakeEntityState(PRICE_SENSOR, state, {})})
 
 
-async def test_hold_expiry_expires_each_store_when_its_held_reading_is_too_old(
+async def test_hold_expiry_degrades_each_store_when_its_held_reading_is_too_old(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:
-    """Each store holding a reading is marked unavailable and notified when its hold passes, with no reload."""
+    """Each store holding a reading is marked degraded and notified when its hold passes, with no reload."""
     freezer.move_to(START)
     short, long = _store(10), _store(20)
     expiry = InputHoldExpiry(hass, {("Short", ("price",)): short, ("Long", ("price",)): long})
@@ -84,20 +84,22 @@ async def test_hold_expiry_expires_each_store_when_its_held_reading_is_too_old(
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
     assert notified == ["short"]
-    assert not short.available
-    assert long.available
+    assert short.available
+    assert short.degraded_sources == (PRICE_SENSOR,)
+    assert long.degraded_sources == ()
 
     freezer.tick(10)
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
     assert notified == ["short", "long"]
-    assert not long.available
+    assert long.available
+    assert long.degraded_sources == (PRICE_SENSOR,)
 
     expiry.cleanup()
 
 
 async def test_hold_expiry_ignores_a_hold_that_ended(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
-    """A store whose source reads again before its hold passes stays available when the hold would have expired."""
+    """A store whose source reads again before its hold passes is not degraded when the hold would have expired."""
     freezer.move_to(START)
     store = _store(10)
     expiry = InputHoldExpiry(hass, {("Grid", ("price",)): store})
@@ -112,7 +114,7 @@ async def test_hold_expiry_ignores_a_hold_that_ended(hass: HomeAssistant, freeze
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    assert store.available
+    assert store.degraded_sources == ()
     expiry.cleanup()
 
 
@@ -180,9 +182,9 @@ def _price_entity_id(hass: HomeAssistant, entry: MockConfigEntry) -> str:
     return entity_id
 
 
-def _issue(hass: HomeAssistant, entry: MockConfigEntry) -> ir.IssueEntry | None:
+def _issue(hass: HomeAssistant, entry: MockConfigEntry, kind: str) -> ir.IssueEntry | None:
     field = f"{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}"
-    return ir.async_get(hass).async_get_issue(DOMAIN, f"unavailable_input_{entry.entry_id}_Grid_{field}")
+    return ir.async_get(hass).async_get_issue(DOMAIN, f"{kind}_input_{entry.entry_id}_Grid_{field}")
 
 
 async def _wait(hass: HomeAssistant, freezer: FrozenDateTimeFactory, seconds: float) -> None:
@@ -218,7 +220,7 @@ async def test_short_gap_keeps_optimizing_on_the_held_reading(
     assert state.state == "0.3"
     assert state.attributes[ATTR_HELD_SOURCE_ENTITY] == PRICE_SENSOR
     assert state.attributes[ATTR_HELD_SINCE] == lost_at
-    assert _issue(hass, hub) is None
+    assert _issue(hass, hub, "degraded") is None
 
     await _set_price(hass, freezer, "0.4")
 
@@ -232,41 +234,49 @@ async def test_short_gap_keeps_optimizing_on_the_held_reading(
 
 
 @pytest.mark.parametrize("hold_seconds", [HOLD_SECONDS])
-async def test_long_gap_makes_the_input_unavailable_with_no_other_change(
+async def test_long_gap_keeps_optimizing_degraded_until_the_sensor_reports(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory, hub: MockConfigEntry
 ) -> None:
-    """Once the hold passes the input becomes unavailable and raises its repair issue, and recovers with the sensor."""
+    """Once the hold passes HAEO keeps optimizing on the last reading, reports degraded, and raises an issue."""
     price_entity = _price_entity_id(hass, hub)
+    lost_at = dt_util.utcnow()
     await _set_price(hass, freezer, "unavailable")
     assert _status(hub) == "success"
+    plan = _coordinator(hub).data
 
     await _wait(hass, freezer, HOLD_SECONDS)
     await _wait(hass, freezer, DEFAULT_DEBOUNCE_SECONDS + 1)
 
-    assert _status(hub) == "failed"
+    assert _status(hub) == "degraded"
+    assert _coordinator(hub).data is not plan
     state = hass.states.get(price_entity)
     assert state is not None
-    assert state.state == "unavailable"
-    issue = _issue(hass, hub)
+    assert state.state == "0.3"
+    assert state.attributes[ATTR_HELD_SINCE] == lost_at
+    assert _issue(hass, hub, "unavailable") is None
+    issue = _issue(hass, hub, "degraded")
     assert issue is not None
-    assert issue.translation_placeholders is not None
-    assert issue.translation_placeholders["entities"] == PRICE_SENSOR
+    assert issue.translation_placeholders == {
+        "element": "Grid",
+        "field": f"{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}",
+        "entities": PRICE_SENSOR,
+        "since": dt_util.as_local(lost_at).strftime("%Y-%m-%d %H:%M:%S"),
+    }
 
-    await _set_price(hass, freezer, "0.4")
+    # The sensor reporting its old reading again leaves the value as it is, but still ends the degradation
+    await _set_price(hass, freezer, "0.3")
 
     assert _status(hub) == "success"
-    state = hass.states.get(price_entity)
-    assert state is not None
-    assert state.state == "0.4"
-    assert _issue(hass, hub) is None
+    assert _issue(hass, hub, "degraded") is None
 
 
 @pytest.mark.parametrize("hold_seconds", [0])
-async def test_no_hold_stops_optimizing_as_soon_as_a_sensor_has_no_reading(
+async def test_no_hold_reports_degraded_as_soon_as_a_sensor_has_no_reading(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory, hub: MockConfigEntry
 ) -> None:
-    """With no hold, a sensor without a reading makes its input unavailable at once."""
+    """With no hold, a sensor without a reading degrades the plan at once rather than stopping it."""
     await _set_price(hass, freezer, "unavailable")
 
-    assert _status(hub) == "failed"
-    assert _issue(hass, hub) is not None
+    assert _status(hub) == "degraded"
+    assert _issue(hass, hub, "degraded") is not None
+    assert _issue(hass, hub, "unavailable") is None

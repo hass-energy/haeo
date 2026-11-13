@@ -44,6 +44,13 @@ def _status_sensor(*, status: str, data: object, error: str | None) -> HaeoStatu
             id="success",
         ),
         pytest.param(
+            "degraded",
+            Mock(completed_at=COMPLETED_AT),
+            None,
+            {"last_run": "2024-01-01T12:00:00+00:00"},
+            id="degraded",
+        ),
+        pytest.param(
             "failed",
             Mock(completed_at=COMPLETED_AT),
             "Unbounded",
@@ -61,7 +68,7 @@ def test_status_sensor_reports_optimization_status(
 
     assert sensor.available
     assert sensor.native_value == status
-    assert sensor.options == ["failed", "pending", "success"]
+    assert sensor.options == ["degraded", "failed", "pending", "success"]
     assert sensor.extra_state_attributes == {
         "element_name": "System",
         "element_type": ELEMENT_TYPE_NETWORK,

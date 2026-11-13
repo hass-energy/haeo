@@ -544,7 +544,7 @@ async def test_editable_mode_set_native_value(
 
 @pytest.mark.parametrize(
     ("reload_state", "available"),
-    [pytest.param("12.0", True, id="loads"), pytest.param("unavailable", False, id="fails")],
+    [pytest.param("12.0", True, id="loads"), pytest.param("abc", False, id="fails")],
 )
 async def test_source_change_writes_state(
     hass: HomeAssistant,
@@ -572,14 +572,14 @@ async def test_source_change_writes_state(
     assert entity.available is available
 
 
-async def test_driven_entity_is_unavailable_while_its_source_has_no_reading(
+async def test_driven_entity_keeps_its_last_reading_while_its_source_has_none(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     scalar_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """A driven input goes unavailable when its source does, and back once the source reports again."""
+    """A driven input keeps its last reading while its source has none, and follows the source once it reports."""
     hass.states.async_set("sensor.capacity", "12.0")
     subentry = _create_subentry("Test Battery", {"capacity": ["sensor.capacity"]})
     config_entry.runtime_data = None
@@ -590,7 +590,7 @@ async def test_driven_entity_is_unavailable_while_its_source_has_no_reading(
 
     hass.states.async_set("sensor.capacity", "unavailable")
     await hass.async_block_till_done()
-    assert entity.available is False
+    assert entity.available is True
     assert entity.native_value == 12.0
 
     hass.states.async_set("sensor.capacity", "13.0")

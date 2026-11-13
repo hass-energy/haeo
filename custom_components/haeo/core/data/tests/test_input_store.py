@@ -786,22 +786,23 @@ def test_held_reading_resolves_over_the_current_horizon(freezer: FrozenDateTimeF
 
 
 @pytest.mark.parametrize("hold_seconds", [0, 60], ids=["strict", "held"])
-def test_reading_older_than_the_hold_makes_the_store_unavailable(
-    freezer: FrozenDateTimeFactory, hold_seconds: float
-) -> None:
-    """A source without a reading for the hold or longer makes the store unavailable, keeping its value."""
+def test_reading_older_than_the_hold_degrades_the_store(freezer: FrozenDateTimeFactory, hold_seconds: float) -> None:
+    """A source without a reading for the hold or longer keeps resolving from its last reading, marked degraded."""
     store = _held_store(hold_seconds)
     store.load(_prices("1.0", "2.0"))
+    lost_at = time.time()
 
     store.load(_prices("1.0", "unavailable"))
-    assert store.available is (hold_seconds > 0)
+    assert store.degraded_sources == (("sensor.b",) if hold_seconds == 0 else ())
     freezer.tick(hold_seconds)
-    store.load(_prices("1.0", "unavailable"))
+    assert store.load(_prices("1.0", "unavailable")) is (hold_seconds > 0)
 
-    assert not store.available
+    assert store.available
     assert store.value == pytest.approx(3.0)
-    assert store.unavailable_sources == ("sensor.b",)
-    assert store.oldest_held_source is None
+    assert store.unavailable_sources == ()
+    assert store.degraded_sources == ("sensor.b",)
+    assert store.degraded_since == lost_at
+    assert store.oldest_held_source == ("sensor.b", lost_at)
     assert store.hold_expires_at is None
 
 
@@ -850,38 +851,73 @@ def test_calendar_without_events_for_the_horizon_is_not_held() -> None:
     assert store.oldest_held_source is None
 
 
-def test_unavailable_sources_list_held_sources_whichever_path_fails(freezer: FrozenDateTimeFactory) -> None:
-    """A store that fails while one source is still held names it alongside the expired one, on reload or expiry."""
-    reloaded, expired = _held_store(60), _held_store(60)
-    for store in (reloaded, expired):
-        store.load(_prices("1.0", "2.0"))
-        store.load(_prices("1.0", "unavailable"))
-    freezer.tick(30)
-    for store in (reloaded, expired):
-        store.load(_prices("unavailable", "unavailable"))
-    freezer.tick(30)
+def test_unavailable_sources_name_every_source_without_a_reading() -> None:
+    """A store that fails for a source that never had a reading names every source without one."""
+    store = _held_store(60)
+    store.load(_prices("unavailable", "2.0"))
+    assert store.unavailable_sources == ("sensor.a",)
 
-    reloaded.load(_prices("unavailable", "unavailable"))
-    expired.expire_holds()
+    store.load(_prices("unavailable", "unavailable"))
 
-    assert reloaded.unavailable_sources == expired.unavailable_sources == ("sensor.a", "sensor.b")
+    assert not store.available
+    assert store.unavailable_sources == ("sensor.a", "sensor.b")
+    assert store.degraded_sources == ()
 
 
-def test_expire_holds_marks_the_store_unavailable_once_the_hold_passes(freezer: FrozenDateTimeFactory) -> None:
-    """Expiring a hold with no reload makes the store unavailable, naming every source without a reading."""
+def test_expire_holds_degrades_the_store_once_the_hold_passes(freezer: FrozenDateTimeFactory) -> None:
+    """Expiring a hold with no reload keeps the store available and marks every expired source degraded."""
     store = _held_store(60)
     store.load(_prices("1.0", "2.0"))
+    lost_at = time.time()
     store.load(_prices("unavailable", "unavailable"))
 
     freezer.tick(59)
     assert store.expire_holds() is False
-    assert store.available
+    assert store.degraded_sources == ()
 
     freezer.tick(1)
     assert store.expire_holds() is True
-    assert not store.available
-    assert store.unavailable_sources == ("sensor.a", "sensor.b")
+    assert store.available
+    assert store.value == pytest.approx(3.0)
+    assert store.degraded_sources == ("sensor.a", "sensor.b")
+    assert store.degraded_since == lost_at
+    assert store.hold_expires_at is None
     assert store.expire_holds() is False
+
+
+def test_holds_expire_source_by_source(freezer: FrozenDateTimeFactory) -> None:
+    """Each held source is degraded once its own hold passes, and the store degraded since the first did."""
+    store = _held_store(60)
+    store.load(_prices("1.0", "2.0"))
+    store.load(_prices("1.0", "unavailable"))
+    b_lost_at = time.time()
+    freezer.tick(10)
+    a_lost_monotonic = time.monotonic()
+    store.load(_prices("unavailable", "unavailable"))
+
+    freezer.tick(50)
+    assert store.expire_holds() is True
+    assert store.degraded_sources == ("sensor.b",)
+    assert store.hold_expires_at == a_lost_monotonic + 60
+
+    freezer.tick(10)
+    assert store.expire_holds() is True
+    assert store.degraded_sources == ("sensor.a", "sensor.b")
+    assert store.degraded_since == b_lost_at
+
+
+def test_degradation_ending_notifies_with_the_value_unchanged(freezer: FrozenDateTimeFactory) -> None:
+    """A degraded source reporting its old reading again ends the degradation, which consumers are told of."""
+    store = _held_store(60)
+    store.load(_prices("1.0", "2.0"))
+    store.load(_prices("1.0", "unavailable"))
+    freezer.tick(60)
+    store.expire_holds()
+
+    assert store.load(_prices("1.0", "2.0")) is True
+    assert store.degraded_sources == ()
+    assert store.degraded_since is None
+    assert store.load(_prices("1.0", "2.0")) is False
 
 
 def test_oldest_held_source_is_the_one_without_a_reading_longest(freezer: FrozenDateTimeFactory) -> None:
@@ -912,6 +948,7 @@ def test_reading_returning_clears_the_hold(freezer: FrozenDateTimeFactory, expir
     assert store.value == pytest.approx(6.0)
     assert store.oldest_held_source is None
     assert store.unavailable_sources == ()
+    assert store.degraded_sources == ()
 
     freezer.tick(1)
     store.load(_prices("1.0", "unavailable"))

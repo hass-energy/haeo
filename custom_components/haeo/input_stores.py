@@ -12,7 +12,8 @@ reads their resolved values to feed the optimization.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, NamedTuple
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -33,6 +34,13 @@ if TYPE_CHECKING:
 
 type InputStoreKey = tuple[str, InputFieldPath]
 type InputStoreMap = dict[InputStoreKey, InputStore]
+
+
+class DegradedInput(NamedTuple):
+    """The sources an input holds past the hold, and when the first of them lost its reading."""
+
+    entities: tuple[str, ...]
+    since: datetime
 
 
 class SubentryStorage:
@@ -110,6 +118,15 @@ def unavailable_input_sources(
     }
 
 
+def degraded_inputs(input_stores: InputStoreMap) -> dict[InputStoreKey, DegradedInput]:
+    """Return the inputs that hold a reading past the hold, with the sources they hold."""
+    return {
+        key: DegradedInput(store.degraded_sources, datetime.fromtimestamp(since, tz=UTC))
+        for key, store in input_stores.items()
+        if (since := store.degraded_since) is not None
+    }
+
+
 def unavailable_input_placeholders(key: InputStoreKey, entities: tuple[str, ...]) -> dict[str, str]:
     """Return translation placeholders naming an unavailable input and its sources."""
     element_name, field_path = key
@@ -163,10 +180,12 @@ def build_input_stores(
 
 
 __all__ = [
+    "DegradedInput",
     "InputStoreKey",
     "InputStoreMap",
     "SubentryStorage",
     "build_input_stores",
+    "degraded_inputs",
     "input_error_placeholders",
     "raise_for_rejected_input",
     "unavailable_input_placeholders",

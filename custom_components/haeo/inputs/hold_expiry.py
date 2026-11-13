@@ -1,4 +1,4 @@
-"""Make inputs unavailable once the readings they hold are too old."""
+"""Mark inputs degraded once the readings they hold are older than the hold."""
 
 from __future__ import annotations
 
@@ -16,13 +16,13 @@ if TYPE_CHECKING:
 
 
 class InputHoldExpiry:
-    """Expires the readings input stores hold for sources without a reading.
+    """Expires the silent hold on the readings input stores hold for sources without a reading.
 
     A store reloads when one of its sources changes, but a source that stays
     without a reading does not change, so nothing would reload the store when
-    its held reading grows too old. This follows every store and, when the
-    earliest held reading expires, marks the stores holding expired readings
-    unavailable and notifies them.
+    its held reading outlasts the hold. This follows every store and, when the
+    earliest hold expires, marks the stores holding expired readings degraded
+    and notifies them, so the next optimization reports it.
     """
 
     def __init__(self, hass: HomeAssistant, stores: InputStoreMap) -> None:
@@ -64,7 +64,7 @@ class InputHoldExpiry:
 
     @callback
     def _expire(self, _now: datetime) -> None:
-        """Mark the stores whose held readings expired unavailable, then wait for the next expiry."""
+        """Mark the stores whose held readings expired degraded, then wait for the next expiry."""
         self._cancel_timer = None
         self._expires_at = None
         expired = [store for store in self._stores if store.expire_holds()]
