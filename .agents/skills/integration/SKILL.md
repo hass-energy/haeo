@@ -21,6 +21,7 @@ Code that reads Home Assistant at run time lives outside it: the `inputs/` packa
     `async_request_refresh()` goes through the debounce window like any automatic request.
 - An optimization is skipped while forecast inputs are still loading for a new horizon; `async_run_optimization()`, behind the `haeo.optimize` action, checks this under the lock and raises `HomeAssistantError` with `inputs_not_aligned`.
     It cancels any scheduled optimization, which it replaces.
+    With the action's `immediate` field off, it calls `async_request_refresh()` instead.
 - Turning auto-optimize off cancels an optimization waiting out the debounce window.
 - Raise `UpdateFailed` for data loading or optimization errors, or `ReportedUpdateFailed` when the failure raises a repair issue of its own.
 

@@ -17,3 +17,8 @@ optimize:
       selector:
         config_entry:
           integration: haeo
+    immediate:
+      required: false
+      default: true
+      selector:
+        boolean:

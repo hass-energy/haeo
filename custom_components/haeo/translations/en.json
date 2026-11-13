@@ -835,7 +835,13 @@
   "services": {
     "optimize": {
       "description": "Runs an optimization for the given system",
-      "fields": { "config_entry": { "description": "The HAEO system to run an optimization for", "name": "System" } },
+      "fields": {
+        "config_entry": { "description": "The HAEO system to run an optimization for", "name": "System" },
+        "immediate": {
+          "description": "Optimize now instead of after the debounce window. Turn off to wait for the debounce window, so changes made close together share one optimization.",
+          "name": "Immediately"
+        }
+      },
       "name": "Optimize"
     },
     "save_diagnostics": {

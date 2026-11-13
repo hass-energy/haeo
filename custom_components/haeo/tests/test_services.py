@@ -355,35 +355,40 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
 # ===== Tests for the optimize service =====
 
 
+@pytest.mark.parametrize(
+    ("immediate", "called"),
+    [
+        pytest.param(None, "async_run_optimization", id="immediate_by_default"),
+        pytest.param(True, "async_run_optimization", id="immediate"),
+        pytest.param(False, "async_request_refresh", id="after_the_debounce_window"),
+    ],
+)
 async def test_optimize_service_success(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
+    immediate: bool | None,
+    called: str,
 ) -> None:
-    """Test optimize service runs optimization successfully."""
+    """The optimize service optimizes at once, or through the debounce window when not immediate."""
     await async_setup(hass, {})
 
     # Mock the entry state as loaded
     mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
 
-    # Create a mock coordinator
     mock_coordinator = AsyncMock()
-    mock_coordinator.async_run_optimization = AsyncMock()
-
     mock_hub_entry.runtime_data = HaeoRuntimeData(
         coordinator=mock_coordinator,
         horizon_manager=Mock(),
     )
 
-    # Call the service
-    await hass.services.async_call(
-        DOMAIN,
-        "optimize",
-        {"config_entry": mock_hub_entry.entry_id},
-        blocking=True,
-    )
+    data: dict[str, object] = {"config_entry": mock_hub_entry.entry_id}
+    if immediate is not None:
+        data["immediate"] = immediate
+    await hass.services.async_call(DOMAIN, "optimize", data, blocking=True)
 
-    # Verify optimization was triggered
-    mock_coordinator.async_run_optimization.assert_called_once()
+    getattr(mock_coordinator, called).assert_awaited_once_with()
+    other = {"async_run_optimization", "async_request_refresh"} - {called}
+    getattr(mock_coordinator, other.pop()).assert_not_called()
 
 
 @pytest.mark.parametrize(

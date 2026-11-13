@@ -25,6 +25,7 @@ SERVICE_SAVE_DIAGNOSTICS = "save_diagnostics"
 SERVICE_OPTIMIZE = "optimize"
 ATTR_CONFIG_ENTRY = "config_entry"
 ATTR_TIMESTAMP = "time"
+ATTR_IMMEDIATE = "immediate"
 
 
 def _format_manifest(manifest: Manifest) -> Manifest:
@@ -167,7 +168,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def async_handle_run_optimizer(call: ServiceCall) -> None:
         """Handle the run_optimizer service call.
 
-        Manually triggers optimization, bypassing debouncing and the auto-optimize setting.
+        Manually triggers optimization, bypassing the auto-optimize setting. It runs
+        at once unless the call turns immediate off, which waits out the debounce window.
         """
         # Import here to avoid circular imports
         from . import HaeoConfigEntry  # noqa: PLC0415
@@ -209,13 +211,18 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 translation_placeholders={"entry_id": entry_id, "state": "no coordinator"},
             )
 
-        # Run optimization
-        _LOGGER.info("Running optimization for %s (manual trigger)", entry_id)
-        await runtime_data.coordinator.async_run_optimization()
+        if call.data[ATTR_IMMEDIATE]:
+            _LOGGER.info("Running optimization for %s (manual trigger)", entry_id)
+            await runtime_data.coordinator.async_run_optimization()
+        else:
+            _LOGGER.info("Requesting optimization for %s after the debounce window (manual trigger)", entry_id)
+            await runtime_data.coordinator.async_request_refresh()
 
     hass.services.async_register(
         DOMAIN,
         SERVICE_OPTIMIZE,
         async_handle_run_optimizer,
-        schema=vol.Schema({vol.Required(ATTR_CONFIG_ENTRY): cv.string}),
+        schema=vol.Schema(
+            {vol.Required(ATTR_CONFIG_ENTRY): cv.string, vol.Optional(ATTR_IMMEDIATE, default=True): cv.boolean}
+        ),
     )

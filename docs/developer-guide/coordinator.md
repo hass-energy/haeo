@@ -87,6 +87,7 @@ Those stores request another optimization once they load.
 
 `async_refresh()` optimizes as soon as the lock allows, which setup uses for the first optimization.
 The `haeo.optimize` action calls `async_run_optimization()`, which also bypasses the debounce window and the auto-optimize switch, and replaces any optimization already scheduled.
+With its `immediate` field off, it calls `async_request_refresh()` instead, which waits out the debounce window but still ignores the auto-optimize switch.
 It checks alignment under the lock and raises the `inputs_not_aligned` error when inputs are loading for a new horizon, rather than skipping silently.
 
 ### Debouncing

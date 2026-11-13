@@ -10,12 +10,18 @@ or call it from an automation or script.
 ## Run an optimization
 
 `haeo.optimize` runs a new optimization for one HAEO system.
-It starts immediately instead of waiting for related updates to settle,
+By default it starts immediately instead of waiting for related updates to settle,
 and it runs even when the **Auto optimize** switch on your system's network device is off.
 
-| Field  | Required | Description                         |
-| ------ | -------- | ----------------------------------- |
-| System | Yes      | The HAEO system to run the plan for |
+| Field       | Required | Description                                                                            |
+| ----------- | -------- | -------------------------------------------------------------------------------------- |
+| System      | Yes      | The HAEO system to run the plan for                                                    |
+| Immediately | No       | On by default. Turn it off to wait out the **Debounce window (seconds)** setting first |
+
+Leave **Immediately** on when you need a new plan now.
+Turn it off when an automation calls the action every time something changes,
+so changes made close together share one optimization, as automatic optimizations do.
+The action then returns straight away, and the plan follows once the debounce window has passed.
 
 Use it when:
 
@@ -31,14 +37,14 @@ data:
 
 In the automation editor, pick the system from the **System** list rather than typing its ID.
 
-The action returns once the optimization finishes.
+With **Immediately** on, the action returns once the optimization finishes.
 Its result shows up the same way as any other plan:
 the output sensors update when it succeeds,
 and the optimization status sensor and a repair issue explain a failure.
 See [Understanding results](optimization.md) and [Troubleshooting](troubleshooting.md).
 
 When the planning horizon has just moved on, HAEO may still be loading forecasts for the new periods.
-The action then fails with a message saying the forecast inputs are still loading.
+With **Immediately** on, the action then fails with a message saying the forecast inputs are still loading.
 HAEO plans by itself once those forecasts have loaded, so you only need to run it again if you turned **Auto optimize** off.
 
 ## Save diagnostics
