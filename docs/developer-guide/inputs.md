@@ -71,11 +71,32 @@ See the [Data loading guide](data-loading.md) for the pipeline.
 Stores load at setup, when their source sensors change, and when the [HorizonManager](horizon-manager.md) advances.
 A source update that resolves to the same value, timestamps, and availability as before does not notify the coordinator.
 
+### Holding a reading through a gap
+
+A store keeps the last state with a reading from each of its sources.
+When a source has no reading, the store resolves from that last reading instead, alongside the live readings of its other sources and over the current horizon, so the input stays available and the coordinator keeps optimizing.
+Only a source's own state is held.
+A state the calendar input loader annotates with data fetched for the current horizon, a calendar's events or a meter's totals, describes only that horizon, so a calendar whose events no longer cover the horizon, or a meter without a reading, makes its input unavailable at once.
+
+The hold lasts for the hub's `input_hold_seconds` from that moment, 60 seconds unless set otherwise, and 0 turns it off.
+It is timed on the monotonic clock, so setting the wall clock does not lengthen or end it.
+Once it passes, the store is unavailable exactly as it is without a hold, and the coordinator's `unavailable_input` repair issue names every source with no reading, including any still within its hold.
+A source that has never had a reading is never held, so setup still waits for every input.
+A source that reads again is live at once, and a later gap starts a new hold.
+
+A hold starting or ending leaves the value as it is, so it does not notify the store's `add_listener` listeners, and the coordinator does not re-optimize for it.
+It notifies `add_hold_listener` listeners instead: the input entities, which update the attributes naming the held source, and `InputHoldExpiry`.
+A source that stays without a reading does not change, so nothing would reload its store when the hold passes.
+`InputHoldExpiry` in [`inputs/hold_expiry.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/hold_expiry.py) waits for the earliest `hold_expires_at`, and then calls `expire_holds()` on each store and notifies those that became unavailable.
+
+Diagnostics capture a held source as its last reading with a `haeo_held_since` attribute, the time it lost that reading, so a replay resolves the same value and the held reading is told apart from a live one.
+
 The Home Assistant side of reading inputs lives in [`inputs/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/inputs):
 
 - `ha_state_machine.py` adapts Home Assistant's state machine to the `StateMachine` protocol the core loaders read through.
 - `source_loader.py` loads every other store, from its source sensors or its constant.
     Sensors that change together in one pass share one reload.
+- `hold_expiry.py` makes a store unavailable once a reading it holds through a gap is too old.
 - `calendar_loader.py` loads stores that read calendars, since a calendar's state carries only its current event.
     It fetches events from the horizon's start to a day past its end in the background, and hands them to the core loader as a state attribute, so horizon rolls resolve from events already fetched.
 - `meter_history.py` keeps the running totals of meter fields through resets, from recorder statistics and later state changes.
@@ -100,6 +121,9 @@ All input entities expose extra state attributes for debugging and automation:
 | `forecast`     | `{time, value}` points across the horizon, for time series |
 
 Driven Number entities also expose `source_entities`, listing the entity IDs that provide the data, and driven Switch entities expose `source_entity`, the one entity they follow.
+
+While a driven input holds a reading through a gap, it also exposes `held_source_entity`, the held source that lost its reading first, and `held_since`, when that source lost it.
+Both are absent while every source has a reading, so automations can tell a held value from a live one.
 
 ## Entity naming and category
 

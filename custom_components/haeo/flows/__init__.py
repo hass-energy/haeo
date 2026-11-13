@@ -18,9 +18,11 @@ from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON,
+    CONF_INPUT_HOLD_SECONDS,
     CONF_NAME,
     CONF_RELAX_INFEASIBLE,
     DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_INPUT_HOLD_SECONDS,
 )
 from custom_components.haeo.core.const import HUB_SECTION_ADVANCED as HUB_SECTION_ADVANCED
 from custom_components.haeo.core.const import HUB_SECTION_COMMON as HUB_SECTION_COMMON
@@ -103,7 +105,13 @@ def get_hub_options_schema(config_entry: ConfigEntry, preset_labels: Mapping[str
         ),
         SectionDefinition(
             key=HUB_SECTION_ADVANCED,
-            fields=(CONF_DEBOUNCE_SECONDS, CONF_ADVANCED_MODE, CONF_RELAX_INFEASIBLE, CONF_RECORD_FORECASTS),
+            fields=(
+                CONF_DEBOUNCE_SECONDS,
+                CONF_INPUT_HOLD_SECONDS,
+                CONF_ADVANCED_MODE,
+                CONF_RELAX_INFEASIBLE,
+                CONF_RECORD_FORECASTS,
+            ),
             collapsed=True,
         ),
     )
@@ -120,6 +128,18 @@ def get_hub_options_schema(config_entry: ConfigEntry, preset_labels: Mapping[str
                 vol.All(
                     NumberSelector(
                         NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.BOX),
+                    ),
+                    vol.Coerce(int),
+                ),
+            ),
+            CONF_INPUT_HOLD_SECONDS: (
+                vol.Required(
+                    CONF_INPUT_HOLD_SECONDS,
+                    default=advanced_data.get(CONF_INPUT_HOLD_SECONDS, DEFAULT_INPUT_HOLD_SECONDS),
+                ),
+                vol.All(
+                    NumberSelector(
+                        NumberSelectorConfig(min=0, max=3600, step=1, mode=NumberSelectorMode.BOX),
                     ),
                     vol.Coerce(int),
                 ),

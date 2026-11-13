@@ -20,6 +20,11 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.coordinator.tests.helpers import network_double
 from custom_components.haeo.core.const import DEFAULT_DEBOUNCE_SECONDS
+from custom_components.haeo.core.data.input_store import create_input_store
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema import as_constant_value
+from custom_components.haeo.core.schema.field_hints import FieldHint
+from custom_components.haeo.inputs.source_loader import SourceInputLoader
 
 from .helpers import mock_horizon
 
@@ -94,14 +99,15 @@ def test_debounce_timer_callback_clears_timer(
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Debounce timer callback clears timer reference."""
+    """Debounce timer callback clears timer reference and schedules the optimization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     coordinator._debounce_timer = MagicMock()
-    coordinator._rerun_wanted = False
 
-    coordinator._debounce_timer_callback(dt_util.utcnow())
+    with patch.object(coordinator, "_schedule_optimization") as schedule_mock:
+        coordinator._debounce_timer_callback(dt_util.utcnow())
 
     assert coordinator._debounce_timer is None
+    schedule_mock.assert_called_once()
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
@@ -123,6 +129,13 @@ def test_store_listener_calls_handle_element_update(
 
     # Verify _handle_element_update was called with correct element name
     handle_mock.assert_called_once_with("Test Battery")
+
+
+class _Storage:
+    """Storage double that ignores writes."""
+
+    async def write(self, value: object) -> None:
+        """Ignore writes."""
 
 
 # ===== Tests for auto-optimize control =====
@@ -586,7 +599,7 @@ async def test_horizon_roll_runs_one_optimization(
     """A horizon roll optimizes once, although both the reloaded inputs and the horizon itself request it.
 
     Input stores subscribe to the horizon before the coordinator, so their reload
-    for the new horizon starts the optimization before the coordinator hears of
+    for the new horizon requests the optimization before the coordinator hears of
     the roll.
     """
     horizon_manager = live_runtime_data.horizon_manager
@@ -605,6 +618,83 @@ async def test_horizon_roll_runs_one_optimization(
 
     assert solves.calls == 1
     coordinator.cleanup()
+
+
+async def test_horizon_roll_applies_every_reloaded_input_in_one_optimization(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, live_runtime_data: HaeoRuntimeData, solves: BlockingSolves
+) -> None:
+    """A horizon roll reloads every input, and the one optimization it runs applies all of them."""
+    horizon_manager = live_runtime_data.horizon_manager
+    stores = {
+        (name, ("power",)): create_input_store(
+            value=as_constant_value(1.0),
+            storage=_Storage(),
+            hint=FieldHint(output_type=OutputType.POWER, time_series=True),
+            get_forecast_timestamps=lambda: horizon_manager.get_forecast_timestamps(),
+        )
+        for name in ("First", "Second")
+    }
+    live_runtime_data.input_stores = stores
+    # Input stores load and subscribe to the horizon before the coordinator, as setup does
+    loader = SourceInputLoader(hass, stores, horizon_manager)
+    loader.start()
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+    calls = solves.calls
+    # Past the debounce window, so the roll optimizes at once
+    coordinator._last_optimization_time = None
+    updaters = {"First": MagicMock(), "Second": MagicMock()}
+    coordinator._element_updaters = updaters
+
+    rolled = tuple(t + 300.0 for t in horizon_manager.get_forecast_timestamps())
+    with (
+        patch.object(horizon_manager, "get_forecast_timestamps", return_value=rolled),
+        patch.object(coordinator, "_load_from_input_stores", return_value=dict.fromkeys(updaters)),
+    ):
+        horizon_manager._async_scheduled_update(dt_util.utcnow())
+        await hass.async_block_till_done()
+
+    assert solves.calls == calls + 1
+    for updater in updaters.values():
+        updater.assert_called_once()
+    loader.cleanup()
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_turning_auto_optimize_off_cancels_an_optimization_requested_in_the_same_pass(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, live_runtime_data: HaeoRuntimeData, solves: BlockingSolves
+) -> None:
+    """An optimization requested just before auto-optimize is turned off, in the same pass, does not run."""
+    switch: Any = live_runtime_data.auto_optimize_switch
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+    coordinator._last_optimization_time = None
+    coordinator.signal_optimization_stale()
+    switch.is_on = False
+    coordinator._handle_auto_optimize_switch_change(_switch_event(STATE_OFF))
+    await hass.async_block_till_done()
+
+    assert solves.calls == 1
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_cleanup_cancels_an_optimization_requested_in_the_same_pass(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """An optimization requested just before the coordinator is cleaned up, in the same pass, does not run."""
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+    coordinator._last_optimization_time = None
+    coordinator.signal_optimization_stale()
+    coordinator.cleanup()
+    await hass.async_block_till_done()
+
+    assert solves.calls == 1
 
 
 @pytest.mark.usefixtures("live_runtime_data")
