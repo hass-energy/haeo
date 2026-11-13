@@ -123,6 +123,13 @@ CALENDAR = [
             [3.0] * 6,
             id="overlapping_forecasts_each_repeat_on_their_own",
         ),
+        pytest.param(
+            [_flat(0.0, 16 * HOUR, 10.0), _flat(16 * HOUR, 7 * DAY, 20.0), _flat(0.0, 300.0, 0.0)],
+            0.0,
+            3 * DAY,
+            [10.0, 50.0 / 3, 20.0, 20.0, 20.0, 20.0],
+            id="forecast_joins_the_group_it_follows_beside_a_shorter_one_with_the_same_start",
+        ),
     ],
 )
 def test_forecasts_join_or_repeat_on_their_own(
@@ -230,4 +237,27 @@ def test_forecasts_sharing_an_endpoint_step_to_the_later_one(
 
     result = fuse_sensor_payloads(None, [retailer, pre_dispatch], times, boundaries=boundaries)
 
+    assert result == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("minute", range(5), ids=lambda minute: f"minute_{minute}")
+def test_live_price_then_tariff_with_adjustments_sum_in_every_minute(minute: int) -> None:
+    """A price from a live price, the tariff after it, and two adjustments is their sum in every minute of an interval.
+
+    The small adjustment runs from the current minute to the next 5-minute boundary, so in
+    the first minute it starts with the live price and ends sooner.
+    """
+    now = 60.0 * minute
+    live = _flat(0.0, 16 * HOUR, 0.1)
+    tariff = _flat(16 * HOUR, 6 * DAY, 0.2)
+    peak = [(T0, 0.0), (T0 + 17 * HOUR, 0.0), (T0 + 17 * HOUR + 1.0, 0.05), (T0 + 6 * DAY, 0.05)]
+    small = _flat(now, 300.0, 0.01)
+    times = [T0 + now, *_times(300.0, 3 * DAY + 300.0, HOUR)]
+
+    result = fuse_sensor_payloads(None, [live, tariff, peak, small], times, boundaries=False)
+
+    live_then_tariff = [live[0], (_before(16 * HOUR), 0.1), *tariff]
+    expected = np.sum(
+        [fuse_to_intervals(None, series, times) for series in (live_then_tariff, peak, small)], axis=0
+    ).tolist()
     assert result == pytest.approx(expected)
