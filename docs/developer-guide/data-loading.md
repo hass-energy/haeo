@@ -269,8 +269,10 @@ A forecast's window runs from its first point to its last.
 The forecasts group deterministically:
 
 1. Sort the forecasts by start, then by end, then by input order.
-2. Put each forecast in the first group whose windows it does not overlap, or start a new group.
-    Touching, where one forecast ends exactly where the next starts, is not overlapping.
+2. Put each forecast in the group it follows on from most closely, or start a new group when it follows on from none.
+    A forecast follows on from a group when it starts at or after the group's end and ends after it.
+    Of the groups it follows on from, it joins the one that ends last, and the first of those on a tie.
+    Touching, where one forecast ends exactly where the next starts, is following on.
     A single-point forecast at a group's end does not follow on from it, since it ends no later than the group does.
 
 Each group then joins into one forecast:
