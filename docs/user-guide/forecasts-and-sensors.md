@@ -133,7 +133,7 @@ Each sensor, or joined group, then repeats by time of day past its own forecast,
 - Each forecast, or joined group, fills the rest of the horizon by [repeating by time of day](#forecast-coverage-and-cycling), so a short forecast beside a long one still applies on every day
 - With only present values, the summed value repeats across the horizon
 - With a forecast, the summed present value is the value for now (the first period) and the summed forecast covers the rest
-- If any of the sensors is unavailable, the whole field is unavailable, as it would be for a single unavailable sensor
+- If any of the sensors is unavailable, the field keeps using that sensor's last reading for a short while, and then the whole field is unavailable, as it would be for a single unavailable sensor
 
 **Example scenarios**:
 
@@ -455,7 +455,9 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 **Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
 
 An input with no reading shows as unavailable, and HAEO does not optimize until it has one, whether at startup or while running.
+While running, HAEO first keeps planning with a sensor's last reading for the hub's **Sensor gap tolerance**, 60 seconds by default.
 A repair issue names the element, the input, and the sensors with no reading, and clears itself once they report again.
+See [an input has no reading](troubleshooting.md#an-input-has-no-reading).
 
 **Solutions**:
 

@@ -22,9 +22,11 @@ from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON,
+    CONF_INPUT_HOLD_SECONDS,
     CONF_NAME,
     CONF_RELAX_INFEASIBLE,
     DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_INPUT_HOLD_SECONDS,
     HORIZON_PRESET_2_DAYS,
     HORIZON_PRESET_3_DAYS,
     HORIZON_PRESET_5_DAYS,
@@ -40,6 +42,7 @@ HORIZON_ENTITY_ID = "sensor.horizon_source"
 
 ADVANCED_INPUT = {
     CONF_DEBOUNCE_SECONDS: 5,
+    CONF_INPUT_HOLD_SECONDS: 0,
     CONF_ADVANCED_MODE: True,
     CONF_RELAX_INFEASIBLE: True,
     CONF_RECORD_FORECASTS: True,
@@ -76,11 +79,15 @@ def _set_haeo_forecast_sensor(hass: HomeAssistant, entity_id: str = HORIZON_ENTI
     )
 
 
-def _common_schema(result: FlowResultDict) -> vol.Schema:
+def _section_schema(result: FlowResultDict, section: str) -> vol.Schema:
     data_schema = result["data_schema"]
     assert isinstance(data_schema, vol.Schema)
     section_map = {marker.schema: section for marker, section in data_schema.schema.items()}
-    return section_map[HUB_SECTION_COMMON].schema
+    return section_map[section].schema
+
+
+def _common_schema(result: FlowResultDict) -> vol.Schema:
+    return _section_schema(result, HUB_SECTION_COMMON)
 
 
 def _flow_id(result: FlowResultDict) -> str:
@@ -186,10 +193,31 @@ async def test_hub_settings_save_horizon_and_advanced_settings(
     assert entry.data[HUB_SECTION_COMMON] == {CONF_NAME: "Test Hub", CONF_HORIZON: expected}
     assert entry.data[HUB_SECTION_ADVANCED] == {
         CONF_DEBOUNCE_SECONDS: 5,
+        CONF_INPUT_HOLD_SECONDS: 0,
         CONF_ADVANCED_MODE: True,
         CONF_RELAX_INFEASIBLE: True,
     }
     assert entry.data[CONF_RECORD_FORECASTS] is True
+
+
+@pytest.mark.parametrize(
+    ("advanced", "expected_default"),
+    [
+        pytest.param({CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS}, DEFAULT_INPUT_HOLD_SECONDS, id="unset"),
+        pytest.param({CONF_INPUT_HOLD_SECONDS: 120}, 120, id="set"),
+    ],
+)
+async def test_hub_settings_default_to_current_input_hold(
+    hass: HomeAssistant, settings_flow: HubSettingsFlow, advanced: dict[str, object], expected_default: int
+) -> None:
+    """The hub settings form defaults the input hold to the hub's setting, or to the default for a hub without one."""
+    entry = _hub_entry(hass, as_horizon_preset_value(HORIZON_PRESET_3_DAYS))
+    hass.config_entries.async_update_entry(entry, data={**entry.data, HUB_SECTION_ADVANCED: advanced})
+
+    result = await settings_flow.start(hass, entry)
+
+    schema_keys = {vol_key.schema: vol_key for vol_key in _section_schema(result, HUB_SECTION_ADVANCED).schema}
+    assert schema_keys[CONF_INPUT_HOLD_SECONDS].default() == expected_default
 
 
 async def test_hub_settings_reject_invalid_horizon_entity(hass: HomeAssistant, settings_flow: HubSettingsFlow) -> None:
