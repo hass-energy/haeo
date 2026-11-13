@@ -42,15 +42,14 @@ def _group(forecast_series: Sequence[ForecastSeries]) -> list[list[ForecastSerie
     """Group forecasts that follow on from each other without overlapping.
 
     Forecasts are taken in order of their start, then their end, then input
-    order, and each joins the first group it follows on from: it starts at or
-    after the group's end and ends after it. Otherwise it starts a new group.
+    order. Each joins the group it follows on from most closely: of the groups
+    it starts at or after the end of and ends after, the one that ends last,
+    or the first of those on a tie. Otherwise it starts a new group.
     """
     groups: list[list[ForecastSeries]] = []
     for series in sorted(forecast_series, key=lambda series: (series[0][0], series[-1][0])):
-        group = next(
-            (group for group in groups if group[-1][-1][0] <= series[0][0] and group[-1][-1][0] < series[-1][0]),
-            None,
-        )
+        follows = [group for group in groups if group[-1][-1][0] <= series[0][0] and group[-1][-1][0] < series[-1][0]]
+        group = max(follows, key=lambda group: group[-1][-1][0], default=None)
         if group is None:
             groups.append([series])
         else:
