@@ -52,11 +52,13 @@ from custom_components.haeo.core.schema.elements.ev import (
 )
 from custom_components.haeo.core.schema.elements.ev import CONF_MIN_CHARGE_PERCENTAGE as EV_CONF_MIN_CHARGE_PERCENTAGE
 from custom_components.haeo.core.schema.sections import (
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_FORECAST,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
+    SECTION_EFFICIENCY,
 )
 from custom_components.haeo.flows.on_off_states import CONF_OFF_STATES, STEP_STATES
 
@@ -648,6 +650,7 @@ def add_ev(
     trip_calendar: EntityInput | None = None,
     odometer: EntityInput | None = None,
     public_charging_price: EntityInput | ConstantInput | None = None,
+    charge_efficiency: EntityInput | ConstantInput | None = None,
     unplugged_states: list[str] | None = None,
 ) -> None:
     """Add EV element to HAEO network.
@@ -692,6 +695,14 @@ def add_ev(
             et,
             {CONF_PUBLIC_CHARGING_PRICE: public_charging_price},
             collapsed_sections=frozenset({SECTION_PUBLIC_CHARGING}),
+        )
+
+    if charge_efficiency is not None:
+        _fill_element_fields(
+            page,
+            et,
+            {CONF_EFFICIENCY_TARGET_SOURCE: charge_efficiency},
+            collapsed_sections=frozenset({SECTION_EFFICIENCY}),
         )
 
     with page.expect_config_reload():

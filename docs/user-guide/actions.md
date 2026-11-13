@@ -101,7 +101,7 @@ The actions stop with an error message when they cannot run:
 
     Use HAEO's plan to control your devices.
 
-    [:material-arrow-right: Automation examples](automations.md)
+    [:material-arrow-right: Automating your hardware](automations.md)
 
 - :material-refresh:{ .lg .middle } __Understand when HAEO plans__
 

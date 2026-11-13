@@ -119,39 +119,8 @@ Use these in automations or dashboards to visualize the optimal schedule.
 
 ## Using results in automations
 
-### Example: Control battery based on optimization
-
-```yaml
-automation:
-  - alias: Follow HAEO Battery Charge Schedule
-    trigger:
-      - platform: state
-        entity_id: sensor.main_battery_charge_power
-    condition:
-      - condition: template
-        value_template: "{{ states('sensor.main_battery_charge_power') | float > 0
-          }}"
-    action:
-      - service: battery.set_charge_power
-        data:
-          power: "{{ states('sensor.main_battery_charge_power') | float }}"
-
-  - alias: Follow HAEO Battery Discharge Schedule
-    trigger:
-      - platform: state
-        entity_id: sensor.main_battery_discharge_power
-    condition:
-      - condition: template
-        value_template: "{{ states('sensor.main_battery_discharge_power') | float
-          > 0 }}"
-    action:
-      - service: battery.set_discharge_power
-        data:
-          power: "{{ states('sensor.main_battery_discharge_power') | float }}"
-```
-
-**Note**: Battery elements create separate sensors for charging (`sensor.{name}_charge_power`) and discharging (`sensor.{name}_discharge_power`).
-See the [battery documentation](elements/battery.md) for complete details.
+Each new plan updates these sensors, so automations can follow it as it changes.
+[Automating your hardware](automations.md) explains how to turn the battery and grid plans into modes and limits for your inverter.
 
 ## Performance considerations
 
@@ -197,7 +166,7 @@ Explore these guides to act on the optimization outputs.
 
     Turn recommended power schedules into actionable automations.
 
-    [:material-arrow-right: Automation patterns](automations.md)
+    [:material-arrow-right: Automating your hardware](automations.md)
 
 - :material-sync:{ .lg .middle } **Monitor data updates**
 
