@@ -1,12 +1,13 @@
 """Tests for the calendar input loader."""
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, date, datetime
 import logging
 from unittest.mock import Mock, patch
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
+from homeassistant.components.calendar.const import DATA_COMPONENT as CALENDAR_DATA_COMPONENT
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -89,6 +90,15 @@ def horizon_manager() -> Mock:
     return manager
 
 
+@pytest.fixture(autouse=True)
+async def remove_stub_calendars(hass: HomeAssistant) -> AsyncIterator[None]:
+    """Remove the stub calendars after each test, cancelling the updates they schedule at their event's end."""
+    yield
+    if (component := hass.data.get(CALENDAR_DATA_COMPONENT)) is not None:
+        for entity in list(component.entities):
+            await entity.async_remove()
+
+
 def _overlapping(events: list[CalendarEvent], start: datetime, end: datetime) -> list[CalendarEvent]:
     """Return the events overlapping a range, as a calendar's fetch does."""
     return [event for event in events if event.end_datetime_local > start and event.start_datetime_local < end]
@@ -98,6 +108,7 @@ class _StubCalendar(CalendarEntity):
     """Calendar entity double returning canned events."""
 
     _attr_has_entity_name = False
+    _attr_should_poll = False
 
     def __init__(self, events: list[CalendarEvent], name: str = "Trips") -> None:
         self._attr_name = name

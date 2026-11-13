@@ -166,7 +166,7 @@ STATUS_OPTIONS: tuple[str, ...] = tuple(
 
 
 def detect_currency_symbol(
-    source_states: Mapping[str, "EntityState"],
+    source_states: Mapping[str, EntityState],
     *,
     fallback_currency: str | None = None,
 ) -> str:
@@ -185,7 +185,7 @@ def detect_currency_symbol(
     return currency_symbol(fallback_currency) if fallback_currency else "$"
 
 
-def price_currency_sources(source_states: Mapping[str, "EntityState"]) -> dict[str, list[str]]:
+def price_currency_sources(source_states: Mapping[str, EntityState]) -> dict[str, list[str]]:
     """Group the source entities that report a price by the currency they report it in.
 
     A currency code and its symbol, such as ``EUR`` and ``€``, group together.
@@ -292,7 +292,7 @@ def build_coordinator_output(
 def build_optimization_context(
     hub_config: Mapping[str, object],
     participant_configs: Mapping[str, ElementConfigSchema],
-    input_stores: Mapping["InputStoreKey", "InputStore"],
+    input_stores: Mapping[InputStoreKey, InputStore],
     horizon_manager: HorizonManager,
 ) -> OptimizationContext:
     """Build an optimization context by pulling from existing sources."""
@@ -347,9 +347,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     - No time-based updates - driven entirely by input entity changes
     """
 
-    config_entry: "HaeoConfigEntry"
+    config_entry: HaeoConfigEntry
 
-    def __init__(self, hass: HomeAssistant, config_entry: "HaeoConfigEntry") -> None:
+    def __init__(self, hass: HomeAssistant, config_entry: HaeoConfigEntry) -> None:
         """Initialize the coordinator for an entry whose runtime data is already set.
 
         Raises:

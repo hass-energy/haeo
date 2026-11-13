@@ -1,7 +1,5 @@
 """Tests for the auto-optimize switch entity."""
 
-from unittest.mock import Mock
-
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -10,13 +8,16 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
+from custom_components.haeo.entities.tests.entity_helpers import mock_state_writes
 
 
 def _create_switch(hass: HomeAssistant) -> AutoOptimizeSwitch:
     """Create an auto-optimize switch for a config entry added to hass."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
     entry.add_to_hass(hass)
-    return AutoOptimizeSwitch(config_entry=entry, device_entry=DeviceEntry(id="test_device_id"))
+    return AutoOptimizeSwitch(
+        config_entry=entry, device_entry=DeviceEntry(id="test_device_id", config_entry_id=entry.entry_id)
+    )
 
 
 @pytest.mark.parametrize(
@@ -35,7 +36,7 @@ async def test_auto_optimize_switch_toggle(
     """Turning the auto-optimize switch updates state."""
     switch = _create_switch(hass)
     switch._attr_is_on = initial_state
-    switch.async_write_ha_state = Mock()  # type: ignore[method-assign]
+    write_state = mock_state_writes(switch)
 
     if method == "on":
         await switch.async_turn_on()
@@ -43,7 +44,7 @@ async def test_auto_optimize_switch_toggle(
         await switch.async_turn_off()
 
     assert switch.is_on is expected
-    switch.async_write_ha_state.assert_called_once()
+    write_state.assert_called_once()
 
 
 @pytest.mark.parametrize(

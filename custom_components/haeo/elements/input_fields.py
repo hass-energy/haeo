@@ -86,7 +86,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     # Force value to be required, even if its optional in the schema
     force_required: bool | None = None
     calendar: CalendarFieldHint | None = None
-    outputs: "Mapping[str, AnyInputFieldInfo] | None" = None
+    outputs: Mapping[str, AnyInputFieldInfo] | None = None
     source_field: str | None = None
     meter: MeterFieldHint | None = None
 

@@ -10,6 +10,7 @@ import pytest
 
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.entities.haeo_status import HaeoStatusSensor
+from custom_components.haeo.entities.tests.entity_helpers import mock_state_writes
 
 COMPLETED_AT = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
 TOPOLOGY = {"nodes": [], "edges": [], "groups": {}}
@@ -27,7 +28,7 @@ def _status_sensor(*, status: str, data: object, error: str | None) -> HaeoStatu
     sensor = HaeoStatusSensor(
         coordinator, device_entry=Mock(spec=DeviceEntry), network_subentry=network, unique_id="id"
     )
-    sensor.async_write_ha_state = Mock()
+    mock_state_writes(sensor)
     sensor._handle_coordinator_update()
     return sensor
 

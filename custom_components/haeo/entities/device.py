@@ -41,7 +41,7 @@ def get_or_create_element_device(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
     subentry: ConfigSubentry,
-    device_name: "ElementDeviceName",
+    device_name: ElementDeviceName,
 ) -> DeviceEntry:
     """Get or create a device for an element.
 

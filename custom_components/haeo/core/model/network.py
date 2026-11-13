@@ -125,7 +125,7 @@ class Objective:
     offset: float
 
     @classmethod
-    def of(cls, expr: LinearArray, n_columns: int) -> "Objective":
+    def of(cls, expr: LinearArray, n_columns: int) -> Objective:
         """Return the objective that sums every row of an expression."""
         return cls(expr.column_coefficients(n_columns), float(expr.constant.sum()))
 
@@ -142,7 +142,7 @@ class Objectives:
     secondary: Objective
 
     @classmethod
-    def of(cls, cost: LinearArray, secondary: LinearArray, n_columns: int) -> "Objectives":
+    def of(cls, cost: LinearArray, secondary: LinearArray, n_columns: int) -> Objectives:
         """Return the dense objectives of the cost and secondary expressions."""
         return cls(Objective.of(cost, n_columns), Objective.of(secondary, n_columns))
 

@@ -4,7 +4,7 @@ Set up your development environment for HAEO.
 
 ## Prerequisites
 
-- Python 3.13+
+- Python 3.14+
 - [uv](https://github.com/astral-sh/uv) package manager
 - Git
 

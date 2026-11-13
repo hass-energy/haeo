@@ -98,7 +98,7 @@ def missing_element_references(entry: ConfigEntry) -> dict[str, list[str]]:
 
 async def async_update_subentry_value(
     hass: HomeAssistant,
-    entry: "HaeoConfigEntry",
+    entry: HaeoConfigEntry,
     subentry: ConfigSubentry,
     field_path: InputFieldPath,
     value: object,

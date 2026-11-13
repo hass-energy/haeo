@@ -64,12 +64,12 @@ class TrackedParam[T]:
         self._private = f"_param_{name}"
 
     @overload
-    def __get__(self, obj: None, objtype: type) -> "TrackedParam[T]": ...
+    def __get__(self, obj: None, objtype: type) -> TrackedParam[T]: ...
 
     @overload
     def __get__(self, obj: ReactiveHost, objtype: type) -> T: ...
 
-    def __get__(self, obj: "ReactiveHost | None", objtype: type) -> "TrackedParam[T] | T":
+    def __get__(self, obj: ReactiveHost | None, objtype: type) -> TrackedParam[T] | T:
         """Get the parameter value and record access if tracking is active."""
         if obj is None:
             return self

@@ -7,7 +7,7 @@ description: Python coding standards for HAEO — modern syntax, type hints, asy
 
 ## Language requirements
 
-- Python 3.13+ required
+- Python 3.14+ required
 - Use modern features:
     - Pattern matching (`match`/`case`)
     - Type hints with modern union syntax: `str | None` not `Optional[str]`

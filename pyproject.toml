@@ -3,9 +3,9 @@ name = "haeo"
 version = "0.5.0"
 description = "Home Assistant Energy Network Optimizer"
 readme = "README.md"
-requires-python = ">=3.13.2,<3.14"
+requires-python = ">=3.14.2,<3.15"
 
-dependencies = ["homeassistant>=2026.1.1", "numpy>=2.3.2", "highspy>=1.15.1"]
+dependencies = ["homeassistant>=2026.8.0", "numpy>=2.3.2", "highspy>=1.15.1"]
 
 [project.scripts]
 check = "tools.check:main"
@@ -48,7 +48,7 @@ dev = [
 [tool.ruff]
 required-version = ">=0.14.0"
 line-length = 120
-target-version = "py313"
+target-version = "py314"
 exclude = ["custom_components/hacs"]
 
 [tool.ruff.lint]
@@ -146,7 +146,7 @@ split-on-trailing-comma = false
 
 [tool.pyright]
 # Type checking configuration with maximum strictness
-pythonVersion = "3.13"
+pythonVersion = "3.14"
 typeCheckingMode = "strict"
 stubPath = "stubs"
 include = ["tests", "custom_components", "tools"]

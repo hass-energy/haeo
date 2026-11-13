@@ -140,7 +140,7 @@ The configuration is in `pyproject.toml`:
 
 ```toml
 [tool.pyright]
-pythonVersion = "3.13"
+pythonVersion = "3.14"
 typeCheckingMode = "strict"
 ```
 

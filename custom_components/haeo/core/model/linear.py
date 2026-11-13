@@ -104,7 +104,7 @@ class LinearArray:
         return cls.constants(np.zeros(count))
 
     @classmethod
-    def sum_of(cls, items: Iterable["LinearArray"]) -> Self:
+    def sum_of(cls, items: Iterable[LinearArray]) -> Self:
         """Return the row-wise sum of arrays with the same number of rows."""
         items = list(items)
         if not items:
@@ -163,7 +163,7 @@ class LinearArray:
         """Return the negated expressions."""
         return type(self)(cols=self.cols, coefs=-self.coefs, constant=-self.constant)
 
-    def __add__(self, other: "LinearArray | Values") -> Self:
+    def __add__(self, other: LinearArray | Values) -> Self:
         """Add expressions row by row, or add values to the constants."""
         if isinstance(other, LinearArray):
             left, right = self._with_rows(len(other)), other._with_rows(len(self))
@@ -180,7 +180,7 @@ class LinearArray:
         """Add values to the constants."""
         return self + other
 
-    def __sub__(self, other: "LinearArray | Values") -> Self:
+    def __sub__(self, other: LinearArray | Values) -> Self:
         """Subtract expressions row by row, or subtract values from the constants."""
         if isinstance(other, LinearArray):
             return self + (-other)
@@ -239,17 +239,17 @@ class LinearArray:
         """Evaluate each row at the given column values."""
         return (self.coefs * column_values[self.cols]).sum(axis=1) + self.constant
 
-    def __le__(self, other: "LinearArray | Values") -> "Rows":
+    def __le__(self, other: LinearArray | Values) -> Rows:
         """Return rows bounding each expression above."""
         expr = self - other
         return Rows(expr.without_constant(), np.full(len(expr), -INF), -expr.constant)
 
-    def __ge__(self, other: "LinearArray | Values") -> "Rows":
+    def __ge__(self, other: LinearArray | Values) -> Rows:
         """Return rows bounding each expression below."""
         expr = self - other
         return Rows(expr.without_constant(), -expr.constant, np.full(len(expr), INF))
 
-    def __eq__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]  # == builds rows, see __hash__
+    def __eq__(self, other: LinearArray | Values) -> Rows:  # type: ignore[override]  # == builds rows, see __hash__
         """Return rows fixing each expression."""
         expr = self - other
         return Rows(expr.without_constant(), -expr.constant, -expr.constant)
@@ -258,7 +258,7 @@ class LinearArray:
     # depart from object's contract on purpose, which is what lets rows read as maths.
     __hash__: ClassVar[None] = None  # pyright: ignore[reportIncompatibleMethodOverride]
 
-    def free(self) -> "Rows":
+    def free(self) -> Rows:
         """Return rows without bounds, which stay in the LP but do not bind."""
         return Rows(self.without_constant(), np.full(len(self), -INF), np.full(len(self), INF))
 
@@ -276,7 +276,7 @@ class Rows:
     upper: NDArray[np.float64]
 
     @staticmethod
-    def concat(blocks: Iterable["Rows"]) -> "Rows":
+    def concat(blocks: Iterable[Rows]) -> Rows:
         """Stack row blocks, padding shorter rows with zero terms."""
         blocks = list(blocks)
         if not blocks:

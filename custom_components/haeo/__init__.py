@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.frontend import DOMAIN as FRONTEND_DOMAIN
 from homeassistant.components.frontend import add_extra_js_url
-from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.http.server import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry, ConfigSubentryData
 from homeassistant.const import Platform
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant

@@ -23,7 +23,7 @@ Pull requests are the best way to propose changes to the codebase.
 
 ### Prerequisites
 
-- Python 3.13+
+- Python 3.14+
 - [uv](https://github.com/astral-sh/uv) package manager
 
 ### Quick Start
