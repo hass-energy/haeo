@@ -75,7 +75,7 @@ class UnitOfMeasurement(StrEnum):
         """
         if isinstance(value, cls):
             return value
-        if not isinstance(value, str) or value in CURRENCY_SYMBOLS.values():
+        if not isinstance(value, str) or value in _CURRENCY_SYMBOL_VALUES:
             return None
         return _UNITS_BY_KEY.get(_unit_key(value))
 
@@ -246,6 +246,9 @@ CURRENCY_SYMBOLS: Final[Mapping[str, str]] = {
     "USD": "$",
     "ZAR": "R",
 }
+
+# Every currency's display symbol, none of which is read as a unit
+_CURRENCY_SYMBOL_VALUES: Final = frozenset(CURRENCY_SYMBOLS.values())
 
 
 def currency_symbol(currency: str) -> str:

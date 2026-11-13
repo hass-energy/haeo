@@ -163,6 +163,13 @@ def test_scale_factor(
             "power",
             (3.0, "kVA", DeviceClass.POWER),
         ),
+        # A known unit of another quantity keeps its own unit
+        (
+            3.0,
+            "km",
+            "power",
+            (3.0, UnitOfMeasurement.KILOMETER, DeviceClass.POWER),
+        ),
     ],
 )
 def test_convert_to_base_unit(
