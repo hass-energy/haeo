@@ -229,7 +229,8 @@ Changes trigger immediate re-optimization with the new parameters.
 HAEO keeps planning with that last reading for as long as the sensor is out, so one flaky device does not stop the whole plan.
 Once the tolerance passes, the optimization status reads **Degraded** and a repair issue names the sensor, until it reports again.
 It is 60 seconds by default, which covers a short dropout without a warning; set it to 0 to be told about every gap at once.
-A sensor with no last reading, such as one that has not reported since HAEO started, still makes its input unavailable, and HAEO stops planning until it reports.
+After a restart, a sensor that has not reported yet is planned on with its last reading in the recorder, and the tolerance counts from when the sensor last reported it, so a long restart is reported as degraded at once.
+A sensor with no last reading in the recorder either, because it is new, excluded from the recorder, or its history was purged, still makes its input unavailable, and HAEO stops planning until it reports.
 Calendars and energy meters read over a window are not held: when HAEO cannot read a calendar's upcoming events, or a meter stops reporting, the input becomes unavailable at once rather than plan on events or totals that may be out of date.
 See [an input has no reading](troubleshooting.md#an-input-has-no-reading) for what happens and how to tell.
 

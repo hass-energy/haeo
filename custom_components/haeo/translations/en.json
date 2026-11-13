@@ -830,7 +830,7 @@
     },
     "unavailable_input": {
       "title": "{element} has no reading for {field}",
-      "description": "HAEO skips every optimization while input {field} of {element} has no reading, so the whole plan stays out of date. HAEO has no last reading from these sensors to plan with, such as when a sensor has not reported since HAEO started.\n\nSensors with no reading: {entities}\n\nTo fix this issue:\n1. Check that these sensors are available and reporting values in Developer tools > States\n2. If a sensor was removed or renamed, reconfigure {element} to read one that exists\n3. This issue clears automatically once the input has a reading again"
+      "description": "HAEO skips every optimization while input {field} of {element} has no reading, so the whole plan stays out of date. HAEO has no last reading from these sensors to plan with, either since it started or in the recorder, such as for a sensor that is new, excluded from the recorder, or whose history was purged.\n\nSensors with no reading: {entities}\n\nTo fix this issue:\n1. Check that these sensors are available and reporting values in Developer tools > States\n2. If a sensor was removed or renamed, reconfigure {element} to read one that exists\n3. This issue clears automatically once the input has a reading again"
     }
   },
   "selector": {

@@ -955,3 +955,43 @@ def test_reading_returning_clears_the_hold(freezer: FrozenDateTimeFactory, expir
     assert store.available
     assert store.oldest_held_source == ("sensor.b", time.time())
     assert store.hold_expires_at == time.monotonic() + 60
+
+
+@pytest.mark.parametrize(
+    ("age", "degraded"), [pytest.param(120, True, id="older_than_the_hold"), pytest.param(20, False, id="within")]
+)
+def test_seeded_reading_is_held_from_when_it_was_reported(
+    freezer: FrozenDateTimeFactory, age: float, degraded: bool
+) -> None:
+    """A reading seeded for a source without one is held as if it was lost when it was reported."""
+    store = _held_store(60)
+    store.load(_prices("1.0", "unavailable"))
+    assert store.sources_without_last_reading == ("sensor.b",)
+    reported_at = time.time() - age
+
+    assert store.seed_reading("sensor.b", FakeEntityState("sensor.b", "2.0", {}), reported_at) is True
+    assert store.load(_prices("1.0", "unavailable")) is True
+
+    assert store.available
+    assert store.value == pytest.approx(3.0)
+    assert store.sources_without_last_reading == ()
+    assert store.oldest_held_source == ("sensor.b", reported_at)
+    assert store.degraded_sources == (("sensor.b",) if degraded else ())
+    assert store.degraded_since == (reported_at if degraded else None)
+    assert store.hold_expires_at == (None if degraded else time.monotonic() - age + 60)
+
+
+def test_seeded_reading_is_ignored_for_a_source_with_a_reading(freezer: FrozenDateTimeFactory) -> None:
+    """A seed for a source that has a live or last reading leaves the store as it is."""
+    store = _held_store(60)
+    store.load(_prices("1.0", "2.0"))
+    store.load(_prices("1.0", "unavailable"))
+    lost_at = time.time()
+
+    seed = FakeEntityState("sensor.b", "9.0", {})
+    assert store.seed_reading("sensor.a", seed, lost_at - 600) is False
+    assert store.seed_reading("sensor.b", seed, lost_at - 600) is False
+    store.load(_prices("1.0", "unavailable"))
+
+    assert store.value == pytest.approx(3.0)
+    assert store.oldest_held_source == ("sensor.b", lost_at)

@@ -12,9 +12,11 @@ An ``InputStore`` is the single source of truth for one field's value:
   that loses its reading has its last reading held, so a gap in one sensor
   does not make the input unavailable. Once a source has been without a
   reading for ``hold_seconds`` it is reported as degraded, while the store
-  keeps resolving from its last reading. Only a source's own state is held: a
-  state annotated with data fetched for the current horizon, such as calendar
-  events or meter totals, is never held.
+  keeps resolving from its last reading. A source with no reading since the
+  store was built can be given a last reading with ``seed_reading``, such as
+  its last recorded state, which is held from when it was reported. Only a
+  source's own state is held: a state annotated with data fetched for the
+  current horizon, such as calendar events or meter totals, is never held.
 - EDITABLE stores hold a constant that is persisted through the storage on
   ``set_value``.
 - Consumers (the coordinator) read the resolved ``value`` and subscribe to
@@ -123,7 +125,7 @@ class InputStore:
         self._unavailable_sources: tuple[str, ...] = ()
         self._loaded_timestamps: tuple[float, ...] = ()
         self._captured_source_states: dict[str, EntityState] = {}
-        # Each source's state in the last load that resolved, and when each source without a reading lost it
+        # Each source's state in the last load that resolved, or as seeded, and when each source without one lost it
         self._last_readings: dict[str, EntityState] = {}
         self._missing_since: dict[str, _LostReading] = {}
         # When each source whose last reading the current value holds lost its reading
@@ -208,6 +210,16 @@ class InputStore:
             return None
         eid, lost = min(self._held_sources.items(), key=lambda item: item[1].monotonic)
         return eid, lost.wall
+
+    @property
+    def sources_without_last_reading(self) -> tuple[str, ...]:
+        """Return the sources without a reading that have no last reading to hold, in configured order.
+
+        These are the sources :meth:`seed_reading` can give a last reading.
+        """
+        return tuple(
+            eid for eid in self._source_entity_ids if eid in self._missing_since and eid not in self._last_readings
+        )
 
     @property
     def degraded_sources(self) -> tuple[str, ...]:
@@ -450,6 +462,23 @@ class InputStore:
         self._data_ready.set()
         self._settled.set()
         return changed
+
+    def seed_reading(self, entity_id: str, state: EntityState, reported_at: float) -> bool:
+        """Give a source without a reading a last reading to hold, and return whether it was taken.
+
+        The reading is held as if the source lost it at ``reported_at``, on
+        the wall clock, so the hold counts from then and a reading older than
+        the hold is degraded as soon as it is held. It is only taken for one of
+        :attr:`sources_without_last_reading`; the store holds it from its next
+        load.
+        """
+        if entity_id not in self.sources_without_last_reading:
+            return False
+        now_wall, now_monotonic = time.time(), time.monotonic()
+        age = max(0.0, now_wall - reported_at)
+        self._last_readings[entity_id] = state
+        self._missing_since[entity_id] = _LostReading(monotonic=now_monotonic - age, wall=now_wall - age)
+        return True
 
     def expire_holds(self) -> bool:
         """Mark the held sources whose hold has passed degraded, and return whether any newly were.

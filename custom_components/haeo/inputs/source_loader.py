@@ -11,6 +11,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from custom_components.haeo.inputs.calendar_loader import is_calendar_driven
 from custom_components.haeo.inputs.ha_state_machine import HomeAssistantStateMachine
+from custom_components.haeo.inputs.recorded_reading import async_last_recorded_reading
 
 if TYPE_CHECKING:
     from homeassistant.core import Event
@@ -28,6 +29,11 @@ class SourceInputLoader:
     whether or not its entity is enabled. It loads every store when it starts
     and when the horizon moves, and reloads a store when one of its sources
     changes. Calendar inputs are loaded by the calendar loader instead.
+
+    A source that has no reading and no last reading in its stores, as after a
+    restart, has its last recorded state with a reading looked up once. The
+    stores reading it hold that state from when it was last reported, then
+    reload.
     """
 
     def __init__(self, hass: HomeAssistant, stores: InputStoreMap, horizon_manager: HorizonManager) -> None:
@@ -42,6 +48,9 @@ class SourceInputLoader:
         # Stores waiting for the queued reload, in the order their sources changed
         self._pending: dict[InputStore, None] = {}
         self._pending_reload: asyncio.Task[None] | None = None
+        # Sources whose recorded reading has been looked up, and the lookups still running
+        self._looked_up: set[str] = set()
+        self._lookups: set[asyncio.Task[None]] = set()
         self._unsubs: list[Callable[[], None]] = []
 
     @callback
@@ -79,10 +88,29 @@ class SourceInputLoader:
         Every store loads before any store notifies its listeners, so a
         listener never runs while another store still holds the previous horizon.
         """
+        stores = list(stores)
         sm = HomeAssistantStateMachine(self._hass)
         changed = [store for store in stores if store.load(sm)]
         for store in changed:
             store.notify_listeners()
+        unseeded = {eid for store in stores for eid in store.sources_without_last_reading} - self._looked_up
+        if unseeded:
+            self._looked_up |= unseeded
+            task = self._hass.async_create_task(self._async_seed(sorted(unseeded)), eager_start=False)
+            self._lookups.add(task)
+            task.add_done_callback(self._lookups.discard)
+
+    async def _async_seed(self, entity_ids: list[str]) -> None:
+        """Seed the stores reading each source with its last recorded reading, then reload them."""
+        recorded = await asyncio.gather(*(async_last_recorded_reading(self._hass, eid) for eid in entity_ids))
+        seeded = {
+            store: None
+            for eid, state in zip(entity_ids, recorded, strict=True)
+            if state is not None
+            for store in self._stores_by_source[eid]
+            if store.seed_reading(eid, state, state.last_reported_timestamp)
+        }
+        self._load(seeded)
 
     @callback
     def cleanup(self) -> None:
@@ -93,6 +121,8 @@ class SourceInputLoader:
         if self._pending_reload is not None:
             self._pending_reload.cancel()
             self._pending_reload = None
+        for task in self._lookups:
+            task.cancel()
 
 
 __all__ = ["SourceInputLoader"]

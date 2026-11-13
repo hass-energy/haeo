@@ -584,6 +584,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     class NeverReadyStore:
         source_entity_ids: ClassVar[list[str]] = ["sensor.limit", "sensor.other"]
         unavailable_sources = ("sensor.limit",)
+        sources_without_last_reading = ()
         available = False
 
         def __init__(self) -> None:
@@ -722,6 +723,7 @@ async def test_setup_reentry_after_timeout_failure(
     class ConditionalReadyStore:
         source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
         unavailable_sources = ("sensor.limit",)
+        sources_without_last_reading = ()
         error = None
 
         def __init__(self) -> None:

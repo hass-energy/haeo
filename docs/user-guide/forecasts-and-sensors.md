@@ -454,7 +454,8 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 **Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
 
-An input whose sensor has never reported shows as unavailable, and HAEO does not optimize until it has a reading.
+An input whose sensor has no reading, either since HAEO started or in the recorder, shows as unavailable, and HAEO does not optimize until it has a reading.
+At startup, a sensor that has not reported yet is planned on with its last reading in the recorder.
 A sensor that stops reporting while HAEO runs is planned on with its last reading, and once that lasts longer than the hub's **Sensor gap tolerance**, 60 seconds by default, the optimization status reads **Degraded**.
 Either way, a repair issue names the element, the input, and the sensors, and clears itself once they report again.
 See [an input has no reading](troubleshooting.md#an-input-has-no-reading).

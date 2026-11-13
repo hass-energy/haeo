@@ -1,11 +1,13 @@
 """Tests for holding a source's last reading through a gap, and planning degraded once the hold passes."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
+from unittest.mock import AsyncMock, Mock, patch
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
@@ -36,6 +38,7 @@ from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_v
 from custom_components.haeo.core.schema.sections import SECTION_POWER_LIMITS, SECTION_PRICING
 from custom_components.haeo.entities.input_attributes import ATTR_HELD_SINCE, ATTR_HELD_SOURCE_ENTITY
 from custom_components.haeo.inputs.hold_expiry import InputHoldExpiry
+from custom_components.haeo.inputs.source_loader import SourceInputLoader
 from custom_components.haeo.migrations import MIGRATION_MINOR_VERSION
 
 PRICE_SENSOR = "sensor.import_price"
@@ -123,6 +126,13 @@ async def hub(hass: HomeAssistant, freezer: FrozenDateTimeFactory, hold_seconds:
     """Set up a hub whose grid reads its import price from a sensor, and run its first optimization."""
     freezer.move_to(START)
     hass.states.async_set(PRICE_SENSOR, "0.3")
+    entry = await _setup_hub(hass, hold_seconds)
+    assert _status(entry) == "success"
+    return entry
+
+
+async def _setup_hub(hass: HomeAssistant, hold_seconds: int) -> MockConfigEntry:
+    """Set up a hub whose grid reads its import price from the price sensor."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -158,7 +168,6 @@ async def hub(hass: HomeAssistant, freezer: FrozenDateTimeFactory, hold_seconds:
     )
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    assert _status(entry) == "success"
     return entry
 
 
@@ -280,3 +289,79 @@ async def test_no_hold_reports_degraded_as_soon_as_a_sensor_has_no_reading(
     assert _status(hub) == "degraded"
     assert _issue(hass, hub, "degraded") is not None
     assert _issue(hass, hub, "unavailable") is None
+
+
+def _recorder(state: State | None) -> Mock:
+    """Return a recorder instance whose executor jobs return the given recorded state."""
+
+    async def run(_func: Callable[..., object], *_args: object) -> object:
+        return state
+
+    recorder = Mock()
+    recorder.async_add_executor_job = AsyncMock(side_effect=run)
+    return recorder
+
+
+@pytest.mark.parametrize(
+    ("age", "status"),
+    [pytest.param(HOLD_SECONDS * 4, "degraded", id="older_than_the_hold"), pytest.param(10, "success", id="within")],
+)
+async def test_sensor_unavailable_at_startup_plans_on_its_recorded_reading(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, age: int, status: str
+) -> None:
+    """A sensor without a reading at startup is held from its last recorded report, so the hold counts from then."""
+    freezer.move_to(START)
+    hass.config.components.add("recorder")
+    hass.states.async_set(PRICE_SENSOR, "unavailable")
+    reported_at = dt_util.utcnow() - timedelta(seconds=age)
+    # The reading last changed long ago, but was last reported only shortly before the restart
+    changed_at = reported_at - timedelta(hours=1)
+    recorded = State(PRICE_SENSOR, "0.3", last_changed=changed_at, last_updated=changed_at, last_reported=reported_at)
+    recorder = _recorder(recorded)
+
+    with patch("custom_components.haeo.inputs.recorded_reading.get_instance", return_value=recorder):
+        hub = await _setup_hub(hass, HOLD_SECONDS)
+
+        assert _status(hub) == status
+        state = hass.states.get(_price_entity_id(hass, hub))
+        assert state is not None
+        assert state.state == "0.3"
+        assert state.attributes[ATTR_HELD_SOURCE_ENTITY] == PRICE_SENSOR
+        assert state.attributes[ATTR_HELD_SINCE] == reported_at
+        assert (_issue(hass, hub, "degraded") is not None) is (status == "degraded")
+
+        await _wait(hass, freezer, HOLD_SECONDS - age + 1)
+        await _set_price(hass, freezer, "unknown")
+
+    assert _status(hub) == "degraded"
+    issue = _issue(hass, hub, "degraded")
+    assert issue is not None
+    assert issue.translation_placeholders is not None
+    assert issue.translation_placeholders["since"] == dt_util.as_local(reported_at).strftime("%Y-%m-%d %H:%M:%S")
+    # The recorder is asked once, however often the store reloads
+    assert recorder.async_add_executor_job.await_count == 1
+
+
+async def test_sensor_without_a_recorded_reading_leaves_its_input_unavailable(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """A sensor with no recorded reading has nothing to plan with, so its input stays unavailable."""
+    freezer.move_to(START)
+    hass.config.components.add("recorder")
+    hass.states.async_set(PRICE_SENSOR, "unavailable")
+    store = _store(HOLD_SECONDS)
+    horizon_manager = Mock()
+    horizon_manager.subscribe.return_value = lambda: None
+    recorder = _recorder(None)
+    loader = SourceInputLoader(hass, {("Grid", ("price",)): store}, horizon_manager)
+
+    with patch("custom_components.haeo.inputs.recorded_reading.get_instance", return_value=recorder):
+        loader.start()
+        await hass.async_block_till_done()
+        hass.states.async_set(PRICE_SENSOR, "unknown")
+        await hass.async_block_till_done()
+
+    assert not store.available
+    assert store.unavailable_sources == (PRICE_SENSOR,)
+    assert recorder.async_add_executor_job.await_count == 1
+    loader.cleanup()
