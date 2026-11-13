@@ -726,9 +726,6 @@
     "input_unit_incompatible": {
       "message": "Input {field} of {element} needs a value in {expected}, but {entities} supplied one in {unit}, which does not convert."
     },
-    "inputs_not_aligned": {
-      "message": "The forecast inputs are still loading for the new planning horizon. Try again in a moment."
-    },
     "missing_element_references": {
       "message": "Some elements refer to elements that do not exist, so there is no plan: {references}. Home Assistant will retry automatically."
     },
@@ -738,6 +735,7 @@
     "no_history_at_time": {
       "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
+    "optimization_failed": { "message": "The optimization failed: {error}" },
     "optimization_infeasible": {
       "message": "No plan meets every constraint: {elements} cannot all be met {minutes} minutes into the plan."
     },
@@ -834,7 +832,7 @@
   },
   "services": {
     "optimize": {
-      "description": "Runs an optimization for the given system",
+      "description": "Runs an optimization for the given system and waits for it to finish",
       "fields": {
         "config_entry": { "description": "The HAEO system to run an optimization for", "name": "System" },
         "immediate": {

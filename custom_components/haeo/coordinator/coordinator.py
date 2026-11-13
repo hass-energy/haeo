@@ -399,6 +399,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._optimization_lock = asyncio.Lock()
         # How many optimizations are waiting for the running one to end
         self._waiting_optimizations = 0
+        # Whether an optimization is wanted without waiting out the debounce window
+        self._skip_debounce = False
+        # Optimize actions waiting for the result of the next optimization to start
+        self._result_waiters: list[asyncio.Future[None]] = []
         # Whether an optimization was requested that no optimization has started reading inputs for since
         self._rerun_wanted: bool = False
         # When optimizations started failing, and whether that failure raises an issue of its own
@@ -524,9 +528,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         stale before it reads them. It also covers a roll that no input reloads for.
         """
         if self.auto_optimize_enabled:
-            self._rerun_wanted = True
-            self._cancel_debounce_timer()
-            self._schedule_optimization()
+            self._request_optimization(immediate=True)
 
     @callback
     def _handle_auto_optimize_switch_change(self, event: Event[EventStateChangedData]) -> None:
@@ -546,11 +548,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self.signal_optimization_stale()
 
     def _apply_auto_optimize_state(self, *, is_enabled: bool) -> None:
-        """Pause or resume the horizon manager to match the auto-optimize setting."""
+        """Pause or resume the horizon manager to match the auto-optimize setting.
+
+        Pausing cancels a scheduled automatic optimization, but not one an optimize
+        action waits for.
+        """
         if is_enabled:
             self._runtime_data.horizon_manager.resume()
         else:
-            self._cancel_scheduled_optimization()
+            if not self._result_waiters:
+                self._cancel_scheduled_optimization()
             self._runtime_data.horizon_manager.pause()
 
     @property
@@ -565,16 +572,26 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise RuntimeError(msg)
         return switch.is_on or False
 
-    async def async_run_optimization(self) -> None:
-        """Optimize now, bypassing debouncing and the auto-optimize setting.
+    async def async_run_optimization(self, *, immediate: bool = True) -> None:
+        """Return once the next optimization to start has finished, whatever the auto-optimize setting.
+
+        An optimization already scheduled is that next one. Otherwise this requests
+        one, which starts on the next loop iteration when immediate, or once the
+        debounce window has passed. While forecast inputs are still loading for a
+        new horizon, it waits for them to load.
 
         Raises:
-            HomeAssistantError: While forecast inputs are still loading for a new horizon.
+            HomeAssistantError: When that optimization fails.
 
         """
-        self._cancel_scheduled_optimization()
-        if not await self._optimize():
-            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="inputs_not_aligned")
+        result: asyncio.Future[None] = self.hass.loop.create_future()
+        self._result_waiters.append(result)
+        try:
+            self._request_optimization(immediate=immediate)
+            await result
+        finally:
+            if result in self._result_waiters:
+                self._result_waiters.remove(result)
 
     async def async_refresh(self) -> None:
         """Optimize with the current inputs, after any optimization already running."""
@@ -605,25 +622,54 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             if not self._are_inputs_aligned():
                 return False
             self._rerun_wanted = False
+            self._skip_debounce = False
+            waiters, self._result_waiters = self._result_waiters, []
             await super().async_refresh()
         finally:
             self._optimization_lock.release()
+        failure = self._optimization_failure()
+        for waiter in waiters:
+            if not waiter.done():
+                if failure is None:
+                    waiter.set_result(None)
+                else:
+                    waiter.set_exception(failure)
         # Inputs that changed while it ran request another through the debounce window,
         # unless an optimization waiting for this one reads them first
         if self._rerun_wanted and not self._waiting_optimizations:
             self.signal_optimization_stale()
         return True
 
+    def _optimization_failure(self) -> HomeAssistantError | None:
+        """Return the error of the latest optimization, translated for the user, or None when it succeeded."""
+        if self.last_update_success:
+            return None
+        if isinstance(self.last_exception, HomeAssistantError):
+            return self.last_exception
+        return HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="optimization_failed",
+            translation_placeholders={"error": str(self.optimization_error)},
+        )
+
     @callback
     def signal_optimization_stale(self) -> None:
-        """Request an optimization because inputs changed, when auto-optimize is on."""
-        if self.auto_optimize_enabled:
+        """Request an optimization because inputs changed, when auto-optimize is on or an optimize action waits."""
+        if self.auto_optimize_enabled or self._result_waiters:
             self._request_optimization()
 
     @callback
-    def _request_optimization(self) -> None:
-        """Optimize on the next loop iteration, or once the running optimization and debounce window have passed."""
+    def _request_optimization(self, *, immediate: bool = False) -> None:
+        """Optimize on the next loop iteration, or once the running optimization and debounce window have passed.
+
+        An immediate request skips the debounce window, for this request and every
+        other until an optimization starts reading the inputs, so a request that
+        waits for inputs to align or for the running optimization keeps skipping it.
+        """
         self._rerun_wanted = True
+        self._skip_debounce = self._skip_debounce or immediate
+        if self._skip_debounce:
+            self._cancel_debounce_timer()
         # The running optimization requests the follow-up when it ends, and a scheduled one meets this request
         if (
             self._optimization_lock.locked()
@@ -631,7 +677,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             or self._pending_optimization is not None
         ):
             return
-        if self._last_optimization_time is not None:
+        if self._last_optimization_time is not None and not self._skip_debounce:
             elapsed = time.monotonic() - self._last_optimization_time
             if elapsed < self._debounce_seconds:
                 self._debounce_timer = async_call_later(
@@ -670,6 +716,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     def _cancel_scheduled_optimization(self) -> None:
         """Cancel the optimization waiting out the debounce window or for the next event loop iteration."""
+        self._skip_debounce = False
         self._cancel_debounce_timer()
         if self._pending_optimization is not None:
             self._pending_optimization.cancel()
@@ -709,6 +756,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._state_change_unsubs.clear()
         self._cancel_scheduled_optimization()
         self._stale_elements.clear()
+        # Optimize actions still waiting get no optimization from this coordinator
+        for waiter in self._result_waiters:
+            if not waiter.done():
+                waiter.set_exception(
+                    HomeAssistantError(
+                        translation_domain=DOMAIN,
+                        translation_key="config_entry_not_loaded",
+                        translation_placeholders={
+                            "entry_id": self.config_entry.entry_id,
+                            "state": str(self.config_entry.state),
+                        },
+                    )
+                )
+        self._result_waiters.clear()
 
     async def _save_failure_diagnostics(
         self, context: OptimizationContext, started_at: datetime, kind: str, failure: dict[str, object]

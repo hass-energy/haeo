@@ -356,18 +356,18 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
 
 
 @pytest.mark.parametrize(
-    ("immediate", "called"),
+    ("immediate", "expected"),
     [
-        pytest.param(None, "async_run_optimization", id="immediate_by_default"),
-        pytest.param(True, "async_run_optimization", id="immediate"),
-        pytest.param(False, "async_request_refresh", id="after_the_debounce_window"),
+        pytest.param(None, True, id="immediate_by_default"),
+        pytest.param(True, True, id="immediate"),
+        pytest.param(False, False, id="after_the_debounce_window"),
     ],
 )
 async def test_optimize_service_success(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     immediate: bool | None,
-    called: str,
+    expected: bool,
 ) -> None:
     """The optimize service optimizes at once, or through the debounce window when not immediate."""
     await async_setup(hass, {})
@@ -386,9 +386,7 @@ async def test_optimize_service_success(
         data["immediate"] = immediate
     await hass.services.async_call(DOMAIN, "optimize", data, blocking=True)
 
-    getattr(mock_coordinator, called).assert_awaited_once_with()
-    other = {"async_run_optimization", "async_request_refresh"} - {called}
-    getattr(mock_coordinator, other.pop()).assert_not_called()
+    mock_coordinator.async_run_optimization.assert_awaited_once_with(immediate=expected)
 
 
 @pytest.mark.parametrize(

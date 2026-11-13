@@ -125,7 +125,7 @@ The input loaders reload each store's forecast for the new boundaries each time 
 Each time-series input store records the `horizon_start` it was loaded for.
 
 Before optimizing, the coordinator checks that every available time-series store's `horizon_start` matches the first of `get_forecast_timestamps()`.
-Until they match, refreshes are skipped and the `haeo.optimize` action raises `inputs_not_aligned`; the stores request another refresh once they have loaded.
+Until they match, refreshes are skipped, and the `haeo.optimize` action waits; the stores request another refresh once they have loaded.
 See [Update coordination](coordinator.md) for the refresh rules.
 
 ## Related documentation

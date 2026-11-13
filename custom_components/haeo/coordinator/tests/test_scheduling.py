@@ -13,11 +13,13 @@ from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import EventStateChangedData
+from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.haeo import HaeoRuntimeData
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.coordinator.tests.helpers import network_double
 from custom_components.haeo.core.const import DEFAULT_DEBOUNCE_SECONDS
@@ -448,21 +450,32 @@ async def test_turning_auto_optimize_off_cancels_a_waiting_optimization(
     coordinator.cleanup()
 
 
-@pytest.mark.usefixtures("live_runtime_data")
-async def test_optimizations_wait_for_inputs_to_align(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+@pytest.mark.parametrize("auto_optimize", [True, False])
+async def test_optimize_action_waits_for_inputs_to_align(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    live_runtime_data: HaeoRuntimeData,
+    solves: BlockingSolves,
+    *,
+    auto_optimize: bool,
 ) -> None:
-    """While forecast inputs load for a new horizon, refreshes skip and the optimize action says why."""
+    """While forecast inputs load for a new horizon, refreshes skip and the optimize action waits for them."""
+    switch: Any = live_runtime_data.auto_optimize_switch
+    switch.is_on = auto_optimize
     solves.release.set()
     coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
     with patch.object(coordinator, "_are_inputs_aligned", return_value=False):
         await coordinator.async_refresh()
-        await coordinator.async_request_refresh()
-        with pytest.raises(HomeAssistantError) as raised:
-            await coordinator.async_run_optimization()
+        action = hass.async_create_task(coordinator.async_run_optimization())
+        await asyncio.sleep(0.1)
+        assert not action.done()
+        assert solves.calls == 0
 
-    assert raised.value.translation_key == "inputs_not_aligned"
-    assert solves.calls == 0
+    # The stores notify once they have loaded for the new horizon
+    coordinator.signal_optimization_stale()
+    await action
+
+    assert solves.calls == 1
     coordinator.cleanup()
 
 
@@ -580,24 +593,98 @@ def test_are_inputs_aligned(
     assert coordinator._are_inputs_aligned() is aligned
 
 
+@pytest.mark.parametrize(
+    ("error", "translation_key"),
+    [
+        pytest.param(
+            UpdateFailed(translation_domain=DOMAIN, translation_key="optimization_solver_failed"),
+            "optimization_solver_failed",
+            id="reported_failure",
+        ),
+        pytest.param(KeyError("battery"), "optimization_failed", id="unexpected_error"),
+    ],
+)
 @pytest.mark.usefixtures("live_runtime_data")
-async def test_optimize_action_says_when_the_horizon_moves_while_it_waits(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+async def test_optimize_action_raises_the_failure_of_its_optimization(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    solves: BlockingSolves,
+    error: Exception,
+    translation_key: str,
 ) -> None:
-    """The optimize action fails, rather than reporting success, when inputs lose alignment while it waits."""
+    """The optimize action fails with the error of the optimization it waited for."""
     solves.release.set()
     coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
-    async with coordinator._optimization_lock:
-        request = hass.async_create_task(coordinator.async_run_optimization())
-        await asyncio.sleep(0)
-        aligned = patch.object(coordinator, "_are_inputs_aligned", return_value=False)
-        aligned.start()
-    with pytest.raises(HomeAssistantError) as raised:
-        await request
-    aligned.stop()
+    with (
+        patch.object(coordinator, "_async_update_data", side_effect=error),
+        pytest.raises(HomeAssistantError) as raised,
+    ):
+        await coordinator.async_run_optimization()
 
-    assert raised.value.translation_key == "inputs_not_aligned"
-    assert solves.calls == 0
+    assert raised.value.translation_key == translation_key
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_cleanup_fails_a_waiting_optimize_action(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """An optimize action still waiting when the coordinator is cleaned up fails rather than waiting forever."""
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    with patch.object(coordinator, "_are_inputs_aligned", return_value=False):
+        action = hass.async_create_task(coordinator.async_run_optimization())
+        await asyncio.sleep(0.1)
+    coordinator.cleanup()
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await action
+    assert raised.value.translation_key == "config_entry_not_loaded"
+
+
+@pytest.mark.parametrize("inputs_aligned", [False, True], ids=["while_inputs_load", "while_it_runs"])
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_cancelled_optimize_action_leaves_nothing_waiting(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves, *, inputs_aligned: bool
+) -> None:
+    """An optimize action cancelled before or during its optimization leaves no waiter behind."""
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    with patch.object(coordinator, "_are_inputs_aligned", return_value=inputs_aligned):
+        action = hass.async_create_task(coordinator.async_run_optimization())
+        await asyncio.sleep(0.1)
+        action.cancel()
+        await _settle(hass, solves)
+
+    assert action.cancelled()
+    assert coordinator._result_waiters == []
+    assert solves.calls == int(inputs_aligned)
+    coordinator.cleanup()
+
+
+@pytest.mark.parametrize("auto_optimize", [True, False])
+async def test_optimize_action_not_immediate_waits_out_the_debounce_window(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    live_runtime_data: HaeoRuntimeData,
+    solves: BlockingSolves,
+    *,
+    auto_optimize: bool,
+) -> None:
+    """The optimize action, when not immediate, returns once the optimization after the debounce window ends."""
+    switch: Any = live_runtime_data.auto_optimize_switch
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+    action = hass.async_create_task(coordinator.async_run_optimization(immediate=False))
+    await asyncio.sleep(0.1)
+    assert not action.done()
+
+    # Turning auto-optimize off cancels automatic optimizations, not the one the action waits for
+    switch.is_on = auto_optimize
+    coordinator._handle_auto_optimize_switch_change(_switch_event(STATE_ON if auto_optimize else STATE_OFF))
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=DEFAULT_DEBOUNCE_SECONDS + 1))
+    await action
+
+    assert solves.calls == 2
     coordinator.cleanup()
 
 

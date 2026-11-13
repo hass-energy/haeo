@@ -53,8 +53,8 @@ Read an existing entry in [`en.json`](../../../custom_components/haeo/translatio
     }
   },
   "exceptions": {
-    "inputs_not_aligned": {
-      "message": "The forecast inputs are still loading for the new planning horizon. Try again in a moment."
+    "optimization_failed": {
+      "message": "The optimization failed: {error}"
     }
   }
 }
