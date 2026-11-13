@@ -20,6 +20,9 @@ hacs/
 .grimp_cache/
 .import_linter_cache/
 
+# Ignore the zensical build cache
+.cache/
+
 # Ignore generated frontend card bundles
 custom_components/haeo/www/
 

@@ -143,7 +143,7 @@ Before finalizing documentation updates:
 
 - [ ] **Terminology**: Verify consistent use of "Hub", "Element", "Connection", "Sensor"
 - [ ] **Units**: Power in kW, energy in kWh, prices in \$/kWh, time in seconds (internal) or hours (user-facing)
-- [ ] **Links**: Check that every internal link and anchor resolves; `uv run zensical build` does not check them
+- [ ] **Links**: Every internal link and anchor resolves; `uv run zensical build` fails if one does not
 - [ ] **Cross-references**: Update links to changed sections
 - [ ] **Next steps**: Ensure user-facing pages have Next steps sections
 - [ ] **Templates**: Use templates for new element documentation
@@ -155,7 +155,7 @@ Before finalizing documentation updates:
 2. **Identify gaps**: Determine what's missing or outdated
 3. **Update systematically**: Work through each affected documentation area
 4. **Maintain consistency**: Follow existing patterns and conventions
-5. **Build and verify links**: Run `uv run zensical build`, then check links and anchors yourself, because the build does not
+5. **Build and verify links**: Run `uv run zensical build`, which fails on any broken internal link or anchor
 6. **Review formatting**: Ensure semantic line breaks and proper markdown structure
 
 ## Output

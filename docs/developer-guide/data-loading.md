@@ -188,6 +188,7 @@ A value that is constant over a period, such as a tariff price or an optimizer's
 `step_points()` emits two points per period, `(start, value)` and `(end, value)`.
 Adjacent periods share a boundary timestamp, and `extract()` separates it with `separate_duplicate_timestamps()` so the fuser steps there instead of ramping.
 A source that gives only start times ends each period where the next one starts (`hold_until_next()`).
+Both order by time only, so points at the same time keep the order they were written in, and a step written as two points at one time holds the second value from then on.
 
 A quantity that varies continuously, such as solar or load power, stays as points and is interpolated.
 An instantaneous value sits at its instant.
@@ -308,6 +309,7 @@ The `fuse_to_intervals()` function produces values for each optimization period:
 
 - Uses trapezoidal integration to compute accurate period averages
 - Accounts for value changes within periods
+- Where the forecast steps exactly on a boundary, such as at a cycle wrap, the period before it ends at the earlier value and the period after it starts at the later one
 
 This matches optimization requirements: linear programming operates on energy quantities (power × time), not instantaneous values.
 
@@ -316,6 +318,7 @@ This matches optimization requirements: linear programming operates on energy qu
 The `fuse_to_boundaries()` function produces values at each timestamp boundary:
 
 - Uses linear interpolation to get values at exact fence post times
+- Takes the later value where the forecast steps exactly at a fence post, as where [one forecast meets the next](#timestamp-alignment)
 - Preserves point-in-time nature of quantities like capacity and SOC limits
 
 This is appropriate for energy storage values that represent states at specific moments, not averages over periods.
@@ -359,6 +362,10 @@ When cycling, the system maintains time-of-day alignment.
 A 6-hour forecast from 2pm-8pm repeats at the same times each day, not offset by arbitrary amounts.
 
 This ensures realistic patterns: expensive electricity in the evening stays expensive in the evening on subsequent days.
+
+A forecast spanning whole days ends at the same time of day it starts, so each cycle's end meets the next cycle's start.
+Cycling moves that end one ulp earlier, the way `separate_duplicate_timestamps()` separates steps within a forecast, so the forecast steps there instead of ramping.
+The gap survives the cycle arithmetic at real timestamps, so fusion needs no special case for steps.
 
 ### Design rationale
 

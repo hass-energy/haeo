@@ -11,6 +11,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.json import ExtendedJSONEncoder
+from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.system_info import async_get_system_info
 from homeassistant.loader import Manifest, async_get_custom_components, async_get_integration
 from homeassistant.setup import async_get_domain_setup_times
@@ -157,7 +158,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         await async_save_diagnostics(hass, result.to_dict(), "diagnostics", target_timestamp or dt_util.now())
 
-    hass.services.async_register(
+    # The file goes into the configuration directory and holds the whole HAEO configuration,
+    # which only administrators can read through Home Assistant's own diagnostics download
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_SAVE_DIAGNOSTICS,
         async_handle_save_diagnostics,

@@ -180,10 +180,10 @@ async def test_async_update_data_solves_with_current_horizon_periods(
 ) -> None:
     """The network is solved with the period durations of the horizon its inputs were loaded for.
 
-    At a horizon boundary the input stores reload first, and the last of them
-    triggers the optimization before any horizon-change callback runs. The
-    periods therefore have to be applied as part of the optimization itself,
-    on the event loop, before the solve is handed to the executor.
+    At a horizon boundary the input stores reload first and request the
+    optimization, which no horizon-change callback precedes. The periods
+    therefore have to be applied as part of the optimization itself, on the
+    event loop, before the solve is handed to the executor.
     """
     horizon = mock_horizon(mock_runtime_data)
     horizon.periods_seconds = [60, 60, 300]
