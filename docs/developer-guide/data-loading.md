@@ -288,6 +288,35 @@ Forecasts that overlap, even partly, stay in separate groups: each repeats on it
 Forecasts meant to continue one another should meet rather than overlap.
 A forecast with no points, such as a calendar without events, adds nothing.
 
+#### Grouping as interval partitioning
+
+The grouping is an instance of interval partitioning, also called interval graph coloring.
+Use this framing to decide how a new kind of forecast should interact with the others.
+
+Each forecast is an interval from its start to its end, and a group is a chain of intervals that do not overlap.
+Two forecasts overlap when they share more than a seam: one ending exactly where the other starts is a seam, unless the later one is a single point there.
+The grouping meets two objectives, in order:
+
+1. **Fewest groups.**
+    Every group repeats wherever it has no data, so each group beyond the minimum adds a repeat that sums on top of the others.
+    The fewest groups possible equals the depth, the most forecasts that overlap at any one instant.
+    Taking forecasts in order of their start reaches the depth whichever eligible group each one joins:
+    a forecast starts a new group only when every existing group's last forecast still covers its start, so that many forecasts overlap there.
+2. **Exact continuations.**
+    Many groupings reach the fewest groups, and neither the area that repeats nor the total gap inside groups tells them apart:
+    with the number of groups fixed, both depend only on which forecasts start and end each group, not on how followers pair with predecessors.
+    What differs is which forecast repeats where, so a forecast joins the group it follows most closely, the one that ends last.
+    A forecast that starts where another ends, such as a tariff after a live price, then continues that forecast rather than a shorter one that started beside it.
+
+Formally, this is a minimum-cost maximum matching from forecast ends to the starts that follow on from them.
+The maximum matching gives the fewest groups, which is the number of forecasts minus the matching size.
+The cost of a gap decides which maximum matching wins.
+A cost proportional to the gap cannot decide, since the total gap is the same for every maximum matching with the same chain ends.
+A concave cost, such as a fixed charge for any gap at all, favors one exact seam and one long gap over two middling gaps, so it favors continuations.
+A convex cost such as the squared gap does the opposite: it pairs ends and starts in sorted order, which can pull a forecast away from the one it meets exactly.
+Taking forecasts in start order and joining the group that ends last makes this choice one forecast at a time.
+It can differ from a full matching only when several forecasts each follow on from several groups at once, where which forecast continues which is ambiguous anyway.
+
 ### Mixed payloads
 
 `split_sensor_payloads()` returns the summed present value and each forecast series separately.
