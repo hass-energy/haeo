@@ -512,13 +512,19 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @callback
     def _handle_horizon_change(self) -> None:
-        """Request an optimization for the new horizon.
+        """Optimize for the new horizon without waiting out the debounce window.
 
+        Until it does, every output plans from a period that has already ended.
         Input stores subscribe to the horizon first, so their reload for the new
-        horizon usually requests that optimization before this runs, and this
-        request shares it. It also covers a roll that no input reloads for.
+        horizon usually requests an optimization through the debounce window
+        before this runs; this replaces that wait. The optimization still starts
+        on the next loop iteration, so every input reloaded in this pass is marked
+        stale before it reads them. It also covers a roll that no input reloads for.
         """
-        self.signal_optimization_stale()
+        if self.auto_optimize_enabled:
+            self._rerun_wanted = True
+            self._cancel_debounce_timer()
+            self._schedule_optimization()
 
     @callback
     def _handle_auto_optimize_switch_change(self, event: Event[EventStateChangedData]) -> None:
@@ -564,6 +570,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             HomeAssistantError: While forecast inputs are still loading for a new horizon.
 
         """
+        self._cancel_scheduled_optimization()
         if not await self._optimize():
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="inputs_not_aligned")
 
@@ -645,11 +652,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         if self._rerun_wanted:
             await self._optimize()
 
-    def _cancel_scheduled_optimization(self) -> None:
-        """Cancel the optimization waiting out the debounce window or for the next event loop iteration."""
+    def _cancel_debounce_timer(self) -> None:
+        """Cancel the optimization waiting out the debounce window."""
         if self._debounce_timer is not None:
             self._debounce_timer()
             self._debounce_timer = None
+
+    def _cancel_scheduled_optimization(self) -> None:
+        """Cancel the optimization waiting out the debounce window or for the next event loop iteration."""
+        self._cancel_debounce_timer()
         if self._pending_optimization is not None:
             self._pending_optimization.cancel()
             self._pending_optimization = None

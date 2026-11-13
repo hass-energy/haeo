@@ -29,23 +29,28 @@ from custom_components.haeo.inputs.source_loader import SourceInputLoader
 from .helpers import mock_horizon
 
 
+@pytest.mark.parametrize("auto_optimize", [True, False])
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
 def test_horizon_change_triggers_optimization(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
+    *,
+    auto_optimize: bool,
 ) -> None:
-    """Horizon manager changes trigger optimization."""
+    """Horizon manager changes schedule an optimization while auto-optimize is on."""
+    switch: Any = mock_runtime_data.auto_optimize_switch
+    switch.is_on = auto_optimize
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     network = network_double()
     coordinator._network = network
 
-    with patch.object(coordinator, "signal_optimization_stale") as trigger_mock:
+    with patch.object(coordinator, "_schedule_optimization") as schedule_mock:
         coordinator._subscribe_to_input_stores()
         on_horizon_change = mock_horizon(mock_runtime_data).subscribe.call_args.args[0]
         on_horizon_change()
 
-    trigger_mock.assert_called_once()
+    assert schedule_mock.call_count == int(auto_optimize)
     network.update_periods.assert_not_called()
 
 
@@ -491,6 +496,22 @@ async def test_requests_before_an_optimization_are_met_by_it(
     coordinator.cleanup()
 
 
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_optimize_action_replaces_the_scheduled_optimization(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """The optimize action replaces an optimization waiting out the debounce window rather than adding to it."""
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+    coordinator.signal_optimization_stale()
+    await coordinator.async_run_optimization()
+
+    assert coordinator._debounce_timer is None
+    assert coordinator._pending_optimization is None
+    coordinator.cleanup()
+
+
 def _switch_event(state: str) -> Any:
     """Return a state change event for the auto-optimize switch."""
     new_state = MagicMock(spec=State)
@@ -623,7 +644,7 @@ async def test_horizon_roll_runs_one_optimization(
 async def test_horizon_roll_applies_every_reloaded_input_in_one_optimization(
     hass: HomeAssistant, mock_hub_entry: MockConfigEntry, live_runtime_data: HaeoRuntimeData, solves: BlockingSolves
 ) -> None:
-    """A horizon roll reloads every input, and the one optimization it runs applies all of them."""
+    """A horizon roll applies every reloaded input in one optimization, without waiting out the debounce window."""
     horizon_manager = live_runtime_data.horizon_manager
     stores = {
         (name, ("power",)): create_input_store(
@@ -642,8 +663,6 @@ async def test_horizon_roll_applies_every_reloaded_input_in_one_optimization(
     coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
     await coordinator.async_refresh()
     calls = solves.calls
-    # Past the debounce window, so the roll optimizes at once
-    coordinator._last_optimization_time = None
     updaters = {"First": MagicMock(), "Second": MagicMock()}
     coordinator._element_updaters = updaters
 
@@ -655,9 +674,15 @@ async def test_horizon_roll_applies_every_reloaded_input_in_one_optimization(
         horizon_manager._async_scheduled_update(dt_util.utcnow())
         await hass.async_block_till_done()
 
+        assert solves.calls == calls + 1
+        for updater in updaters.values():
+            updater.assert_called_once()
+
+        # The roll's optimization replaces the one the reloaded inputs scheduled
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=DEFAULT_DEBOUNCE_SECONDS + 1))
+        await hass.async_block_till_done()
+
     assert solves.calls == calls + 1
-    for updater in updaters.values():
-        updater.assert_called_once()
     loader.cleanup()
     coordinator.cleanup()
 
@@ -701,7 +726,7 @@ async def test_cleanup_cancels_an_optimization_requested_in_the_same_pass(
 async def test_horizon_roll_without_reloaded_inputs_optimizes(
     hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
 ) -> None:
-    """A horizon roll optimizes even when no input reloads for it, since the periods themselves changed."""
+    """A horizon roll optimizes at once even when no input reloads for it, since the periods themselves changed."""
     solves.release.set()
     coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
     await coordinator.async_refresh()
@@ -709,7 +734,6 @@ async def test_horizon_roll_without_reloaded_inputs_optimizes(
         coordinator._runtime_data.horizon_manager, "get_forecast_timestamps", return_value=(time.time() + 1800.0,)
     ):
         coordinator._runtime_data.horizon_manager._async_scheduled_update(dt_util.utcnow())
-        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=DEFAULT_DEBOUNCE_SECONDS + 1))
         await hass.async_block_till_done()
 
     assert solves.calls == 2

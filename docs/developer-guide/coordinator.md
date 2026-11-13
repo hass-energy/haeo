@@ -85,7 +85,7 @@ An optimization is skipped while any available forecast input is still loading f
 Those stores request another optimization once they load.
 
 `async_refresh()` optimizes as soon as the lock allows, which setup uses for the first optimization.
-The `haeo.optimize` action calls `async_run_optimization()`, which also bypasses the debounce window and the auto-optimize switch.
+The `haeo.optimize` action calls `async_run_optimization()`, which also bypasses the debounce window and the auto-optimize switch, and replaces any optimization already scheduled.
 It checks alignment under the lock and raises the `inputs_not_aligned` error when inputs are loading for a new horizon, rather than skipping silently.
 
 ### Debouncing
@@ -118,6 +118,9 @@ sequenceDiagram
 The debounce window, the hub's debounce seconds, starts when an optimization starts and again when it succeeds, which batches rapid input changes into one optimization.
 It is measured on the monotonic clock, so a wall clock set back does not stretch it.
 An input that changes while an optimization runs requests a follow-up through the same window.
+
+A horizon roll does not wait out the window, since until it optimizes every output plans from a period that has already ended.
+It cancels the debounce timer the reloaded inputs started and optimizes on the next loop iteration, after every input notified in the same pass has marked its element stale.
 
 Turning the auto-optimize switch off cancels an optimization waiting out the debounce window and pauses the HorizonManager.
 Turning it back on resumes the HorizonManager, whose notification requests an optimization that catches up on changes made while it was off.

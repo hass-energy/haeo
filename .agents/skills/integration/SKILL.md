@@ -15,10 +15,12 @@ Code that reads Home Assistant at run time lives outside it: the `inputs/` packa
 `HaeoDataUpdateCoordinator` in [`coordinator/coordinator.py`](../../../custom_components/haeo/coordinator/coordinator.py) assembles each element's config from the input stores, runs the optimization, and exposes the results.
 
 - It has no `update_interval`.
-    Updates are event-driven: input store changes and horizon changes signal the results stale, and the coordinator optimizes after the hub's debounce window.
+    Updates are event-driven: input store changes signal the results stale, and the coordinator optimizes after the hub's debounce window.
+    A horizon roll optimizes on the next loop iteration without waiting out the window, so the plan never starts from a period that has ended.
 - Refreshes are single-flight: one lock and one "rerun wanted" flag, so requests made while an optimization runs share one follow-up run.
     `async_request_refresh()` goes through the debounce window like any automatic request.
 - An optimization is skipped while forecast inputs are still loading for a new horizon; `async_run_optimization()`, behind the `haeo.optimize` action, checks this under the lock and raises `HomeAssistantError` with `inputs_not_aligned`.
+    It cancels any scheduled optimization, which it replaces.
 - Turning auto-optimize off cancels an optimization waiting out the debounce window.
 - Raise `UpdateFailed` for data loading or optimization errors, or `ReportedUpdateFailed` when the failure raises a repair issue of its own.
 
