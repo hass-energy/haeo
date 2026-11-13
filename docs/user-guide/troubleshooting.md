@@ -183,6 +183,45 @@ It describes the first plan that had to relax constraints since you last resolve
 The relaxed periods cannot happen as planned, so treat that issue as a sign to check the forecast.
 The shortfall is placed to be as small as possible rather than as cheap as possible, so the rest of the plan can cost a little more than it would with the shortfall placed by cost.
 
+## An input has no reading
+
+### Problem
+
+A sensor that one of your inputs reads has stopped reporting, and shows as `unavailable` or `unknown`.
+
+### Symptoms
+
+- For a short gap, HAEO keeps planning with the sensor's last reading
+- The input's entity then shows `held_source_entity`, naming the sensor, and `held_since`, the time it stopped reporting
+- If the gap lasts longer than the hub's **Sensor gap tolerance**, the input shows as unavailable, the optimization status is **Failed**, and the other output sensors are unavailable
+- A calendar HAEO cannot read upcoming events from, or an energy meter read over a window, is not given that tolerance: its input shows as unavailable at once
+- A repair issue titled "… has no reading for …" names the element, the input, and the sensors with no reading
+
+### Solutions
+
+#### Check the sensor
+
+Look up each sensor the repair issue names in **Developer tools → States**.
+If it was removed or renamed, reconfigure the element to read one that exists.
+HAEO starts planning again as soon as the sensor reports, and the repair issue clears.
+
+#### Allow for short dropouts
+
+If a sensor often drops out for a few seconds or minutes, raise **Sensor gap tolerance** in the hub's [advanced settings](configuration.md#editing-hub-settings), so HAEO keeps planning through those gaps.
+A longer tolerance means HAEO may plan with an older value, so keep it no longer than you are happy to plan on a reading that old.
+Set it to 0 to stop planning as soon as any sensor has no reading.
+
+#### Act on held values in automations
+
+An automation that follows HAEO's plan can check whether an input is holding a reading, and be more careful while it is:
+
+```yaml
+condition:
+  - condition: template
+    value_template: >-
+      {{ state_attr('number.grid_import_price', 'held_source_entity') is none }}
+```
+
 ## Optimization takes too long
 
 ### Problem
