@@ -283,14 +283,27 @@ description: >-
   Start, stop and limit the Sigen DC charger to follow the charge power
   HAEO plans for the Atto 2.
 triggers:
+  # Changes to the plan, but not the forecast updates of every optimization.
   - trigger: state
     entity_id: sensor.atto_2_charge_power
     to:
     for:
       minutes: 1
+  # React within seconds when the plan crosses the minimum charging power.
+  - trigger: numeric_state
+    entity_id: sensor.atto_2_charge_power
+    above: 1.0
+  - trigger: numeric_state
+    entity_id: sensor.atto_2_charge_power
+    below: 1.0
   - trigger: state
     entity_id: sensor.sigen_inverter_dc_charger_running_state
-    to: [Occupied, Scheduled, Charging]
+    to: [Occupied, Scheduled]
+    for:
+      minutes: 2
+  - trigger: state
+    entity_id: sensor.sigen_inverter_dc_charger_running_state
+    to: Charging
     for:
       seconds: 10
   - trigger: state
@@ -301,13 +314,29 @@ conditions:
   - "{{ is_state('input_boolean.haeo_ev_charging_control', 'on') }}"
 actions:
   - variables:
+      running_state: sensor.sigen_inverter_dc_charger_running_state
       charge_limit: number.sigen_inverter_dc_charger_max_charging_power_limit
       discharge_limit: >-
         number.sigen_inverter_dc_charger_max_discharging_power_limit
       plan_kw: "{{ states('sensor.atto_2_charge_power') | float(0) }}"
-      charger: "{{ states('sensor.sigen_inverter_dc_charger_running_state') }}"
+      charger: '{{ states(running_state) }}'
+      # The charger has been in its current state for at least 2 minutes.
+      charger_settled: >-
+        {{ now() - states[running_state].last_changed
+           >= timedelta(minutes=2) }}
       efficiency: "{{ states('number.atto_2_charge_efficiency') | float(100) }}"
       min_kw: 1.0
+      # Hold a charge through a pause in the plan shorter than this.
+      hold_minutes: 10
+      # Minutes until the plan next charges at min_kw or more, or none.
+      minutes_to_next_charge: >-
+        {% set ns = namespace(m=none) %}
+        {% for f in state_attr('sensor.atto_2_charge_power', 'forecast') or [] %}
+        {% if ns.m is none and f.value >= min_kw and as_datetime(f.time) > now() %}
+        {% set ns.m = (as_datetime(f.time) - now()).total_seconds() / 60 %}
+        {% endif %}
+        {% endfor %}
+        {{ ns.m }}
   - if:
       - condition: template
         value_template: '{{ states(discharge_limit) | float(0) != 0 }}'
@@ -319,22 +348,39 @@ actions:
   - choose:
       - conditions:
           - condition: template
-            value_template: >-
-              {{ plan_kw >= min_kw
-                 and charger in ['Occupied', 'Scheduled', 'Charging'] }}
+            value_template: "{{ plan_kw >= min_kw and charger == 'Charging' }}"
         sequence:
           - action: number.set_value
             target: {entity_id: '{{ charge_limit }}'}
             data:
               value: '{{ (plan_kw * efficiency / 100) | round(1) }}'
-          - if:
-              - condition: template
-                value_template: "{{ charger != 'Charging' }}"
-            then:
-              - action: button.press
-                target:
-                  entity_id: button.sigen_inverter_dc_charger_start_charging
         alias: Charge at the planned power
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ plan_kw >= min_kw
+                 and charger in ['Occupied', 'Scheduled']
+                 and charger_settled }}
+        sequence:
+          - action: number.set_value
+            target: {entity_id: '{{ charge_limit }}'}
+            data:
+              value: '{{ (plan_kw * efficiency / 100) | round(1) }}'
+          - action: button.press
+            target:
+              entity_id: button.sigen_inverter_dc_charger_start_charging
+        alias: Start once the charger has settled for 2 minutes
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ plan_kw < min_kw and charger == 'Charging'
+                 and minutes_to_next_charge is number
+                 and minutes_to_next_charge <= hold_minutes }}
+        sequence:
+          - action: number.set_value
+            target: {entity_id: '{{ charge_limit }}'}
+            data: {value: '{{ min_kw }}'}
+        alias: Hold at the minimum when charging resumes soon
       - conditions:
           - condition: template
             value_template: "{{ plan_kw < min_kw and charger == 'Charging' }}"
@@ -342,7 +388,7 @@ actions:
           - action: button.press
             target:
               entity_id: button.sigen_inverter_dc_charger_stop_charging
-        alias: Stop when no charge is planned
+        alias: Stop when no charge is planned soon
 mode: queued
 max: 3
 ```
@@ -352,15 +398,22 @@ If your EV has another name, replace `atto_2` with it.
 ### How it works
 
 - **Follows the plan.**
-    While at least 1 kW is planned, it sets the charger's limit to the planned power times the charge efficiency, and presses **Start** if the car is plugged in and not yet charging.
-    A start takes about 45 seconds of handshaking before the charger ramps up.
-- **Stops when the plan does.**
-    When the plan drops below 1 kW while the car charges, it presses **Stop**.
+    While at least 1 kW is planned and the car is charging, it sets the charger's limit to the planned power times the charge efficiency.
+- **Starts once the charger has settled.**
+    When charging is planned and the car is plugged in but not charging, it waits until the charger has been in that state for 2 minutes, then sets the limit and presses **Start**.
+    That covers both a fresh plug-in and the gap after a stop.
+    Pressing **Start** sooner makes the charger more likely to fault, and a start takes about 45 seconds of handshaking before the charger ramps up.
+- **Holds through short pauses.**
+    When the plan drops below 1 kW while the car charges, it looks ahead in the plan's `forecast` attribute for the next period that charges at 1 kW or more.
+    If that is within `hold_minutes`, 10 minutes, it holds the charger at 1 kW instead of stopping, so the session survives the pause without another handshake.
+    The plan often pauses charging for a single price interval, so this saves many restarts.
+- **Stops for long pauses.**
+    If no charge is planned within `hold_minutes`, it presses **Stop**, so the charger is not left running at low power, where its own overheads are a large share of what it draws.
     Planned charges below 1 kW are skipped.
 - **Never discharges the car.**
     It holds the charger's discharge limit at zero.
 - **Runs when something changes.**
-    It runs once a new planned power has held for a minute, when the car is plugged in or starts charging, when you turn the helper on, and every 5 minutes as a backstop.
+    It runs within seconds when the planned power crosses 1 kW, once any other new planned power has held for a minute, when the car is plugged in or starts charging, when you turn the helper on, and every 5 minutes as a backstop.
     The empty `to:` on the plan trigger ignores the forecast updates of every optimization, so it only runs when the planned power itself changes.
 - **Leaves the plant alone.**
     It never changes the plant's mode, which the [plant automation](sigenergy-system.md#automate-the-plant) controls.
@@ -371,6 +424,10 @@ If your EV has another name, replace `atto_2` with it.
 - **Restarting without replugging is unreliable.**
     After a stop, a start often resumes charging, but sometimes the charger instead ends the session and raises a "Charging fault" alarm on the plant and inverter.
     The running state then reads `Alarm`, which HAEO treats as unplugged, and unplugging and replugging the car clears it.
+    The 2-minute wait before **Start** and the hold through short pauses both make this rarer by avoiding quick stop and start cycles.
+- **Holding draws a little power.**
+    A 10-minute hold at 1 kW uses at most about 0.17 kWh.
+    Lower `hold_minutes` if your plan pauses often for long stretches, or raise it if your charger faults on most restarts.
 
 ## Next steps
 

@@ -232,6 +232,11 @@ The battery, with its limits from the rules above, takes up the difference when 
     Start the device when the planned power rises above a threshold, and stop it when the plan drops below.
     Pick a threshold at or above the lowest power the device can run at, such as an EV charger's minimum current or an appliance's rated power.
     Small planned powers below it are skipped rather than run at a power the device cannot hold.
+- **Ride through short pauses.**
+    If the device is slow or unreliable to restart, such as an EV charger that has to handshake with the car, look ahead in the planned power's `forecast` attribute when the plan drops below the threshold.
+    If charging resumes within a few minutes, hold the device at its minimum instead of stopping it, and stop it only for longer pauses.
+- **Let it settle before starting.**
+    Wait a minute or two after the device becomes ready, such as after a plug-in or a stop, before starting it, if starting it straight away makes it fault.
 - **Convert for efficiency.**
     HAEO plans an EV's charge power on the home side of its charging losses, and its charge efficiency is the share that reaches the car.
     If your charger's limit applies to the power it delivers to the car, multiply the planned power by the charge efficiency first, or the charger draws more than planned.
