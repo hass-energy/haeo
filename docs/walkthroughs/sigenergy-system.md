@@ -398,26 +398,21 @@ actions:
       rule: >-
         {% if not control_on or not plan_available %}free
         {% elif charging and importing %}grid_charge
-        {% elif charging %}solar_charge
-        {% elif not importing and not exporting %}free
-        {% elif exporting %}export
-        {% elif discharging %}discharge
-        {% else %}hold
+        {% elif exporting and (at_export_limit or not charging) %}export
+        {% elif importing %}ration
+        {% else %}free
         {% endif %}
       ems_mode: >-
         {{ {'free': 'Maximum Self Consumption',
             'grid_charge': 'Command Charging (PV First)',
-            'solar_charge': 'Maximum Self Consumption',
             'export': 'Command Discharging (PV First)',
-            'discharge': 'Maximum Self Consumption',
-            'hold': 'Standby'}[rule] }}
-      charge_kw: >-
-        {{ planned_charge_kw if rule in ['grid_charge', 'solar_charge']
-           else full_charge_kw }}
+            'ration': 'Maximum Self Consumption'}[rule] }}
+      charge_kw: "{{ planned_charge_kw if rule == 'grid_charge' else full_charge_kw
+        }}"
       # Discharging at the export limit, the limit decides the power, so leave the battery free.
       discharge_kw: >-
         {{ full_discharge_kw if rule == 'export' and discharging and at_export_limit
-           else planned_discharge_kw if rule in ['export', 'discharge']
+           else planned_discharge_kw if rule in ['export', 'ration']
            else full_discharge_kw }}
   # Write only the settings that differ from the plant's.
   - if: '{{ states(mode_select) != ems_mode }}'
@@ -447,21 +442,24 @@ mode: queued
 Give the plant the same export limit as the grid in HAEO, since the export rule relies on the plant stopping exports there.
 The automation checks these rules in order, and the first that matches sets the mode and both limits:
 
-| Plan for the current period                  | `rule`         | Plant mode                     | Limits                                                                      |
-| -------------------------------------------- | -------------- | ------------------------------ | --------------------------------------------------------------------------- |
-| No plan available, stale plan, or helper off | `free`         | Maximum Self Consumption       | Both at full rate                                                           |
-| Battery charging, grid importing             | `grid_charge`  | Command Charging (PV First)    | Charge at the planned rate                                                  |
-| Battery charging otherwise                   | `solar_charge` | Maximum Self Consumption       | Charge at the planned rate                                                  |
-| Grid near zero                               | `free`         | Maximum Self Consumption       | Both at full rate                                                           |
-| Grid exporting                               | `export`       | Command Discharging (PV First) | Discharge at the planned rate, or full when discharging at the export limit |
-| Battery discharging, grid importing          | `discharge`    | Maximum Self Consumption       | Discharge at the planned rate                                               |
-| Battery idle, grid importing                 | `hold`         | Standby                        | Both at full rate                                                           |
+| Plan for the current period                                       | `rule`        | Plant mode                     | Limits                                                                      |
+| ----------------------------------------------------------------- | ------------- | ------------------------------ | --------------------------------------------------------------------------- |
+| No plan available, stale plan, or helper off                      | `free`        | Maximum Self Consumption       | Both at full rate                                                           |
+| Battery charging, grid importing                                  | `grid_charge` | Command Charging (PV First)    | Charge at the planned rate                                                  |
+| Grid exporting, unless the battery charges below the export limit | `export`      | Command Discharging (PV First) | Discharge at the planned rate, or full when discharging at the export limit |
+| Grid importing                                                    | `ration`      | Maximum Self Consumption       | Discharge at the planned rate                                               |
+| Anything else                                                     | `free`        | Maximum Self Consumption       | Both at full rate                                                           |
 
 Any limit the table does not name is set to full rate, so a limit from an earlier period never holds the battery back.
-The forced modes run only while the battery trades energy with the grid.
-When the plan charges from surplus solar, the automation uses self-consumption with a charge limit rather than Command Charging.
-If solar then comes in below forecast, the battery charges less instead of importing to make up the planned rate.
-When the plan exports only solar, the discharge limit is zero, so a dip in solar never drains the battery into the grid.
+The forced modes run only while the plan trades energy with the grid.
+The planned discharge rate is zero whenever the battery is not planned to discharge.
+So when the plan exports only solar, or holds the battery while importing, a dip in solar or a rise in load never drains the battery.
+The charge limit stays at full unless the plan charges from the grid.
+Solar beyond the forecast then charges the battery instead of being curtailed, after exports reach the export limit while exporting.
+When the plan charges from solar without importing, the plant runs Maximum Self Consumption with full limits, which charges the battery as fast as the real solar allows.
+
+The plant has no separate limit on how much the battery charges from the grid.
+So in `grid_charge`, when solar also charges the battery and falls short of the forecast, the plant buys the difference from the grid to keep the planned rate.
 
 The automation runs when the plan changes and every 5 minutes, and only writes the settings that differ from the plant's.
 It falls back to self-consumption when HAEO's plan is unavailable, or when the latest plan is more than 15 minutes old, such as while **Auto optimize** is off.

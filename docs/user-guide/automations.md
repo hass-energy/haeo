@@ -22,12 +22,13 @@ Often the device is below its limit because something else decides its power:
 In each case the right hardware behavior is to let the device run freely and let the real constraint stop it.
 Pinning the device to the planned number instead makes it fight reality.
 If solar comes in below forecast, a battery forced to charge at its planned rate makes up the difference by importing from the grid, which the plan never intended.
+If solar comes in above forecast, a battery capped at its planned charge rate leaves the extra to be exported cheaply or curtailed.
 If the house uses more than forecast, a battery held at its planned discharge leaves the rest to be imported.
 
 So read the plan for what it does, not for its exact numbers:
 
 - **Pick a mode** from what the plan does with the grid and the battery.
-- **Set limits only where they matter**, and leave the hardware free everywhere else.
+- **Set limits only where they matter**, and leave the hardware free everywhere else, so forecast errors land somewhere useful.
 - **Add simple price guards** so negative prices are handled even when the forecast is off.
 
 ## Inverter modes
@@ -39,14 +40,25 @@ Most hybrid inverters offer an equivalent set of operating modes, under differen
 | **Self-consumption** | Solar first serves the house, any surplus charges the battery, and the battery covers any shortfall before the grid is used. |
 | **Forced charge**    | Charges the battery at a set rate, using solar first and the grid for the rest.                                              |
 | **Forced discharge** | Discharges the battery at a set rate, serving the house first and exporting the rest.                                        |
-| **Standby**          | Holds the battery idle, so the house runs on solar and the grid.                                                             |
 
 Self-consumption is the inverter's natural behavior: it keeps the grid near zero by itself, reacting to the real solar and load second by second.
 Most of the time HAEO's plan agrees with it.
-The other modes are for the times the plan wants something self-consumption would not do: trade energy with the grid, or hold the battery back.
+The forced modes are for the times the plan trades energy with the grid, which self-consumption never does.
 
 Alongside the mode, most inverters accept a maximum charge rate and a maximum discharge rate.
 These are the limits the rules below set.
+A discharge limit of zero holds the battery back while the inverter stays in self-consumption, so surplus solar can still charge it.
+If your inverter has no discharge limit, use its standby mode wherever a rule sets the discharge limit to zero.
+
+Some inverters, such as Deye's, take time slots with a target state of charge instead of power limits.
+The same rules apply, with each limit written as a state of charge from the battery's [state of charge sensor](elements/battery.md#state-of-charge-sensor) and its `forecast` attribute:
+
+| Limit                            | Time slot setting                                                            |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| Both limits at full rate         | Grid charging off, state of charge at the battery's minimum                  |
+| Charge limit at the planned rate | Grid charging on, state of charge at the plan's level when charging ends     |
+| Discharge limit at zero          | Grid charging off, state of charge at the current level                      |
+| Discharge limit at planned rate  | Grid charging off, state of charge at the plan's level when discharging ends |
 
 ## Choosing a mode
 
@@ -61,17 +73,15 @@ Check these rules in order and use the first that matches:
 flowchart TD
     Start([New plan]) --> Avail{Plan available?}
     Avail -- No --> SC1[Self-consumption]
-    Avail -- Yes --> Chg{Battery charging?}
-    Chg -- Yes --> Imp{Grid importing?}
-    Imp -- Yes --> FC[Forced charge<br/>charge limit = planned rate]
-    Imp -- No --> SC2[Self-consumption<br/>charge limit = planned rate]
-    Chg -- No --> Zero{Grid near zero?}
-    Zero -- Yes --> SC3[Self-consumption]
-    Zero -- No --> Exp{Grid exporting?}
-    Exp -- Yes --> FD[Forced discharge<br/>discharge limit = planned rate,<br/>or full when discharging at the export limit]
-    Exp -- No --> Dis{Battery discharging?}
-    Dis -- Yes --> SC4[Self-consumption<br/>discharge limit = planned rate]
-    Dis -- No --> SB[Standby]
+    Avail -- Yes --> Imp1{Battery charging<br/>and grid importing?}
+    Imp1 -- Yes --> FC[Forced charge<br/>charge limit = planned rate]
+    Imp1 -- No --> Exp{Grid exporting?}
+    Exp -- Yes --> Lim{Battery charging and exports<br/>below the export limit?}
+    Lim -- No --> FD[Forced discharge<br/>discharge limit = planned rate,<br/>or full when discharging at the export limit]
+    Lim -- Yes --> SC3[Self-consumption]
+    Exp -- No --> Imp2{Grid importing?}
+    Imp2 -- Yes --> SC2[Self-consumption<br/>discharge limit = planned rate]
+    Imp2 -- No --> SC3
 ```
 
 1. **No plan: self-consumption.**
@@ -82,45 +92,51 @@ flowchart TD
     The plan buys energy from the grid to store, usually because it is cheap now.
     Self-consumption never charges from the grid, so only a forced charge achieves this.
     The planned rate matters here, since it sets how much the battery buys.
+    When solar also charges the battery, a forced charge makes up any shortfall in solar from the grid.
+    If your inverter can limit how much the battery draws from the grid, set that to the planned charge minus the planned solar from the solar element's [power sensor](elements/solar.md#power), or zero if solar covers the charge.
+    The battery then takes the grid energy the plan buys and no more, and charges less when solar falls short.
+    On an inverter that can only turn grid charging on or off, turn it on only when the planned charge is more than the planned solar.
 
-3. **Charging otherwise: self-consumption, with the charge limit at the planned rate.**
-    The plan charges from surplus solar, while exporting the rest or keeping the grid at zero.
-    Self-consumption charges from surplus by itself, so the battery charges less rather than importing when solar comes in short.
-    The charge limit keeps the planned share of the surplus going to the grid, for example when exporting now is worth more than storing.
-    A forced charge here would import whenever solar falls short of the forecast.
-
-4. **Grid near zero: self-consumption.**
-    The plan balances the house, solar, and battery with no grid flow, which is exactly what self-consumption does.
-    With full limits, the inverter follows the real solar and load instead of the forecast.
-
-5. **Exporting: forced discharge at the planned rate.**
-    The plan sells energy to the grid, either from the battery or from solar while the battery idles.
+3. **Exporting: forced discharge at the planned rate.**
+    The plan sells energy to the grid, from the battery or from solar.
     Self-consumption would never export from the battery, and would put surplus solar into the battery rather than the grid.
-    When the plan exports only solar, the planned discharge rate is zero, so the battery stays idle if solar falls short.
+    The planned discharge rate is zero whenever the battery is not planned to discharge, so a dip in solar shrinks exports rather than draining the battery.
     When the battery discharges with the grid planned at its export limit, set the discharge limit to full rather than the planned rate.
     The export limit is what decides the battery's power there, so the inverter can top up exports from the battery whenever solar falls short.
-    Only do this while the battery is planned to discharge: a battery planned idle is keeping its energy for later, and topping up exports from it would drain it.
+    Only do this while the battery is planned to discharge: a battery planned idle or charging is keeping its energy for later, and topping up exports from it would drain it.
+    The charge limit stays at full, so solar beyond the forecast first raises exports to the export limit and then charges the battery rather than being curtailed.
+    That is also why a battery charging at the export limit belongs here: the plan exports all it can and stores what is left over, which is exactly what a forced discharge does with the excess.
+    A battery charging while exports stay below the limit falls through to rule 5.
 
-6. **Discharging while importing: self-consumption, with the discharge limit at the planned rate.**
-    The plan covers part of the house from the battery and imports the rest, rationing the battery for later.
+4. **Importing: self-consumption, with the discharge limit at the planned rate.**
+    The plan covers part of the house from the battery and imports the rest, or holds the battery idle, rationing its energy for later.
+    The planned rate is zero when the battery is idle, so it holds its charge.
     Self-consumption follows the real load, so the battery never exports when the house uses less than forecast, and the limit keeps the rest of its energy for later.
+    With the charge limit at full, any solar beyond the forecast charges the battery rather than being exported.
 
-7. **Anything else: standby.**
-    The battery is planned idle while the house imports, because its energy is worth more later than it saves now.
-    Self-consumption would discharge it to cover the house.
+5. **Anything else: self-consumption.**
+    The plan balances the house, solar, and battery with no grid flow, or charges the battery from solar while exporting below the export limit.
+    The plan only splits surplus solar between the battery and the grid when the battery cannot take more, because it is at its maximum rate or becomes full, or when storing and exporting are worth the same.
+    Self-consumption with full limits does the same with the real solar: it charges the battery as fast as it will go and exports the rest.
+    With full limits, the inverter follows the real solar and load instead of the forecast.
 
 ## Set limits only where they matter
 
 Each rule sets a limit only where the plan's number carries meaning:
 
-- The charge limit when the battery charges, because it sets how much energy the battery takes from the grid or the surplus.
-- The discharge limit when the battery discharges, because it sets how much energy the battery gives up now.
+- The charge limit when the battery charges from the grid, because it sets how much energy the battery buys.
+- The discharge limit when the battery discharges or is held idle, because it sets how much energy the battery gives up now.
 
 Set every other limit to the battery's full rating, every time the rules run.
 A limit left over from an earlier period would otherwise keep holding the battery back after the plan has changed.
 
+The full limits are what absorb forecast errors.
+Whatever the mode, leave somewhere for surplus solar to go: the battery's charge limit, the export, or a charger following its own plan.
+If every path is capped at its planned power, solar beyond the forecast is curtailed.
+Curtailed solar also shows up in the measured generation, so anything that learns from it, such as a solar forecast that adjusts to recent output, keeps planning low.
+
 Set your inverter's own export limit to match the export limit in HAEO.
-Rule 5 relies on the inverter stopping exports at that limit when the battery discharges at full rate.
+Rule 3 relies on the inverter stopping exports at that limit when the battery discharges at full rate.
 If the grid has an export limit, its `number.{name}_export_limit` [input entity](elements/grid.md#input-entities) holds the current value, so an automation can read it from HAEO instead of repeating it.
 
 ## Price guards
@@ -195,16 +211,19 @@ Each rule only steps in where the plan does something the inverter would not do 
 
 - A negative export price caps export.
 - A negative import price caps solar.
-- Forced modes run only while the battery trades energy with the grid.
+- Forced modes run only while the plan trades energy with the grid.
+- Limits follow the plan only where its number is a decision, and stay at full rate everywhere else.
 
 The rest of the time the inverter runs in self-consumption and absorbs forecast errors by itself.
-The third rule matters most.
-Avoid charging from solar in forced charge rather than self-consumption above all, because every shortfall in solar is then bought from the grid.
+Two mistakes undo this, and the rules avoid both.
+Charging from solar in forced charge buys every shortfall in solar from the grid.
+Capping the battery's charge at its planned rate while it charges from solar curtails every gain in solar.
 
 ## Chargers and appliances
 
 An EV charger or an appliance such as a pool pump or hot water system is simpler to drive than an inverter.
-Nothing else decides its power, so its planned power is the setpoint to follow:
+Nothing else decides its power, so its planned power is the setpoint to follow.
+The battery, with its limits from the rules above, takes up the difference when solar or the house differs from the forecast:
 
 - **Follow the planned power.**
     An [EV](elements/ev.md#power-sensors) has a `sensor.{name}_charge_power` sensor, and a [deferrable load](elements/deferrable_load.md#sensors-created) has `sensor.{name}_power`.
