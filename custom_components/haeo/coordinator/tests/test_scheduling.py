@@ -661,6 +661,7 @@ async def test_cancelled_optimize_action_leaves_nothing_waiting(
 
 
 @pytest.mark.parametrize("auto_optimize", [True, False])
+@pytest.mark.parametrize("joins_automatic", [False, True], ids=["requests_its_own", "joins_an_automatic_one"])
 async def test_optimize_action_not_immediate_waits_out_the_debounce_window(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -668,23 +669,57 @@ async def test_optimize_action_not_immediate_waits_out_the_debounce_window(
     solves: BlockingSolves,
     *,
     auto_optimize: bool,
+    joins_automatic: bool,
 ) -> None:
-    """The optimize action, when not immediate, returns once the optimization after the debounce window ends."""
+    """The optimize action, when not immediate, returns once the optimization after the debounce window ends.
+
+    An automatic optimization the action joins becomes the action's own, so
+    turning auto-optimize off does not cancel it either.
+    """
     switch: Any = live_runtime_data.auto_optimize_switch
     solves.release.set()
     coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
     await coordinator.async_refresh()
+    if joins_automatic:
+        coordinator.signal_optimization_stale()
     action = hass.async_create_task(coordinator.async_run_optimization(immediate=False))
     await asyncio.sleep(0.1)
     assert not action.done()
 
-    # Turning auto-optimize off cancels automatic optimizations, not the one the action waits for
     switch.is_on = auto_optimize
     coordinator._handle_auto_optimize_switch_change(_switch_event(STATE_ON if auto_optimize else STATE_OFF))
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=DEFAULT_DEBOUNCE_SECONDS + 1))
     await action
 
     assert solves.calls == 2
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_immediate_optimize_action_runs_once_the_running_optimization_ends(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves
+) -> None:
+    """An immediate optimize action cancels an optimization waiting out the debounce window.
+
+    It runs as soon as the optimization already running ends, rather than when
+    the window passes.
+    """
+    solves.release.set()
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    await coordinator.async_refresh()
+    coordinator.signal_optimization_stale()
+    assert coordinator._debounce_timer is not None
+    solves.release.clear()
+    hass.async_create_task(coordinator.async_refresh())
+    await asyncio.sleep(0.1)
+    action = hass.async_create_task(coordinator.async_run_optimization())
+    await asyncio.sleep(0.1)
+    assert coordinator._debounce_timer is None
+
+    solves.release.set()
+    await asyncio.wait_for(action, timeout=1)
+
+    assert solves.calls == 3
     coordinator.cleanup()
 
 
