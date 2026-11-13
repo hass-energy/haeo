@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import Callable, Collection, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 import logging
 import time
@@ -21,6 +21,7 @@ from homeassistant.util.json import JsonValueType
 from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
+    OPTIMIZATION_STATUS_DEGRADED,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
@@ -59,6 +60,8 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import (
+    DegradedInput,
+    degraded_inputs,
     raise_for_rejected_input,
     unavailable_input_placeholders,
     unavailable_input_sources,
@@ -70,8 +73,8 @@ from custom_components.haeo.repairs import (
     dismiss_optimization_failure_issue,
     optimization_infeasible_issue_raised,
     optimization_relaxed_issue_raised,
+    sync_input_issues,
     sync_mixed_price_currencies_issue,
-    sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_save_diagnostics
 from custom_components.haeo.util import network_subentry
@@ -157,6 +160,7 @@ STATE_CLASS_MAP: dict[OutputType, SensorStateClass | None] = {
 STATUS_OPTIONS: tuple[str, ...] = tuple(
     sorted(  # Keep a stable order for enum options in Home Assistant UI
         {
+            OPTIMIZATION_STATUS_DEGRADED,
             OPTIMIZATION_STATUS_FAILED,
             OPTIMIZATION_STATUS_PENDING,
             OPTIMIZATION_STATUS_SUCCESS,
@@ -330,6 +334,9 @@ class CoordinatorData:
 
     completed_at: datetime
     """When the optimization completed."""
+
+    degraded_inputs: dict["InputStoreKey", DegradedInput] = field(default_factory=dict)
+    """Inputs the optimization used a reading held past the hold for, with the sources held."""
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -718,10 +725,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @property
     def optimization_status(self) -> str:
-        """Return whether the latest optimization succeeded, failed, or has not run yet."""
+        """Return whether the latest optimization succeeded, succeeded degraded, failed, or has not run yet.
+
+        A degraded optimization succeeded on at least one reading held past the hold.
+        """
         if not self.last_update_success:
             return OPTIMIZATION_STATUS_FAILED
-        return OPTIMIZATION_STATUS_SUCCESS if self.data else OPTIMIZATION_STATUS_PENDING
+        if not self.data:
+            return OPTIMIZATION_STATUS_PENDING
+        return OPTIMIZATION_STATUS_DEGRADED if self.data.degraded_inputs else OPTIMIZATION_STATUS_SUCCESS
 
     @property
     def optimization_error(self) -> str | None:
@@ -788,7 +800,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             input_stores=self._runtime_data.input_stores,
             horizon_manager=horizon_manager,
         )
-        self._check_inputs(context)
+        degraded = self._check_inputs(context)
         loaded_configs = self._load_from_input_stores()
 
         _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
@@ -822,21 +834,24 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             ),
             started_at=started_at,
             completed_at=dt_util.utc_from_timestamp(end_time).astimezone(),
+            degraded_inputs=degraded,
         )
 
-    def _check_inputs(self, context: OptimizationContext) -> None:
-        """Raise when an input cannot be read, and keep the input repair issues current.
+    def _check_inputs(self, context: OptimizationContext) -> dict["InputStoreKey", DegradedInput]:
+        """Raise when an input cannot be read, keep the input repair issues current, and return the degraded inputs.
 
         When any input is unavailable the optimization is skipped, matching the
         behaviour during initial setup where the integration stays in the "not
         ready" state until every store can supply data. Inputs that have no reading
         get a repair issue naming their sensors; rejected values are reported
-        through their own error.
+        through their own error. Inputs planned on a reading held past the hold
+        get a warning issue naming the sensors and since when.
         """
         input_stores = self._runtime_data.input_stores
         entry_id = self.config_entry.entry_id
         unavailable = unavailable_input_sources(input_stores, lambda store: not store.available)
-        sync_unavailable_input_issues(self.hass, entry_id, unavailable)
+        degraded = degraded_inputs(input_stores)
+        sync_input_issues(self.hass, entry_id, unavailable=unavailable, degraded=degraded)
         raise_for_rejected_input(input_stores, UpdateFailed)
         if unavailable:
             key, entities = next(iter(unavailable.items()))
@@ -846,6 +861,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 translation_placeholders=unavailable_input_placeholders(key, entities),
             )
         sync_mixed_price_currencies_issue(self.hass, entry_id, price_currency_sources(context.source_states))
+        return degraded
 
     async def _solve(
         self,

@@ -53,8 +53,8 @@ from custom_components.haeo.repairs import (
     dismiss_setup_failed_issue,
     element_names_summary,
     setup_failed_issue_error,
+    sync_input_issues,
     sync_missing_element_references_issue,
-    sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
@@ -299,7 +299,7 @@ async def _async_first_refresh(
         # The last input can settle while the timed-out wait is being cancelled,
         # leaving none to report; setup then carries on as if the wait finished
         not_ready = unavailable_input_sources(runtime_data.input_stores, lambda store: not store.is_ready())
-        sync_unavailable_input_issues(hass, entry.entry_id, not_ready)
+        sync_input_issues(hass, entry.entry_id, unavailable=not_ready, degraded={})
         if not_ready:
             key, entities = next(iter(not_ready.items()))
             raise ConfigEntryNotReady(
@@ -435,7 +435,7 @@ async def _async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> Non
     runtime_data.input_stores = build_input_stores(hass, entry, horizon_manager)
 
     # A source that stays without a reading does not reload its stores, so the
-    # readings they hold for it are expired on a timer instead.
+    # readings they hold for it are marked degraded on a timer once the hold passes.
     hold_expiry = InputHoldExpiry(hass, runtime_data.input_stores)
     hold_expiry.start()
     entry.async_on_unload(hold_expiry.cleanup)

@@ -191,11 +191,12 @@ A sensor that one of your inputs reads has stopped reporting, and shows as `unav
 
 ### Symptoms
 
-- For a short gap, HAEO keeps planning with the sensor's last reading
+- HAEO keeps planning with the sensor's last reading, and the input keeps showing that reading
 - The input's entity then shows `held_source_entity`, naming the sensor, and `held_since`, the time it stopped reporting
-- If the gap lasts longer than the hub's **Sensor gap tolerance**, the input shows as unavailable, the optimization status is **Failed**, and the other output sensors are unavailable
-- A calendar HAEO cannot read upcoming events from, or an energy meter read over a window, is not given that tolerance: its input shows as unavailable at once
-- A repair issue titled "… has no reading for …" names the element, the input, and the sensors with no reading
+- If the gap lasts longer than the hub's **Sensor gap tolerance**, the optimization status is **Degraded** and a repair issue titled "… is planning on an old reading for …" names the element, the input, the sensors, and when they stopped reporting
+- After a restart, a sensor that has not reported yet is planned on with its last reading in the recorder, timed from when the sensor last reported it, so a restart that took longer than the tolerance is degraded at once
+- If a sensor has no last reading to plan with, because it is new, excluded from the recorder, or its history was purged, the input shows as unavailable, the optimization status is **Failed**, the other output sensors are unavailable, and a repair issue titled "… has no reading for …" names the sensors
+- A calendar HAEO cannot read upcoming events from, or an energy meter read over a window, has no last reading HAEO plans with: its input shows as unavailable at once
 
 ### Solutions
 
@@ -203,17 +204,26 @@ A sensor that one of your inputs reads has stopped reporting, and shows as `unav
 
 Look up each sensor the repair issue names in **Developer tools → States**.
 If it was removed or renamed, reconfigure the element to read one that exists.
-HAEO starts planning again as soon as the sensor reports, and the repair issue clears.
+As soon as the sensor reports, HAEO plans with its new reading, the status returns to **Succeeded**, and the repair issue clears.
 
 #### Allow for short dropouts
 
-If a sensor often drops out for a few seconds or minutes, raise **Sensor gap tolerance** in the hub's [advanced settings](configuration.md#editing-hub-settings), so HAEO keeps planning through those gaps.
-A longer tolerance means HAEO may plan with an older value, so keep it no longer than you are happy to plan on a reading that old.
-Set it to 0 to stop planning as soon as any sensor has no reading.
+If a sensor often drops out for a few seconds or minutes, raise **Sensor gap tolerance** in the hub's [advanced settings](configuration.md#editing-hub-settings), so those gaps do not mark the plan degraded or raise a repair issue.
+HAEO plans with the last reading either way; the tolerance only decides how long it does so before telling you.
+Set it to 0 to report every gap at once.
 
-#### Act on held values in automations
+#### Act on degraded plans in automations
 
-An automation that follows HAEO's plan can check whether an input is holding a reading, and be more careful while it is:
+An automation that follows HAEO's plan can check that the optimization status is not degraded before acting on it:
+
+```yaml
+condition:
+  - condition: state
+    entity_id: sensor.optimizer_status
+    state: success
+```
+
+It can also check whether a particular input is holding a reading, even within the tolerance, and be more careful while it is:
 
 ```yaml
 condition:
@@ -258,7 +268,7 @@ Element sensors display `unknown` values.
 ### Solutions
 
 1. **Wait for optimization**: First run takes time
-2. **Check optimization status**: Must be **Succeeded**; when it is **Failed**, its `error` attribute explains why
+2. **Check optimization status**: Must be **Succeeded** or **Degraded**; when it is **Failed**, its `error` attribute explains why
 3. **Verify configuration**: All required fields filled
 4. **Review logs**: Check for error messages
 

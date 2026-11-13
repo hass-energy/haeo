@@ -11,11 +11,12 @@ from homeassistant.components.repairs import ConfirmRepairFlow, RepairsFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue, async_delete_issue
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from .input_stores import InputStoreKey
+    from .input_stores import DegradedInput, InputStoreKey
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -424,43 +425,48 @@ def sync_mixed_price_currencies_issue(hass: HomeAssistant, entry_id: str, source
     )
 
 
-def _unavailable_input_issue_prefix(entry_id: str) -> str:
-    return f"unavailable_input_{entry_id}_"
-
-
-def sync_unavailable_input_issues(
+def sync_input_issues(
     hass: HomeAssistant,
     entry_id: str,
+    *,
     unavailable: Mapping["InputStoreKey", Sequence[str]],
+    degraded: Mapping["InputStoreKey", "DegradedInput"],
 ) -> None:
-    """Raise a repair issue for each unavailable input and dismiss those that recovered.
+    """Raise a repair issue for each unavailable or degraded input and dismiss those that recovered.
 
-    Keys are (element name, field path) and values are the source entities
-    with no reading. An input whose sources all have readings but still
-    cannot load names every source it reads.
+    ``unavailable`` maps (element name, field path) to the source entities with
+    no reading. An input whose sources all have readings but still cannot load
+    names every source it reads. ``degraded`` maps the inputs HAEO still plans
+    with to the sources whose last reading they hold past the hold.
     """
-    prefix = _unavailable_input_issue_prefix(entry_id)
-    wanted = {
-        f"{prefix}{element_name}_{'.'.join(field_path)}": (element_name, field_path, entities)
-        for (element_name, field_path), entities in unavailable.items()
-    }
+    wanted: dict[str, tuple[str, IssueSeverity, dict[str, str]]] = {}
+    for (element_name, field_path), entities in unavailable.items():
+        placeholders = {"element": element_name, "field": ".".join(field_path), "entities": ", ".join(entities)}
+        issue_id = f"unavailable_input_{entry_id}_{element_name}_{placeholders['field']}"
+        wanted[issue_id] = ("unavailable_input", IssueSeverity.ERROR, placeholders)
+    for (element_name, field_path), held in degraded.items():
+        placeholders = {
+            "element": element_name,
+            "field": ".".join(field_path),
+            "entities": ", ".join(held.entities),
+            "since": dt_util.as_local(held.since).strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        issue_id = f"degraded_input_{entry_id}_{element_name}_{placeholders['field']}"
+        wanted[issue_id] = ("degraded_input", IssueSeverity.WARNING, placeholders)
 
+    prefixes = (f"unavailable_input_{entry_id}_", f"degraded_input_{entry_id}_")
     for domain, issue_id in list(ir.async_get(hass).issues):
-        if domain == DOMAIN and issue_id.startswith(prefix) and issue_id not in wanted:
+        if domain == DOMAIN and issue_id.startswith(prefixes) and issue_id not in wanted:
             async_delete_issue(hass, DOMAIN, issue_id)
 
-    for issue_id, (element_name, field_path, entities) in wanted.items():
+    for issue_id, (translation_key, severity, placeholders) in wanted.items():
         async_create_issue(
             hass,
             DOMAIN,
             issue_id,
             is_fixable=False,
             is_persistent=False,
-            severity=IssueSeverity.ERROR,
-            translation_key="unavailable_input",
-            translation_placeholders={
-                "element": element_name,
-                "field": ".".join(field_path),
-                "entities": ", ".join(entities),
-            },
+            severity=severity,
+            translation_key=translation_key,
+            translation_placeholders=placeholders,
         )

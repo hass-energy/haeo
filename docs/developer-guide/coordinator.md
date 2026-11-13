@@ -132,7 +132,8 @@ The optimization status sensor is added at setup and stays available.
 It reads `coordinator.optimization_status`:
 
 - `failed` when the latest optimization failed
-- `success` when it succeeded
+- `degraded` when it succeeded but used a reading held past the [hold](inputs.md#holding-a-reading-through-a-gap), recorded in `CoordinatorData.degraded_inputs`
+- `success` when it succeeded on live readings
 - `pending` before any optimization has produced data
 
 Its `error` attribute shows `coordinator.optimization_error`.
@@ -146,9 +147,10 @@ A failure that raises a repair issue of its own fails the update with `ReportedU
 Setup waits for every input store to settle.
 If one rejects its source's value, or the stores do not settle in time, setup raises `ConfigEntryNotReady` naming the input.
 
-Before each solve, `_check_inputs()` raises a repair issue per input without a reading, naming its sources, and dismisses issues for inputs that have recovered.
-An input holding a source's last reading through a short gap is available, so it neither raises an issue nor stops the solve until its [hold](inputs.md#holding-a-reading-through-a-gap) passes.
-It then fails the update with the `input_unavailable` translation, or with the error of a store that rejected its source's value.
+Before each solve, `_check_inputs()` keeps the input repair issues current through `sync_input_issues()`: an `unavailable_input` error per input without a reading, naming its sources, and a `degraded_input` warning per input holding a reading past its [hold](inputs.md#holding-a-reading-through-a-gap), naming the held sources and when they lost their reading.
+It dismisses the issues of inputs that have recovered.
+An input holding a reading is available, so it never stops the solve; the solve goes ahead and its status reads `degraded` once the hold has passed.
+An unavailable input fails the update with the `input_unavailable` translation, and a store that rejected its source's value fails it with that error.
 It also keeps the mixed price currencies issue current.
 
 ### Solver

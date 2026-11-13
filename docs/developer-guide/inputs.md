@@ -74,20 +74,30 @@ A source update that resolves to the same value, timestamps, and availability as
 ### Holding a reading through a gap
 
 A store keeps the last state with a reading from each of its sources.
-When a source has no reading, the store resolves from that last reading instead, alongside the live readings of its other sources and over the current horizon, so the input stays available and the coordinator keeps optimizing.
+When a source has no reading, the store resolves from that last reading instead, alongside the live readings of its other sources and over the current horizon, so the input stays available and the coordinator keeps optimizing for as long as the source is out.
+A reading becomes holdable only once a load resolves with it, so a reading the store rejected is never held.
 Only a source's own state is held.
 A state the calendar input loader annotates with data fetched for the current horizon, a calendar's events or a meter's totals, describes only that horizon, so a calendar whose events no longer cover the horizon, or a meter without a reading, makes its input unavailable at once.
 
-The hold lasts for the hub's `input_hold_seconds` from that moment, 60 seconds unless set otherwise, and 0 turns it off.
+The hold is silent for the hub's `input_hold_seconds` from that moment, 60 seconds unless set otherwise.
 It is timed on the monotonic clock, so setting the wall clock does not lengthen or end it.
-Once it passes, the store is unavailable exactly as it is without a hold, and the coordinator's `unavailable_input` repair issue names every source with no reading, including any still within its hold.
-A source that has never had a reading is never held, so setup still waits for every input.
+Once it passes, the store keeps resolving from the held reading and lists the source in `degraded_sources`, with `degraded_since` the wall-clock time the first of them lost its reading.
+With `input_hold_seconds` at 0 a source is degraded as soon as it has no reading.
+The coordinator reports a solve that used a degraded store as [degraded](coordinator.md#optimization-status) and raises a `degraded_input` repair issue for it.
+Last readings are kept only in memory, so after a restart a source that comes up without a reading has none to hold.
+`SourceInputLoader` looks such a source up in the recorder once, through `async_last_recorded_reading()` in [`inputs/recorded_reading.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/recorded_reading.py), which takes the latest of its last recorded states that has a reading.
+It passes that state to `seed_reading()` on each store in `sources_without_last_reading` and reloads them.
+A seeded reading is held as if the source lost it at the state's `last_reported` time, so the hold, `held_since`, and the degraded issue's time all count from then, and a restart that took longer than the hold is degraded at once.
+`last_reported` is the last time the source reported that reading, even unchanged, so a steady sensor's reading is not mistaken for an old one, as its `last_updated` would be.
+Calendar-driven stores, which hold calendars' events and meters' totals, are loaded by the calendar loader and never seeded.
+A source with no reading in memory or in the recorder is never held, so setup still waits for every input, and a store that cannot resolve without one is unavailable and raises the `unavailable_input` issue.
 A source that reads again is live at once, and a later gap starts a new hold.
 
 A hold starting or ending leaves the value as it is, so it does not notify the store's `add_listener` listeners, and the coordinator does not re-optimize for it.
+A source becoming degraded, or a degraded source reading again, does notify them, even when the value is unchanged, so the coordinator re-optimizes and reports the new status.
 It notifies `add_hold_listener` listeners instead: the input entities, which update the attributes naming the held source, and `InputHoldExpiry`.
 A source that stays without a reading does not change, so nothing would reload its store when the hold passes.
-`InputHoldExpiry` in [`inputs/hold_expiry.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/hold_expiry.py) waits for the earliest `hold_expires_at`, and then calls `expire_holds()` on each store and notifies those that became unavailable.
+`InputHoldExpiry` in [`inputs/hold_expiry.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/hold_expiry.py) waits for the earliest `hold_expires_at`, and then calls `expire_holds()` on each store and notifies those with newly degraded sources.
 
 Diagnostics capture a held source as its last reading with a `haeo_held_since` attribute, the time it lost that reading, so a replay resolves the same value and the held reading is told apart from a live one.
 
@@ -96,7 +106,8 @@ The Home Assistant side of reading inputs lives in [`inputs/`](https://github.co
 - `ha_state_machine.py` adapts Home Assistant's state machine to the `StateMachine` protocol the core loaders read through.
 - `source_loader.py` loads every other store, from its source sensors or its constant.
     Sensors that change together in one pass share one reload.
-- `hold_expiry.py` makes a store unavailable once a reading it holds through a gap is too old.
+- `hold_expiry.py` marks a store degraded once a reading it holds through a gap outlasts the hold.
+- `recorded_reading.py` looks up a source's last recorded reading, for a source with no reading at startup.
 - `calendar_loader.py` loads stores that read calendars, since a calendar's state carries only its current event.
     It fetches events from the horizon's start to a day past its end in the background, and hands them to the core loader as a state attribute, so horizon rolls resolve from events already fetched.
 - `meter_history.py` keeps the running totals of meter fields through resets, from recorder statistics and later state changes.
