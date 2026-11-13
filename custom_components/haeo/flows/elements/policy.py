@@ -155,7 +155,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         section = next(iter(list_fields.values()))
         return localize_input_field(section[CONF_PRICE], currency_symbol(self.hass.config.currency))
 
-    def _build_price_selector(self, shown_data: Mapping[str, object] | None = None) -> NormalizingChooseSelector:
+    def _build_price_selector(self, shown_data: Mapping[str, object] | None) -> NormalizingChooseSelector:
         """Build a ChooseSelector for the price field (entity/constant), first on the choice holding the shown price."""
         field_info = self._get_price_field_info()
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
@@ -220,7 +220,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         *,
         source_preferred_choice: str = CHOICE_NONE,
         target_preferred_choice: str = CHOICE_NONE,
-        shown_data: Mapping[str, object] | None = None,
+        shown_data: Mapping[str, object] | None,
     ) -> vol.Schema:
         """Build the schema for adding or editing a policy rule showing the given values."""
         source_selector = self._build_endpoint_selector(

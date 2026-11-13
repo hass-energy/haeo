@@ -214,15 +214,15 @@ def build_surfaced_defaults(
     form shows "none" (the rule was unlinked or never created).
     """
     defaults: dict[str, object] = {}
+    prices = get_surfaced_prices(hub_entry, element_name, surfaced_hints) if element_name is not None else None
     for field_name, hint in surfaced_hints.items():
         field_info = surfaced_fields.get(field_name)
         if field_info is None:
             continue
 
-        if element_name is not None:
-            source, target = resolve_surfaced_endpoints(hint, element_name)
-            price = get_surfaced_rule_price(hub_entry, source=source, target=target)
-            if price is not None:
+        if prices is not None:
+            price = prices[field_name]
+            if is_entity_value(price) or is_constant_value(price):
                 form_value = price_to_form_value(price)
                 if hint.negate:
                     form_value = _negate_form_value(form_value)

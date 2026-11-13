@@ -157,7 +157,7 @@ async def test_build_price_selector_includes_compatible_price_entities(
     hass.states.async_set("sensor.power_only", "5", {"unit_of_measurement": "kW"})
 
     flow = _create_flow(hass, hub_entry)
-    include_entities = _get_entity_include_entities(flow._build_price_selector())
+    include_entities = _get_entity_include_entities(flow._build_price_selector(None))
 
     assert include_entities is not None
     assert "sensor.import_price" in include_entities
