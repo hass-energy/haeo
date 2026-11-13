@@ -393,12 +393,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # debounce window holds when the wall clock is set back
         self._last_optimization_time: float | None = None
         self._debounce_timer: CALLBACK_TYPE | None = None
+        # The optimization requested in this event loop pass, which starts on the next iteration
+        self._pending_optimization: asyncio.Task[None] | None = None
         # Held while an optimization runs, so optimizations never overlap
         self._optimization_lock = asyncio.Lock()
         # Whether an optimization was requested that no optimization has started reading inputs for since
         self._rerun_wanted: bool = False
-        # The horizon start the latest optimization planned from
-        self._planned_horizon_start: float | None = None
         # When optimizations started failing, and whether that failure raises an issue of its own
         self._failing_since: float | None = None
         self._failure_reported = False
@@ -512,14 +512,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @callback
     def _handle_horizon_change(self) -> None:
-        """Request an optimization for the new horizon, unless one already plans from its start.
+        """Request an optimization for the new horizon.
 
         Input stores subscribe to the horizon first, so their reload for the new
-        horizon usually starts that optimization before this runs. The request here
-        covers a roll that no input reloads for.
+        horizon usually requests that optimization before this runs, and this
+        request shares it. It also covers a roll that no input reloads for.
         """
-        if self._planned_horizon_start != self._runtime_data.horizon_manager.get_forecast_timestamps()[0]:
-            self.signal_optimization_stale()
+        self.signal_optimization_stale()
 
     @callback
     def _handle_auto_optimize_switch_change(self, event: Event[EventStateChangedData]) -> None:
@@ -543,7 +542,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         if is_enabled:
             self._runtime_data.horizon_manager.resume()
         else:
-            self._cancel_debounce_timer()
+            self._cancel_scheduled_optimization()
             self._runtime_data.horizon_manager.pause()
 
     @property
@@ -592,7 +591,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             if not self._are_inputs_aligned():
                 return False
             self._rerun_wanted = False
-            self._planned_horizon_start = self._runtime_data.horizon_manager.get_forecast_timestamps()[0]
             await super().async_refresh()
         # Inputs that changed while it ran request another through the debounce window
         if self._rerun_wanted:
@@ -607,10 +605,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @callback
     def _request_optimization(self) -> None:
-        """Optimize now, or once the running optimization and the debounce window have passed."""
+        """Optimize on the next loop iteration, or once the running optimization and debounce window have passed."""
         self._rerun_wanted = True
-        # The running optimization requests the follow-up when it ends
-        if self._optimization_lock.locked() or self._debounce_timer is not None:
+        # The running optimization requests the follow-up when it ends, and a scheduled one meets this request
+        if (
+            self._optimization_lock.locked()
+            or self._debounce_timer is not None
+            or self._pending_optimization is not None
+        ):
             return
         if self._last_optimization_time is not None:
             elapsed = time.monotonic() - self._last_optimization_time
@@ -619,20 +621,38 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     self.hass, self._debounce_seconds - elapsed, self._debounce_timer_callback
                 )
                 return
-        self.hass.async_create_task(self._optimize())
+        self._schedule_optimization()
 
     @callback
     def _debounce_timer_callback(self, _now: datetime) -> None:
-        """Optimize once the debounce window has passed, unless an optimization has met the request since."""
+        """Optimize once the debounce window has passed."""
         self._debounce_timer = None
-        if self._rerun_wanted:
-            self.hass.async_create_task(self._optimize())
+        self._schedule_optimization()
 
-    def _cancel_debounce_timer(self) -> None:
-        """Cancel the optimization waiting out the debounce window, if one is."""
+    @callback
+    def _schedule_optimization(self) -> None:
+        """Start an optimization on the next event loop iteration, unless one is already scheduled.
+
+        Not starting it eagerly lets every input notified in this pass mark its
+        element stale before the optimization reads them.
+        """
+        if self._pending_optimization is None:
+            self._pending_optimization = self.hass.async_create_task(self._optimize_scheduled(), eager_start=False)
+
+    async def _optimize_scheduled(self) -> None:
+        """Run the scheduled optimization, unless an optimization has read the inputs since it was requested."""
+        self._pending_optimization = None
+        if self._rerun_wanted:
+            await self._optimize()
+
+    def _cancel_scheduled_optimization(self) -> None:
+        """Cancel the optimization waiting out the debounce window or for the next event loop iteration."""
         if self._debounce_timer is not None:
             self._debounce_timer()
             self._debounce_timer = None
+        if self._pending_optimization is not None:
+            self._pending_optimization.cancel()
+            self._pending_optimization = None
 
     def _are_inputs_aligned(self) -> bool:
         """Return whether every forecast input is loaded for the horizon's current start.
@@ -666,7 +686,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         for unsub in self._state_change_unsubs:
             unsub()
         self._state_change_unsubs.clear()
-        self._cancel_debounce_timer()
+        self._cancel_scheduled_optimization()
         self._stale_elements.clear()
 
     async def _save_failure_diagnostics(
