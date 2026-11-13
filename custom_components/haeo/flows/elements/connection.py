@@ -51,7 +51,10 @@ class ConnectionSubentryFlowHandler(SectionedElementSubentryFlow):
         )
 
     def _section_entries(
-        self, subentry_data: Mapping[str, object] | None, entity_metadata: list[EntityMetadata]
+        self,
+        subentry_data: Mapping[str, object] | None,
+        entity_metadata: list[EntityMetadata],
+        shown_data: Mapping[str, object] | None,
     ) -> dict[str, FieldEntries]:
         """Add the source and target selectors to the endpoints section."""
         participants = self._get_participant_names()
@@ -60,7 +63,10 @@ class ConnectionSubentryFlowHandler(SectionedElementSubentryFlow):
             CONF_SOURCE: (vol.Required(CONF_SOURCE), build_participant_selector(participants, source)),
             CONF_TARGET: (vol.Required(CONF_TARGET), build_participant_selector(participants, target)),
         }
-        return {**super()._section_entries(subentry_data, entity_metadata), SECTION_ENDPOINTS: endpoint_fields}
+        return {
+            **super()._section_entries(subentry_data, entity_metadata, shown_data),
+            SECTION_ENDPOINTS: endpoint_fields,
+        }
 
     def _section_defaults(self, subentry_data: Mapping[str, object] | None) -> dict[str, dict[str, object]]:
         """Add the source and target defaults."""

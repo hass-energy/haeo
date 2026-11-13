@@ -54,6 +54,7 @@ from custom_components.haeo.flows.field_schema import (
     CHOICE_NONE,
     NormalizingChooseSelector,
     build_choose_selector,
+    get_preferred_choice,
 )
 from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE, find_policy_subentry
 
@@ -154,17 +155,18 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         section = next(iter(list_fields.values()))
         return localize_input_field(section[CONF_PRICE], currency_symbol(self.hass.config.currency))
 
-    def _build_price_selector(self) -> NormalizingChooseSelector:
-        """Build a ChooseSelector for the price field (entity/constant)."""
+    def _build_price_selector(self, shown_data: Mapping[str, object] | None) -> NormalizingChooseSelector:
+        """Build a ChooseSelector for the price field (entity/constant), first on the choice holding the shown price."""
         field_info = self._get_price_field_info()
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         inclusion_map = build_inclusion_map({CONF_PRICE: field_info}, entity_metadata)
+        allowed_choices = {CHOICE_ENTITY, CHOICE_CONSTANT}
         return build_choose_selector(
             field_info,
-            allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT},
+            allowed_choices=allowed_choices,
             include_entities=inclusion_map.get(CONF_PRICE),
             multiple=True,
-            preferred_choice=CHOICE_CONSTANT,
+            preferred_choice=get_preferred_choice(field_info, shown_data, allowed_choices=allowed_choices),
         )
 
     def _build_endpoint_selector(
@@ -218,8 +220,9 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         *,
         source_preferred_choice: str = CHOICE_NONE,
         target_preferred_choice: str = CHOICE_NONE,
+        shown_data: Mapping[str, object] | None,
     ) -> vol.Schema:
-        """Build the schema for adding or editing a policy rule."""
+        """Build the schema for adding or editing a policy rule showing the given values."""
         source_selector = self._build_endpoint_selector(
             source_options,
             preferred_choice=source_preferred_choice,
@@ -228,7 +231,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
             target_options,
             preferred_choice=target_preferred_choice,
         )
-        price_selector = self._build_price_selector()
+        price_selector = self._build_price_selector(shown_data)
 
         return vol.Schema(
             {
@@ -422,6 +425,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
             target_options,
             source_preferred_choice=source_preferred_choice,
             target_preferred_choice=target_preferred_choice,
+            shown_data=user_input,
         )
         if user_input is not None:
             schema = self.add_suggested_values_to_schema(schema, user_input)
@@ -505,6 +509,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
             target_options,
             source_preferred_choice=source_preferred_choice,
             target_preferred_choice=target_preferred_choice,
+            shown_data=defaults,
         )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 

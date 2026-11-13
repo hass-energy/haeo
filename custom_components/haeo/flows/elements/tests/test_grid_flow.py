@@ -4,6 +4,9 @@ from collections.abc import Mapping
 import json
 from pathlib import Path
 from types import MappingProxyType
+from typing import (
+    Any,  # noqa: TID251  # element flows are created from the registry, which a static flow type cannot express
+)
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER, ConfigSubentry, SubentryFlowResult
@@ -409,3 +412,94 @@ async def test_reconfigure_defaults_handle_schema_values(
 
 
 # --- Tests for _is_valid_choose_value ---
+
+
+# --- Tests for the first choice following the value the form shows ---
+
+# Each choice of an optional field, as stored and as submitted
+_LIMIT_VALUES: dict[str, tuple[object, object]] = {
+    CHOICE_ENTITY: (as_entity_value(["sensor.import_limit"]), ["sensor.import_limit"]),
+    CHOICE_CONSTANT: (as_constant_value(7.5), 7.5),
+    CHOICE_NONE: (as_none_value(), None),
+}
+
+
+def _add_grid_with_import_limit(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, import_limit: object
+) -> ConfigSubentry:
+    """Add a grid whose import limit is stored as the given schema value."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            _wrap_config(
+                {
+                    CONF_NAME: "Test Grid",
+                    CONF_CONNECTION: "TestNode",
+                    CONF_IMPORT_PRICE: as_constant_value(0.3),
+                    CONF_EXPORT_PRICE: as_constant_value(0.05),
+                    CONF_IMPORT_LIMIT: import_limit,
+                    CONF_EXPORT_LIMIT: as_none_value(),
+                }
+            )
+        ),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    return subentry
+
+
+def _reconfigure_flow(hass: HomeAssistant, hub_entry: MockConfigEntry, subentry: ConfigSubentry) -> Any:
+    """Create a flow reconfiguring the given grid."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    return flow
+
+
+@pytest.mark.parametrize("choice", list(_LIMIT_VALUES))
+async def test_reconfigure_form_opens_on_the_stored_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    choice: str,
+) -> None:
+    """Reopening a grid shows each stored value in the choice that holds it."""
+    stored, _ = _LIMIT_VALUES[choice]
+    subentry = _add_grid_with_import_limit(hass, hub_entry, stored)
+
+    form = await _reconfigure_flow(hass, hub_entry, subentry).async_step_reconfigure(user_input=None)
+
+    selector = _section_selectors(form, SECTION_LIMITS)[CONF_IMPORT_LIMIT]
+    assert next(iter(selector.config["choices"])) == choice
+
+
+@pytest.mark.parametrize(
+    ("stored_choice", "submitted_choice"),
+    [(stored, submitted) for stored in _LIMIT_VALUES for submitted in _LIMIT_VALUES if stored != submitted],
+)
+async def test_reshown_form_keeps_the_submitted_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    stored_choice: str,
+    submitted_choice: str,
+) -> None:
+    """A form re-shown with an error shows each submitted value in the choice that holds it."""
+    stored, _ = _LIMIT_VALUES[stored_choice]
+    _, submitted = _LIMIT_VALUES[submitted_choice]
+    subentry = _add_grid_with_import_limit(hass, hub_entry, stored)
+
+    form = await _reconfigure_flow(hass, hub_entry, subentry).async_step_reconfigure(
+        user_input=_wrap_input(
+            {
+                CONF_NAME: "TestNode",
+                CONF_CONNECTION: "TestNode",
+                CONF_IMPORT_PRICE: 0.3,
+                CONF_EXPORT_PRICE: 0.05,
+                CONF_IMPORT_LIMIT: submitted,
+            }
+        )
+    )
+
+    assert form.get("errors") == {CONF_NAME: "name_exists"}
+    selector = _section_selectors(form, SECTION_LIMITS)[CONF_IMPORT_LIMIT]
+    assert next(iter(selector.config["choices"])) == submitted_choice
