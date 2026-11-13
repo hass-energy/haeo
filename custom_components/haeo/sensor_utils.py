@@ -1,6 +1,7 @@
 """Utility functions for extracting and processing sensor data."""
 
 from datetime import datetime
+from decimal import ROUND_HALF_UP, Decimal
 import math
 from typing import TYPE_CHECKING, TypedDict
 
@@ -19,6 +20,10 @@ from .util import network_subentry
 # Using 3 sig figs ensures cross-platform LP solver degeneracy (different optimal
 # vertices with the same cost) rounds to the same value on all architectures.
 _TARGET_SIG_FIGS = 3
+
+# Significant figures a value is first snapped to: far finer than the target,
+# but coarse enough to absorb the floating-point noise in a solver's result.
+_NOISE_SIG_FIGS = 9
 
 
 class ForecastItem(TypedDict):
@@ -44,23 +49,30 @@ class SensorStateDict(TypedDict):
     attributes: SensorAttributes
 
 
+def _round_decimal(value: float, decimal_places: int) -> float:
+    """Round a value half away from zero to decimal_places, the same on every platform.
+
+    Solver results differ across platforms by noise around 1e-13 relative.
+    That decides how a value lying exactly on a rounding midpoint, such as an
+    18.25 kWh trip delivered in full, rounds when the binary float is rounded
+    directly. Reading the value at _NOISE_SIG_FIGS first removes the noise,
+    and rounding that decimal half away from zero settles the midpoint.
+
+    A negative ``decimal_places`` rounds to tens, hundreds, etc.
+    """
+    snapped = Decimal(f"{value:.{_NOISE_SIG_FIGS}g}")
+    rounded = snapped.quantize(Decimal(1).scaleb(-decimal_places), rounding=ROUND_HALF_UP)
+    return float(rounded) + 0.0  # +0.0 normalizes -0.0
+
+
 def _round_sig(value: float) -> float:
     """Round a value to _TARGET_SIG_FIGS significant figures.
-
-    At 3 sig figs the rounding step is ~0.1% of the value, which is many
-    orders of magnitude larger than cross-platform LP solver noise (~1e-13
-    relative).  This makes the rounding deterministic without needing any
-    midpoint-tie nudging.
-
-    For values >= 1000, ``decimal_places`` goes negative, which makes
-    ``round()`` round to tens, hundreds, etc. — true sig-fig behavior.
 
     Returns 0.0 for zero input.
     """
     if value == 0:
         return 0.0
-    decimal_places = _TARGET_SIG_FIGS - math.floor(math.log10(abs(value))) - 1
-    return round(value, decimal_places) + 0.0  # +0.0 normalizes -0.0
+    return _round_decimal(value, _TARGET_SIG_FIGS - math.floor(math.log10(abs(value))) - 1)
 
 
 def _entity_decimal_places(max_abs: float) -> int:
@@ -83,57 +95,42 @@ def _try_parse_float(value: "ConvertibleToFloat") -> float | None:
 
 
 def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
-    """Apply two-pass rounding to numeric values in output sensors.
+    """Round numeric values in output sensors to a precision set by each entity's scale.
 
-    Pass 1 — per-value significant figures:
-        Each value is independently rounded to _TARGET_SIG_FIGS sig figs.
-        This stabilizes every value (including the entity maximum) so that
-        floating-point representation noise at rounding midpoints produces
-        the same result on all platforms.
-
-    Pass 2 — per-entity decimal-place cap:
-        The entity's (now stable) maximum absolute value determines the
-        decimal places for _TARGET_SIG_FIGS sig figs at that magnitude.
-        All values in the entity are re-rounded to that precision.  This
-        suppresses noise-floor values that survived pass 1 with meaningless
-        low-order digits.
-
-    The combination is cliff-free: pass 1 ensures the maximum used by pass 2
-    is deterministic, and pass 2 ensures small values within a series don't
-    retain more precision than the series scale warrants.
+    The entity's largest absolute value, rounded to _TARGET_SIG_FIGS sig figs
+    so that it is the same on all platforms, determines the decimal places
+    for _TARGET_SIG_FIGS sig figs at that magnitude. Every value in the entity
+    is rounded once to that precision. This suppresses noise-floor values
+    with meaningless low-order digits, and keeps small values within a series
+    from retaining more precision than the series scale warrants.
 
     Modifies output_sensors in place.
     """
     for entity_data in output_sensors.values():
-        # Pass 1: per-value sig figs
         state_val = _try_parse_float(entity_data["state"])
-        state_rounded: float | None = None
-        if state_val is not None:
-            state_rounded = _round_sig(state_val)
 
-        forecast_rounded: list[tuple[ForecastItem, float]] = []
+        forecast_values: list[tuple[ForecastItem, float]] = []
         forecast_attr = entity_data["attributes"].get("forecast")
         forecast_items: list[ForecastItem] = forecast_attr if isinstance(forecast_attr, list) else []
         for item in forecast_items:
             val = _try_parse_float(item.get("value"))
             if val is not None:
-                forecast_rounded.append((item, _round_sig(val)))
+                forecast_values.append((item, val))
 
-        # Pass 2: cap decimal places using the stable max
-        abs_values = [abs(v) for _, v in forecast_rounded]
-        if state_rounded is not None:
-            abs_values.append(abs(state_rounded))
+        abs_values = [abs(_round_sig(v)) for _, v in forecast_values]
+        if state_val is not None:
+            abs_values.append(abs(_round_sig(state_val)))
 
         if not abs_values:
             continue
 
         dp = _entity_decimal_places(max(abs_values))
 
-        if state_rounded is not None:
-            entity_data["state"] = str(round(state_rounded, dp) + 0.0)
+        if state_val is not None:
+            entity_data["state"] = str(_round_decimal(state_val, dp))
 
-        for item, rounded_val in forecast_rounded:
-            item["value"] = round(rounded_val, dp) + 0.0
+        for item, val in forecast_values:
+            item["value"] = _round_decimal(val, dp)
 
 
 def get_duration_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry) -> str | None:
