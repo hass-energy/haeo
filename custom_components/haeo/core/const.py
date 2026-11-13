@@ -9,6 +9,7 @@ CONF_NAME: Final = "name"
 # Hub configuration keys
 CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
 CONF_RELAX_INFEASIBLE: Final = "relax_infeasible"
+CONF_INPUT_HOLD_SECONDS: Final = "input_hold_seconds"
 CONF_HORIZON: Final = "horizon"
 CONF_HORIZON_PRESET: Final = "horizon_preset"
 CONF_ADVANCED_MODE: Final = "advanced_mode"
@@ -40,6 +41,8 @@ DEFAULT_TIER_4_COUNT: Final = 48
 DEFAULT_TIER_4_DURATION: Final = 60
 
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
+# How long an input keeps a source's last reading while the source has none, one planning cadence
+DEFAULT_INPUT_HOLD_SECONDS: Final = 60
 
 # Hub section keys
 HUB_SECTION_COMMON: Final = "common"
