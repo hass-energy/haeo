@@ -397,6 +397,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._pending_optimization: asyncio.Task[None] | None = None
         # Held while an optimization runs, so optimizations never overlap
         self._optimization_lock = asyncio.Lock()
+        # How many optimizations are waiting for the running one to end
+        self._waiting_optimizations = 0
         # Whether an optimization was requested that no optimization has started reading inputs for since
         self._rerun_wanted: bool = False
         # When optimizations started failing, and whether that failure raises an issue of its own
@@ -591,7 +593,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         input as it is when it starts.
         """
         self._rerun_wanted = True
-        async with self._optimization_lock:
+        self._waiting_optimizations += 1
+        try:
+            await self._optimization_lock.acquire()
+        finally:
+            self._waiting_optimizations -= 1
+        try:
             # An optimization that started after this request has already read the inputs
             if not self._rerun_wanted:
                 return True
@@ -599,8 +606,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 return False
             self._rerun_wanted = False
             await super().async_refresh()
-        # Inputs that changed while it ran request another through the debounce window
-        if self._rerun_wanted:
+        finally:
+            self._optimization_lock.release()
+        # Inputs that changed while it ran request another through the debounce window,
+        # unless an optimization waiting for this one reads them first
+        if self._rerun_wanted and not self._waiting_optimizations:
             self.signal_optimization_stale()
         return True
 

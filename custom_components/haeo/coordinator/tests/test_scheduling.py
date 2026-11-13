@@ -1,6 +1,7 @@
 """Tests for when the coordinator optimizes: debouncing, alignment, auto-optimize, and overlapping requests."""
 
 import asyncio
+from collections.abc import Iterator
 from datetime import timedelta
 import threading
 import time
@@ -309,8 +310,12 @@ def test_handle_auto_optimize_switch_change_none_state_returns_early(
 
 
 @pytest.fixture
-def live_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> HaeoRuntimeData:
-    """Create runtime data with a real horizon manager, which notifies its subscribers, and auto-optimize on."""
+def live_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> Iterator[HaeoRuntimeData]:
+    """Create runtime data with a real horizon manager, which notifies its subscribers, and auto-optimize on.
+
+    The horizon rolls only when a test rolls it, never at a real period boundary
+    that passes while the test runs, since a roll optimizes at once.
+    """
     # Avoid circular import with entities and horizon modules
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch  # noqa: PLC0415
     from custom_components.haeo.horizon import HorizonManager  # noqa: PLC0415
@@ -320,7 +325,8 @@ def live_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> H
     switch.entity_id = "switch.haeo_auto_optimize"
     runtime_data = HaeoRuntimeData(horizon_manager=HorizonManager(hass, mock_hub_entry), auto_optimize_switch=switch)
     mock_hub_entry.runtime_data = runtime_data
-    return runtime_data
+    with patch("custom_components.haeo.horizon.async_track_point_in_time"):
+        yield runtime_data
 
 
 class BlockingSolves:
@@ -509,6 +515,26 @@ async def test_optimize_action_replaces_the_scheduled_optimization(
 
     assert coordinator._debounce_timer is None
     assert coordinator._pending_optimization is None
+    coordinator.cleanup()
+
+
+@pytest.mark.parametrize("request_kind", ["optimize_action", "horizon_roll"])
+@pytest.mark.usefixtures("live_runtime_data")
+async def test_an_optimization_waiting_for_a_running_one_is_its_follow_up(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry, solves: BlockingSolves, request_kind: str
+) -> None:
+    """An optimization that waits for the running one is its follow-up, leaving no debounced one to solve again."""
+    coordinator = await _initialized_coordinator(hass, mock_hub_entry, solves)
+    hass.async_create_task(coordinator.async_refresh())
+    await asyncio.sleep(0.1)
+    if request_kind == "optimize_action":
+        hass.async_create_task(coordinator.async_run_optimization())
+    else:
+        coordinator._handle_horizon_change()
+    await _settle(hass, solves)
+
+    assert solves.calls == 2
+    assert coordinator._debounce_timer is None
     coordinator.cleanup()
 
 

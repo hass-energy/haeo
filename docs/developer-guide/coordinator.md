@@ -81,6 +81,7 @@ An `OutputData` marked `diagnostic` becomes a sensor in the diagnostic entity ca
 Every optimization goes through `_optimize()`, which holds a lock while it runs, so optimizations never overlap.
 A request sets a single "rerun wanted" flag before waiting for the lock.
 Each optimization reads every input as it is when it starts and clears the flag, so requests made while one runs share a single follow-up, and a request already met by an optimization that started after it does nothing.
+When an optimization ends with the flag set, it requests the follow-up through the debounce window, unless another optimization is already waiting for the lock and will read the inputs itself.
 An optimization is skipped while any available forecast input is still loading for a new horizon, since its `horizon_start` does not yet match the horizon's.
 Those stores request another optimization once they load.
 
@@ -94,7 +95,7 @@ Automatic requests wait out the debounce window:
 
 ```mermaid
 sequenceDiagram
-    participant E as Store, horizon, or entity update
+    participant E as Store or entity update
     participant C as Coordinator
     participant Timer
 
