@@ -31,6 +31,8 @@ class PowerLimitSegmentSpec(TypedDict):
     segment_type: Literal["power_limit"]
     max_power: NotRequired[NDArray[np.float64] | float | None]
     fixed: NotRequired[bool | None]
+    control_point: NotRequired[bool]
+    """Whether the limit is one the hardware can be set to; False for limits that only model something."""
     # Directional aliases — resolved by Connection, not used by segment directly
     max_power_source_target: NotRequired[NDArray[np.float64] | float | None]
     max_power_target_source: NotRequired[NDArray[np.float64] | float | None]
@@ -63,8 +65,19 @@ class PowerLimitSegment(Segment):
             target_element=target_element,
             upstream=upstream,
         )
-        self._fixed = spec.get("fixed", False)
+        self._fixed = bool(spec.get("fixed"))
+        self._control_point = spec.get("control_point", True)
         self.max_power = broadcast_to_sequence(spec.get("max_power"), self._n_periods)
+
+    @property
+    def fixed(self) -> bool:
+        """Return whether the flow is held at its max power rather than limited by it."""
+        return self._fixed
+
+    @property
+    def control_point(self) -> bool:
+        """Return whether the limit is one the hardware can be set to, so it can be recommended."""
+        return self._control_point
 
     @constraint(output=True, unit="$/kWh")
     def power_limit(self) -> Rows:
