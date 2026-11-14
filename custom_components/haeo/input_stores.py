@@ -26,6 +26,7 @@ from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.elements import InputFieldPath
+from custom_components.haeo.field_labels import input_field_label
 from custom_components.haeo.util import async_update_subentry_value
 
 if TYPE_CHECKING:
@@ -76,7 +77,9 @@ class SubentryStorage:
         )
 
 
-def input_error_placeholders(key: InputStoreKey, error: InputError, store: InputStore) -> dict[str, str]:
+def input_error_placeholders(
+    hass: HomeAssistant, entry_id: str, key: InputStoreKey, error: InputError, store: InputStore
+) -> dict[str, str]:
     """Return translation placeholders for a rejected input.
 
     Adds the element, field, and source entities to the placeholders the
@@ -85,20 +88,22 @@ def input_error_placeholders(key: InputStoreKey, error: InputError, store: Input
     element_name, field_path = key
     return {
         "element": element_name,
-        "field": ".".join(field_path),
+        "field": input_field_label(hass, entry_id, element_name, field_path),
         "entities": ", ".join(store.source_entity_ids),
         **error.translation_placeholders,
     }
 
 
-def raise_for_rejected_input(input_stores: InputStoreMap, error_type: type[HomeAssistantError]) -> None:
+def raise_for_rejected_input(
+    hass: HomeAssistant, entry_id: str, input_stores: InputStoreMap, error_type: type[HomeAssistantError]
+) -> None:
     """Raise ``error_type`` naming the first input that rejected its source's value, if one did."""
     for key, store in input_stores.items():
         if (error := store.error) is not None:
             raise error_type(
                 translation_domain=DOMAIN,
                 translation_key=error.translation_key,
-                translation_placeholders=input_error_placeholders(key, error, store),
+                translation_placeholders=input_error_placeholders(hass, entry_id, key, error, store),
             )
 
 
@@ -127,10 +132,16 @@ def degraded_inputs(input_stores: InputStoreMap) -> dict[InputStoreKey, Degraded
     }
 
 
-def unavailable_input_placeholders(key: InputStoreKey, entities: tuple[str, ...]) -> dict[str, str]:
+def unavailable_input_placeholders(
+    hass: HomeAssistant, entry_id: str, key: InputStoreKey, entities: tuple[str, ...]
+) -> dict[str, str]:
     """Return translation placeholders naming an unavailable input and its sources."""
     element_name, field_path = key
-    return {"element": element_name, "field": ".".join(field_path), "entities": ", ".join(entities)}
+    return {
+        "element": element_name,
+        "field": input_field_label(hass, entry_id, element_name, field_path),
+        "entities": ", ".join(entities),
+    }
 
 
 def build_input_stores(

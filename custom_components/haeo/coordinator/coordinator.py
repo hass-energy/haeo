@@ -934,13 +934,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         unavailable = unavailable_input_sources(input_stores, lambda store: not store.available)
         degraded = degraded_inputs(input_stores)
         sync_input_issues(self.hass, entry_id, unavailable=unavailable, degraded=degraded)
-        raise_for_rejected_input(input_stores, UpdateFailed)
+        raise_for_rejected_input(self.hass, entry_id, input_stores, UpdateFailed)
         if unavailable:
             key, entities = next(iter(unavailable.items()))
             raise ReportedUpdateFailed(
                 translation_domain=DOMAIN,
                 translation_key="input_unavailable",
-                translation_placeholders=unavailable_input_placeholders(key, entities),
+                translation_placeholders=unavailable_input_placeholders(self.hass, entry_id, key, entities),
             )
         sync_mixed_price_currencies_issue(self.hass, entry_id, price_currency_sources(context.source_states))
         return degraded

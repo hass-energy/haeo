@@ -3,14 +3,19 @@
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from types import MappingProxyType
 
 from homeassistant.components.repairs import ConfirmRepairFlow
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.issue_registry import IssueSeverity, async_get
 from homeassistant.util import dt as dt_util
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.input_stores import DegradedInput
 from custom_components.haeo.repairs import (
     async_create_fix_flow,
@@ -243,8 +248,30 @@ async def test_resolving_an_issue_never_deletes_files_outside_the_diagnostics_fo
     assert elsewhere.exists()
 
 
+def _add_hub(hass: HomeAssistant, entry_id: str, elements: dict[str, ElementType]) -> None:
+    """Add a hub entry holding an element subentry of each type, keyed by name."""
+    entry = MockConfigEntry(domain=DOMAIN, entry_id=entry_id)
+    entry.add_to_hass(hass)
+    for name, element_type in elements.items():
+        hass.config_entries.async_add_subentry(
+            entry,
+            ConfigSubentry(
+                data=MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: name}),
+                subentry_type=element_type,
+                title=name,
+                unique_id=None,
+            ),
+        )
+
+
+@pytest.mark.usefixtures("haeo_translations")
 async def test_sync_input_issues_raises_and_dismisses(hass: HomeAssistant) -> None:
-    """Each unavailable or degraded input gets an issue naming its sensors, and recovered inputs lose theirs."""
+    """Each unavailable or degraded input gets an issue naming its field and sensors, and recovered inputs lose theirs.
+
+    The issue ID holds the field's path, so it stays the same whatever the field's label.
+    """
+    _add_hub(hass, "entry123", {"EV Charger": ElementType.DEFERRABLE_LOAD, "Grid": ElementType.GRID})
+    _add_hub(hass, "entry456", {"Grid": ElementType.GRID})
     since = datetime(2025, 1, 1, 12, 0, 5, tzinfo=UTC)
     sync_input_issues(
         hass,
@@ -262,7 +289,7 @@ async def test_sync_input_issues_raises_and_dismisses(hass: HomeAssistant) -> No
     assert meter.severity == IssueSeverity.ERROR
     assert meter.translation_placeholders == {
         "element": "EV Charger",
-        "field": "schedule.energy_meter",
+        "field": "Energy meter",
         "entities": "sensor.ev_energy",
     }
     price = async_get(hass).async_get_issue(DOMAIN, "degraded_input_entry123_Grid_pricing.price_source_target")
@@ -271,7 +298,7 @@ async def test_sync_input_issues_raises_and_dismisses(hass: HomeAssistant) -> No
     assert price.severity == IssueSeverity.WARNING
     assert price.translation_placeholders == {
         "element": "Grid",
-        "field": "pricing.price_source_target",
+        "field": "Import price",
         "entities": "sensor.price_a",
         "since": dt_util.as_local(since).strftime("%Y-%m-%d %H:%M:%S"),
     }

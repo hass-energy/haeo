@@ -112,6 +112,7 @@ async def test_infeasible_plans_raise_the_general_issue_only_without_their_own(
     assert (issues.async_get_issue(DOMAIN, f"optimization_failure_{entry_id}") is not None) == general_issue_raised
 
 
+@pytest.mark.usefixtures("mock_grid_subentry")
 async def test_unavailable_inputs_raise_only_their_own_issue(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -124,7 +125,7 @@ async def test_unavailable_inputs_raise_only_their_own_issue(
     unavailable_store.source_entity_ids = ["sensor.price"]
     unavailable_store.unavailable_sources = ("sensor.price",)
     unavailable_store.captured_source_states = {}
-    mock_runtime_data.input_stores[("Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = unavailable_store
+    mock_runtime_data.input_stores[("Test Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = unavailable_store
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     coordinator._network = network_double()
 
@@ -133,7 +134,7 @@ async def test_unavailable_inputs_raise_only_their_own_issue(
     issues = ir.async_get(hass)
     entry_id = mock_hub_entry.entry_id
     field = f"{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}"
-    assert issues.async_get_issue(DOMAIN, f"unavailable_input_{entry_id}_Grid_{field}") is not None
+    assert issues.async_get_issue(DOMAIN, f"unavailable_input_{entry_id}_Test Grid_{field}") is not None
     assert issues.async_get_issue(DOMAIN, f"optimization_failure_{entry_id}") is None
 
 
@@ -373,6 +374,7 @@ async def test_every_relaxed_plan_is_logged(
     assert "The plan relaxed constraints it cannot meet" in caplog.text
 
 
+@pytest.mark.usefixtures("haeo_translations", "mock_grid_subentry")
 async def test_async_update_data_raises_when_inputs_unavailable(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -385,9 +387,7 @@ async def test_async_update_data_raises_when_inputs_unavailable(
     unavailable_store.source_entity_ids = ["sensor.price_a", "sensor.price_b"]
     unavailable_store.unavailable_sources = ("sensor.price_b",)
     unavailable_store.captured_source_states = {}
-    mock_runtime_data.input_stores[("Unavailable Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = (
-        unavailable_store
-    )
+    mock_runtime_data.input_stores[("Test Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = unavailable_store
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     coordinator._network = network_double()
@@ -396,21 +396,22 @@ async def test_async_update_data_raises_when_inputs_unavailable(
         await coordinator._async_update_data()
 
     placeholders = {
-        "element": "Unavailable Grid",
-        "field": f"{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}",
+        "element": "Test Grid",
+        "field": "Import price",
         "entities": "sensor.price_b",
     }
     assert exc_info.value.translation_key == "input_unavailable"
     assert exc_info.value.translation_placeholders == placeholders
     issue = ir.async_get(hass).async_get_issue(
         DOMAIN,
-        f"unavailable_input_{mock_hub_entry.entry_id}_Unavailable Grid_{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}",
+        f"unavailable_input_{mock_hub_entry.entry_id}_Test Grid_{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}",
     )
     assert issue is not None
     assert issue.translation_key == "unavailable_input"
     assert issue.translation_placeholders == placeholders
 
 
+@pytest.mark.usefixtures("haeo_translations", "mock_grid_subentry")
 async def test_async_update_data_raises_translated_input_error(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -424,7 +425,7 @@ async def test_async_update_data_raises_translated_input_error(
     )
     rejected_store.source_entity_ids = ["sensor.import_limit"]
     rejected_store.captured_source_states = {}
-    mock_runtime_data.input_stores[("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET))] = rejected_store
+    mock_runtime_data.input_stores[("Test Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET))] = rejected_store
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     coordinator._network = network_double()
@@ -434,8 +435,8 @@ async def test_async_update_data_raises_translated_input_error(
 
     assert exc_info.value.translation_key == "negative_input_value"
     assert exc_info.value.translation_placeholders == {
-        "element": "Main Grid",
-        "field": f"{SECTION_POWER_LIMITS}.{CONF_MAX_POWER_SOURCE_TARGET}",
+        "element": "Test Grid",
+        "field": "Import limit",
         "entities": "sensor.import_limit",
         "value": "-4.5",
     }
