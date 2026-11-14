@@ -247,8 +247,17 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
+      - name: Install py-spy
+        run: uv pip install py-spy
+
       - name: Run Tests
-        run: python3 tools/check.py test -- --cov=custom_components/haeo --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/check.py test -- -p hang_dump --cov=custom_components/haeo --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+
+      - name: Show hang dumps
+        if: ${{ !cancelled() }}
+        run: cat hang-dumps.txt 2>/dev/null || echo "No test ran past the dump threshold"
 
       - name: Upload test results to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
