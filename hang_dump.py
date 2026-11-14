@@ -38,7 +38,9 @@ def _install() -> None:
     if _installed:
         return
     _installed = True
-    from custom_components.haeo.core.model import network, solver
+    # Imported once tests run: importing HAEO when the plugin loads imports the recorder
+    # before pytest_homeassistant_custom_component patches it
+    from custom_components.haeo.core.model import network, solver  # noqa: PLC0415
 
     optimize = network.Network.optimize
 
