@@ -34,8 +34,8 @@ WILDCARD: Final = "*"
 class PolicyRuleConfig(TypedDict):
     """A single policy rule as stored in Home Assistant config.
 
-    Flows and the rule's switch store ``enabled`` as a constant; rules saved
-    by HAEO 0.5.0 flows may still hold a bare bool, which reads the same.
+    Flows and the rule's switch store ``enabled`` as a constant. A bare bool
+    is also accepted and reads the same.
     """
 
     name: str

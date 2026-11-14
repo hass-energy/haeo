@@ -21,7 +21,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES, PolicyRuleConfig
+from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CONF_PRICE, CONF_RULES, PolicyRuleConfig
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
 from custom_components.haeo.core.schema.none_value import NoneValue, as_none_value
@@ -86,8 +86,8 @@ def save_surfaced_rule(
 ) -> None:
     """Create, update, or delete a surfaced policy rule.
 
-    If price is None, deletes the matching rule. Otherwise creates or
-    updates the rule with the given price.
+    If price is None, deletes the matching rule. Otherwise creates the rule
+    enabled, or updates the rule's price keeping whether it is enabled.
     """
     rules = get_policy_rules(hub_entry)
     idx = find_surfaced_rule(rules, source=source, target=target)
@@ -101,7 +101,7 @@ def save_surfaced_rule(
 
     rule: PolicyRuleConfig = {
         "name": rule_name,
-        "enabled": as_constant_value(value=True),
+        "enabled": rules[idx][CONF_ENABLED] if idx is not None else as_constant_value(value=True),
         "price": price,
     }
     if source:
