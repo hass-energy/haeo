@@ -32,6 +32,9 @@ class OutputType(StrEnum):
         AVAILABILITY: Binary availability schedule (0-1)
         DISTANCE: Distance quantity (km)
         ENERGY_PER_DISTANCE: Energy consumption per distance (kWh/km)
+        TEMPERATURE: Temperature (°C)
+        HEAT_CAPACITY: Energy to raise a temperature by one degree (kWh/°C)
+        CONDUCTANCE: Power per degree of temperature difference (kW/°C)
         DURATION: Time duration
         SHADOW_PRICE: Shadow prices from LP constraints
 
@@ -50,6 +53,9 @@ class OutputType(StrEnum):
     AVAILABILITY = auto()
     DISTANCE = auto()
     ENERGY_PER_DISTANCE = auto()
+    TEMPERATURE = auto()
+    HEAT_CAPACITY = auto()
+    CONDUCTANCE = auto()
     DURATION = auto()
     SHADOW_PRICE = auto()
 

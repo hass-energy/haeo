@@ -238,11 +238,30 @@
           "description": "Configure a unidirectional power path from source to target. For reverse flow, add a second connection with swapped endpoints.",
           "data": { "name": "Connection name" },
           "sections": {
-            "efficiency": { "data": { "efficiency_source_target": "Efficiency" }, "name": "Connection efficiency" },
+            "efficiency": {
+              "data": { "draws_from_target": "Takes energy from the target", "efficiency_source_target": "Efficiency" },
+              "data_description": {
+                "draws_from_target": "Reduce the target by the efficiency times the power, as a cooler removes heat, rather than add to it"
+              },
+              "name": "Connection efficiency"
+            },
             "endpoints": { "data": { "source": "Source device", "target": "Target device" }, "name": "Endpoints" },
+            "level": {
+              "data": { "conductance": "Conductance", "max_conductance": "Maximum conductance" },
+              "data_description": {
+                "conductance": "Fix the flow at this conductance times the difference in temperature between source and target, in either direction",
+                "max_conductance": "Cap the flow at this conductance times the difference in temperature between source and target"
+              },
+              "name": "Level-driven flow"
+            },
             "power_limits": { "data": { "max_power_source_target": "Max power" }, "name": "Power limits" },
             "pricing": { "data": { "price_source_target": "Price" }, "name": "Pricing" }
           }
+        },
+        "states": {
+          "title": "On and off states",
+          "description": "{entities} report words rather than on or off. Choose which states mean on and which mean off. Leave one list empty to count every other state as the opposite.",
+          "data": { "off_states": "States meaning off", "on_states": "States meaning on" }
         }
       },
       "error": {
@@ -250,7 +269,8 @@
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
-        "required": "Choose an entity or enter a value for every required field in this section"
+        "required": "Choose an entity or enter a value for every required field in this section",
+        "states_required": "Choose at least one state"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -556,6 +576,62 @@
         "states_required": "Choose at least one state"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
+    "thermal_mass": {
+      "flow_title": "Thermal mass",
+      "entry_type": "Thermal mass",
+      "initiate_flow": { "user": "Thermal mass", "reconfigure": "Thermal mass" },
+      "step": {
+        "user": {
+          "title": "Thermal mass configuration",
+          "description": "Configure something that stores heat, such as a hot water tank or a room",
+          "data": { "name": "Thermal mass name" },
+          "sections": {
+            "comfort": {
+              "data": {
+                "comfort_cost": "Comfort cost",
+                "max_temperature": "Maximum temperature",
+                "min_temperature": "Minimum temperature"
+              },
+              "data_description": {
+                "comfort_cost": "Cost per hour of each kWh of heat it is short of the minimum or over the maximum",
+                "max_temperature": "Keep it at or below this temperature",
+                "min_temperature": "Keep it at or above this temperature"
+              },
+              "name": "Comfort"
+            },
+            "storage": {
+              "data": {
+                "heat_capacity": "Heat capacity",
+                "highest_temperature": "Highest temperature",
+                "lowest_temperature": "Lowest temperature",
+                "temperature": "Temperature"
+              },
+              "data_description": {
+                "heat_capacity": "Energy to warm it by one degree. Water holds 0.00116 kWh per litre per degree",
+                "highest_temperature": "The highest temperature heating may bring it to",
+                "lowest_temperature": "The lowest temperature cooling may bring it to",
+                "temperature": "Its temperature now"
+              },
+              "name": "Storage"
+            },
+            "surroundings": {
+              "data": { "ambient_temperature": "Ambient temperature", "heat_loss": "Heat loss" },
+              "data_description": {
+                "ambient_temperature": "Temperature of the air or space around it",
+                "heat_loss": "Power it loses per degree it is warmer than its surroundings"
+              },
+              "name": "Surroundings"
+            }
+          }
+        }
+      },
+      "error": {
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
   "common": {
@@ -578,7 +654,8 @@
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
     "policy": { "name": "Policies" },
-    "solar": { "name": "{name}" }
+    "solar": { "name": "{name}" },
+    "thermal_mass": { "name": "{name}" }
   },
   "entity": {
     "number": {
@@ -599,7 +676,9 @@
       "buffer_level": { "name": "Level" },
       "buffer_shortfall_cost": { "name": "Shortfall cost" },
       "buffer_window": { "name": "Window" },
+      "connection_conductance": { "name": "Conductance" },
       "connection_efficiency_source_target": { "name": "Efficiency" },
+      "connection_max_conductance": { "name": "Maximum conductance" },
       "connection_max_power_source_target": { "name": "Max power" },
       "connection_price_source_target": { "name": "Price" },
       "deferrable_load_deficit_price": { "name": "Shortfall price" },
@@ -632,7 +711,16 @@
       "load_consumption_cost": { "name": "Consumption cost" },
       "load_forecast": { "name": "Forecast" },
       "policy_price": { "name": "{rule_name} price" },
-      "solar_forecast": { "name": "Forecast" }
+      "solar_forecast": { "name": "Forecast" },
+      "thermal_mass_ambient_temperature": { "name": "Ambient temperature" },
+      "thermal_mass_comfort_cost": { "name": "Comfort cost" },
+      "thermal_mass_heat_capacity": { "name": "Heat capacity" },
+      "thermal_mass_heat_loss": { "name": "Heat loss" },
+      "thermal_mass_highest_temperature": { "name": "Highest temperature" },
+      "thermal_mass_lowest_temperature": { "name": "Lowest temperature" },
+      "thermal_mass_max_temperature": { "name": "Maximum temperature" },
+      "thermal_mass_min_temperature": { "name": "Minimum temperature" },
+      "thermal_mass_temperature": { "name": "Temperature" }
     },
     "sensor": {
       "battery_energy_in_flow": { "name": "Energy in flow shadow price" },
@@ -706,9 +794,12 @@
       },
       "node_power_balance": { "name": "Power balance shadow price" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
-      "solar_power": { "name": "Power" }
+      "solar_power": { "name": "Power" },
+      "thermal_mass_heat_loss": { "name": "Heat loss" },
+      "thermal_mass_temperature": { "name": "Temperature" }
     },
     "switch": {
+      "connection_draws_from_target": { "name": "Takes energy from the target" },
       "deferrable_load_in_window": { "name": "Run window" },
       "deferrable_load_window_start": { "name": "Window start" },
       "ev_away": { "name": "Away" },

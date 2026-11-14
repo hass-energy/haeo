@@ -61,6 +61,9 @@ class UnitOfMeasurement(StrEnum):
     KILO_WATT_HOUR_PER_100_KILOMETER = "kWh/100km"
     KILOMETER_PER_KILO_WATT_HOUR = "km/kWh"
     MILE_PER_KILO_WATT_HOUR = "mi/kWh"
+    CELSIUS = "°C"
+    KILO_WATT_HOUR_PER_CELSIUS = "kWh/°C"
+    KILO_WATT_PER_CELSIUS = "kW/°C"
 
     @classmethod
     def of(cls, value: object) -> "UnitOfMeasurement | None":

@@ -12,7 +12,9 @@ It models losses that occur during transfer, such as inverter or transformer los
 | $\eta_{s \rightarrow t}$ | Source to target efficiency ratio | 1.0     |
 | $\eta_{t \rightarrow s}$ | Target to source efficiency ratio | 1.0     |
 
-Efficiency values are ratios in the range $(0, 1]$.
+Efficiency values are ratios, normally in the range $(0, 1]$.
+A heat pump's efficiency is its coefficient of performance, above 1.
+A negative efficiency delivers a loss to the target, so both ends lose energy, as a cooler draws power and removes heat.
 Input entities normalize percentage values to ratios before reaching the model.
 
 ### Decision variables

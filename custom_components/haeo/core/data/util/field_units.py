@@ -18,6 +18,8 @@ NON_NEGATIVE_OUTPUT_TYPES: Final = frozenset(
         OutputType.DURATION,
         OutputType.DISTANCE,
         OutputType.ENERGY_PER_DISTANCE,
+        OutputType.HEAT_CAPACITY,
+        OutputType.CONDUCTANCE,
     }
 )
 
@@ -35,6 +37,15 @@ _FIELD_UNITS: Final[dict[OutputType, tuple[UnitSpec, str]]] = {
     OutputType.ENERGY_PER_DISTANCE: (
         UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER.value,
         UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER.value,
+    ),
+    OutputType.TEMPERATURE: (UnitOfMeasurement.CELSIUS.value, UnitOfMeasurement.CELSIUS.value),
+    OutputType.HEAT_CAPACITY: (
+        UnitOfMeasurement.KILO_WATT_HOUR_PER_CELSIUS.value,
+        UnitOfMeasurement.KILO_WATT_HOUR_PER_CELSIUS.value,
+    ),
+    OutputType.CONDUCTANCE: (
+        UnitOfMeasurement.KILO_WATT_PER_CELSIUS.value,
+        UnitOfMeasurement.KILO_WATT_PER_CELSIUS.value,
     ),
 }
 

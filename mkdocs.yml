@@ -171,6 +171,7 @@ nav:
           - Inverter: user-guide/elements/inverter.md
           - Load: user-guide/elements/load.md
           - Solar: user-guide/elements/solar.md
+          - Thermal Mass: user-guide/elements/thermal_mass.md
           - Buffer: user-guide/elements/buffer.md
           - Junction: user-guide/elements/junction.md
           - Node: user-guide/elements/node.md
@@ -202,6 +203,7 @@ nav:
               - Power limit segment: modeling/model-layer/segments/power-limit.md
               - Pricing segment: modeling/model-layer/segments/pricing.md
               - Passthrough segment: modeling/model-layer/segments/passthrough.md
+              - Level segments: modeling/model-layer/segments/level.md
       - Device Layer:
           - modeling/device-layer/index.md
           - Battery: modeling/device-layer/battery.md
@@ -211,6 +213,7 @@ nav:
           - Grid: modeling/device-layer/grid.md
           - Inverter: modeling/device-layer/inverter.md
           - Solar: modeling/device-layer/solar.md
+          - Thermal Mass: modeling/device-layer/thermal_mass.md
           - Load: modeling/device-layer/load.md
           - Buffer: modeling/device-layer/buffer.md
           - Junction: modeling/device-layer/junction.md

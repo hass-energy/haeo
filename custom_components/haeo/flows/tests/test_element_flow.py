@@ -246,8 +246,8 @@ async def test_participant_names_resolve_element_type(
 @pytest.mark.parametrize(
     ("advanced_mode", "expected"),
     [
-        pytest.param(False, ["Inverter", "Junction", "Node"], id="standard"),
-        pytest.param(True, ["Battery Section", "Inverter", "Junction", "Node"], id="advanced"),
+        pytest.param(False, ["Inverter", "Junction", "Node", "Thermal Mass"], id="standard"),
+        pytest.param(True, ["Battery Section", "Inverter", "Junction", "Node", "Thermal Mass"], id="advanced"),
     ],
 )
 async def test_participant_names_exclude_elements_with_own_connections(

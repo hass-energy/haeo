@@ -31,6 +31,7 @@ This design means:
 - **[Power limit segment](power-limit.md)** for power limits.
 - **[Pricing segment](pricing.md)** for transfer costs and fees.
 - **[Passthrough segment](passthrough.md)** for lossless flow with no constraints or cost.
+- **[Level segments](level.md)** for flows set or capped by the level difference between the endpoints.
 
 ## Next steps
 

@@ -8,13 +8,17 @@ import voluptuous as vol
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.schema import normalize_connection_target
 from custom_components.haeo.core.schema.elements.connection import (
+    CONF_CONDUCTANCE,
+    CONF_DRAWS_FROM_TARGET,
     CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_MAX_CONDUCTANCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_PRICE_SOURCE_TARGET,
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
+    SECTION_LEVEL,
 )
 from custom_components.haeo.flows.connected_flow import connection_target_name
 from custom_components.haeo.flows.element_flow import build_participant_selector
@@ -36,7 +40,8 @@ class ConnectionSubentryFlowHandler(SectionedElementSubentryFlow):
         SectionDefinition(key=SECTION_ENDPOINTS, fields=(CONF_SOURCE, CONF_TARGET), collapsed=False),
         power_limits_section((CONF_MAX_POWER_SOURCE_TARGET,), collapsed=False),
         pricing_section((CONF_PRICE_SOURCE_TARGET,), collapsed=False),
-        efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET,), collapsed=True),
+        efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_DRAWS_FROM_TARGET), collapsed=True),
+        SectionDefinition(key=SECTION_LEVEL, fields=(CONF_CONDUCTANCE, CONF_MAX_CONDUCTANCE), collapsed=True),
     )
 
     def _current_endpoints(self, subentry_data: Mapping[str, object] | None) -> tuple[str, str]:

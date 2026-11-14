@@ -30,14 +30,17 @@ Connections define explicit, **unidirectional** power paths between elements, wi
 
 ## Configuration
 
-| Field          | Type                                     | Required | Default   | Description                                      |
-| -------------- | ---------------------------------------- | -------- | --------- | ------------------------------------------------ |
-| **Name**       | String                                   | Yes      | -         | Unique identifier for this connection            |
-| **Source**     | Element                                  | Yes      | -         | Element power flows from                         |
-| **Target**     | Element                                  | Yes      | -         | Element power flows to                           |
-| **Max power**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power leaving the source (kW)            |
-| **Efficiency** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for this direction |
-| **Price**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for power leaving the source      |
+| Field                            | Type                                     | Required | Default   | Description                                                       |
+| -------------------------------- | ---------------------------------------- | -------- | --------- | ----------------------------------------------------------------- |
+| **Name**                         | String                                   | Yes      | -         | Unique identifier for this connection                             |
+| **Source**                       | Element                                  | Yes      | -         | Element power flows from                                          |
+| **Target**                       | Element                                  | Yes      | -         | Element power flows to                                            |
+| **Max power**                    | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power leaving the source (kW)                             |
+| **Efficiency**                   | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-1000) for this direction                 |
+| **Takes energy from the target** | Boolean                                  | No       | false     | The flow removes energy from the target, as a cooler removes heat |
+| **Price**                        | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for power leaving the source                       |
+| **Conductance**                  | [sensor(s)](../forecasts-and-sensors.md) | No       | -         | Fix the flow by the temperature difference (kW/°C)                |
+| **Maximum conductance**          | [sensor(s)](../forecasts-and-sensors.md) | No       | -         | Cap the flow by the temperature difference (kW/°C)                |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -119,6 +122,26 @@ Leave **Max power** unset for unlimited flow in the configured direction:
 | **Efficiency** | input_number.efficiency |
 
 Add a second connection (AC → DC) with its own efficiency if reverse conversion is required.
+
+### Heat pump and air conditioner
+
+An efficiency above 100% models a heat pump, which moves more heat than the power it uses.
+A heat pump with a COP of 3.5 has an efficiency of 350%.
+
+For cooling, turn on **Takes energy from the target**.
+The connection then draws its power from the source and removes efficiency times that power from the target,
+so a [thermal mass](thermal_mass.md) it cools gets colder.
+
+### Level-driven flow
+
+A conductance sets the flow by the difference in temperature between the source and the target, for flows the plan does not control directly.
+
+- **Conductance** fixes the flow at the conductance times the temperature difference, in either direction.
+    Use it for heat passing through a shared wall between two [thermal masses](thermal_mass.md).
+- **Maximum conductance** caps the flow at the conductance times the temperature difference.
+    Use it for a heat exchanger coil, which delivers less as the tank cools toward the water it heats.
+
+Both endpoints must have a temperature, as thermal masses do.
 
 ### Availability windows
 

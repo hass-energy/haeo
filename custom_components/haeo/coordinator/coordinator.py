@@ -149,6 +149,7 @@ DEVICE_CLASS_MAP: dict[OutputType, SensorDeviceClass] = {
     OutputType.SHADOW_PRICE: SensorDeviceClass.MONETARY,
     OutputType.DURATION: SensorDeviceClass.DURATION,
     OutputType.STATUS: SensorDeviceClass.ENUM,
+    OutputType.TEMPERATURE: SensorDeviceClass.TEMPERATURE,
 }
 
 STATE_CLASS_MAP: dict[OutputType, SensorStateClass | None] = {
@@ -157,6 +158,7 @@ STATE_CLASS_MAP: dict[OutputType, SensorStateClass | None] = {
     OutputType.POWER_LIMIT: SensorStateClass.MEASUREMENT,
     OutputType.STATE_OF_CHARGE: SensorStateClass.MEASUREMENT,
     OutputType.DURATION: SensorStateClass.MEASUREMENT,
+    OutputType.TEMPERATURE: SensorStateClass.MEASUREMENT,
 }
 
 STATUS_OPTIONS: tuple[str, ...] = tuple(
