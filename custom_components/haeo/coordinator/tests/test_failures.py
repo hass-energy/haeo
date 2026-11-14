@@ -26,7 +26,12 @@ from custom_components.haeo.core.schema.elements.battery import CONF_MAX_POWER_S
 from custom_components.haeo.core.schema.elements.grid import CONF_PRICE_SOURCE_TARGET
 from custom_components.haeo.core.schema.sections import SECTION_POWER_LIMITS, SECTION_PRICING
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
-from custom_components.haeo.repairs import create_optimization_infeasible_issue, create_optimization_relaxed_issue
+from custom_components.haeo.input_stores import degraded_inputs
+from custom_components.haeo.repairs import (
+    create_optimization_infeasible_issue,
+    create_optimization_relaxed_issue,
+    sync_input_issues,
+)
 
 from .helpers import EARLIER_DIAGNOSTICS, EARLIER_ISSUE, saved_diagnostics
 
@@ -539,3 +544,47 @@ async def test_degraded_input_issues_are_raised_at_once_with_no_hold(
 
     issue_id = f"degraded_input_{mock_hub_entry.entry_id}_Grid_{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}"
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
+async def test_degraded_input_issues_already_raised_stay_through_the_grace(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """An issue raised before a reload stays raised while the reloaded coordinator's grace runs."""
+    _set_input_hold(hass, mock_hub_entry, 60)
+    mock_runtime_data.input_stores[("Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = _degraded_store()
+    issue_id = f"degraded_input_{mock_hub_entry.entry_id}_Grid_{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}"
+    sync_input_issues(
+        hass,
+        mock_hub_entry.entry_id,
+        unavailable={},
+        degraded=degraded_inputs(mock_runtime_data.input_stores),
+    )
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    coordinator._check_inputs(Mock(source_states={}))
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    coordinator.cleanup()
+
+
+async def test_unloading_in_the_grace_stops_waiting_for_it(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A coordinator unloaded before its grace ends raises no issue when the grace would have ended."""
+    _set_input_hold(hass, mock_hub_entry, 60)
+    mock_runtime_data.input_stores[("Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = _degraded_store()
+    issue_id = f"degraded_input_{mock_hub_entry.entry_id}_Grid_{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}"
+
+    with freeze_time("2025-01-01 12:00:00") as frozen:
+        coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+        coordinator._check_inputs(Mock(source_states={}))
+        coordinator.cleanup()
+        frozen.tick(60)
+        async_fire_time_changed(hass, dt_util.utcnow())
+        await hass.async_block_till_done()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None

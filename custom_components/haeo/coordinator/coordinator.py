@@ -938,10 +938,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         ready" state until every store can supply data. Inputs that have no reading
         get a repair issue naming their sensors; rejected values are reported
         through their own error. Inputs planned on a reading held past the hold
-        get a warning issue naming the sensors and since when.
+        get a warning issue naming the sensors and since when, once one hold has
+        passed since setup.
         """
         input_stores = self._runtime_data.input_stores
-        unavailable, degraded = self._sync_input_issues()
+        unavailable, degraded = self._sync_input_issues(in_grace=time.monotonic() < self._repair_grace_ends)
         raise_for_rejected_input(input_stores, UpdateFailed)
         if unavailable:
             key, entities = next(iter(unavailable.items()))
@@ -956,25 +957,26 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         return degraded
 
     def _sync_input_issues(
-        self,
+        self, *, in_grace: bool
     ) -> tuple[dict["InputStoreKey", tuple[str, ...]], dict["InputStoreKey", DegradedInput]]:
         """Keep the input repair issues current, and return the unavailable and degraded inputs.
 
-        Until one hold has passed since setup, inputs that become degraded get no
-        issue yet, and the issues are synced again once it has passed.
+        ``in_grace`` is whether one hold has not yet passed since setup. Inputs
+        that become degraded in it get no issue yet, and the issues are synced
+        again once it has passed.
         """
         input_stores = self._runtime_data.input_stores
         unavailable = unavailable_input_sources(input_stores, lambda store: not store.available)
         degraded = degraded_inputs(input_stores)
-        grace_left = self._repair_grace_ends - time.monotonic()
-        if grace_left > 0 and degraded and self._repair_grace_timer is None:
+        if in_grace and degraded and self._repair_grace_timer is None:
+            grace_left = self._repair_grace_ends - time.monotonic()
             self._repair_grace_timer = async_call_later(self.hass, grace_left, self._end_repair_grace)
         sync_input_issues(
             self.hass,
             self.config_entry.entry_id,
             unavailable=unavailable,
             degraded=degraded,
-            defer_new_degraded=grace_left > 0,
+            defer_new_degraded=in_grace,
         )
         return unavailable, degraded
 
@@ -982,8 +984,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _end_repair_grace(self, _now: datetime) -> None:
         """Raise the issues of the inputs still degraded once the grace after setup has passed."""
         self._repair_grace_timer = None
-        self._repair_grace_ends = time.monotonic()
-        self._sync_input_issues()
+        self._sync_input_issues(in_grace=False)
 
     async def _solve(
         self,
