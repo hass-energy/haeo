@@ -982,7 +982,7 @@ def test_seeded_reading_is_held_from_when_it_was_reported(
 
 
 def test_hold_listeners_see_a_reading_held_past_its_hold_as_degraded(freezer: FrozenDateTimeFactory) -> None:
-    """Hold listeners are told once a reading already held past its hold is degraded, with no expiry left to wait for."""
+    """Hold listeners are told once a reading held past its hold is degraded, with no expiry left to wait for."""
     store = _held_store(60)
     store.load(_prices("1.0", "unavailable"))
     seen: list[tuple[tuple[str, ...], float | None]] = []
