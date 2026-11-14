@@ -748,7 +748,10 @@
     "no_history_at_time": {
       "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
-    "offer_no_interval": { "message": "The plan covers no whole interval of that length in the time asked for" },
+    "offer_device_not_grid": { "message": "Device {device} does not belong to a HAEO grid" },
+    "offer_interval_outside_plan": {
+      "message": "An interval must end after it starts and lie inside the plan, which runs from {plan_start} to {plan_end}, but one runs from {start} to {end}"
+    },
     "offer_no_plan": { "message": "The latest optimization found no plan to make an offer from" },
     "offer_price_range": { "message": "The lowest import price must be below the highest" },
     "offer_relaxed_plan": { "message": "The latest plan relaxed constraints to be found, so it has no offer curve" },
@@ -853,20 +856,16 @@
   },
   "services": {
     "offer_curve": {
-      "description": "Returns the average grid power the plan would take over the next settlement interval at each import and export price that interval could have, with every other interval's prices as forecast",
+      "description": "Returns the average power a grid would take over each interval of time at each import and export price that interval could have, with the prices of all other time as forecast",
       "fields": {
-        "config_entry": { "description": "The HAEO system to get offer curves for", "name": "System" },
         "emissions_intensity": {
           "description": "A sensor giving the grid's emissions intensity, now or as a forecast, in g, kg or t of CO2 per kWh or MWh. Each step then says how much it changes the plan's grid emissions.",
           "name": "Emissions intensity"
         },
-        "end": {
-          "description": "Also returns a curve for each later interval that starts before this time. Only the first interval is returned if omitted.",
-          "name": "End"
-        },
-        "interval": {
-          "description": "Length of your market's settlement interval. The plan is split into intervals of this length on the clock, and each gets its own curve.",
-          "name": "Interval"
+        "grid": { "description": "The device of the HAEO grid to get offer curves for", "name": "Grid" },
+        "intervals": {
+          "description": "The start and end time of each interval to get a curve for, such as your market's coming settlement intervals. Each must lie inside the plan.",
+          "name": "Intervals"
         },
         "max_price": {
           "description": "Highest average import price per kWh each curve is traced to",
@@ -875,10 +874,6 @@
         "min_price": {
           "description": "Lowest average import price per kWh each curve is traced from",
           "name": "Lowest import price"
-        },
-        "start": {
-          "description": "The first curve is for the first whole interval to start at or after this time. Starts from now if omitted.",
-          "name": "Start"
         }
       },
       "name": "Offer curve"

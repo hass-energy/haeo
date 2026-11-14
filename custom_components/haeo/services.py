@@ -1,6 +1,6 @@
 """Service actions for HAEO integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from datetime import datetime
 import json
 import logging
@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.json import ExtendedJSONEncoder
 from homeassistant.helpers.service import async_register_admin_service
@@ -23,6 +24,7 @@ import voluptuous as vol
 
 from .const import DOMAIN
 from .core.adapters.offer import GridOffer, GridOfferStep
+from .core.schema.elements import ElementType
 
 if TYPE_CHECKING:
     from . import HaeoRuntimeData
@@ -36,17 +38,16 @@ SERVICE_OFFER_CURVE = "offer_curve"
 ATTR_CONFIG_ENTRY = "config_entry"
 ATTR_TIMESTAMP = "time"
 ATTR_IMMEDIATE = "immediate"
+ATTR_GRID = "grid"
+ATTR_INTERVALS = "intervals"
 ATTR_START = "start"
 ATTR_END = "end"
 ATTR_MIN_PRICE = "min_price"
 ATTR_MAX_PRICE = "max_price"
-ATTR_INTERVAL = "interval"
 ATTR_EMISSIONS_INTENSITY = "emissions_intensity"
 # The NEM's price floor and, roughly, its cap, in $/kWh
 DEFAULT_MIN_PRICE: Final = -1.0
 DEFAULT_MAX_PRICE: Final = 20.0
-# Minutes in a settlement interval, the NEM's
-DEFAULT_INTERVAL: Final = 5
 # Decimal places offers are reported to: a hundredth of a cent, a watt, a gram per kWh and a gram
 _PRICE_DIGITS: Final = 4
 _POWER_DIGITS: Final = 3
@@ -159,6 +160,23 @@ def _loaded_coordinator(hass: HomeAssistant, entry_id: str) -> "HaeoDataUpdateCo
     return runtime_data.coordinator
 
 
+def _grid_of_device(hass: HomeAssistant, device_id: str) -> tuple[str, str]:
+    """Return the config entry ID and the name of the grid a device belongs to, raising when it is no grid's."""
+    device = dr.async_get(hass).async_get(device_id)
+    for entry_id, subentry_ids in ({} if device is None else device.config_entries_subentries).items():
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            continue
+        for subentry in entry.subentries.values():
+            if subentry.subentry_id in subentry_ids and subentry.subentry_type == ElementType.GRID:
+                return entry_id, subentry.title
+    raise ServiceValidationError(
+        translation_domain=DOMAIN,
+        translation_key="offer_device_not_grid",
+        translation_placeholders={"device": device_id},
+    )
+
+
 def _service_time(time: datetime) -> datetime:
     """Return a service call's time with a zone, reading a time without one in Home Assistant's.
 
@@ -184,16 +202,14 @@ def _offer_step(step: GridOfferStep) -> dict[str, JsonValueType]:
     return data
 
 
-def _offer_response(timestamps: Sequence[float], offers: Mapping[str, Sequence[GridOffer]]) -> dict[str, JsonValueType]:
-    """Return grid offers as service response data, each window named by its start and end time."""
+def _offer_response(intervals: Sequence[tuple[datetime, datetime]], offers: Sequence[GridOffer]) -> ServiceResponse:
+    """Return a grid's offers as service response data, each named by the start and end of its interval."""
 
-    def time(timestamp: float) -> str:
-        return dt_util.as_local(dt_util.utc_from_timestamp(timestamp)).isoformat()
-
-    def window(offer: GridOffer) -> dict[str, JsonValueType]:
+    def offered(interval: tuple[datetime, datetime], offer: GridOffer) -> dict[str, JsonValueType]:
+        start, end = interval
         data: dict[str, JsonValueType] = {
-            "start": time(timestamps[offer.periods[0]]),
-            "end": time(timestamps[offer.periods[-1] + 1]),
+            "start": dt_util.as_local(start).isoformat(),
+            "end": dt_util.as_local(end).isoformat(),
             "import_price": _rounded(offer.import_price, _PRICE_DIGITS),
             "export_price": _rounded(offer.export_price, _PRICE_DIGITS),
             "power": _rounded(offer.power, _POWER_DIGITS),
@@ -203,7 +219,7 @@ def _offer_response(timestamps: Sequence[float], offers: Mapping[str, Sequence[G
         data["offer"] = [_offer_step(step) for step in offer.steps]
         return data
 
-    return {"grids": {grid: [window(offer) for offer in grid_offers] for grid, grid_offers in offers.items()}}
+    return {"offers": [offered(interval, offer) for interval, offer in zip(intervals, offers, strict=True)]}
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
@@ -298,23 +314,25 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     )
 
     async def async_handle_offer_curve(call: ServiceCall) -> ServiceResponse:
-        """Return each grid's offer curve over the next settlement interval, or each one from a start to an end time."""
-        coordinator = _loaded_coordinator(hass, call.data[ATTR_CONFIG_ENTRY])
-        start: datetime | None = call.data.get(ATTR_START)
-        end: datetime | None = call.data.get(ATTR_END)
+        """Return a grid's offer curve over each of the intervals asked for."""
+        entry_id, grid = _grid_of_device(hass, call.data[ATTR_GRID])
+        coordinator = _loaded_coordinator(hass, entry_id)
         min_price: float = call.data[ATTR_MIN_PRICE]
         max_price: float = call.data[ATTR_MAX_PRICE]
         if min_price >= max_price:
             raise ServiceValidationError(translation_domain=DOMAIN, translation_key="offer_price_range")
-        timestamps, offers = await coordinator.async_grid_offers(
-            start=_service_time(start if start is not None else dt_util.utcnow()).timestamp(),
-            end=_service_time(end).timestamp() if end is not None else None,
-            interval=call.data[ATTR_INTERVAL] * 60.0,
+        intervals = [
+            (_service_time(interval[ATTR_START]), _service_time(interval[ATTR_END]))
+            for interval in call.data[ATTR_INTERVALS]
+        ]
+        offers = await coordinator.async_grid_offers(
+            grid,
+            intervals=[(start.timestamp(), end.timestamp()) for start, end in intervals],
             emissions_intensity=call.data.get(ATTR_EMISSIONS_INTENSITY),
             min_price=min_price,
             max_price=max_price,
         )
-        return _offer_response(timestamps, offers)
+        return _offer_response(intervals, offers)
 
     hass.services.async_register(
         DOMAIN,
@@ -322,12 +340,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         async_handle_offer_curve,
         schema=vol.Schema(
             {
-                vol.Required(ATTR_CONFIG_ENTRY): cv.string,
-                vol.Optional(ATTR_START): cv.datetime,
-                vol.Optional(ATTR_END): cv.datetime,
+                vol.Required(ATTR_GRID): cv.string,
+                vol.Required(ATTR_INTERVALS): vol.All(
+                    cv.ensure_list,
+                    vol.Length(min=1),
+                    [{vol.Required(ATTR_START): cv.datetime, vol.Required(ATTR_END): cv.datetime}],
+                ),
                 vol.Optional(ATTR_MIN_PRICE, default=DEFAULT_MIN_PRICE): vol.Coerce(float),
                 vol.Optional(ATTR_MAX_PRICE, default=DEFAULT_MAX_PRICE): vol.Coerce(float),
-                vol.Optional(ATTR_INTERVAL, default=DEFAULT_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=1)),
                 vol.Optional(ATTR_EMISSIONS_INTENSITY): cv.entity_id,
             }
         ),

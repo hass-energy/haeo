@@ -1,11 +1,16 @@
 """Offer curves: how a planned flow responds to its own price.
 
-An offer curve says, for a window of consecutive periods, how much power would
-flow on average at each price the window could have, with the price of every
-period outside it left as forecast. The window is how long a price change
-lasts: the shorter it is, the less it costs the rest of the plan to move
-energy into or out of it, so a curve of one short period overstates how a
-home responds to a price that holds for a market interval.
+An offer curve says, for a window of time, how much power would flow on
+average at each price the window could have, with the price of all other time
+left as forecast. The window is how long a price change lasts: the shorter it
+is, the less it costs the rest of the plan to move energy into or out of it,
+so a curve of one short period overstates how a home responds to a price that
+holds for a market interval.
+
+A window is given as the hours of each period that lie inside it, so it can
+start and end anywhere. The power in a period is the same throughout it, so a
+window that takes in part of a period shifts the price of that share of the
+period's energy.
 
 Shifting the window's price by ``d`` adds ``d`` times its energy to the cost,
 so the cheapest cost as a function of ``d`` is concave and piecewise linear,
@@ -71,10 +76,9 @@ class OfferStep:
 
 @dataclass(frozen=True, slots=True)
 class OfferCurve:
-    """The average power of a flow over a window of periods at every price shift in a range.
+    """The average power of a flow over a window of time at every price shift in a range.
 
     Attributes:
-        periods: Indices of the periods in the window.
         power: Average power in kW of the flow over the window in the plan.
         steps: Steps in rising price order, the first starting at the bottom of
             the range and each holding until the next one starts. Power falls
@@ -82,7 +86,6 @@ class OfferCurve:
 
     """
 
-    periods: tuple[int, ...]
     power: float
     steps: tuple[OfferStep, ...]
 
@@ -163,10 +166,9 @@ def offer_curves(
     solver: Solver,
     cost: NDArray[np.float64],
     options: Callable[[Solver], None],
-    durations: NDArray[np.float64],
     flow: LinearArray,
     *,
-    windows: Sequence[Sequence[int]],
+    windows: Sequence[NDArray[np.float64]],
     low: Sequence[float],
     high: Sequence[float],
     measure: LinearArray | None = None,
@@ -177,12 +179,11 @@ def offer_curves(
         solver: Solver holding an optimal plan, which is left as it is.
         cost: Cost of each column, the objective the plan minimizes.
         options: Applies the solve options to a solver.
-        durations: Duration of each period in hours.
         flow: Power in kW of the flow each period, with one row per period.
             Its price is the price of each kWh of it, so a flow that is an
             import minus an export is priced as both prices moving together.
-        windows: Indices of the periods in each window, each window's price
-            shifted by the same amount in all of its periods.
+        windows: Hours of each period that lie inside each window, each
+            window's price shifted by the same amount throughout it.
         low: Lowest price shift in $/kWh to trace each window from.
         high: Highest price shift in $/kWh to trace each window to.
         measure: A quantity of the plan, as a single row, to read at each step
@@ -195,9 +196,8 @@ def offer_curves(
     curves: list[OfferCurve] = []
     for window, bottom_price, top_price in zip(windows, low, high, strict=True):
         probe.restart()
-        periods = np.asarray(window, dtype=np.intp)
-        duration = float(durations[periods].sum())
-        energy = (flow[periods] * durations[periods]).total().column_coefficients(len(cost))
+        duration = float(window.sum())
+        energy = (flow * window).total().column_coefficients(len(cost))
         bottom = probe.solve(energy, bottom_price)
         top = probe.solve(energy, top_price)
         points = [bottom, *_kinks(probe, energy, bottom, top)]
@@ -207,7 +207,7 @@ def offer_curves(
             if steps and abs(steps[-1].power - power) <= _POWER_TOLERANCE:
                 continue
             steps.append(OfferStep(point.price, power, point.measure))
-        curves.append(OfferCurve(tuple(window), float(energy @ plan) / duration, tuple(steps)))
+        curves.append(OfferCurve(float(energy @ plan) / duration, tuple(steps)))
     return curves
 
 

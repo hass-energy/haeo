@@ -3,10 +3,8 @@
 import asyncio
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
-import itertools
+from datetime import UTC, datetime
 import logging
-import math
 import time
 from typing import TYPE_CHECKING, Literal, TypedDict
 
@@ -55,7 +53,7 @@ from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType, SolverError
 from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel, listing
 from custom_components.haeo.core.model.topology import serialize_topology
-from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import currency_symbol, localize_currency, price_currency
 from custom_components.haeo.elements import (
@@ -618,40 +616,34 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     async def async_grid_offers(
         self,
+        grid: str,
         *,
-        start: float,
-        end: float | None,
-        interval: float,
+        intervals: Sequence[tuple[float, float]],
         min_price: float,
         max_price: float,
         emissions_intensity: str | None = None,
-    ) -> tuple[tuple[float, ...], dict[str, list[GridOffer]]]:
-        """Return each grid's offer curves over the settlement intervals of the plan from a start time.
+    ) -> list[GridOffer]:
+        """Return a grid's offer curve over each of the given intervals of time, in their order.
 
-        The periods are grouped into windows by the interval of the local clock
-        they start in, such as each five minutes, and a price is shifted across a
-        whole window. Only intervals the plan covers from their start to their end
-        are offered, so the first window is the first interval to start at or
-        after the start time. Without an end time that window is the only one;
-        with one, every interval that starts before it follows. The curves are
-        traced from the plan the latest optimization found, while no optimization
-        can change it, and an optimization requested meanwhile runs afterwards.
-        With an emissions intensity sensor, each step also says how it changes the
-        plan's grid emissions. Returns the plan's period boundaries, as timestamps,
-        and the offers of each grid by name.
+        Each interval is a start and end timestamp inside the plan, and a price
+        is shifted across the whole of it. Intervals need not line up with the
+        plan's periods or with each other. The curves are traced from the plan
+        the latest optimization found, while no optimization can change it, and
+        an optimization requested meanwhile runs afterwards. With an emissions
+        intensity sensor, each step also says how it changes the plan's grid
+        emissions.
 
         Raises:
-            HomeAssistantError: When the latest optimization found no plan, the
-                plan covers no whole interval in the time asked for, the emissions
-                intensity sensor cannot be read, or the solver fails on a curve.
+            HomeAssistantError: When the latest optimization found no plan, an
+                interval is not inside the plan, the emissions intensity sensor
+                cannot be read, or the solver fails on a curve.
 
         """
         try:
             async with self._optimization_lock:
                 return await self._trace_grid_offers(
-                    start=start,
-                    end=end,
-                    interval=interval,
+                    grid,
+                    intervals=intervals,
                     min_price=min_price,
                     max_price=max_price,
                     emissions_intensity=emissions_intensity,
@@ -663,41 +655,34 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     async def _trace_grid_offers(
         self,
+        grid: str,
         *,
-        start: float,
-        end: float | None,
-        interval: float,
+        intervals: Sequence[tuple[float, float]],
         min_price: float,
         max_price: float,
         emissions_intensity: str | None,
-    ) -> tuple[tuple[float, ...], dict[str, list[GridOffer]]]:
-        """Trace each grid's offer curves from the plan the network holds, with the optimization lock held."""
+    ) -> list[GridOffer]:
+        """Trace a grid's offer curves from the plan the network holds, with the optimization lock held."""
         timestamps = self._plan_timestamps
         if not self.last_update_success or not timestamps:
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_no_plan")
         if self.network.relaxations:
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_relaxed_plan")
-        # Intervals are counted on the local clock, which is not the UTC one in a zone a half hour off it
-        offset = dt_util.as_local(dt_util.utc_from_timestamp(timestamps[0])).utcoffset() or timedelta()
-        local = [timestamp + offset.total_seconds() for timestamp in timestamps]
-        first = start + offset.total_seconds()
-        last = math.inf if end is None else end + offset.total_seconds()
-        groups = (
-            (number * interval, list(group))
-            for number, group in itertools.groupby(range(len(local) - 1), key=lambda index: local[index] // interval)
-        )
-        windows = [
-            window
-            for opens, window in groups
-            if local[window[0]] == opens and first <= opens < last and opens + interval <= local[-1]
-        ]
-        if end is None:
-            del windows[1:]
-        if not windows:
-            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_no_interval")
-        grids = [
-            name for name, config in self._participant_configs.items() if config[CONF_ELEMENT_TYPE] == ElementType.GRID
-        ]
+        for start, end in intervals:
+            if not timestamps[0] <= start < end <= timestamps[-1]:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="offer_interval_outside_plan",
+                    translation_placeholders={
+                        name: dt_util.as_local(dt_util.utc_from_timestamp(time)).isoformat()
+                        for name, time in (
+                            ("start", start),
+                            ("end", end),
+                            ("plan_start", timestamps[0]),
+                            ("plan_end", timestamps[-1]),
+                        )
+                    },
+                )
         try:
             intensity = (
                 None
@@ -711,21 +696,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 translation_placeholders=error.translation_placeholders,
             ) from error
 
-        def trace() -> dict[str, list[GridOffer]]:
-            return {
-                grid: grid_offers(
-                    self.network,
-                    grid,
-                    windows=windows,
-                    min_price=min_price,
-                    max_price=max_price,
-                    emissions_intensity=intensity,
-                )
-                for grid in grids
-            }
+        def trace() -> list[GridOffer]:
+            return grid_offers(
+                self.network,
+                grid,
+                intervals=[(start - timestamps[0], end - timestamps[0]) for start, end in intervals],
+                min_price=min_price,
+                max_price=max_price,
+                emissions_intensity=intensity,
+            )
 
         try:
-            return timestamps, await self.hass.async_add_executor_job(trace)
+            return await self.hass.async_add_executor_job(trace)
         except SolverError as error:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

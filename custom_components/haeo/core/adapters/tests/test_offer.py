@@ -73,9 +73,8 @@ def test_grid_offer_moves_import_and_export_prices_together() -> None:
     network = build_network("offer", _participants(), [1800, 1800])
     network.optimize()
 
-    (offer,) = grid_offers(network, GRID, windows=[[1]], min_price=-1.0, max_price=1.0)
+    (offer,) = grid_offers(network, GRID, intervals=[(1800.0, 3600.0)], min_price=-1.0, max_price=1.0)
 
-    assert offer.periods == (1,)
     assert (offer.import_price, offer.export_price, offer.power) == pytest.approx((0.20, 0.10, 0.0))
     assert _flat(offer.steps) == pytest.approx([-1.0, -1.1, 2.5, 0.15, 0.05, 0.0, 0.25, 0.15, -2.5])
 
@@ -85,7 +84,7 @@ def test_grid_offer_range_takes_in_the_forecast_price() -> None:
     network = build_network("offer", _participants(), [1800, 1800])
     network.optimize()
 
-    (offer,) = grid_offers(network, GRID, windows=[[0, 1]], min_price=0.5, max_price=1.0)
+    (offer,) = grid_offers(network, GRID, intervals=[(0.0, 3600.0)], min_price=0.5, max_price=1.0)
 
     assert [step.import_price for step in offer.steps] == pytest.approx([0.20, 0.25])
 
@@ -95,10 +94,22 @@ def test_grid_offer_window_prices_are_averaged_over_time() -> None:
     network = build_network("offer", _participants((0.20, 0.26), (0.10, 0.04)), [1800, 3600])
     network.optimize()
 
-    (offer,) = grid_offers(network, GRID, windows=[[0, 1]], min_price=-1.0, max_price=1.0)
+    (offer,) = grid_offers(network, GRID, intervals=[(0.0, 5400.0)], min_price=-1.0, max_price=1.0)
 
     assert (offer.import_price, offer.export_price) == pytest.approx((0.24, 0.06))
     assert offer.steps[0].import_price == pytest.approx(-1.0)
+
+
+def test_grid_offer_interval_can_start_and_end_inside_periods() -> None:
+    """An interval that cuts through periods weights each by the time it spends in it."""
+    network = build_network("offer", _participants((0.20, 0.26), (0.10, 0.04)), [1800, 3600])
+    network.optimize()
+
+    quarter_hours = [(900.0, 2700.0), (900.0, 1800.0), (1800.0, 2700.0)]
+    across, first, second = grid_offers(network, GRID, intervals=quarter_hours, min_price=-1.0, max_price=1.0)
+
+    assert (across.import_price, across.export_price) == pytest.approx((0.23, 0.07))
+    assert (first.import_price, second.import_price) == pytest.approx((0.20, 0.26))
 
 
 def test_grid_offer_emissions_are_the_change_from_the_planned_grid_emissions() -> None:
@@ -111,7 +122,12 @@ def test_grid_offer_emissions_are_the_change_from_the_planned_grid_emissions() -
     network.optimize()
 
     (offer,) = grid_offers(
-        network, GRID, windows=[[1]], min_price=-1.0, max_price=1.0, emissions_intensity=np.array([0.8, 0.2])
+        network,
+        GRID,
+        intervals=[(3600.0, 7200.0)],
+        min_price=-1.0,
+        max_price=1.0,
+        emissions_intensity=np.array([0.8, 0.2]),
     )
 
     assert offer.emissions_intensity == pytest.approx(0.2)
@@ -123,7 +139,7 @@ def test_grid_offer_without_an_emissions_intensity_reports_no_emissions() -> Non
     network = build_network("offer", _participants(), [3600, 3600])
     network.optimize()
 
-    (offer,) = grid_offers(network, GRID, windows=[[1]], min_price=-1.0, max_price=1.0)
+    (offer,) = grid_offers(network, GRID, intervals=[(3600.0, 7200.0)], min_price=-1.0, max_price=1.0)
 
     assert offer.emissions_intensity is None
     assert {step.emissions for step in offer.steps} == {None}

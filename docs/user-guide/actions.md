@@ -89,46 +89,46 @@ data:
 
 ## Get offer curves
 
-`haeo.offer_curve` answers "what would my home bid for the next settlement interval?"
-It lists the average grid power your home would use over that interval at every price it could have,
-with the prices of every other interval left as forecast.
+`haeo.offer_curve` answers "what would my home bid for this settlement interval?"
+For each interval of time you give it, it lists the average grid power your home would use at every price that interval could have,
+with the prices of all other time left as forecast.
 This is the offer a generator or a battery makes to a market, one curve for each interval:
 a retailer, aggregator or market operator learns how your home responds to a price,
 while every decision stays with HAEO in your home.
 
-| Field                | Required | Description                                                                                                    |
-| -------------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
-| System               | Yes      | The HAEO system to get offer curves for                                                                        |
-| Start                | No       | The first curve is for the first whole interval to start at or after this time. Leave it out to start from now |
-| End                  | No       | Also returns each later interval that starts before this time. Leave it out for the first interval only        |
-| Interval             | No       | Length of your market's settlement interval, in minutes. Defaults to 5                                         |
-| Lowest import price  | No       | Lowest average import price per kWh each curve covers. Defaults to -1                                          |
-| Highest import price | No       | Highest average import price per kWh each curve covers. Defaults to 20                                         |
-| Emissions intensity  | No       | A sensor giving the grid's emissions intensity, to report how each step changes your grid emissions            |
+| Field                | Required | Description                                                                                         |
+| -------------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| Grid                 | Yes      | The device of the HAEO grid to get offer curves for                                                 |
+| Intervals            | Yes      | The start and end time of each interval to get a curve for                                          |
+| Lowest import price  | No       | Lowest average import price per kWh each curve covers. Defaults to -1                               |
+| Highest import price | No       | Highest average import price per kWh each curve covers. Defaults to 20                              |
+| Emissions intensity  | No       | A sensor giving the grid's emissions intensity, to report how each step changes your grid emissions |
 
-With only a system chosen, the action returns one curve, for the next interval to start.
-The interval already under way is left out, since its price is already set.
-Your home can keep to that curve whatever the forecast turns out to be:
+Give **Intervals** as your market settles them.
+Australia's National Electricity Market, for example, settles every 5 minutes,
+and forecasts its prices in 5 minute intervals for the next hour and 30 minute intervals after that.
+Intervals do not have to match the periods HAEO plans in, and they can overlap.
+Each must lie inside the current plan, so it cannot start before the latest optimization did.
+
+The curve of an interval that is about to start is one your home can keep to whatever the forecast turns out to be:
 what it can import or export over the next few minutes depends on the battery's charge and power limits now.
 The forecast decides only the prices at which the home responds, through what its stored energy would be worth later.
 
-Set **End** to get the later intervals as well, as a market takes bids for the rest of the day.
-Treat those as a guide.
-Each one assumes every interval before it goes as forecast, so they do not add up:
+Treat the curves of later intervals as a guide.
+Each one assumes everything before it goes as forecast, so they do not add up:
 a battery's charge can only be spent once, and energy sold in one interval is not there for the next.
 Call the action again as each interval comes up, the way a generator rebids.
 
-Set **Interval** to the length of your market's settlement interval.
-The default of 5 minutes is that of Australia's National Electricity Market.
-The length matters a great deal.
+The length of an interval matters a great deal.
 A price that holds for one minute can be met by emptying the battery for that minute at almost no cost to the rest of the plan,
 while one that holds for half an hour uses far more of the battery's charge, so the home responds less to it.
-For a price change that lasts longer, such as a two-hour demand response event, set **Interval** to its length.
-
 Short intervals give an all-or-nothing curve: a cent or two above the forecast and the battery exports flat out.
 Longer intervals give a gentler curve with more steps, as the battery's stored energy is spread across the whole interval.
-An interval is never shorter than the plan's own periods in it.
-Those grow longer further ahead, often to an hour, so 5 minute curves are only 5 minutes long for the next hour or so.
+For a price change that lasts longer, such as a two-hour demand response event, give one interval of its length.
+
+Further ahead HAEO plans in longer periods, up to an hour.
+An interval shorter than the period it falls in gives a blurred curve,
+since the plan cannot do one thing for part of a period and another for the rest.
 
 The default prices cover the full range of Australian wholesale market prices, -\$1000 to about \$20,000 per MWh.
 Each curve always includes the forecast price.
@@ -136,38 +136,42 @@ Each curve always includes the forecast price.
 Use it when:
 
 - You want to share how your home would respond to a price, such as with a demand response program or a price-responsive resource trial
-- You want to see how much flexibility your home has right now, and what price it takes to use it
+- You want to see how much flexibility your home has at a time, and what price it takes to use it
 
 ```yaml
 action: haeo.offer_curve
 data:
-  config_entry: <your HAEO system>
+  grid: <your grid's device>
+  intervals:
+    - start: '2026-11-03 17:10:00'
+      end: '2026-11-03 17:15:00'
+    - start: '2026-11-03 18:00:00'
+      end: '2026-11-03 18:30:00'
 response_variable: offers
 ```
 
 The action returns its result without changing any entity, so call it from a script or automation with `response_variable`,
 or run it from **Developer Tools** → **Actions** to see the result there.
-Called at 5:08 pm, it looks like this, with one list of intervals for each grid:
+It looks like this, with one offer for each interval in the order you gave them, the second left out here:
 
 ```yaml
-grids:
-  Grid:
-    - start: '2026-11-03T17:10:00+10:00'
-      end: '2026-11-03T17:15:00+10:00'
-      import_price: 0.2105
-      export_price: 0.1467
-      power: 0.0
-      offer:
-        - {import_price: -1.0, export_price: -1.0638, power: 17.548}
-        - {import_price: 0.0, export_price: -0.0638, power: 9.253}
-        - {import_price: 0.1483, export_price: 0.0845, power: 3.272}
-        - {import_price: 0.1498, export_price: 0.086, power: 0.0}
-        - {import_price: 0.2136, export_price: 0.1498, power: -2.65}
-        - {import_price: 0.2158, export_price: 0.152, power: -7.547}
-        - {import_price: 0.2473, export_price: 0.1835, power: -26.747}
+offers:
+  - start: '2026-11-03T17:10:00+10:00'
+    end: '2026-11-03T17:15:00+10:00'
+    import_price: 0.2105
+    export_price: 0.1467
+    power: 0.0
+    offer:
+      - {import_price: -1.0, export_price: -1.0638, power: 17.548}
+      - {import_price: 0.0, export_price: -0.0638, power: 9.253}
+      - {import_price: 0.1483, export_price: 0.0845, power: 3.272}
+      - {import_price: 0.1498, export_price: 0.086, power: 0.0}
+      - {import_price: 0.2136, export_price: 0.1498, power: -2.65}
+      - {import_price: 0.2158, export_price: 0.152, power: -7.547}
+      - {import_price: 0.2473, export_price: 0.1835, power: -26.747}
 ```
 
-`import_price`, `export_price` and `power` at the top of an interval are its average forecast prices and planned grid power.
+`import_price`, `export_price` and `power` at the top of an offer are the interval's average forecast prices and planned grid power.
 Power is in kW, positive for import and negative for export, like the grid's active power sensor.
 Each entry in `offer` is a step: from those prices up to the next step's, the average grid power over the interval would be `power`.
 Import and export prices move together, as a change in the wholesale price changes both.
@@ -188,27 +192,28 @@ such as an emissions intensity sensor from your region's market data.
 [Offer curves](../modeling/offer-curves.md) explains how the curves are worked out and why they make a sound bid.
 
 Working out a curve means solving the plan again several times.
-The next interval takes a fraction of a second, and every interval of a long plan can take several seconds, or longer on slower hardware.
+One interval takes a fraction of a second, and a day of market intervals can take a few seconds, or longer on slower hardware.
 The plan and the output sensors are not changed, and HAEO does not plan again while the action runs.
 
 ## Errors
 
 The actions stop with an error message when they cannot run:
 
-| Message                                                              | What it means                                                                                       | What to do                                                          |
-| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Config entry … not found                                             | The chosen system no longer exists                                                                  | Pick the system again; it may have been removed and added again     |
-| Config entry … is not a HAEO hub                                     | The chosen entry belongs to another integration                                                     | Pick a HAEO system                                                  |
-| Config entry … is not loaded                                         | The HAEO system is still starting, failed to start, or is disabled                                  | Check the system on the integration page and fix any reported issue |
-| Any optimization error                                               | Only from `haeo.optimize`: the optimization it waited for failed                                    | See [Troubleshooting](troubleshooting.md) for that message          |
-| Saving diagnostics for a past time needs Home Assistant's recorder … | Only from `haeo.save_diagnostics`: you set **Time** but the recorder is not running                 | Leave **Time** out, or enable the recorder                          |
-| No history available at time …                                       | Only from `haeo.save_diagnostics`: the recorder has no values at that time for the inputs it names  | Choose a later time, within how long your recorder keeps history    |
-| The latest optimization found no plan …                              | Only from `haeo.offer_curve`: the last optimization failed, or none has run yet                     | Fix the reported problem, then try again once a plan is found       |
-| The plan covers no whole interval …                                  | Only from `haeo.offer_curve`: no interval of that length lies wholly inside the plan from **Start** | Set **Start** inside the plan, or use a shorter **Interval**        |
-| The latest plan relaxed constraints …                                | Only from `haeo.offer_curve`: the plan was found with **Relax impossible plans**                    | Fix the conflict the repair issue names                             |
-| The lowest import price must be below the highest                    | Only from `haeo.offer_curve`: the price range is empty                                              | Set **Lowest import price** below **Highest import price**          |
-| The emissions intensity sensor … has no reading                      | Only from `haeo.offer_curve`: the sensor is missing or unavailable                                  | Check the sensor, or leave **Emissions intensity** out              |
-| The emissions intensity sensor … is in …                             | Only from `haeo.offer_curve`: the sensor's unit is not a mass of CO2 per unit of energy             | Choose a sensor in g, kg or t per kWh or MWh                        |
+| Message                                                              | What it means                                                                                      | What to do                                                          |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Config entry … not found                                             | The chosen system no longer exists                                                                 | Pick the system again; it may have been removed and added again     |
+| Config entry … is not a HAEO hub                                     | The chosen entry belongs to another integration                                                    | Pick a HAEO system                                                  |
+| Config entry … is not loaded                                         | The HAEO system is still starting, failed to start, or is disabled                                 | Check the system on the integration page and fix any reported issue |
+| Any optimization error                                               | Only from `haeo.optimize`: the optimization it waited for failed                                   | See [Troubleshooting](troubleshooting.md) for that message          |
+| Saving diagnostics for a past time needs Home Assistant's recorder … | Only from `haeo.save_diagnostics`: you set **Time** but the recorder is not running                | Leave **Time** out, or enable the recorder                          |
+| No history available at time …                                       | Only from `haeo.save_diagnostics`: the recorder has no values at that time for the inputs it names | Choose a later time, within how long your recorder keeps history    |
+| The latest optimization found no plan …                              | Only from `haeo.offer_curve`: the last optimization failed, or none has run yet                    | Fix the reported problem, then try again once a plan is found       |
+| Device … does not belong to a HAEO grid                              | Only from `haeo.offer_curve`: the chosen device is not a grid's                                    | Choose the device of a HAEO grid                                    |
+| An interval must end after it starts and lie inside the plan …       | Only from `haeo.offer_curve`: an interval is empty, starts before the plan, or ends after it       | Give intervals between the times the message names                  |
+| The latest plan relaxed constraints …                                | Only from `haeo.offer_curve`: the plan was found with **Relax impossible plans**                   | Fix the conflict the repair issue names                             |
+| The lowest import price must be below the highest                    | Only from `haeo.offer_curve`: the price range is empty                                             | Set **Lowest import price** below **Highest import price**          |
+| The emissions intensity sensor … has no reading                      | Only from `haeo.offer_curve`: the sensor is missing or unavailable                                 | Check the sensor, or leave **Emissions intensity** out              |
+| The emissions intensity sensor … is in …                             | Only from `haeo.offer_curve`: the sensor's unit is not a mass of CO2 per unit of energy            | Choose a sensor in g, kg or t per kWh or MWh                        |
 
 ## Next steps
 

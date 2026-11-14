@@ -10,6 +10,10 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE a
 from custom_components.haeo.core.model.infeasibility import Relaxation, RowLabel
 from custom_components.haeo.core.model.linear import LinearArray
 
+# Hours of each of the home's two periods inside a window over the first period, and over both
+FIRST = np.array([1.0, 0.0])
+BOTH = np.array([1.0, 1.0])
+
 
 def _home(*, initial_charge: float) -> tuple[Network, LinearArray]:
     """Return a solved home with a 2 kW load, a 5 kWh battery and a grid, and its net grid import.
@@ -75,8 +79,7 @@ def _home(*, initial_charge: float) -> tuple[Network, LinearArray]:
 
 
 def _curve(network: Network, flow: LinearArray, period: int) -> list[tuple[float, float]]:
-    (curve,) = network.offer_curves(flow, windows=[[period]], low=[-1.0], high=[1.0])
-    assert curve.periods == (period,)
+    (curve,) = network.offer_curves(flow, windows=[np.eye(2)[period]], low=[-1.0], high=[1.0])
     return [(round(step.price, 6), round(step.power, 6)) for step in curve.steps]
 
 
@@ -97,7 +100,7 @@ def test_offer_curve_gives_the_power_of_the_plan() -> None:
     """A curve gives the window's power in the plan itself, beside the steps the prices trace."""
     network, flow = _home(initial_charge=3.0)
 
-    (curve,) = network.offer_curves(flow, windows=[[0]], low=[-1.0], high=[1.0])
+    (curve,) = network.offer_curves(flow, windows=[FIRST], low=[-1.0], high=[1.0])
 
     # The battery keeps 2 kWh for the second period and gives the first period's load the other 1 kWh
     assert curve.power == pytest.approx(1.0)
@@ -122,13 +125,29 @@ def test_offer_curve_of_a_window_shifts_every_period_in_it() -> None:
     """
     network, flow = _home(initial_charge=3.0)
 
-    (curve,) = network.offer_curves(flow, windows=[[0, 1]], low=[-1.0], high=[1.0])
+    (curve,) = network.offer_curves(flow, windows=[BOTH], low=[-1.0], high=[1.0])
 
-    assert curve.periods == (0, 1)
     assert [(round(step.price, 6), round(step.power, 6)) for step in curve.steps] == [
         (-1.0, 3.0),
         (-0.5, 2.0),
         (-0.3, 0.5),
+    ]
+
+
+def test_offer_curve_of_part_of_a_period_shifts_that_share_of_its_energy() -> None:
+    """A window over half a period prices half its energy, so each step takes twice the price shift.
+
+    The power is the same throughout a period, so the window's average power is the period's.
+    """
+    network, flow = _home(initial_charge=3.0)
+
+    (curve,) = network.offer_curves(flow, windows=[np.array([0.5, 0.0])], low=[-1.0], high=[1.0])
+
+    assert [(round(step.price, 6), round(step.power, 6)) for step in curve.steps] == [
+        (-1.0, 4.0),
+        (-0.4, 1.0),
+        (0.4, 0.0),
+        (0.8, -1.0),
     ]
 
 
@@ -141,7 +160,7 @@ def test_offer_curve_measures_the_whole_plan_at_each_step() -> None:
     network, flow = _home(initial_charge=3.0)
     measure = (flow * np.array([1.0, 0.5])).total()
 
-    (curve,) = network.offer_curves(flow, windows=[[0]], low=[-1.0], high=[1.0], measure=measure)
+    (curve,) = network.offer_curves(flow, windows=[FIRST], low=[-1.0], high=[1.0], measure=measure)
 
     assert [round(step.measure, 6) for step in curve.steps] == [2.5, 1.0, 0.5, 0.0]
 
@@ -151,7 +170,7 @@ def test_offer_curve_leaves_the_plan_unchanged() -> None:
     network, flow = _home(initial_charge=3.0)
     plan = np.asarray(network._solver.getSolution().col_value)
 
-    network.offer_curves(flow, windows=[[0], [1], [0, 1]], low=[-1.0] * 3, high=[1.0] * 3)
+    network.offer_curves(flow, windows=[FIRST, np.array([0.0, 1.0]), BOTH], low=[-1.0] * 3, high=[1.0] * 3)
 
     np.testing.assert_array_equal(network._solver.getSolution().col_value, plan)
 
@@ -159,7 +178,7 @@ def test_offer_curve_leaves_the_plan_unchanged() -> None:
 def test_offer_curve_step_at_takes_the_step_above_on_an_edge() -> None:
     """A price on a step's edge reads the step that starts there."""
     network, flow = _home(initial_charge=3.0)
-    (curve,) = network.offer_curves(flow, windows=[[0]], low=[-1.0], high=[1.0])
+    (curve,) = network.offer_curves(flow, windows=[FIRST], low=[-1.0], high=[1.0])
 
     assert curve.step_at(-1.0).power == pytest.approx(4.0)
     assert curve.step_at(0.0).power == pytest.approx(1.0)
@@ -173,4 +192,4 @@ def test_offer_curve_refused_for_a_relaxed_plan() -> None:
     network.relaxations = (Relaxation(RowLabel("battery", "soc", 0), 1.0),)
 
     with pytest.raises(ValueError, match="relaxing constraints"):
-        network.offer_curves(flow, windows=[[0]], low=[-1.0], high=[1.0])
+        network.offer_curves(flow, windows=[FIRST], low=[-1.0], high=[1.0])

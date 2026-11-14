@@ -1,11 +1,11 @@
 """Grid offer curves: the grid power a plan would take at each price over a window of time.
 
-A grid's offer curve shifts its import and export prices by the same amount in
-every period of a window, as a change in the wholesale price over a market
-interval passes through to both, and leaves every other period's prices as
-forecast. Each step is given as the window's average import and export prices
-it starts at and the average net grid power over the window at prices in it,
-positive for import, as the grid's active power sensor reports it.
+A grid's offer curve shifts its import and export prices by the same amount
+throughout a window, as a change in the wholesale price over a market interval
+passes through to both, and leaves the prices of all other time as forecast.
+Each step is given as the window's average import and export prices it starts
+at and the average net grid power over the window at prices in it, positive
+for import, as the grid's active power sensor reports it.
 
 Given the grid's emissions intensity each period, each step also says how much
 the whole plan's grid emissions would change from the plan at the forecast
@@ -46,10 +46,9 @@ class GridOfferStep:
 
 @dataclass(frozen=True, slots=True)
 class GridOffer:
-    """A grid's offer curve over a window of periods.
+    """A grid's offer curve over a window of time.
 
     Attributes:
-        periods: Indices of the periods in the window.
         import_price: Average forecast import price over the window in $/kWh.
         export_price: Average forecast export price over the window in $/kWh.
         power: Average net grid power over the window in kW at the forecast prices, positive for import.
@@ -59,7 +58,6 @@ class GridOffer:
 
     """
 
-    periods: tuple[int, ...]
     import_price: float
     export_price: float
     power: float
@@ -84,27 +82,27 @@ def _price(connection: Connection[str], n_periods: int) -> NDArray[np.float64]:
     return np.broadcast_to(np.asarray(segment.price, dtype=np.float64), (n_periods,))
 
 
-def _average(values: NDArray[np.float64], durations: NDArray[np.float64], window: Sequence[int]) -> float:
-    """Return the average of per-period values over a window, weighting each period by its duration."""
-    periods = np.asarray(window, dtype=np.intp)
-    return float(np.average(values[periods], weights=durations[periods]))
+def _average(values: NDArray[np.float64], window: NDArray[np.float64]) -> float:
+    """Return the average of per-period values over a window, weighting each period by its hours in the window."""
+    return float(np.average(values, weights=window))
 
 
 def grid_offers(
     network: Network,
     grid: str,
     *,
-    windows: Sequence[Sequence[int]],
+    intervals: Sequence[tuple[float, float]],
     min_price: float,
     max_price: float,
     emissions_intensity: NDArray[np.float64] | None = None,
 ) -> list[GridOffer]:
-    """Return a grid's offer curve over each of the given windows of a solved network.
+    """Return a grid's offer curve over each of the given intervals of a solved network's plan.
 
     Args:
         network: The network, holding the plan its last optimization found.
         grid: Name of the grid element.
-        windows: Indices of the consecutive periods in each window.
+        intervals: Start and end of each interval in seconds from the start of
+            the plan. An interval can start and end inside a period.
         min_price: Lowest average import price in $/kWh to trace each curve from.
         max_price: Highest average import price in $/kWh to trace each curve to.
             The range always takes in the forecast price.
@@ -118,8 +116,14 @@ def grid_offers(
     # The export connection prices exported energy as a negative cost
     export_price = -_price(grid_export, network.n_periods)
 
-    window_import = [_average(import_price, network.periods, window) for window in windows]
-    window_export = [_average(export_price, network.periods, window) for window in windows]
+    # Hours of each period that lie inside each interval
+    boundaries = np.concatenate([[0.0], np.cumsum(network.periods)])
+    windows = [
+        np.maximum(np.minimum(end / 3600.0, boundaries[1:]) - np.maximum(start / 3600.0, boundaries[:-1]), 0.0)
+        for start, end in intervals
+    ]
+    window_import = [_average(import_price, window) for window in windows]
+    window_export = [_average(export_price, window) for window in windows]
 
     net_import = grid_import.total_power_in - grid_export.total_power_in
     emissions = None if emissions_intensity is None else (net_import * (emissions_intensity * network.periods)).total()
@@ -131,17 +135,14 @@ def grid_offers(
         measure=emissions,
     )
     offers: list[GridOffer] = []
-    for curve, imported, exported in zip(curves, window_import, window_export, strict=True):
+    for curve, window, imported, exported in zip(curves, windows, window_import, window_export, strict=True):
         planned = curve.step_at(0.0)
         offers.append(
             GridOffer(
-                periods=curve.periods,
                 import_price=imported,
                 export_price=exported,
                 power=curve.power,
-                emissions_intensity=None
-                if emissions_intensity is None
-                else _average(emissions_intensity, network.periods, curve.periods),
+                emissions_intensity=None if emissions_intensity is None else _average(emissions_intensity, window),
                 steps=tuple(
                     GridOfferStep(
                         import_price=imported + step.price,

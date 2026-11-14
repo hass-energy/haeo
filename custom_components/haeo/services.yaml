@@ -25,19 +25,29 @@ optimize:
 
 offer_curve:
   fields:
-    config_entry:
+    grid:
       required: true
       selector:
-        config_entry:
-          integration: haeo
-    start:
-      required: false
+        device:
+          filter:
+            - integration: haeo
+    intervals:
+      required: true
       selector:
-        datetime:
-    end:
-      required: false
-      selector:
-        datetime:
+        object:
+          multiple: true
+          label_field: start
+          fields:
+            start:
+              required: true
+              label: Start
+              selector:
+                datetime:
+            end:
+              required: true
+              label: End
+              selector:
+                datetime:
     min_price:
       required: false
       default: -1.0
@@ -55,15 +65,6 @@ offer_curve:
           min: -1000
           max: 1000
           step: 0.01
-          mode: box
-    interval:
-      required: false
-      default: 5
-      selector:
-        number:
-          min: 1
-          max: 1440
-          unit_of_measurement: min
           mode: box
     emissions_intensity:
       required: false

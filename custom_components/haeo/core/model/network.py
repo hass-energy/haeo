@@ -477,12 +477,12 @@ class Network:
         self,
         flow: LinearArray,
         *,
-        windows: Sequence[Sequence[int]],
+        windows: Sequence[NDArray[np.float64]],
         low: Sequence[float],
         high: Sequence[float],
         measure: LinearArray | None = None,
     ) -> list[OfferCurve]:
-        """Return how a flow over each window of periods responds to its price, from the plan the last optimize left.
+        """Return how a flow over each window of time responds to its price, from the plan the last optimize left.
 
         Each curve is traced on a copy of the solved model, so the plan and the
         next optimization's warm start are unchanged. ``core.model.offer``
@@ -501,7 +501,6 @@ class Network:
             self._solver,
             cost,
             self.options.apply,
-            self.periods,
             flow,
             windows=windows,
             low=low,

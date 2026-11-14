@@ -4,8 +4,7 @@ An offer curve says how much power a home would take from the grid over a window
 with every price outside the window left as forecast.
 It answers "what does this home bid for the next settlement interval?",
 the question a generator answers with a quantity in each of a set of price bands.
-The `haeo.offer_curve` [action](../user-guide/actions.md#get-offer-curves) returns one for each grid,
-for the next settlement interval or for each interval up to an end time.
+The `haeo.offer_curve` [action](../user-guide/actions.md#get-offer-curves) returns a grid's curve over each interval of time it is given.
 
 ## What the curve is
 
@@ -44,10 +43,9 @@ On scenario 7, raising both prices by 3.5c/kWh from the start of the plan gives:
 | 5 minutes  | 15.3 kW        |
 | 30 minutes | 11.0 kW        |
 
-The action groups the plan's periods into windows by the interval of the clock each starts in,
-5 minutes by default, the settlement interval of Australia's National Electricity Market.
-A curve traced over any other length than the market settles on promises the wrong power.
-The shift is the same in every period of the window, so the price shape within it is kept,
+The action traces a curve over each interval it is given, which the caller sets to the intervals its market settles on.
+A curve traced over any other length promises the wrong power.
+The shift is the same throughout the window, so the price shape within it is kept,
 as a change in the wholesale price leaves the tariffs added to it as they are.
 A shift is used rather than a scaling of the price, since scaling does nothing to a price of zero
 and turns a negative price more negative as it raises a positive one.
@@ -68,8 +66,15 @@ Across the scenario networks, at the start of the plan, at the evening peak and 
     at about 27 kWh near the start of scenario 7.
 - The curve's shape can change with length in either direction,
     since a longer window also takes in periods whose forecast prices sit nearer or further from a step.
-- A window is never shorter than the plan's periods in it.
-    Periods grow to an hour further ahead, so a short window's curve there is the curve of a whole period.
+- A window shorter than the period it falls in gives a blurred curve.
+    Periods grow to an hour further ahead, and the plan cannot do one thing in part of a period and another in the rest.
+
+### Windows and periods
+
+A window can start and end anywhere in the plan, whatever the plan's periods are.
+The model holds the power constant through a period, so the energy a window takes from a period is that power times the time the window spends in it.
+The shift is priced on that share of the period's energy, and the window's forecast prices are weighted the same way.
+Windows can overlap, since each curve is traced on its own.
 
 Each window takes well under a second to trace.
 
@@ -140,9 +145,6 @@ The next interval's curve is a bid the home can deliver.
 What it can import or export over the next few minutes is set by its state of charge and power limits now.
 The forecast sets only where the edges sit, through what stored energy is worth later.
 A wrong forecast therefore misprices the bid, which costs the home, and the power it offered can still be delivered.
-
-The action starts from the first whole interval after the start time and leaves out the one already under way.
-That interval's price is set, and what is left of it is a shorter window, which overstates the response.
 
 ### Later intervals
 
