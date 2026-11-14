@@ -226,17 +226,15 @@ def test_preset_produces_constant_step_count_for_all_minutes(preset: str) -> Non
     consistent solver performance regardless of when optimization starts.
     """
 
-    with freeze_time(datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)):
-        periods = preset_periods_seconds(preset)
-        assert len(periods) > 0
-        assert periods[0] == 60
+    periods = preset_periods_seconds(preset, start_time=datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC))
+    assert len(periods) > 0
+    assert periods[0] == 60
 
     step_counts: list[int] = []
 
     for minute in range(60):
-        with freeze_time(datetime(2025, 1, 1, 12, minute, 0, tzinfo=UTC)):
-            periods = preset_periods_seconds(preset)
-            step_counts.append(len(periods))
+        periods = preset_periods_seconds(preset, start_time=datetime(2025, 1, 1, 12, minute, 0, tzinfo=UTC))
+        step_counts.append(len(periods))
 
     # All minutes should produce the same step count
     expected_count = step_counts[0]
@@ -307,12 +305,11 @@ def test_preset_produces_exact_horizon_duration(preset: str) -> None:
 
     # Test all 60 possible start minutes
     for minute in range(60):
-        with freeze_time(datetime(2025, 1, 1, 12, minute, 0, tzinfo=UTC)):
-            periods = preset_periods_seconds(preset)
-            total_seconds = sum(periods)
-            assert total_seconds == expected_seconds, (
-                f"Preset {preset}: minute {minute} produced {total_seconds}s, expected {expected_seconds}s"
-            )
+        periods = preset_periods_seconds(preset, start_time=datetime(2025, 1, 1, 12, minute, 0, tzinfo=UTC))
+        total_seconds = sum(periods)
+        assert total_seconds == expected_seconds, (
+            f"Preset {preset}: minute {minute} produced {total_seconds}s, expected {expected_seconds}s"
+        )
 
 
 def _forecast_state(forecast: object) -> FakeEntityState:
