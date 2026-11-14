@@ -68,6 +68,8 @@ class BatteryElementConfig(TypedDict):
     max_charge: NotRequired[NDArray[np.float64] | float]
     charge_limit_cost: NotRequired[NDArray[np.float64] | float]
     salvage_value: NotRequired[float]
+    level_offset: NotRequired[float]
+    energy_per_level: NotRequired[float]
     outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
 
@@ -79,6 +81,9 @@ class Battery(NetworkElement[BatteryOutputName]):
     Stored energy runs from empty to its capacity. The min and max charge are kept
     with priced slack instead, so the plan stays feasible when the battery starts
     outside them. Uses TrackedParam for parameters that can change between optimizations.
+
+    Its level is ``level_offset + stored_energy / energy_per_level``, such as a
+    temperature for a store of heat. It defaults to the stored energy in kWh.
     """
 
     # Parameters
@@ -88,6 +93,8 @@ class Battery(NetworkElement[BatteryOutputName]):
     max_charge: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     charge_limit_cost: TrackedParam[NDArray[np.float64]] = TrackedParam()
     salvage_value: TrackedParam[float] = TrackedParam()
+    level_offset: TrackedParam[float] = TrackedParam()
+    energy_per_level: TrackedParam[float] = TrackedParam()
 
     def __init__(
         self,
@@ -101,6 +108,8 @@ class Battery(NetworkElement[BatteryOutputName]):
         max_charge: NDArray[np.float64] | float | None = None,
         charge_limit_cost: NDArray[np.float64] | float = 0.0,
         salvage_value: float = 0.0,
+        level_offset: float = 0.0,
+        energy_per_level: float = 1.0,
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
@@ -122,6 +131,8 @@ class Battery(NetworkElement[BatteryOutputName]):
         self.max_charge = broadcast_to_sequence(max_charge, n_periods + 1)
         self.charge_limit_cost = broadcast_to_sequence(charge_limit_cost, n_periods)
         self.salvage_value = salvage_value
+        self.level_offset = level_offset
+        self.energy_per_level = energy_per_level
 
         # Create all energy variables (including initial state at t=0)
         self.energy_in = solver.add_variables(n_periods + 1, name=f"{name}.energy_in")
@@ -143,6 +154,11 @@ class Battery(NetworkElement[BatteryOutputName]):
     def charge_ceiling(self) -> NDArray[np.float64]:
         """Stored energy the battery is held below at each boundary: its max charge, or full when unset."""
         return self.capacity if self.max_charge is None else self.max_charge
+
+    @property
+    def end_level(self) -> LinearArray:
+        """Level at the end of each period."""
+        return self.stored_energy[1:] * (1.0 / self.energy_per_level) + self.level_offset
 
     @property
     def power_consumption(self) -> LinearArray:

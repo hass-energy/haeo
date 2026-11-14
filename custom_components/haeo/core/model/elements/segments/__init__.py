@@ -5,6 +5,8 @@ Each segment type applies a specific transformation or constraint to power flow:
 - PassthroughSegment: Lossless passthrough (no constraints)
 - PowerLimitSegment: Limits power flow
 - PricingSegment: Adds transfer pricing costs
+- ConductionSegment: Fixes flow at conductance times the level difference of the ends
+- LevelLimitSegment: Caps flow at conductance times the level difference of the ends
 """
 
 from collections.abc import Callable
@@ -25,16 +27,24 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.solver import Solver
 
 from .efficiency import EfficiencySegment, EfficiencySegmentSpec
+from .level import ConductionSegment, ConductionSegmentSpec, LevelLimitSegment, LevelLimitSegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
 from .power_limit import PowerLimitSegment, PowerLimitSegmentSpec
 from .pricing import PricingSegment, PricingSegmentSpec
 from .segment import FlowProvider, FlowVariables, Segment
 
 # Discriminated union of segment type strings
-type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing"]
+type SegmentType = Literal["conduction", "efficiency", "level_limit", "passthrough", "power_limit", "pricing"]
 
 # Union type for all segment specifications
-type SegmentSpec = EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec
+type SegmentSpec = (
+    ConductionSegmentSpec
+    | EfficiencySegmentSpec
+    | LevelLimitSegmentSpec
+    | PassthroughSegmentSpec
+    | PowerLimitSegmentSpec
+    | PricingSegmentSpec
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +56,9 @@ class SegmentSpecEntry:
 
 # Registry mapping segment type strings to segment factories
 SEGMENTS: Final[dict[SegmentType, SegmentSpecEntry]] = {
+    "conduction": SegmentSpecEntry(factory=ConductionSegment),
     "efficiency": SegmentSpecEntry(factory=EfficiencySegment),
+    "level_limit": SegmentSpecEntry(factory=LevelLimitSegment),
     "passthrough": SegmentSpecEntry(factory=PassthroughSegment),
     "power_limit": SegmentSpecEntry(factory=PowerLimitSegment),
     "pricing": SegmentSpecEntry(factory=PricingSegment),
@@ -81,10 +93,14 @@ def create_segment(
 
 __all__ = [
     "SEGMENTS",
+    "ConductionSegment",
+    "ConductionSegmentSpec",
     "EfficiencySegment",
     "EfficiencySegmentSpec",
     "FlowProvider",
     "FlowVariables",
+    "LevelLimitSegment",
+    "LevelLimitSegmentSpec",
     "PassthroughSegment",
     "PassthroughSegmentSpec",
     "PowerLimitSegment",

@@ -2,7 +2,7 @@
 
 from functools import reduce
 import operator
-from typing import Literal
+from typing import Literal, TypedDict
 from unittest.mock import Mock
 
 from highspy import HighsModelStatus
@@ -202,6 +202,13 @@ def test_multi_tag_outbound_does_not_duplicate_production(solver: Solver) -> Non
 # ---------------------------------------------------------------------------
 
 
+class _TagArguments(TypedDict, total=False):
+    """The tag arguments a node is built with."""
+
+    outbound_tags: set[int]
+    inbound_tags: set[int]
+
+
 @pytest.mark.parametrize(
     ("is_source", "is_sink", "tags_kwarg", "variable_attr"),
     [
@@ -214,7 +221,7 @@ def test_empty_tag_overlap_forces_variable_to_zero(
     solver: Solver,
     is_source: bool,
     is_sink: bool,
-    tags_kwarg: dict[str, set[int]],
+    tags_kwarg: _TagArguments,
     variable_attr: str,
 ) -> None:
     """When tag sets have no overlap with connection tags, the variable must be zero.

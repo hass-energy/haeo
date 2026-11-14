@@ -7,7 +7,9 @@ from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
 from custom_components.haeo.core.model.linear import LinearArray
+from custom_components.haeo.core.model.reactive import TrackedParam
 from custom_components.haeo.core.model.solver import Solver
+from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 type NodeElementTypeName = Literal["node"]
 ELEMENT_TYPE: Final[NodeElementTypeName] = "node"
@@ -26,6 +28,7 @@ class NodeElementConfig(TypedDict):
     name: str
     is_source: NotRequired[bool]
     is_sink: NotRequired[bool]
+    level: NotRequired[NDArray[np.float64] | float]
     outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
 
@@ -42,7 +45,12 @@ class Node(NetworkElement[NodeOutputName]):
     - source only: produced ≥ 0, consumed = 0
     - sink only: produced = 0, consumed ≥ 0
     - junction: both 0 (conservation only)
+
+    A node's level is a forecast, such as the temperature of the air around a
+    tank, which level segments on its connections compare with their other end.
     """
+
+    level: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
@@ -52,6 +60,7 @@ class Node(NetworkElement[NodeOutputName]):
         solver: Solver,
         is_source: bool = True,
         is_sink: bool = True,
+        level: NDArray[np.float64] | float = 0.0,
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
@@ -67,8 +76,14 @@ class Node(NetworkElement[NodeOutputName]):
             inbound_tags=inbound_tags,
         )
         n = self.n_periods
+        self.level = broadcast_to_sequence(level, n)
         self._produced = solver.add_variables(n, name=f"{name}.produced") if is_source else None
         self._consumed = solver.add_variables(n, name=f"{name}.consumed") if is_sink else None
+
+    @property
+    def end_level(self) -> LinearArray:
+        """Level at the end of each period."""
+        return LinearArray.constants(self.level)
 
     def element_power_produced(self) -> LinearArray | None:
         """Return production: bounded [0, inf] for sources, None otherwise."""

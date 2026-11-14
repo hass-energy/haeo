@@ -1,7 +1,8 @@
 """Connection element for unidirectional power flow between nodes.
 
 A Connection represents a single direction of power flow from source to target.
-Bidirectional paths are modelled as two separate connections.
+Bidirectional paths are modelled as two separate connections, except where a
+reversible segment, such as conduction, fixes a flow that may run either way.
 
 Connection creates per-tag LP variables for the power flow, then chains them
 through segments. Each segment derives its per-tag input flow from the segment
@@ -27,7 +28,7 @@ from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element
-from custom_components.haeo.core.model.linear import LinearArray, total
+from custom_components.haeo.core.model.linear import INF, LinearArray, total
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import cost, output
 from custom_components.haeo.core.model.solver import Solver
@@ -218,12 +219,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
             self._initialize_segments(source_element, target_element)
 
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
-        # Create per-tag LP variables
-        self._power_in = {
-            tag: self._solver.add_variables(self.n_periods, name=f"{self.name}.power_in_tag{tag}")
-            for tag in sorted(self._tags)
-        }
-
         specs = list(self._segment_specs.items()) or [("passthrough", {"segment_type": "passthrough"})]
 
         # Each segment reads its input from the one before it. The measured point is
@@ -246,6 +241,16 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 self._measured = upstream
             upstream = seg
         self._output: FlowProvider = upstream
+
+        # Segments read their flows when asked, so the per-tag LP variables are created
+        # last, running in either direction when a segment is reversible
+        lower = -INF if any(seg.reversible for seg in self._segments.values()) else 0.0
+        self._power_in.update(
+            {
+                tag: self._solver.add_variables(self.n_periods, name=f"{self.name}.power_in_tag{tag}", lower=lower)
+                for tag in sorted(self._tags)
+            }
+        )
 
     @property
     def power_in(self) -> dict[int, LinearArray]:

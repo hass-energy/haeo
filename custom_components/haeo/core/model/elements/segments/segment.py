@@ -19,6 +19,7 @@ from typing import (
     # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
     # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
     # unknown output-name type" here; segments only use these via hasattr/isinstance duck typing.
+    ClassVar,
     Protocol,
 )
 
@@ -54,7 +55,10 @@ class Segment(ModelComponent):
 
     Reads its input flow from its upstream and exposes an output flow.
     Identity by default — subclasses override `power_out` to transform the flow.
+    A reversible segment lets the connection's flow run in either direction.
     """
+
+    reversible: ClassVar[bool] = False
 
     periods: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
