@@ -425,8 +425,7 @@ class InputStore:
             self._error = err
             self._available = False
             self._unavailable_sources = ()
-            self._set_held_sources({})
-            self._degraded_sources = ()
+            self._set_held_sources({}, now.monotonic)
             self._settled.set()
             return changed
         except Exception as err:
@@ -457,8 +456,7 @@ class InputStore:
 
         changed = self._commit(resolved, forecast_timestamps)
         self._last_readings.update(readings)
-        self._set_held_sources({eid: self._missing_since[eid] for eid in held})
-        changed = self._update_degraded_sources(now.monotonic) or changed
+        changed = self._set_held_sources({eid: self._missing_since[eid] for eid in held}, now.monotonic) or changed
         self._data_ready.set()
         self._settled.set()
         return changed
@@ -494,7 +492,7 @@ class InputStore:
         degraded = tuple(
             eid
             for eid in self._source_entity_ids
-            if (lost := self._held_sources.get(eid)) is not None and now - lost.monotonic >= self._hold_seconds
+            if (lost := self._held_sources.get(eid)) is not None and lost.monotonic + self._hold_seconds <= now
         )
         changed = degraded != self._degraded_sources
         self._degraded_sources = degraded
@@ -546,17 +544,23 @@ class InputStore:
         self._available = False
         self._error = None
         self._unavailable_sources = unavailable_sources
-        self._set_held_sources({})
-        self._degraded_sources = ()
+        self._set_held_sources({}, time.monotonic())
         return changed
 
-    def _set_held_sources(self, held_sources: dict[str, _LostReading]) -> None:
-        """Record the sources whose last reading the value holds, telling hold listeners when they change."""
-        if held_sources == self._held_sources:
-            return
+    def _set_held_sources(self, held_sources: dict[str, _LostReading], now: float) -> bool:
+        """Record the sources whose last reading the value holds, and return whether the degraded ones changed.
+
+        Hold listeners are told when the held sources change, once those held
+        for the hold or longer are marked degraded, so :attr:`hold_expires_at`
+        only ever names a hold that has yet to pass.
+        """
+        held_changed = held_sources != self._held_sources
         self._held_sources = held_sources
-        for listener in list(self._hold_listeners):
-            listener()
+        degraded_changed = self._update_degraded_sources(now)
+        if held_changed:
+            for listener in list(self._hold_listeners):
+                listener()
+        return degraded_changed
 
 
 class _HeldStateMachine(StateMachine):

@@ -981,6 +981,19 @@ def test_seeded_reading_is_held_from_when_it_was_reported(
     assert store.hold_expires_at == (None if degraded else time.monotonic() - age + 60)
 
 
+def test_hold_listeners_see_a_reading_held_past_its_hold_as_degraded(freezer: FrozenDateTimeFactory) -> None:
+    """Hold listeners are told once a reading held past its hold is degraded, with no expiry left to wait for."""
+    store = _held_store(60)
+    store.load(_prices("1.0", "unavailable"))
+    seen: list[tuple[tuple[str, ...], float | None]] = []
+    store.add_hold_listener(lambda: seen.append((store.degraded_sources, store.hold_expires_at)))
+
+    store.seed_reading("sensor.b", FakeEntityState("sensor.b", "2.0", {}), time.time() - 120)
+    store.load(_prices("1.0", "unavailable"))
+
+    assert seen == [(("sensor.b",), None)]
+
+
 def test_seeded_reading_is_ignored_for_a_source_with_a_reading(freezer: FrozenDateTimeFactory) -> None:
     """A seed for a source that has a live or last reading leaves the store as it is."""
     store = _held_store(60)
