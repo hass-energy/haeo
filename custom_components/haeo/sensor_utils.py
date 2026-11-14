@@ -1,5 +1,6 @@
 """Utility functions for extracting and processing sensor data."""
 
+from collections.abc import Sequence
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 import math
@@ -94,15 +95,24 @@ def _try_parse_float(value: "ConvertibleToFloat") -> float | None:
         return None
 
 
-def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
-    """Round numeric values in output sensors to a precision set by each entity's scale.
+def round_entity_values(values: Sequence[float]) -> list[float]:
+    """Round the values one entity shows to a precision set by the entity's scale.
 
     The entity's largest absolute value, rounded to _TARGET_SIG_FIGS sig figs
     so that it is the same on all platforms, determines the decimal places
-    for _TARGET_SIG_FIGS sig figs at that magnitude. Every value in the entity
-    is rounded once to that precision. This suppresses noise-floor values
-    with meaningless low-order digits, and keeps small values within a series
+    for _TARGET_SIG_FIGS sig figs at that magnitude. Every value is rounded
+    once to that precision. This suppresses noise-floor values with
+    meaningless low-order digits, and keeps small values within a series
     from retaining more precision than the series scale warrants.
+    """
+    if not values:
+        return []
+    dp = _entity_decimal_places(max(abs(_round_sig(v)) for v in values))
+    return [_round_decimal(v, dp) for v in values]
+
+
+def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
+    """Round each entity's numeric state and forecast values together with round_entity_values.
 
     Modifies output_sensors in place.
     """
@@ -117,20 +127,13 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
             if val is not None:
                 forecast_values.append((item, val))
 
-        abs_values = [abs(_round_sig(v)) for _, v in forecast_values]
-        if state_val is not None:
-            abs_values.append(abs(_round_sig(state_val)))
+        rounded = round_entity_values([v for _, v in forecast_values] + ([] if state_val is None else [state_val]))
 
-        if not abs_values:
-            continue
-
-        dp = _entity_decimal_places(max(abs_values))
+        for (item, _), val in zip(forecast_values, rounded, strict=False):
+            item["value"] = val
 
         if state_val is not None:
-            entity_data["state"] = str(_round_decimal(state_val, dp))
-
-        for item, val in forecast_values:
-            item["value"] = _round_decimal(val, dp)
+            entity_data["state"] = str(rounded[-1])
 
 
 def get_duration_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry) -> str | None:

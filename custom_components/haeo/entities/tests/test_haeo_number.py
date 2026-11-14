@@ -1344,3 +1344,41 @@ async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
     assert entity.native_value == 30.0
     assert field_info.calendar is not None
     assert entity._attr_extra_state_attributes["calendar_projection"] == field_info.calendar.projection
+
+
+async def test_driven_entity_rounds_a_converted_value_as_outputs_are(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """A driven entity shows a converted value and forecast as outputs are rounded, and keeps the full value."""
+    hass.states.async_set("sensor.power", "1234.5678", {"unit_of_measurement": "W", "device_class": "power"})
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
+    await _add_entity_to_hass(hass, entity)
+
+    assert entity._store.native_value == pytest.approx(1.2345678)
+    assert entity.native_value == 1.23
+    attrs = entity.extra_state_attributes or {}
+    assert [point["value"] for point in attrs["forecast"]] == [1.23, 1.23]
+
+
+async def test_editable_entity_shows_the_value_as_entered(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """An editable entity shows the value the user entered without rounding it."""
+    subentry = _create_subentry("Test Battery", {"capacity": 12.345})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager)
+    await _add_entity_to_hass(hass, entity)
+
+    assert entity.native_value == 12.345
