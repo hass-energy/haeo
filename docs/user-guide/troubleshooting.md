@@ -183,6 +183,55 @@ It describes the first plan that had to relax constraints since you last resolve
 The relaxed periods cannot happen as planned, so treat that issue as a sign to check the forecast.
 The shortfall is placed to be as small as possible rather than as cheap as possible, so the rest of the plan can cost a little more than it would with the shortfall placed by cost.
 
+## An input has no reading
+
+### Problem
+
+A sensor that one of your inputs reads has stopped reporting, and shows as `unavailable` or `unknown`.
+
+### Symptoms
+
+- HAEO keeps planning with the sensor's last reading, and the input keeps showing that reading
+- The input's entity then shows `held_source_entity`, naming the sensor, and `held_since`, the time it stopped reporting
+- If the gap lasts longer than the hub's **Sensor gap tolerance**, the optimization status is **Degraded** and a repair issue titled "… is planning on an old reading for …" names the element, the input, the sensors, and when they stopped reporting
+- After a restart, a sensor that has not reported yet is planned on with its last reading in the recorder, timed from when the sensor last reported it, so a restart that took longer than the tolerance is degraded at once, though its repair issue waits until one tolerance has passed since HAEO started
+- If a sensor has no last reading to plan with, because it is new, excluded from the recorder, or its history was purged, the input shows as unavailable, the optimization status is **Failed**, the other output sensors are unavailable, and a repair issue titled "… has no reading for …" names the sensors
+- A calendar HAEO cannot read upcoming events from, or an energy meter read over a window, has no last reading HAEO plans with: its input shows as unavailable at once
+
+### Solutions
+
+#### Check the sensor
+
+Look up each sensor the repair issue names in **Developer tools → States**.
+If it was removed or renamed, reconfigure the element to read one that exists.
+As soon as the sensor reports, HAEO plans with its new reading, the status returns to **Succeeded**, and the repair issue clears.
+
+#### Allow for short dropouts
+
+If a sensor often drops out for a few seconds or minutes, raise **Sensor gap tolerance** in the hub's [advanced settings](configuration.md#editing-hub-settings), so those gaps do not mark the plan degraded or raise a repair issue.
+HAEO plans with the last reading either way; the tolerance only decides how long it does so before telling you.
+Set it to 0 to report every gap at once.
+
+#### Act on degraded plans in automations
+
+An automation that follows HAEO's plan can check that the optimization status is not degraded before acting on it:
+
+```yaml
+condition:
+  - condition: state
+    entity_id: sensor.optimizer_status
+    state: success
+```
+
+It can also check whether a particular input is holding a reading, even within the tolerance, and be more careful while it is:
+
+```yaml
+condition:
+  - condition: template
+    value_template: >-
+      {{ state_attr('number.grid_import_price', 'held_source_entity') is none }}
+```
+
 ## Optimization takes too long
 
 ### Problem
@@ -219,7 +268,7 @@ Element sensors display `unknown` values.
 ### Solutions
 
 1. **Wait for optimization**: First run takes time
-2. **Check optimization status**: Must be **Succeeded**; when it is **Failed**, its `error` attribute explains why
+2. **Check optimization status**: Must be **Succeeded** or **Degraded**; when it is **Failed**, its `error` attribute explains why
 3. **Verify configuration**: All required fields filled
 4. **Review logs**: Check for error messages
 
@@ -299,7 +348,7 @@ Try these resources if you still need assistance after working through the troub
 
     Ensure follow-up automations react correctly to optimizer outputs.
 
-    [:material-arrow-right: Automation patterns](automations.md)
+    [:material-arrow-right: Automating your hardware](automations.md)
 
 - :material-forum:{ .lg .middle } __Ask the community for help__
 

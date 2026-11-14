@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import Callable, Collection, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 import itertools
 import logging
@@ -22,6 +22,7 @@ from homeassistant.util.json import JsonValueType
 from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
+    OPTIMIZATION_STATUS_DEGRADED,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
@@ -40,8 +41,10 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
+    CONF_INPUT_HOLD_SECONDS,
     CONF_RELAX_INFEASIBLE,
     DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_INPUT_HOLD_SECONDS,
 )
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
@@ -63,6 +66,8 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import (
+    DegradedInput,
+    degraded_inputs,
     raise_for_rejected_input,
     unavailable_input_placeholders,
     unavailable_input_sources,
@@ -75,8 +80,8 @@ from custom_components.haeo.repairs import (
     dismiss_optimization_failure_issue,
     optimization_infeasible_issue_raised,
     optimization_relaxed_issue_raised,
+    sync_input_issues,
     sync_mixed_price_currencies_issue,
-    sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_save_diagnostics
 from custom_components.haeo.util import network_subentry
@@ -162,6 +167,7 @@ STATE_CLASS_MAP: dict[OutputType, SensorStateClass | None] = {
 STATUS_OPTIONS: tuple[str, ...] = tuple(
     sorted(  # Keep a stable order for enum options in Home Assistant UI
         {
+            OPTIMIZATION_STATUS_DEGRADED,
             OPTIMIZATION_STATUS_FAILED,
             OPTIMIZATION_STATUS_PENDING,
             OPTIMIZATION_STATUS_SUCCESS,
@@ -336,6 +342,9 @@ class CoordinatorData:
     completed_at: datetime
     """When the optimization completed."""
 
+    degraded_inputs: dict["InputStoreKey", DegradedInput] = field(default_factory=dict)
+    """Inputs the optimization used a reading held past the hold for, with the sources held."""
+
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     """Data update coordinator for HAEO integration.
@@ -398,12 +407,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # debounce window holds when the wall clock is set back
         self._last_optimization_time: float | None = None
         self._debounce_timer: CALLBACK_TYPE | None = None
+        # The optimization requested in this event loop pass, which starts on the next iteration
+        self._pending_optimization: asyncio.Task[None] | None = None
         # Held while an optimization runs, so optimizations never overlap
         self._optimization_lock = asyncio.Lock()
+        # How many optimizations are waiting for the running one to end
+        self._waiting_optimizations = 0
+        # Whether an optimization is wanted without waiting out the debounce window
+        self._skip_debounce = False
+        # Optimize actions waiting for the result of the next optimization to start
+        self._result_waiters: list[asyncio.Future[None]] = []
         # Whether an optimization was requested that no optimization has started reading inputs for since
         self._rerun_wanted: bool = False
-        # The horizon start the latest optimization planned from
-        self._planned_horizon_start: float | None = None
         # Boundaries of the periods of the plan the network holds, set once a solve finds one
         self._plan_timestamps: tuple[float, ...] = ()
         # When optimizations started failing, and whether that failure raises an issue of its own
@@ -412,6 +427,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._failure_issue_raised = False
         # Elements whose inputs changed since an optimization last applied them to the network
         self._stale_elements: set[str] = set()
+        # New degraded input issues wait until one hold has passed since setup, on the
+        # monotonic clock, so sources that have not reported yet after a restart
+        # are not reported while their integrations start
+        hold_seconds = float(advanced_data.get(CONF_INPUT_HOLD_SECONDS, DEFAULT_INPUT_HOLD_SECONDS))
+        self._repair_grace_ends = time.monotonic() + hold_seconds
+        self._repair_grace_timer: CALLBACK_TYPE | None = None
 
         # No update_interval - we're event-driven from input entities
         # No request_refresh_debouncer - we handle debouncing ourselves
@@ -519,14 +540,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @callback
     def _handle_horizon_change(self) -> None:
-        """Request an optimization for the new horizon, unless one already plans from its start.
+        """Optimize for the new horizon without waiting out the debounce window.
 
+        Until it does, every output plans from a period that has already ended.
         Input stores subscribe to the horizon first, so their reload for the new
-        horizon usually starts that optimization before this runs. The request here
-        covers a roll that no input reloads for.
+        horizon usually requests an optimization through the debounce window
+        before this runs; this replaces that wait. The optimization still starts
+        on the next loop iteration, so every input reloaded in this pass is marked
+        stale before it reads them. It also covers a roll that no input reloads for.
         """
-        if self._planned_horizon_start != self._runtime_data.horizon_manager.get_forecast_timestamps()[0]:
-            self.signal_optimization_stale()
+        if self.auto_optimize_enabled:
+            self._request_optimization(immediate=True)
 
     @callback
     def _handle_auto_optimize_switch_change(self, event: Event[EventStateChangedData]) -> None:
@@ -546,11 +570,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self.signal_optimization_stale()
 
     def _apply_auto_optimize_state(self, *, is_enabled: bool) -> None:
-        """Pause or resume the horizon manager to match the auto-optimize setting."""
+        """Pause or resume the horizon manager to match the auto-optimize setting.
+
+        Pausing cancels a scheduled automatic optimization, but not one an optimize
+        action waits for.
+        """
         if is_enabled:
             self._runtime_data.horizon_manager.resume()
         else:
-            self._cancel_debounce_timer()
+            if not self._result_waiters:
+                self._cancel_scheduled_optimization()
             self._runtime_data.horizon_manager.pause()
 
     @property
@@ -565,15 +594,26 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise RuntimeError(msg)
         return switch.is_on or False
 
-    async def async_run_optimization(self) -> None:
-        """Optimize now, bypassing debouncing and the auto-optimize setting.
+    async def async_run_optimization(self, *, immediate: bool = True) -> None:
+        """Return once the next optimization to start has finished, whatever the auto-optimize setting.
+
+        An optimization already scheduled is that next one. Otherwise this requests
+        one, which starts on the next loop iteration when immediate, or once the
+        debounce window has passed. While forecast inputs are still loading for a
+        new horizon, it waits for them to load.
 
         Raises:
-            HomeAssistantError: While forecast inputs are still loading for a new horizon.
+            HomeAssistantError: When that optimization fails.
 
         """
-        if not await self._optimize():
-            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="inputs_not_aligned")
+        result: asyncio.Future[None] = self.hass.loop.create_future()
+        self._result_waiters.append(result)
+        try:
+            self._request_optimization(immediate=immediate)
+            await result
+        finally:
+            if result in self._result_waiters:
+                self._result_waiters.remove(result)
 
     async def async_grid_offers(
         self,
@@ -664,54 +704,117 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         input as it is when it starts.
         """
         self._rerun_wanted = True
-        async with self._optimization_lock:
+        self._waiting_optimizations += 1
+        try:
+            await self._optimization_lock.acquire()
+        finally:
+            self._waiting_optimizations -= 1
+        try:
             # An optimization that started after this request has already read the inputs
             if not self._rerun_wanted:
                 return True
             if not self._are_inputs_aligned():
                 return False
             self._rerun_wanted = False
-            self._planned_horizon_start = self._runtime_data.horizon_manager.get_forecast_timestamps()[0]
+            self._skip_debounce = False
+            waiters, self._result_waiters = self._result_waiters, []
             await super().async_refresh()
-        # Inputs that changed while it ran request another through the debounce window
-        if self._rerun_wanted:
+        finally:
+            self._optimization_lock.release()
+        failure = self._optimization_failure()
+        for waiter in waiters:
+            if not waiter.done():
+                if failure is None:
+                    waiter.set_result(None)
+                else:
+                    waiter.set_exception(failure)
+        # Inputs that changed while it ran request another through the debounce window,
+        # unless an optimization waiting for this one reads them first
+        if self._rerun_wanted and not self._waiting_optimizations:
             self.signal_optimization_stale()
         return True
 
+    def _optimization_failure(self) -> HomeAssistantError | None:
+        """Return the error of the latest optimization, translated for the user, or None when it succeeded."""
+        if self.last_update_success:
+            return None
+        if isinstance(self.last_exception, HomeAssistantError):
+            return self.last_exception
+        return HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="optimization_failed",
+            translation_placeholders={"error": str(self.optimization_error)},
+        )
+
     @callback
     def signal_optimization_stale(self) -> None:
-        """Request an optimization because inputs changed, when auto-optimize is on."""
-        if self.auto_optimize_enabled:
+        """Request an optimization because inputs changed, when auto-optimize is on or an optimize action waits."""
+        if self.auto_optimize_enabled or self._result_waiters:
             self._request_optimization()
 
     @callback
-    def _request_optimization(self) -> None:
-        """Optimize now, or once the running optimization and the debounce window have passed."""
+    def _request_optimization(self, *, immediate: bool = False) -> None:
+        """Optimize on the next loop iteration, or once the running optimization and debounce window have passed.
+
+        An immediate request skips the debounce window, for this request and every
+        other until an optimization starts reading the inputs, so a request that
+        waits for inputs to align or for the running optimization keeps skipping it.
+        """
         self._rerun_wanted = True
-        # The running optimization requests the follow-up when it ends
-        if self._optimization_lock.locked() or self._debounce_timer is not None:
+        self._skip_debounce = self._skip_debounce or immediate
+        if self._skip_debounce:
+            self._cancel_debounce_timer()
+        # The running optimization requests the follow-up when it ends, and a scheduled one meets this request
+        if (
+            self._optimization_lock.locked()
+            or self._debounce_timer is not None
+            or self._pending_optimization is not None
+        ):
             return
-        if self._last_optimization_time is not None:
+        if self._last_optimization_time is not None and not self._skip_debounce:
             elapsed = time.monotonic() - self._last_optimization_time
             if elapsed < self._debounce_seconds:
                 self._debounce_timer = async_call_later(
                     self.hass, self._debounce_seconds - elapsed, self._debounce_timer_callback
                 )
                 return
-        self.hass.async_create_task(self._optimize())
+        self._schedule_optimization()
 
     @callback
     def _debounce_timer_callback(self, _now: datetime) -> None:
-        """Optimize once the debounce window has passed, unless an optimization has met the request since."""
+        """Optimize once the debounce window has passed."""
         self._debounce_timer = None
+        self._schedule_optimization()
+
+    @callback
+    def _schedule_optimization(self) -> None:
+        """Start an optimization on the next event loop iteration, unless one is already scheduled.
+
+        Not starting it eagerly lets every input notified in this pass mark its
+        element stale before the optimization reads them.
+        """
+        if self._pending_optimization is None:
+            self._pending_optimization = self.hass.async_create_task(self._optimize_scheduled(), eager_start=False)
+
+    async def _optimize_scheduled(self) -> None:
+        """Run the scheduled optimization, unless an optimization has read the inputs since it was requested."""
+        self._pending_optimization = None
         if self._rerun_wanted:
-            self.hass.async_create_task(self._optimize())
+            await self._optimize()
 
     def _cancel_debounce_timer(self) -> None:
-        """Cancel the optimization waiting out the debounce window, if one is."""
+        """Cancel the optimization waiting out the debounce window."""
         if self._debounce_timer is not None:
             self._debounce_timer()
             self._debounce_timer = None
+
+    def _cancel_scheduled_optimization(self) -> None:
+        """Cancel the optimization waiting out the debounce window or for the next event loop iteration."""
+        self._skip_debounce = False
+        self._cancel_debounce_timer()
+        if self._pending_optimization is not None:
+            self._pending_optimization.cancel()
+            self._pending_optimization = None
 
     def _are_inputs_aligned(self) -> bool:
         """Return whether every forecast input is loaded for the horizon's current start.
@@ -745,8 +848,25 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         for unsub in self._state_change_unsubs:
             unsub()
         self._state_change_unsubs.clear()
-        self._cancel_debounce_timer()
+        self._cancel_scheduled_optimization()
+        if self._repair_grace_timer is not None:
+            self._repair_grace_timer()
+            self._repair_grace_timer = None
         self._stale_elements.clear()
+        # Optimize actions still waiting get no optimization from this coordinator
+        for waiter in self._result_waiters:
+            if not waiter.done():
+                waiter.set_exception(
+                    HomeAssistantError(
+                        translation_domain=DOMAIN,
+                        translation_key="config_entry_not_loaded",
+                        translation_placeholders={
+                            "entry_id": self.config_entry.entry_id,
+                            "state": str(self.config_entry.state),
+                        },
+                    )
+                )
+        self._result_waiters.clear()
 
     async def _save_failure_diagnostics(
         self, context: OptimizationContext, started_at: datetime, kind: str, failure: dict[str, object]
@@ -777,10 +897,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @property
     def optimization_status(self) -> str:
-        """Return whether the latest optimization succeeded, failed, or has not run yet."""
+        """Return whether the latest optimization succeeded, succeeded degraded, failed, or has not run yet.
+
+        A degraded optimization succeeded on at least one reading held past the hold.
+        """
         if not self.last_update_success:
             return OPTIMIZATION_STATUS_FAILED
-        return OPTIMIZATION_STATUS_SUCCESS if self.data else OPTIMIZATION_STATUS_PENDING
+        if not self.data:
+            return OPTIMIZATION_STATUS_PENDING
+        return OPTIMIZATION_STATUS_DEGRADED if self.data.degraded_inputs else OPTIMIZATION_STATUS_SUCCESS
 
     @property
     def optimization_error(self) -> str | None:
@@ -847,7 +972,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             input_stores=self._runtime_data.input_stores,
             horizon_manager=horizon_manager,
         )
-        self._check_inputs(context)
+        degraded = self._check_inputs(context)
         loaded_configs = self._load_from_input_stores()
 
         _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
@@ -883,30 +1008,63 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             ),
             started_at=started_at,
             completed_at=dt_util.utc_from_timestamp(end_time).astimezone(),
+            degraded_inputs=degraded,
         )
 
-    def _check_inputs(self, context: OptimizationContext) -> None:
-        """Raise when an input cannot be read, and keep the input repair issues current.
+    def _check_inputs(self, context: OptimizationContext) -> dict["InputStoreKey", DegradedInput]:
+        """Raise when an input cannot be read, keep the input repair issues current, and return the degraded inputs.
 
         When any input is unavailable the optimization is skipped, matching the
         behaviour during initial setup where the integration stays in the "not
         ready" state until every store can supply data. Inputs that have no reading
         get a repair issue naming their sensors; rejected values are reported
-        through their own error.
+        through their own error. Inputs planned on a reading held past the hold
+        get a warning issue naming the sensors and since when, once one hold has
+        passed since setup.
         """
         input_stores = self._runtime_data.input_stores
         entry_id = self.config_entry.entry_id
-        unavailable = unavailable_input_sources(input_stores, lambda store: not store.available)
-        sync_unavailable_input_issues(self.hass, entry_id, unavailable)
-        raise_for_rejected_input(input_stores, UpdateFailed)
+        unavailable, degraded = self._sync_input_issues(in_grace=time.monotonic() < self._repair_grace_ends)
+        raise_for_rejected_input(self.hass, entry_id, input_stores, UpdateFailed)
         if unavailable:
             key, entities = next(iter(unavailable.items()))
             raise ReportedUpdateFailed(
                 translation_domain=DOMAIN,
                 translation_key="input_unavailable",
-                translation_placeholders=unavailable_input_placeholders(key, entities),
+                translation_placeholders=unavailable_input_placeholders(self.hass, entry_id, key, entities),
             )
         sync_mixed_price_currencies_issue(self.hass, entry_id, price_currency_sources(context.source_states))
+        return degraded
+
+    def _sync_input_issues(
+        self, *, in_grace: bool
+    ) -> tuple[dict["InputStoreKey", tuple[str, ...]], dict["InputStoreKey", DegradedInput]]:
+        """Keep the input repair issues current, and return the unavailable and degraded inputs.
+
+        ``in_grace`` is whether one hold has not yet passed since setup. Inputs
+        that become degraded in it get no issue yet, and the issues are synced
+        again once it has passed.
+        """
+        input_stores = self._runtime_data.input_stores
+        unavailable = unavailable_input_sources(input_stores, lambda store: not store.available)
+        degraded = degraded_inputs(input_stores)
+        if in_grace and degraded and self._repair_grace_timer is None:
+            grace_left = self._repair_grace_ends - time.monotonic()
+            self._repair_grace_timer = async_call_later(self.hass, grace_left, self._end_repair_grace)
+        sync_input_issues(
+            self.hass,
+            self.config_entry.entry_id,
+            unavailable=unavailable,
+            degraded=degraded,
+            defer_new_degraded=in_grace,
+        )
+        return unavailable, degraded
+
+    @callback
+    def _end_repair_grace(self, _now: datetime) -> None:
+        """Raise the issues of the inputs still degraded once the grace after setup has passed."""
+        self._repair_grace_timer = None
+        self._sync_input_issues(in_grace=False)
 
     async def _solve(
         self,

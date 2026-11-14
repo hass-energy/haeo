@@ -12,18 +12,21 @@ reads their resolved values to feed the optimization.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, NamedTuple
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_INPUT_HOLD_SECONDS, DEFAULT_INPUT_HOLD_SECONDS, HUB_SECTION_ADVANCED
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.config_loader import element_inputs, input_value
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.elements import InputFieldPath
+from custom_components.haeo.field_labels import input_field_label
 from custom_components.haeo.util import async_update_subentry_value
 
 if TYPE_CHECKING:
@@ -32,6 +35,13 @@ if TYPE_CHECKING:
 
 type InputStoreKey = tuple[str, InputFieldPath]
 type InputStoreMap = dict[InputStoreKey, InputStore]
+
+
+class DegradedInput(NamedTuple):
+    """The sources an input holds past the hold, and when the first of them lost its reading."""
+
+    entities: tuple[str, ...]
+    since: datetime
 
 
 class SubentryStorage:
@@ -67,7 +77,9 @@ class SubentryStorage:
         )
 
 
-def input_error_placeholders(key: InputStoreKey, error: InputError, store: InputStore) -> dict[str, str]:
+def input_error_placeholders(
+    hass: HomeAssistant, entry_id: str, key: InputStoreKey, error: InputError, store: InputStore
+) -> dict[str, str]:
     """Return translation placeholders for a rejected input.
 
     Adds the element, field, and source entities to the placeholders the
@@ -76,20 +88,22 @@ def input_error_placeholders(key: InputStoreKey, error: InputError, store: Input
     element_name, field_path = key
     return {
         "element": element_name,
-        "field": ".".join(field_path),
+        "field": input_field_label(hass, entry_id, element_name, field_path),
         "entities": ", ".join(store.source_entity_ids),
         **error.translation_placeholders,
     }
 
 
-def raise_for_rejected_input(input_stores: InputStoreMap, error_type: type[HomeAssistantError]) -> None:
+def raise_for_rejected_input(
+    hass: HomeAssistant, entry_id: str, input_stores: InputStoreMap, error_type: type[HomeAssistantError]
+) -> None:
     """Raise ``error_type`` naming the first input that rejected its source's value, if one did."""
     for key, store in input_stores.items():
         if (error := store.error) is not None:
             raise error_type(
                 translation_domain=DOMAIN,
                 translation_key=error.translation_key,
-                translation_placeholders=input_error_placeholders(key, error, store),
+                translation_placeholders=input_error_placeholders(hass, entry_id, key, error, store),
             )
 
 
@@ -109,10 +123,25 @@ def unavailable_input_sources(
     }
 
 
-def unavailable_input_placeholders(key: InputStoreKey, entities: tuple[str, ...]) -> dict[str, str]:
+def degraded_inputs(input_stores: InputStoreMap) -> dict[InputStoreKey, DegradedInput]:
+    """Return the inputs that hold a reading past the hold, with the sources they hold."""
+    return {
+        key: DegradedInput(store.degraded_sources, datetime.fromtimestamp(since, tz=UTC))
+        for key, store in input_stores.items()
+        if (since := store.degraded_since) is not None
+    }
+
+
+def unavailable_input_placeholders(
+    hass: HomeAssistant, entry_id: str, key: InputStoreKey, entities: tuple[str, ...]
+) -> dict[str, str]:
     """Return translation placeholders naming an unavailable input and its sources."""
     element_name, field_path = key
-    return {"element": element_name, "field": ".".join(field_path), "entities": ", ".join(entities)}
+    return {
+        "element": element_name,
+        "field": input_field_label(hass, entry_id, element_name, field_path),
+        "entities": ", ".join(entities),
+    }
 
 
 def build_input_stores(
@@ -124,9 +153,13 @@ def build_input_stores(
 
     Iterates every configured input field across element subentries and creates
     a store bound to the originating subentry. Disabled (none) and absent fields
-    are skipped, mirroring entity creation.
+    are skipped, mirroring entity creation. Every store holds a source's last
+    reading for as long as the hub's input hold setting allows.
     """
     stores: InputStoreMap = {}
+    hold_seconds = float(
+        config_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_INPUT_HOLD_SECONDS, DEFAULT_INPUT_HOLD_SECONDS)
+    )
 
     negated_paths = negated_price_paths(
         {subentry.title: subentry.data for subentry in config_entry.subentries.values()}
@@ -150,6 +183,7 @@ def build_input_stores(
                 hint=element_input.hint,
                 get_forecast_timestamps=horizon_manager.get_forecast_timestamps,
                 negate=element_input.path in subentry_negated_paths,
+                hold_seconds=hold_seconds,
             )
             stores[(subentry.title, element_input.path)] = store
 
@@ -157,10 +191,12 @@ def build_input_stores(
 
 
 __all__ = [
+    "DegradedInput",
     "InputStoreKey",
     "InputStoreMap",
     "SubentryStorage",
     "build_input_stores",
+    "degraded_inputs",
     "input_error_placeholders",
     "raise_for_rejected_input",
     "unavailable_input_placeholders",

@@ -1,5 +1,6 @@
 """Unit tests for sensor payload helpers."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -35,6 +36,7 @@ def test_load_sensor_forecast_returns_series() -> None:
                 (int((start + timedelta(hours=2)).timestamp()), 2.5),
             ],
             unit="kW",
+            source_unit="kW",
         ),
     ):
         payload = load_sensor(sm, "sensor.forecast")
@@ -217,3 +219,47 @@ def test_load_readings_rejects_a_unit_the_input_cannot_use() -> None:
 
     with pytest.raises(InputError):
         load_readings(sm, ["sensor.t"], output_type=OutputType.POWER)
+
+
+@pytest.mark.parametrize(
+    "load",
+    [pytest.param(load_sensors, id="sensors"), pytest.param(load_readings, id="readings")],
+)
+def test_an_unusable_unit_is_reported_as_the_sensor_states_it(load: Callable[..., object]) -> None:
+    """The error names the unit the sensor states, not the base unit HAEO converted it to."""
+    sm = FakeStateMachine(
+        {
+            "sensor.consumption": FakeEntityState(
+                entity_id="sensor.consumption", state="150", attributes={"unit_of_measurement": "Wh"}
+            )
+        }
+    )
+
+    with pytest.raises(InputError) as err:
+        load(sm, ["sensor.consumption"], output_type=OutputType.ENERGY_PER_DISTANCE)
+
+    assert err.value.translation_key == "input_unit_incompatible"
+    assert err.value.translation_placeholders["unit"] == "Wh"
+
+
+def test_an_unusable_forecast_unit_is_reported_as_the_sensor_states_it() -> None:
+    """A forecast in a unit the input cannot use names the unit the sensor states, not its base unit."""
+    sm = FakeStateMachine(
+        {
+            "sensor.forecast": FakeEntityState(
+                entity_id="sensor.forecast",
+                state="1500",
+                attributes={
+                    "forecast": [{"time": "2025-07-01T12:00:00+00:00", "value": 1500.0}],
+                    "device_class": "power",
+                    "unit_of_measurement": "W",
+                },
+            )
+        }
+    )
+
+    with pytest.raises(InputError) as err:
+        load_sensor(sm, "sensor.forecast", output_type=OutputType.PRICE)
+
+    assert err.value.translation_key == "input_unit_incompatible"
+    assert err.value.translation_placeholders["unit"] == "W"

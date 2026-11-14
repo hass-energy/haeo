@@ -32,10 +32,14 @@ WILDCARD: Final = "*"
 
 
 class PolicyRuleConfig(TypedDict):
-    """A single policy rule as stored in Home Assistant config."""
+    """A single policy rule as stored in Home Assistant config.
+
+    Flows and the rule's switch store ``enabled`` as a constant. A bare bool
+    is also accepted and reads the same.
+    """
 
     name: str
-    enabled: bool
+    enabled: ConstantValue | bool
     source: NotRequired[list[str]]
     target: NotRequired[list[str]]
     price: EntityValue | ConstantValue
@@ -67,6 +71,7 @@ class PolicyConfigSchema(TypedDict):
                 CONF_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=True,
+                    default_mode="value",
                 ),
             },
         ),

@@ -5,9 +5,10 @@ import json
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
+from homeassistant.auth.models import User
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.core import Context, HomeAssistant
+from homeassistant.exceptions import ServiceValidationError, Unauthorized
 from homeassistant.loader import Manifest
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -123,6 +124,35 @@ async def test_save_diagnostics_service_success(
 
     # Verify the actual diagnostics data is in the "data" key
     assert saved_data["data"] == mock_diagnostics.to_dict()
+
+
+async def test_save_diagnostics_requires_admin(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    hass_read_only_user: User,
+    tmp_path: Path,
+) -> None:
+    """A user who is not an administrator cannot write diagnostics into the configuration directory."""
+    await async_setup(hass, {})
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+    hass.config.config_dir = str(tmp_path)
+
+    collect = AsyncMock()
+
+    with (
+        patch("custom_components.haeo.diagnostics.collect_diagnostics", collect),
+        pytest.raises(Unauthorized),
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            "save_diagnostics",
+            {"config_entry": mock_hub_entry.entry_id},
+            blocking=True,
+            context=Context(user_id=hass_read_only_user.id),
+        )
+
+    collect.assert_not_awaited()
+    assert not (tmp_path / "haeo").exists()
 
 
 @pytest.mark.parametrize(
@@ -357,35 +387,38 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
 # ===== Tests for the optimize service =====
 
 
+@pytest.mark.parametrize(
+    ("immediate", "expected"),
+    [
+        pytest.param(None, True, id="immediate_by_default"),
+        pytest.param(True, True, id="immediate"),
+        pytest.param(False, False, id="after_the_debounce_window"),
+    ],
+)
 async def test_optimize_service_success(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
+    immediate: bool | None,
+    expected: bool,
 ) -> None:
-    """Test optimize service runs optimization successfully."""
+    """The optimize service optimizes at once, or through the debounce window when not immediate."""
     await async_setup(hass, {})
 
     # Mock the entry state as loaded
     mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
 
-    # Create a mock coordinator
     mock_coordinator = AsyncMock()
-    mock_coordinator.async_run_optimization = AsyncMock()
-
     mock_hub_entry.runtime_data = HaeoRuntimeData(
         coordinator=mock_coordinator,
         horizon_manager=Mock(),
     )
 
-    # Call the service
-    await hass.services.async_call(
-        DOMAIN,
-        "optimize",
-        {"config_entry": mock_hub_entry.entry_id},
-        blocking=True,
-    )
+    data: dict[str, object] = {"config_entry": mock_hub_entry.entry_id}
+    if immediate is not None:
+        data["immediate"] = immediate
+    await hass.services.async_call(DOMAIN, "optimize", data, blocking=True)
 
-    # Verify optimization was triggered
-    mock_coordinator.async_run_optimization.assert_called_once()
+    mock_coordinator.async_run_optimization.assert_awaited_once_with(immediate=expected)
 
 
 @pytest.mark.parametrize(

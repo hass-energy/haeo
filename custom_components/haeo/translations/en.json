@@ -30,11 +30,13 @@
             "data": {
               "advanced_mode": "Expose raw model elements",
               "debounce_seconds": "Debounce window (seconds)",
+              "input_hold_seconds": "Sensor gap tolerance (seconds)",
               "record_forecasts": "Record forecast data",
               "relax_infeasible": "Relax impossible plans"
             },
             "data_description": {
               "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
+              "input_hold_seconds": "When a sensor an input reads has no reading, HAEO keeps planning with its last reading. For this long it does so silently. After that the optimization status reads degraded and a repair issue names the sensor until it reports again. After HAEO starts, repair issues also wait this long, so sensors of integrations that are still starting are not reported. Set to 0 to report every gap at once.",
               "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
               "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
             },
@@ -71,11 +73,13 @@
             "data": {
               "advanced_mode": "Expose raw model elements",
               "debounce_seconds": "Debounce window (seconds)",
+              "input_hold_seconds": "Sensor gap tolerance (seconds)",
               "record_forecasts": "Record forecast data",
               "relax_infeasible": "Relax impossible plans"
             },
             "data_description": {
               "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
+              "input_hold_seconds": "When a sensor an input reads has no reading, HAEO keeps planning with its last reading. For this long it does so silently. After that the optimization status reads degraded and a repair issue names the sensor until it reports again. After HAEO starts, repair issues also wait this long, so sensors of integrations that are still starting are not reported. Set to 0 to report every gap at once.",
               "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
               "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
             },
@@ -554,7 +558,12 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
-  "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
+  "common": {
+    "default_hub_name": "Home",
+    "list_item_field": "{field} ({item})",
+    "network_subentry_name": "System",
+    "switchboard_node_name": "Switchboard"
+  },
   "device": {
     "battery": { "name": "{name}" },
     "battery_section": { "name": "{name}" },
@@ -693,7 +702,7 @@
       "network_optimization_duration": { "name": "Duration" },
       "network_optimization_status": {
         "name": "Status",
-        "state": { "failed": "Failed", "pending": "Pending", "success": "Succeeded" }
+        "state": { "degraded": "Degraded", "failed": "Failed", "pending": "Pending", "success": "Succeeded" }
       },
       "node_power_balance": { "name": "Power balance shadow price" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
@@ -728,10 +737,7 @@
       "message": "Input {field} of {element} has no reading from {entities}, so HAEO cannot optimize until it does."
     },
     "input_unit_incompatible": {
-      "message": "Input {field} of {element} needs a value in {expected}, but {entities} supplied one in {unit}, which does not convert."
-    },
-    "inputs_not_aligned": {
-      "message": "The forecast inputs are still loading for the new planning horizon. Try again in a moment."
+      "message": "Input {field} of {element} reads values in {expected}, but {entities} supplied one in {unit}, which does not convert to any of them."
     },
     "missing_element_references": {
       "message": "Some elements refer to elements that do not exist, so there is no plan: {references}. Home Assistant will retry automatically."
@@ -745,6 +751,7 @@
     "offer_no_plan": { "message": "The latest optimization found no plan to make an offer from" },
     "offer_price_range": { "message": "The lowest import price must be below the highest" },
     "offer_relaxed_plan": { "message": "The latest plan relaxed constraints to be found, so it has no offer curve" },
+    "optimization_failed": { "message": "The optimization failed: {error}" },
     "optimization_infeasible": {
       "message": "No plan meets every constraint: {elements} cannot all be met {minutes} minutes into the plan."
     },
@@ -761,6 +768,10 @@
     "calendar_event_values_ignored": {
       "title": "Calendar events with values {element} cannot use",
       "description": "Input {field} of {element} reads {calendars}, but these events hold values it cannot use, so it ignores them. Each is listed with the text its value is read from:\n{events}\n\nTo fix this issue:\n1. Open each event listed above in its calendar\n2. Make that text hold exactly one number followed by a unit that converts to {unit}, such as 5 kW, 500 W, or 0.30 $/kWh\n3. Save the event; this issue clears automatically once every event's value can be used"
+    },
+    "degraded_input": {
+      "title": "{element} is planning on an old reading for {field}",
+      "description": "Input {field} of {element} has had no reading from {entities} since {since}. HAEO keeps planning with the last reading, so the optimization status reads degraded and the plan may not match what the sensor would report now.\n\nTo fix this issue:\n1. Check that these sensors are available and reporting values in Developer tools > States\n2. If a sensor was removed or renamed, reconfigure {element} to read one that exists\n3. If a sensor often drops out briefly, raise **Sensor gap tolerance** in the hub's advanced settings, so short gaps do not raise this issue\n4. This issue clears automatically once the sensors report again"
     },
     "disconnected_network": {
       "title": "System has disconnected components",
@@ -829,7 +840,7 @@
     },
     "unavailable_input": {
       "title": "{element} has no reading for {field}",
-      "description": "HAEO skips every optimization while input {field} of {element} has no reading, so the whole plan stays out of date.\n\nSensors with no reading: {entities}\n\nTo fix this issue:\n1. Check that these sensors are available and reporting values in Developer tools > States\n2. If a sensor was removed or renamed, reconfigure {element} to read one that exists\n3. This issue clears automatically once the input has a reading again"
+      "description": "HAEO skips every optimization while input {field} of {element} has no reading, so the whole plan stays out of date. HAEO has no last reading from these sensors to plan with, either since it started or in the recorder, such as for a sensor that is new, excluded from the recorder, or whose history was purged.\n\nSensors with no reading: {entities}\n\nTo fix this issue:\n1. Check that these sensors are available and reporting values in Developer tools > States\n2. If a sensor was removed or renamed, reconfigure {element} to read one that exists\n3. This issue clears automatically once the input has a reading again"
     }
   },
   "selector": {
@@ -872,8 +883,14 @@
       "name": "Offer curve"
     },
     "optimize": {
-      "description": "Runs an optimization for the given system",
-      "fields": { "config_entry": { "description": "The HAEO system to run an optimization for", "name": "System" } },
+      "description": "Runs an optimization for the given system and waits for it to finish",
+      "fields": {
+        "config_entry": { "description": "The HAEO system to run an optimization for", "name": "System" },
+        "immediate": {
+          "description": "Optimize now instead of after the debounce window. Turn off to wait for the debounce window, so changes made close together share one optimization.",
+          "name": "Immediately"
+        }
+      },
       "name": "Optimize"
     },
     "save_diagnostics": {

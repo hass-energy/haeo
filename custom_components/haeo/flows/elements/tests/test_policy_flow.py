@@ -15,7 +15,7 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema.constant_value import as_constant_value
+from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.inverter import ELEMENT_TYPE as INVERTER_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
@@ -33,7 +33,7 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_ELEMENT_TYPE
-from custom_components.haeo.core.schema.entity_value import as_entity_value
+from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value
 from custom_components.haeo.flows.elements.policy import (
     ACTION_DELETE,
     ACTION_EDIT,
@@ -42,7 +42,7 @@ from custom_components.haeo.flows.elements.policy import (
     CONF_RULE,
     PolicySubentryFlowHandler,
 )
-from custom_components.haeo.flows.field_schema import CHOICE_ENTITY, CHOICE_NONE
+from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY, CHOICE_NONE
 from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE, find_policy_subentry
 
 
@@ -157,7 +157,7 @@ async def test_build_price_selector_includes_compatible_price_entities(
     hass.states.async_set("sensor.power_only", "5", {"unit_of_measurement": "kW"})
 
     flow = _create_flow(hass, hub_entry)
-    include_entities = _get_entity_include_entities(flow._build_price_selector())
+    include_entities = _get_entity_include_entities(flow._build_price_selector(None))
 
     assert include_entities is not None
     assert "sensor.import_price" in include_entities
@@ -1317,7 +1317,7 @@ async def test_user_step_stores_enabled_false(
     )
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
-    assert created_data[CONF_RULES][0].get("enabled") is False
+    assert created_data[CONF_RULES][0]["enabled"] == as_constant_value(value=False)
 
 
 async def test_user_step_stores_enabled_true_by_default(
@@ -1341,7 +1341,7 @@ async def test_user_step_stores_enabled_true_by_default(
     )
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
-    assert created_data[CONF_RULES][0].get("enabled") is True
+    assert created_data[CONF_RULES][0]["enabled"] == as_constant_value(value=True)
 
 
 def test_extract_policy_rules_includes_disabled_with_enabled_flag() -> None:
@@ -1390,26 +1390,33 @@ def test_endpoint_selector_empty_elements_raises_invalid(
         sel({"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: []})
 
 
-def test_rule_to_defaults_enabled_always_present() -> None:
-    """Enabled is always present in defaults, defaulting to True when missing."""
+@pytest.mark.parametrize(
+    ("stored_enabled", "shown_enabled"),
+    [
+        (as_constant_value(value=True), True),
+        (as_constant_value(value=False), False),
+        (True, True),
+        (False, False),
+    ],
+)
+def test_rule_to_defaults_shows_enabled_as_a_bool(
+    stored_enabled: ConstantValue | bool,
+    shown_enabled: bool,
+) -> None:
+    """The enabled toggle shows a bool whichever form the rule stores it in."""
     flow = PolicySubentryFlowHandler()
-    defaults = flow._rule_to_defaults({"name": "Test", "enabled": True, "price": {"type": "constant", "value": 0.0}})
-    assert defaults[CONF_ENABLED] is True
-
-    defaults_disabled = flow._rule_to_defaults(
-        {"name": "Test", "enabled": False, "price": {"type": "constant", "value": 0.0}}
-    )
-    assert defaults_disabled[CONF_ENABLED] is False
+    defaults = flow._rule_to_defaults({"name": "Test", "enabled": stored_enabled, "price": as_constant_value(0.0)})
+    assert defaults[CONF_ENABLED] is shown_enabled
 
 
 def test_parse_rule_input_stores_enabled() -> None:
     """Enabled field is always stored in the rule."""
     flow = PolicySubentryFlowHandler()
     rule = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: True, CONF_PRICE: 0.05})
-    assert rule.get("enabled") is True
+    assert rule["enabled"] == as_constant_value(value=True)
 
     rule_disabled = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: False, CONF_PRICE: 0.01})
-    assert rule_disabled.get("enabled") is False
+    assert rule_disabled["enabled"] == as_constant_value(value=False)
 
 
 @pytest.mark.parametrize(
@@ -1433,3 +1440,143 @@ def test_validate_rule_requires_non_empty_price(price_input: object) -> None:
     )
     assert not valid
     assert errors == {CONF_PRICE: "required"}
+
+
+# --- Tests for the first price choice following the value the form shows ---
+
+# Each price choice, as stored and as submitted
+_PRICES: dict[str, tuple[EntityValue | ConstantValue, object]] = {
+    CHOICE_ENTITY: (as_entity_value(["sensor.price"]), ["sensor.price"]),
+    CHOICE_CONSTANT: (as_constant_value(0.02), 0.02),
+}
+
+
+def _price_first_choice(result: SubentryFlowResult) -> str:
+    """Return the first choice of the price selector in a shown rule form."""
+    selector = _get_selector(result, CONF_PRICE)
+    assert selector is not None
+    return next(iter(selector.config["choices"]))
+
+
+async def _edit_rule_flow(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, price: EntityValue | ConstantValue
+) -> PolicySubentryFlowHandler:
+    """Create a flow editing the first of two rules, whose price is the given value."""
+    subentry = _make_policy_subentry(
+        [
+            {"name": "Solar Export", "enabled": True, "source": ["Solar"], "target": ["Grid"], "price": price},
+            {"name": "Grid Charge", "enabled": True, "source": ["Grid"], "target": ["Battery"], "price": price},
+        ]
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    flow = _create_flow(hass, hub_entry)
+    flow.context = {"subentry_id": subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    await flow.async_step_reconfigure(user_input=None)
+    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
+    return flow
+
+
+async def test_new_rule_form_opens_on_constant_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """A new rule's price opens on the constant choice."""
+    result = await _create_flow(hass, hub_entry).async_step_user(user_input=None)
+
+    assert _price_first_choice(result) == CHOICE_CONSTANT
+
+
+@pytest.mark.parametrize("choice", list(_PRICES))
+async def test_reshown_new_rule_form_keeps_the_submitted_price_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    choice: str,
+) -> None:
+    """A new rule form re-shown with an error shows the submitted price in the choice that holds it."""
+    _, submitted = _PRICES[choice]
+
+    result = await _create_flow(hass, hub_entry).async_step_user(
+        user_input={CONF_RULE_NAME: "", CONF_ENABLED: True, CONF_PRICE: submitted}
+    )
+
+    assert result.get("errors") == {CONF_RULE_NAME: "missing_name"}
+    assert _price_first_choice(result) == choice
+
+
+@pytest.mark.parametrize("choice", list(_PRICES))
+async def test_edit_rule_form_opens_on_the_stored_price_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    choice: str,
+) -> None:
+    """Editing a rule shows its stored price in the choice that holds it."""
+    stored, _ = _PRICES[choice]
+    flow = await _edit_rule_flow(hass, hub_entry, stored)
+
+    result = await flow.async_step_edit_rule(user_input=None)
+
+    assert _price_first_choice(result) == choice
+
+
+@pytest.mark.parametrize(
+    ("stored_choice", "submitted_choice"), [(CHOICE_ENTITY, CHOICE_CONSTANT), (CHOICE_CONSTANT, CHOICE_ENTITY)]
+)
+async def test_reshown_edit_rule_form_keeps_the_submitted_price_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    stored_choice: str,
+    submitted_choice: str,
+) -> None:
+    """An edit rule form re-shown with an error shows the submitted price in the choice that holds it."""
+    stored, _ = _PRICES[stored_choice]
+    _, submitted = _PRICES[submitted_choice]
+    flow = await _edit_rule_flow(hass, hub_entry, stored)
+
+    result = await flow.async_step_edit_rule(user_input={CONF_RULE_NAME: "Grid Charge", CONF_PRICE: submitted})
+
+    assert result.get("errors") == {CONF_RULE_NAME: "name_exists"}
+    assert _price_first_choice(result) == submitted_choice
+
+
+@pytest.mark.parametrize(
+    "stored_enabled",
+    [
+        pytest.param(as_constant_value(value=False), id="constant"),
+        pytest.param(False, id="bare_bool"),
+    ],
+)
+async def test_edit_rule_submitted_as_shown_keeps_a_disabled_rule_disabled(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    stored_enabled: ConstantValue | bool,
+) -> None:
+    """A disabled rule shows as disabled, and saving its form unchanged leaves it disabled."""
+    subentry = _make_policy_subentry(
+        [
+            {
+                "name": "Battery discharge cost",
+                "enabled": stored_enabled,
+                "source": ["Battery"],
+                "price": as_constant_value(0.02),
+            },
+        ]
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    flow = _create_flow(hass, hub_entry)
+    flow.context = {"subentry_id": subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    flow.async_update_and_abort = Mock(
+        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
+    )
+    await flow.async_step_reconfigure(user_input=None)
+    shown = await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
+
+    assert _get_suggested_value(shown, CONF_ENABLED) is False
+
+    await flow.async_step_edit_rule(
+        user_input={
+            field: _get_suggested_value(shown, field)
+            for field in (CONF_RULE_NAME, CONF_ENABLED, CONF_SOURCE, CONF_TARGET, CONF_PRICE)
+        }
+    )
+
+    saved_rule = flow.async_update_and_abort.call_args.kwargs["data"][CONF_RULES][0]
+    assert saved_rule[CONF_ENABLED] == as_constant_value(value=False)

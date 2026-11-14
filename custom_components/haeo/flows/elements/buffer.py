@@ -61,11 +61,14 @@ class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
         return {CONF_KIND: subentry_data.get(CONF_KIND) if subentry_data else KIND_RESERVE}
 
     def _section_entries(
-        self, subentry_data: Mapping[str, object] | None, entity_metadata: list[EntityMetadata]
+        self,
+        subentry_data: Mapping[str, object] | None,
+        entity_metadata: list[EntityMetadata],
+        shown_data: Mapping[str, object] | None,
     ) -> dict[str, FieldEntries]:
         """Add a multi-select of elements for each participant list."""
         return {
-            **super()._section_entries(subentry_data, entity_metadata),
+            **super()._section_entries(subentry_data, entity_metadata, shown_data),
             SECTION_PARTICIPANTS: {
                 field: (vol.Optional(field), self._participant_selector(field)) for field in BUFFER_ROLES
             },

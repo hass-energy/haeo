@@ -14,6 +14,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.json import ExtendedJSONEncoder
+from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.system_info import async_get_system_info
 from homeassistant.loader import Manifest, async_get_custom_components, async_get_integration
 from homeassistant.setup import async_get_domain_setup_times
@@ -35,6 +36,7 @@ SERVICE_OPTIMIZE = "optimize"
 SERVICE_OFFER_CURVE = "offer_curve"
 ATTR_CONFIG_ENTRY = "config_entry"
 ATTR_TIMESTAMP = "time"
+ATTR_IMMEDIATE = "immediate"
 ATTR_START = "start"
 ATTR_END = "end"
 ATTR_MIN_PRICE = "min_price"
@@ -264,7 +266,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         await async_save_diagnostics(hass, result.to_dict(), "diagnostics", target_timestamp or dt_util.now())
 
-    hass.services.async_register(
+    # The file goes into the configuration directory and holds the whole HAEO configuration,
+    # which only administrators can read through Home Assistant's own diagnostics download
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_SAVE_DIAGNOSTICS,
         async_handle_save_diagnostics,
@@ -274,20 +279,23 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def async_handle_run_optimizer(call: ServiceCall) -> None:
         """Handle the run_optimizer service call.
 
-        Manually triggers optimization, bypassing debouncing and the auto-optimize setting.
+        Returns once the next optimization has finished, whatever the auto-optimize
+        setting. It starts at once unless the call turns immediate off, which waits
+        out the debounce window.
         """
         entry_id = call.data[ATTR_CONFIG_ENTRY]
         coordinator = _loaded_coordinator(hass, entry_id)
 
-        # Run optimization
         _LOGGER.info("Running optimization for %s (manual trigger)", entry_id)
-        await coordinator.async_run_optimization()
+        await coordinator.async_run_optimization(immediate=call.data[ATTR_IMMEDIATE])
 
     hass.services.async_register(
         DOMAIN,
         SERVICE_OPTIMIZE,
         async_handle_run_optimizer,
-        schema=vol.Schema({vol.Required(ATTR_CONFIG_ENTRY): cv.string}),
+        schema=vol.Schema(
+            {vol.Required(ATTR_CONFIG_ENTRY): cv.string, vol.Optional(ATTR_IMMEDIATE, default=True): cv.boolean}
+        ),
     )
 
     async def async_handle_offer_curve(call: ServiceCall) -> ServiceResponse:

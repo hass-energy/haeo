@@ -21,9 +21,10 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES, PolicyRuleConfig
+from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CONF_PRICE, CONF_RULES, PolicyRuleConfig
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
+from custom_components.haeo.core.schema.none_value import NoneValue, as_none_value
 from custom_components.haeo.core.schema.surfaced_policy import find_surfaced_rule, resolve_surfaced_endpoints
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, localize_input_field
@@ -85,8 +86,8 @@ def save_surfaced_rule(
 ) -> None:
     """Create, update, or delete a surfaced policy rule.
 
-    If price is None, deletes the matching rule. Otherwise creates or
-    updates the rule with the given price.
+    If price is None, deletes the matching rule. Otherwise creates the rule
+    enabled, or updates the rule's price keeping whether it is enabled.
     """
     rules = get_policy_rules(hub_entry)
     idx = find_surfaced_rule(rules, source=source, target=target)
@@ -100,7 +101,7 @@ def save_surfaced_rule(
 
     rule: PolicyRuleConfig = {
         "name": rule_name,
-        "enabled": True,
+        "enabled": rules[idx][CONF_ENABLED] if idx is not None else as_constant_value(value=True),
         "price": price,
     }
     if source:
@@ -213,15 +214,15 @@ def build_surfaced_defaults(
     form shows "none" (the rule was unlinked or never created).
     """
     defaults: dict[str, object] = {}
+    prices = get_surfaced_prices(hub_entry, element_name, surfaced_hints) if element_name is not None else None
     for field_name, hint in surfaced_hints.items():
         field_info = surfaced_fields.get(field_name)
         if field_info is None:
             continue
 
-        if element_name is not None:
-            source, target = resolve_surfaced_endpoints(hint, element_name)
-            price = get_surfaced_rule_price(hub_entry, source=source, target=target)
-            if price is not None:
+        if prices is not None:
+            price = prices[field_name]
+            if is_entity_value(price) or is_constant_value(price):
                 form_value = price_to_form_value(price)
                 if hint.negate:
                     form_value = _negate_form_value(form_value)
@@ -234,34 +235,39 @@ def build_surfaced_defaults(
     return defaults
 
 
+def get_surfaced_prices(
+    hub_entry: ConfigEntry,
+    element_name: str,
+    surfaced_hints: Mapping[str, SurfacedPriceHint],
+) -> dict[str, EntityValue | ConstantValue | NoneValue]:
+    """Return each surfaced field's stored price, or none when the element has no rule for it."""
+    prices: dict[str, EntityValue | ConstantValue | NoneValue] = {}
+    for field_name, hint in surfaced_hints.items():
+        source, target = resolve_surfaced_endpoints(hint, element_name)
+        price = get_surfaced_rule_price(hub_entry, source=source, target=target)
+        prices[field_name] = price if price is not None else as_none_value()
+    return prices
+
+
 def build_surfaced_schema_entries(
     hass: HomeAssistant,
-    hub_entry: ConfigEntry,
-    element_name: str | None,
-    surfaced_hints: Mapping[str, SurfacedPriceHint],
     surfaced_fields: Mapping[str, AnyInputFieldInfo],
     entity_metadata: list[EntityMetadata],
+    shown_data: Mapping[str, object] | None,
 ) -> dict[str, tuple[vol.Marker, NormalizingChooseSelector]]:
     """Build vol.Schema entries for surfaced pricing fields.
 
     Uses the standard build_choose_selector to create selectors from the
-    InputFieldInfo objects. The pre-selected choice is derived from the
-    field hint defaults (new elements) or the existing rule value
-    (reconfigure), so fields without a default surface as "none".
+    InputFieldInfo objects. Each selector is first on the choice holding the
+    value the form shows: the stored price when the form opens, or the
+    submitted value when it is shown again with an error.
     """
     inclusion_map = build_inclusion_map(dict(surfaced_fields), entity_metadata)
     entries: dict[str, tuple[vol.Marker, NormalizingChooseSelector]] = {}
     currency = currency_symbol(hass.config.currency)
     for field_name, surfaced_field in surfaced_fields.items():
         field_info = localize_input_field(surfaced_field, currency)
-        hint = surfaced_hints.get(field_name)
-        current_data: dict[str, EntityValue | ConstantValue] | None = None
-        if hint is not None and element_name is not None:
-            source, target = resolve_surfaced_endpoints(hint, element_name)
-            price = get_surfaced_rule_price(hub_entry, source=source, target=target)
-            if price is not None:
-                current_data = {field_name: price}
-        preferred = get_preferred_choice(field_info, current_data, allowed_choices=SURFACED_CHOICES)
+        preferred = get_preferred_choice(field_info, shown_data, allowed_choices=SURFACED_CHOICES)
         entries[field_name] = (
             vol.Optional(field_name),
             build_choose_selector(

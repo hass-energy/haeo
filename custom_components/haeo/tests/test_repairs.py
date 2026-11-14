@@ -1,14 +1,22 @@
 """Tests for the repairs module."""
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
+from types import MappingProxyType
 
 from homeassistant.components.repairs import ConfirmRepairFlow
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.issue_registry import IssueSeverity, async_get
+from homeassistant.util import dt as dt_util
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.input_stores import DegradedInput
 from custom_components.haeo.repairs import (
     async_create_fix_flow,
     async_delete_issue_diagnostics,
@@ -20,8 +28,8 @@ from custom_components.haeo.repairs import (
     create_optimization_relaxed_issue,
     dismiss_disconnected_network_issue,
     dismiss_optimization_failure_issue,
+    sync_input_issues,
     sync_mixed_price_currencies_issue,
-    sync_unavailable_input_issues,
 )
 
 
@@ -240,17 +248,40 @@ async def test_resolving_an_issue_never_deletes_files_outside_the_diagnostics_fo
     assert elsewhere.exists()
 
 
-async def test_sync_unavailable_input_issues_raises_and_dismisses(hass: HomeAssistant) -> None:
-    """Each unavailable input gets an issue naming its sensors, and recovered inputs lose theirs."""
-    sync_unavailable_input_issues(
+def _add_hub(hass: HomeAssistant, entry_id: str, elements: dict[str, ElementType]) -> None:
+    """Add a hub entry holding an element subentry of each type, keyed by name."""
+    entry = MockConfigEntry(domain=DOMAIN, entry_id=entry_id)
+    entry.add_to_hass(hass)
+    for name, element_type in elements.items():
+        hass.config_entries.async_add_subentry(
+            entry,
+            ConfigSubentry(
+                data=MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: name}),
+                subentry_type=element_type,
+                title=name,
+                unique_id=None,
+            ),
+        )
+
+
+@pytest.mark.usefixtures("haeo_translations")
+async def test_sync_input_issues_raises_and_dismisses(hass: HomeAssistant) -> None:
+    """Each unavailable or degraded input gets an issue naming its field and sensors, and recovered inputs lose theirs.
+
+    The issue ID holds the field's path, so it stays the same whatever the field's label.
+    """
+    _add_hub(hass, "entry123", {"EV Charger": ElementType.DEFERRABLE_LOAD, "Grid": ElementType.GRID})
+    _add_hub(hass, "entry456", {"Grid": ElementType.GRID})
+    since = datetime(2025, 1, 1, 12, 0, 5, tzinfo=UTC)
+    sync_input_issues(
         hass,
         "entry123",
-        {
-            ("EV Charger", ("schedule", "energy_meter")): ("sensor.ev_energy",),
-            ("Grid", ("pricing", "price_source_target")): ("sensor.price_a", "sensor.price_b"),
-        },
+        unavailable={("EV Charger", ("schedule", "energy_meter")): ("sensor.ev_energy",)},
+        degraded={("Grid", ("pricing", "price_source_target")): DegradedInput(("sensor.price_a",), since)},
     )
-    sync_unavailable_input_issues(hass, "entry456", {("Grid", ("pricing", "price_source_target")): ("sensor.x",)})
+    sync_input_issues(
+        hass, "entry456", unavailable={("Grid", ("pricing", "price_source_target")): ("sensor.x",)}, degraded={}
+    )
 
     meter = async_get(hass).async_get_issue(DOMAIN, "unavailable_input_entry123_EV Charger_schedule.energy_meter")
     assert meter is not None
@@ -258,12 +289,25 @@ async def test_sync_unavailable_input_issues_raises_and_dismisses(hass: HomeAssi
     assert meter.severity == IssueSeverity.ERROR
     assert meter.translation_placeholders == {
         "element": "EV Charger",
-        "field": "schedule.energy_meter",
+        "field": "Energy meter",
         "entities": "sensor.ev_energy",
     }
+    price = async_get(hass).async_get_issue(DOMAIN, "degraded_input_entry123_Grid_pricing.price_source_target")
+    assert price is not None
+    assert price.translation_key == "degraded_input"
+    assert price.severity == IssueSeverity.WARNING
+    assert price.translation_placeholders == {
+        "element": "Grid",
+        "field": "Import price",
+        "entities": "sensor.price_a",
+        "since": dt_util.as_local(since).strftime("%Y-%m-%d %H:%M:%S"),
+    }
 
-    sync_unavailable_input_issues(
-        hass, "entry123", {("Grid", ("pricing", "price_source_target")): ("sensor.price_a", "sensor.price_b")}
+    sync_input_issues(
+        hass,
+        "entry123",
+        unavailable={("Grid", ("pricing", "price_source_target")): ("sensor.price_a", "sensor.price_b")},
+        degraded={},
     )
 
     assert sorted(issue_id for _, issue_id in async_get(hass).issues) == [

@@ -37,6 +37,7 @@ STATIC_CARD_BUNDLES: Final[tuple[str, ...]] = ("haeo-forecast-card.min.js", "hae
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
 OPTIMIZATION_STATUS_FAILED: Final = "failed"
 OPTIMIZATION_STATUS_PENDING: Final = "pending"
+OPTIMIZATION_STATUS_DEGRADED: Final = "degraded"
 
 
 type NetworkOutputName = Literal[

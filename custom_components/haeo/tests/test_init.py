@@ -1,8 +1,9 @@
 """Test the HAEO integration."""
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
+import threading
 from types import MappingProxyType
 from typing import ClassVar
 from unittest.mock import AsyncMock, Mock
@@ -553,7 +554,10 @@ async def test_element_flow_in_progress(
     ("input_error", "expected_translation_key", "expected_issues"),
     [
         pytest.param(
-            None, "input_unavailable", ["unavailable_input_{entry_id}_Test Element_section.field"], id="unavailable"
+            None,
+            "input_unavailable",
+            ["unavailable_input_{entry_id}_Test Battery_storage.initial_charge_percentage"],
+            id="unavailable",
         ),
         pytest.param(
             InputError(translation_key="negative_input_value", translation_placeholders={"value": "-4.5"}),
@@ -563,6 +567,7 @@ async def test_element_flow_in_progress(
         ),
     ],
 )
+@pytest.mark.usefixtures("haeo_translations", "mock_battery_subentry")
 async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -583,6 +588,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     class NeverReadyStore:
         source_entity_ids: ClassVar[list[str]] = ["sensor.limit", "sensor.other"]
         unavailable_sources = ("sensor.limit",)
+        sources_without_last_reading = ()
         available = False
 
         def __init__(self) -> None:
@@ -598,6 +604,12 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 
         def load(self, _sm: object) -> bool:
             return False
+
+        def add_listener(self, _listener: object) -> Callable[[], None]:
+            return lambda: None
+
+        def add_hold_listener(self, _listener: object) -> Callable[[], None]:
+            return lambda: None
 
     # Create mock horizon manager
     mock_horizon = _create_mock_horizon_manager()
@@ -621,7 +633,9 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # Patch store construction so the never-ready store is the one awaited
     monkeypatch.setattr(
         "custom_components.haeo.build_input_stores",
-        lambda *_args, **_kwargs: {("Test Element", ("section", "field")): never_ready_store},
+        lambda *_args, **_kwargs: {
+            ("Test Battery", (SECTION_STORAGE, CONF_INITIAL_CHARGE_PERCENTAGE)): never_ready_store
+        },
     )
 
     # Patch forward_entry_setups to bypass real platform setup
@@ -645,8 +659,8 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # Verify the exception has the correct translation key
     assert exc_info.value.translation_key == expected_translation_key
     assert exc_info.value.translation_placeholders == {
-        "element": "Test Element",
-        "field": "section.field",
+        "element": "Test Battery",
+        "field": "State of charge",
         "entities": "sensor.limit, sensor.other" if input_error else "sensor.limit",
         **({"value": "-4.5"} if input_error else {}),
     }
@@ -699,6 +713,7 @@ async def test_first_refresh_continues_when_the_last_input_settles_as_the_wait_t
     coordinator.async_refresh.assert_awaited_once()
 
 
+@pytest.mark.usefixtures("mock_battery_subentry")
 async def test_setup_reentry_after_timeout_failure(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -715,6 +730,7 @@ async def test_setup_reentry_after_timeout_failure(
     class ConditionalReadyStore:
         source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
         unavailable_sources = ("sensor.limit",)
+        sources_without_last_reading = ()
         error = None
 
         def __init__(self) -> None:
@@ -738,6 +754,12 @@ async def test_setup_reentry_after_timeout_failure(
         def load(self, _sm: object) -> bool:
             return False
 
+        def add_listener(self, _listener: object) -> Callable[[], None]:
+            return lambda: None
+
+        def add_hold_listener(self, _listener: object) -> Callable[[], None]:
+            return lambda: None
+
     # Create a runtime data factory that uses our conditional store
     store = ConditionalReadyStore()
 
@@ -754,7 +776,7 @@ async def test_setup_reentry_after_timeout_failure(
     # Patch store construction so the conditional store is the one awaited
     monkeypatch.setattr(
         "custom_components.haeo.build_input_stores",
-        lambda *_args, **_kwargs: {("Test Element", ("section", "field")): store},
+        lambda *_args, **_kwargs: {("Test Battery", (SECTION_STORAGE, CONF_INITIAL_CHARGE_PERCENTAGE)): store},
     )
 
     # Mock horizon manager - use a real-like one that tracks state
@@ -1131,16 +1153,26 @@ async def test_async_register_static_skips_when_http_unavailable(
 async def test_async_register_static_skips_when_card_not_found(
     hass: HomeAssistant,
 ) -> None:
-    """Test that static registration is skipped when card bundle file is missing."""
+    """Test that static registration is skipped when card bundle file is missing.
+
+    The bundles are looked for in the executor, so the event loop never waits on the filesystem.
+    """
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
+    checked_on_threads: set[int] = set()
+
+    def missing(_self: Path) -> bool:
+        checked_on_threads.add(threading.get_ident())
+        return False
 
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr("custom_components.haeo.Path.exists", lambda _self: False)
+        mp.setattr("custom_components.haeo.Path.exists", missing)
         await _async_register_static_frontend_resources(hass)
 
     mock_http.async_register_static_paths.assert_not_called()
+    assert checked_on_threads
+    assert hass.loop_thread_id not in checked_on_threads
 
 
 def test_card_static_url_changes_with_bundle_contents(tmp_path: Path) -> None:

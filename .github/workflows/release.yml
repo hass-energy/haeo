@@ -115,7 +115,8 @@ jobs:
       - name: Optimize screenshots
         run: |
           sudo apt-get install -y optipng
-          find docs -name '*.png' -exec optipng -o5 -quiet {} +
+          # optipng -o5 picks these settings for nearly every screenshot, so try only them.
+          find docs -name '*.png' -print0 | xargs -0 -P "$(nproc)" -n 4 optipng -quiet -zc9 -zm8 -zs0 -f0
 
       - name: Build documentation
         run: |

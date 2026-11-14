@@ -10,13 +10,18 @@ or call it from an automation or script.
 
 ## Run an optimization
 
-`haeo.optimize` runs a new optimization for one HAEO system.
-It starts immediately instead of waiting for related updates to settle,
+`haeo.optimize` runs a new optimization for one HAEO system and waits for it to finish.
+By default it starts immediately instead of waiting for related updates to settle,
 and it runs even when the **Auto optimize** switch on your system's network device is off.
 
-| Field  | Required | Description                         |
-| ------ | -------- | ----------------------------------- |
-| System | Yes      | The HAEO system to run the plan for |
+| Field       | Required | Description                                                                            |
+| ----------- | -------- | -------------------------------------------------------------------------------------- |
+| System      | Yes      | The HAEO system to run the plan for                                                    |
+| Immediately | No       | On by default. Turn it off to wait out the **Debounce window (seconds)** setting first |
+
+Leave **Immediately** on when you need a new plan now.
+Turn it off when an automation calls the action every time something changes,
+so changes made close together share one optimization, as automatic optimizations do.
 
 Use it when:
 
@@ -32,15 +37,17 @@ data:
 
 In the automation editor, pick the system from the **System** list rather than typing its ID.
 
-The action returns once the optimization finishes.
+The action returns once the next optimization to start has finished,
+so a step after it in a script sees the new plan.
+If HAEO already had an optimization lined up, the action waits for that one rather than adding another.
+When the planning horizon has just moved on and HAEO is still loading forecasts for the new periods,
+the optimization waits for them to load.
+
 Its result shows up the same way as any other plan:
 the output sensors update when it succeeds,
 and the optimization status sensor and a repair issue explain a failure.
+When the optimization fails, the action fails too, with the same message the optimization status sensor shows.
 See [Understanding results](optimization.md) and [Troubleshooting](troubleshooting.md).
-
-When the planning horizon has just moved on, HAEO may still be loading forecasts for the new periods.
-The action then fails with a message saying the forecast inputs are still loading.
-HAEO plans by itself once those forecasts have loaded, so you only need to run it again if you turned **Auto optimize** off.
 
 ## Save diagnostics
 
@@ -61,6 +68,7 @@ Use it when:
 
 The file is saved in the `haeo/diagnostics/` folder of your Home Assistant configuration directory.
 Its name includes the time it describes.
+Only Home Assistant administrators can run it, because the file is written into the configuration directory.
 
 A **Time** without a time zone is read in Home Assistant's own time zone.
 **Time** needs Home Assistant's recorder, because the recorder is where past values come from.
@@ -184,19 +192,19 @@ The plan and the output sensors are not changed, and HAEO does not plan again wh
 
 The actions stop with an error message when they cannot run:
 
-| Message                                                              | What it means                                                                                          | What to do                                                          |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| Config entry … not found                                             | The chosen system no longer exists                                                                     | Pick the system again; it may have been removed and added again     |
-| Config entry … is not a HAEO hub                                     | The chosen entry belongs to another integration                                                        | Pick a HAEO system                                                  |
-| Config entry … is not loaded                                         | The HAEO system is still starting, failed to start, or is disabled                                     | Check the system on the integration page and fix any reported issue |
-| The forecast inputs are still loading …                              | Only from `haeo.optimize`: the horizon has just moved on and forecasts for the new periods are loading | Try again in a moment                                               |
-| Saving diagnostics for a past time needs Home Assistant's recorder … | Only from `haeo.save_diagnostics`: you set **Time** but the recorder is not running                    | Leave **Time** out, or enable the recorder                          |
-| No history available at time …                                       | Only from `haeo.save_diagnostics`: the recorder has no values at that time for the inputs it names     | Choose a later time, within how long your recorder keeps history    |
-| The latest optimization found no plan …                              | Only from `haeo.offer_curve`: the last optimization failed, or none has run yet                        | Fix the reported problem, then try again once a plan is found       |
-| The latest plan relaxed constraints …                                | Only from `haeo.offer_curve`: the plan was found with **Relax impossible plans**                       | Fix the conflict the repair issue names                             |
-| The lowest import price must be below the highest                    | Only from `haeo.offer_curve`: the price range is empty                                                 | Set **Lowest import price** below **Highest import price**          |
-| The emissions intensity sensor … has no reading                      | Only from `haeo.offer_curve`: the sensor is missing or unavailable                                     | Check the sensor, or leave **Emissions intensity** out              |
-| The emissions intensity sensor … is in …                             | Only from `haeo.offer_curve`: the sensor's unit is not a mass of CO2 per unit of energy                | Choose a sensor in g, kg or t per kWh or MWh                        |
+| Message                                                              | What it means                                                                                      | What to do                                                          |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Config entry … not found                                             | The chosen system no longer exists                                                                 | Pick the system again; it may have been removed and added again     |
+| Config entry … is not a HAEO hub                                     | The chosen entry belongs to another integration                                                    | Pick a HAEO system                                                  |
+| Config entry … is not loaded                                         | The HAEO system is still starting, failed to start, or is disabled                                 | Check the system on the integration page and fix any reported issue |
+| Any optimization error                                               | Only from `haeo.optimize`: the optimization it waited for failed                                   | See [Troubleshooting](troubleshooting.md) for that message          |
+| Saving diagnostics for a past time needs Home Assistant's recorder … | Only from `haeo.save_diagnostics`: you set **Time** but the recorder is not running                | Leave **Time** out, or enable the recorder                          |
+| No history available at time …                                       | Only from `haeo.save_diagnostics`: the recorder has no values at that time for the inputs it names | Choose a later time, within how long your recorder keeps history    |
+| The latest optimization found no plan …                              | Only from `haeo.offer_curve`: the last optimization failed, or none has run yet                    | Fix the reported problem, then try again once a plan is found       |
+| The latest plan relaxed constraints …                                | Only from `haeo.offer_curve`: the plan was found with **Relax impossible plans**                   | Fix the conflict the repair issue names                             |
+| The lowest import price must be below the highest                    | Only from `haeo.offer_curve`: the price range is empty                                             | Set **Lowest import price** below **Highest import price**          |
+| The emissions intensity sensor … has no reading                      | Only from `haeo.offer_curve`: the sensor is missing or unavailable                                 | Check the sensor, or leave **Emissions intensity** out              |
+| The emissions intensity sensor … is in …                             | Only from `haeo.offer_curve`: the sensor's unit is not a mass of CO2 per unit of energy            | Choose a sensor in g, kg or t per kWh or MWh                        |
 
 ## Next steps
 
@@ -208,7 +216,7 @@ The actions stop with an error message when they cannot run:
 
     Use HAEO's plan to control your devices.
 
-    [:material-arrow-right: Automation examples](automations.md)
+    [:material-arrow-right: Automating your hardware](automations.md)
 
 - :material-refresh:{ .lg .middle } __Understand when HAEO plans__
 

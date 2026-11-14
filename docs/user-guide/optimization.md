@@ -29,6 +29,7 @@ Total cost over the optimization horizon in dollars.
 State of the latest optimization, as Home Assistant shows it, with the state value automations compare against:
 
 - **Succeeded** (`success`): The latest optimization completed successfully
+- **Degraded** (`degraded`): The latest optimization completed, but planned with the last reading of a sensor that has stopped reporting for longer than the hub's [sensor gap tolerance](configuration.md#editing-hub-settings)
 - **Failed** (`failed`): The latest optimization failed, for example because inputs are unavailable or the problem is infeasible
 - **Pending** (`pending`): No optimization has finished since HAEO started
 
@@ -37,6 +38,7 @@ When the status is **Failed**, its `error` attribute holds the error message, an
 Its `last_run` attribute is the time the latest successful optimization finished.
 
 Some failures, such as an input with no reading or a plan that cannot meet every constraint, raise their own repair issue under **Settings** → **System** → **Repairs** that names the cause.
+A degraded optimization also raises one, naming the sensors HAEO is planning on old readings of, and both clear once the sensors report again.
 If optimizations keep failing for any other reason for five minutes, HAEO raises an "Optimization failed" repair issue with the error message.
 That issue clears on the next successful optimization.
 
@@ -119,39 +121,8 @@ Use these in automations or dashboards to visualize the optimal schedule.
 
 ## Using results in automations
 
-### Example: Control battery based on optimization
-
-```yaml
-automation:
-  - alias: Follow HAEO Battery Charge Schedule
-    trigger:
-      - platform: state
-        entity_id: sensor.main_battery_charge_power
-    condition:
-      - condition: template
-        value_template: "{{ states('sensor.main_battery_charge_power') | float > 0
-          }}"
-    action:
-      - service: battery.set_charge_power
-        data:
-          power: "{{ states('sensor.main_battery_charge_power') | float }}"
-
-  - alias: Follow HAEO Battery Discharge Schedule
-    trigger:
-      - platform: state
-        entity_id: sensor.main_battery_discharge_power
-    condition:
-      - condition: template
-        value_template: "{{ states('sensor.main_battery_discharge_power') | float
-          > 0 }}"
-    action:
-      - service: battery.set_discharge_power
-        data:
-          power: "{{ states('sensor.main_battery_discharge_power') | float }}"
-```
-
-**Note**: Battery elements create separate sensors for charging (`sensor.{name}_charge_power`) and discharging (`sensor.{name}_discharge_power`).
-See the [battery documentation](elements/battery.md) for complete details.
+Each new plan updates these sensors, so automations can follow it as it changes.
+[Automating your hardware](automations.md) explains how to turn the battery and grid plans into modes and limits for your inverter.
 
 ## Performance considerations
 
@@ -197,7 +168,7 @@ Explore these guides to act on the optimization outputs.
 
     Turn recommended power schedules into actionable automations.
 
-    [:material-arrow-right: Automation patterns](automations.md)
+    [:material-arrow-right: Automating your hardware](automations.md)
 
 - :material-sync:{ .lg .middle } **Monitor data updates**
 

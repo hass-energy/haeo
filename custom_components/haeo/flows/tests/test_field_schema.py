@@ -1,6 +1,7 @@
 """Tests for flows/field_schema.py utilities."""
 
 from dataclasses import replace
+from typing import Literal
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import HomeAssistant
@@ -902,6 +903,53 @@ def test_get_preferred_choice_returns_none_when_no_choices() -> None:
     assert result == CHOICE_NONE
 
 
+@pytest.mark.parametrize(
+    ("shown_value", "expected"),
+    [
+        pytest.param(as_entity_value(["sensor.power"]), CHOICE_ENTITY, id="stored_entity"),
+        pytest.param(as_constant_value(5.0), CHOICE_CONSTANT, id="stored_constant"),
+        pytest.param(as_none_value(), CHOICE_NONE, id="stored_none"),
+        pytest.param(["sensor.power"], CHOICE_ENTITY, id="submitted_entity_list"),
+        pytest.param(("sensor.power",), CHOICE_ENTITY, id="submitted_entity_tuple"),
+        pytest.param([], CHOICE_ENTITY, id="submitted_empty_entity_list"),
+        pytest.param("sensor.power", CHOICE_ENTITY, id="submitted_single_entity"),
+        pytest.param(5.0, CHOICE_CONSTANT, id="submitted_number"),
+        pytest.param(0, CHOICE_CONSTANT, id="submitted_zero"),
+        pytest.param(True, CHOICE_CONSTANT, id="submitted_boolean"),
+        pytest.param(None, CHOICE_NONE, id="submitted_nothing"),
+        pytest.param("", CHOICE_NONE, id="submitted_empty_string"),
+    ],
+)
+@pytest.mark.parametrize(
+    "default_mode",
+    [pytest.param("entity", id="entity_default"), pytest.param("value", id="value_default"), None],
+)
+def test_get_preferred_choice_follows_the_shown_value(
+    shown_value: object, expected: str, default_mode: Literal["entity", "value"] | None
+) -> None:
+    """The first choice is the one holding the value the form shows, whatever the field's default."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(key="power", name="Power"),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode=default_mode, value=10.0 if default_mode == "value" else None),
+    )
+    result = get_preferred_choice(field, {"power": shown_value}, allowed_choices=ALLOWED_CHOICES_OPTIONAL)
+    assert result == expected
+
+
+def test_get_preferred_choice_shown_none_without_none_choice_uses_defaults() -> None:
+    """A required field shown with nothing in it falls back to its default choice."""
+    field = InputFieldInfo(
+        field_name="power",
+        entity_description=NumberEntityDescription(key="power", name="Power"),
+        output_type=OutputType.POWER,
+        defaults=InputFieldDefaults(mode="value", value=10.0),
+    )
+    result = get_preferred_choice(field, {"power": None}, allowed_choices=ALLOWED_CHOICES_REQUIRED)
+    assert result == CHOICE_CONSTANT
+
+
 # --- Tests for build_entity_selector ---
 
 
@@ -1282,7 +1330,7 @@ def test_build_sectioned_choose_schema_merges_extra_entries(
         input_fields,
         field_schema,
         inclusion_map,
-        current_data={"inputs": {"test_field": as_entity_value(["sensor.test"])}},
+        shown_data={"inputs": {"test_field": as_entity_value(["sensor.test"])}},
         extra_field_entries=extra_field_entries,
     )
 

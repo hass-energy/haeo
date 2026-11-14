@@ -5,6 +5,7 @@ import pytest
 from custom_components.haeo.core.data.util.field_units import (
     check_source_unit,
     field_unit_label,
+    field_unit_spec,
     has_field_unit,
     to_field_unit,
 )
@@ -38,24 +39,45 @@ def test_has_field_unit(output_type: OutputType, *, expected: bool) -> None:
 )
 def test_check_source_unit_accepts_fitting_units(base_unit: str | None, output_type: OutputType) -> None:
     """A source in the field's unit, a source stating no unit, or a field without one passes."""
-    check_source_unit(base_unit, output_type)
+    check_source_unit(base_unit, base_unit, output_type)
 
 
 @pytest.mark.parametrize(
-    ("base_unit", "output_type"),
+    ("source_unit", "base_unit", "output_type", "named"),
     [
-        pytest.param("kWh", OutputType.POWER, id="energy_for_power"),
-        pytest.param("kW", OutputType.PRICE, id="power_for_price"),
-        pytest.param("BTU/h", OutputType.POWER, id="unconvertible_power"),
+        pytest.param("Wh", "kWh", OutputType.POWER, "Wh", id="energy_for_power"),
+        pytest.param("MW", "kW", OutputType.PRICE, "MW", id="power_for_price"),
+        pytest.param("BTU/h", "BTU/h", OutputType.POWER, "BTU/h", id="unconvertible_power"),
+        pytest.param(None, "kWh", OutputType.POWER, "kWh", id="unit_from_device_class"),
     ],
 )
-def test_check_source_unit_rejects_units_that_do_not_fit(base_unit: str, output_type: OutputType) -> None:
-    """A source whose unit does not convert to the field's unit is rejected."""
+def test_check_source_unit_rejects_units_that_do_not_fit(
+    source_unit: str | None, base_unit: str, output_type: OutputType, named: str
+) -> None:
+    """A source whose unit does not convert is rejected, naming the unit it states, or its base unit if none."""
     with pytest.raises(InputError) as err:
-        check_source_unit(base_unit, output_type)
+        check_source_unit(source_unit, base_unit, output_type)
 
     assert err.value.translation_key == "input_unit_incompatible"
-    assert err.value.translation_placeholders["unit"] == base_unit
+    assert err.value.translation_placeholders["unit"] == named
+
+
+@pytest.mark.parametrize(
+    ("output_type", "expected"),
+    [
+        pytest.param(OutputType.POWER, "W, kW, MW, GW", id="power"),
+        pytest.param(
+            OutputType.ENERGY_PER_DISTANCE, "Wh/km, kWh/km, kWh/100km, km/kWh, mi/kWh", id="energy_per_distance"
+        ),
+        pytest.param(OutputType.STATE_OF_CHARGE, "%", id="percent"),
+    ],
+)
+def test_check_source_unit_names_the_units_a_source_can_state(output_type: OutputType, expected: str) -> None:
+    """A rejected source is told every unit the field converts from, not only the unit HAEO works in."""
+    with pytest.raises(InputError) as err:
+        check_source_unit("furlongs", "furlongs", output_type)
+
+    assert err.value.translation_placeholders["expected"] == expected
 
 
 @pytest.mark.parametrize(
@@ -67,6 +89,7 @@ def test_check_source_unit_rejects_units_that_do_not_fit(base_unit: str, output_
         pytest.param(150.0, "€/MWh", OutputType.PRICE, 0.15, id="price_per_mwh"),
         pytest.param(26.5, "c/kWh", OutputType.PRICE, 0.265, id="cents_per_kwh"),
         pytest.param(10.0, "mi", OutputType.DISTANCE, 16.09344, id="miles_to_km"),
+        pytest.param(5.0, "km/kWh", OutputType.ENERGY_PER_DISTANCE, 0.2, id="reciprocal_efficiency"),
         pytest.param(1.0, None, OutputType.AVAILABILITY, 1.0, id="bare_number_without_field_unit"),
     ],
 )
@@ -89,6 +112,11 @@ def test_to_field_unit_rejects_values_it_cannot_convert(unit: str | None, output
     assert to_field_unit(5.0, unit, output_type) is None
 
 
+def test_to_field_unit_rejects_zero_in_a_reciprocal_unit() -> None:
+    """Zero km/kWh has no finite energy per distance, so the value cannot be used."""
+    assert to_field_unit(0.0, "km/kWh", OutputType.ENERGY_PER_DISTANCE) is None
+
+
 @pytest.mark.parametrize(
     ("output_type", "expected"),
     [
@@ -107,3 +135,9 @@ def test_field_unit_label() -> None:
     """A field's unit is named to users, and a field without one has no label."""
     assert field_unit_label(OutputType.POWER) == "kW"
     assert field_unit_label(OutputType.AVAILABILITY) is None
+
+
+def test_field_unit_spec() -> None:
+    """A field's unit is the one its sources' values must convert to, and a field without one has none."""
+    assert field_unit_spec(OutputType.POWER) == "kW"
+    assert field_unit_spec(OutputType.AVAILABILITY) is None

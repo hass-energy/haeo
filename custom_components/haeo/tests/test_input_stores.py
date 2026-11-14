@@ -120,6 +120,7 @@ def test_build_input_stores_creates_stores_for_configured_fields(
     assert stores[driven_key].source_entity_ids == ["sensor.export_price"]
 
 
+@pytest.mark.usefixtures("haeo_translations")
 async def test_input_error_placeholders_describe_rejected_store(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -154,9 +155,9 @@ async def test_input_error_placeholders_describe_rejected_store(
     assert not store.available
 
     assert store.error is not None
-    assert input_error_placeholders(key, store.error, store) == {
+    assert input_error_placeholders(hass, config_entry.entry_id, key, store.error, store) == {
         "element": "Main Grid",
-        "field": f"{SECTION_POWER_LIMITS}.{CONF_MAX_POWER_SOURCE_TARGET}",
+        "field": "Import limit",
         "entities": "sensor.import_limit",
         "value": "-4.5",
     }

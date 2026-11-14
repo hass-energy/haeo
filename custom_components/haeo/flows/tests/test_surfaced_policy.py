@@ -10,12 +10,13 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+import voluptuous as vol
 
 from conftest import add_participant
 from custom_components.haeo import async_update_listener
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.constant_value import ConstantValue
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.battery import (
@@ -64,7 +65,7 @@ from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_surfaced_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
-from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
+from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY, CHOICE_NONE
 from custom_components.haeo.flows.surfaced_policy import (
     POLICIES_TITLE,
     build_surfaced_defaults,
@@ -72,6 +73,7 @@ from custom_components.haeo.flows.surfaced_policy import (
     find_policy_subentry,
     form_value_to_price,
     get_policy_rules,
+    get_surfaced_prices,
     price_to_form_value,
     save_surfaced_rule,
 )
@@ -216,7 +218,12 @@ def test_save_updates_existing_rule(
         hass,
         hub_entry,
         [
-            {"name": "old name", "target": ["Battery"], "price": as_constant_value(0.0)},
+            {
+                "name": "old name",
+                "enabled": as_constant_value(value=True),
+                "target": ["Battery"],
+                "price": as_constant_value(0.0),
+            },
         ],
     )
     save_surfaced_rule(
@@ -231,6 +238,60 @@ def test_save_updates_existing_rule(
     assert len(rules) == 1
     assert rules[0]["name"] == "new name"
     assert rules[0]["price"] == as_constant_value(0.5)
+
+
+@pytest.mark.parametrize(
+    "stored_enabled",
+    [
+        pytest.param(as_constant_value(value=False), id="constant"),
+        pytest.param(False, id="bare_bool"),
+    ],
+)
+def test_save_updating_a_rule_keeps_it_disabled(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    stored_enabled: ConstantValue | bool,
+) -> None:
+    """Saving a new price for a disabled rule leaves it disabled."""
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {
+                "name": "Battery charge cost",
+                "enabled": stored_enabled,
+                "target": ["Battery"],
+                "price": as_constant_value(0.0),
+            },
+        ],
+    )
+    save_surfaced_rule(
+        hass,
+        hub_entry,
+        rule_name="Battery charge cost",
+        source=None,
+        target=["Battery"],
+        price=as_constant_value(0.5),
+    )
+    rules = _get_rules(hub_entry)
+    assert rules[0]["enabled"] == stored_enabled
+    assert rules[0]["price"] == as_constant_value(0.5)
+
+
+def test_save_creates_a_rule_enabled(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """A newly created surfaced rule is stored enabled as a constant."""
+    save_surfaced_rule(
+        hass,
+        hub_entry,
+        rule_name="Battery charge cost",
+        source=None,
+        target=["Battery"],
+        price=as_constant_value(0.5),
+    )
+    assert _get_rules(hub_entry)[0]["enabled"] == as_constant_value(value=True)
 
 
 def test_save_appends_new_rule(
@@ -754,29 +815,25 @@ def test_build_surfaced_defaults_skips_fields_without_input_info(
     assert CONF_CONSUMPTION_COST not in defaults
 
 
-def test_build_surfaced_schema_entries_uses_existing_rule_price(
+def test_get_surfaced_prices_reads_rule_prices_and_none_without_a_rule(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Schema entries reflect an existing surfaced rule when reconfiguring."""
+    """Each surfaced price is its rule's stored price, or none when the element has no rule for it."""
     _add_policy_subentry(
         hass,
         hub_entry,
         [
-            {"name": "consume", "target": ["Test Load"], "price": as_constant_value(-0.15)},
+            {"name": "charge", "target": ["Test Battery"], "price": as_entity_value(["sensor.charge_price"])},
         ],
     )
-    surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
-    entries = build_surfaced_schema_entries(
-        hass,
-        hub_entry,
-        "Test Load",
-        LOAD_SURFACED_PRICE_HINTS,
-        surfaced_fields,
-        extract_entity_metadata(hass, hub_entry),
-    )
 
-    assert CONF_CONSUMPTION_COST in entries
+    prices = get_surfaced_prices(hub_entry, "Test Battery", BATTERY_SURFACED_PRICE_HINTS)
+
+    assert prices == {
+        CONF_CHARGE_COST: as_entity_value(["sensor.charge_price"]),
+        CONF_DISCHARGE_COST: as_none_value(),
+    }
 
 
 def test_defaults_negate_load_consumption_cost_preserves_entity_selection(
@@ -923,11 +980,9 @@ def test_build_surfaced_schema_entries_includes_compatible_price_entities(
     surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
     _, selector = build_surfaced_schema_entries(
         hass,
-        hub_entry,
-        "Test Load",
-        LOAD_SURFACED_PRICE_HINTS,
         surfaced_fields,
         extract_entity_metadata(hass, hub_entry),
+        None,
     )[CONF_CONSUMPTION_COST]
 
     entity_choice = selector.config["choices"][CHOICE_ENTITY]
@@ -939,3 +994,87 @@ def test_build_surfaced_schema_entries_includes_compatible_price_entities(
     assert "sensor.wholesale_price" in include_entities
     assert "sensor.power_only" not in include_entities
     assert haeo_number.entity_id not in include_entities
+
+
+# --- Tests for the first choice of a surfaced price following the value the form shows ---
+
+# Each choice of a surfaced price, as submitted
+_CHARGE_COSTS: dict[str, object] = {
+    CHOICE_ENTITY: ["sensor.charge_cost"],
+    CHOICE_CONSTANT: 0.05,
+    CHOICE_NONE: None,
+}
+
+
+async def _add_battery_with_charge_cost(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, charge_cost: object
+) -> ConfigSubentry:
+    """Add a battery through its flow, then save the given charge cost on it."""
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.async_create_entry = Mock()
+    await flow.async_step_user(user_input=_wrap_battery_input(_base_battery_input()))
+    battery = ConfigSubentry(
+        data=MappingProxyType(flow.async_create_entry.call_args.kwargs["data"]),
+        subentry_type=str(BATTERY_ELEMENT_TYPE),
+        title="Test Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, battery)
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.context = {"source": SOURCE_RECONFIGURE, "subentry_id": battery.subentry_id}
+    result = await flow.async_step_reconfigure(
+        user_input=_wrap_battery_input({**_base_battery_input(), CONF_CHARGE_COST: charge_cost})
+    )
+    assert result.get("type") == FlowResultType.ABORT
+    return battery
+
+
+def _charge_cost_first_choice(form: Mapping[str, object]) -> str:
+    """Return the first choice of the charge cost selector in a shown battery form."""
+    data_schema = form["data_schema"]
+    assert isinstance(data_schema, vol.Schema)
+    pricing = data_schema.schema[SECTION_PRICING].schema.schema
+    selector = next(selector for marker, selector in pricing.items() if str(marker) == CONF_CHARGE_COST)
+    return next(iter(selector.config["choices"]))
+
+
+@pytest.mark.parametrize("choice", list(_CHARGE_COSTS))
+async def test_battery_form_opens_on_the_stored_charge_cost_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    choice: str,
+) -> None:
+    """Reopening a battery shows its charge cost in the choice that holds it."""
+    battery = await _add_battery_with_charge_cost(hass, hub_entry, _CHARGE_COSTS[choice])
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.context = {"source": SOURCE_RECONFIGURE, "subentry_id": battery.subentry_id}
+
+    form = await flow.async_step_reconfigure(user_input=None)
+
+    assert _charge_cost_first_choice(form) == choice
+
+
+@pytest.mark.parametrize(
+    ("stored_choice", "submitted_choice"),
+    [(stored, submitted) for stored in _CHARGE_COSTS for submitted in _CHARGE_COSTS if stored != submitted],
+)
+async def test_reshown_battery_form_keeps_the_submitted_charge_cost_choice(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    stored_choice: str,
+    submitted_choice: str,
+) -> None:
+    """A battery form re-shown with an error shows the submitted charge cost in the choice that holds it."""
+    battery = await _add_battery_with_charge_cost(hass, hub_entry, _CHARGE_COSTS[stored_choice])
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.context = {"source": SOURCE_RECONFIGURE, "subentry_id": battery.subentry_id}
+
+    form = await flow.async_step_reconfigure(
+        user_input=_wrap_battery_input(
+            {**_base_battery_input(), CONF_NAME: "main_bus", CONF_CHARGE_COST: _CHARGE_COSTS[submitted_choice]}
+        )
+    )
+
+    assert form.get("errors") == {CONF_NAME: "name_exists"}
+    assert _charge_cost_first_choice(form) == submitted_choice

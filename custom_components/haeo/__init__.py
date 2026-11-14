@@ -45,6 +45,7 @@ from custom_components.haeo.input_stores import (
     unavailable_input_sources,
 )
 from custom_components.haeo.inputs.calendar_loader import CalendarInputLoader
+from custom_components.haeo.inputs.hold_expiry import InputHoldExpiry
 from custom_components.haeo.inputs.source_loader import SourceInputLoader
 from custom_components.haeo.repairs import (
     async_dismiss_entry_issues,
@@ -52,8 +53,8 @@ from custom_components.haeo.repairs import (
     dismiss_setup_failed_issue,
     element_names_summary,
     setup_failed_issue_error,
+    sync_input_issues,
     sync_missing_element_references_issue,
-    sync_unavailable_input_issues,
 )
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
@@ -135,7 +136,10 @@ async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None
         _LOGGER.debug("HTTP component unavailable; skipping static card registration")
         return
 
-    available_bundles = [name for name in STATIC_CARD_BUNDLES if (CARD_STATIC_DIR / name).exists()]
+    def available_card_bundles() -> list[str]:
+        return [name for name in STATIC_CARD_BUNDLES if (CARD_STATIC_DIR / name).exists()]
+
+    available_bundles = await hass.async_add_executor_job(available_card_bundles)
     if not available_bundles:
         _LOGGER.debug("No static card bundles found in %s", CARD_STATIC_DIR)
         return
@@ -291,19 +295,19 @@ async def _async_first_refresh(
         async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
             await asyncio.gather(*[store.wait_settled() for store in runtime_data.input_stores.values()])
     except TimeoutError:
-        raise_for_rejected_input(runtime_data.input_stores, ConfigEntryNotReady)
+        raise_for_rejected_input(hass, entry.entry_id, runtime_data.input_stores, ConfigEntryNotReady)
         # The last input can settle while the timed-out wait is being cancelled,
         # leaving none to report; setup then carries on as if the wait finished
         not_ready = unavailable_input_sources(runtime_data.input_stores, lambda store: not store.is_ready())
-        sync_unavailable_input_issues(hass, entry.entry_id, not_ready)
+        sync_input_issues(hass, entry.entry_id, unavailable=not_ready, degraded={})
         if not_ready:
             key, entities = next(iter(not_ready.items()))
             raise ConfigEntryNotReady(
                 translation_domain=DOMAIN,
                 translation_key="input_unavailable",
-                translation_placeholders=unavailable_input_placeholders(key, entities),
+                translation_placeholders=unavailable_input_placeholders(hass, entry.entry_id, key, entities),
             ) from None
-    raise_for_rejected_input(runtime_data.input_stores, ConfigEntryNotReady)
+    raise_for_rejected_input(hass, entry.entry_id, runtime_data.input_stores, ConfigEntryNotReady)
     _LOGGER.debug("All input entities ready")
 
     # Initialize the network and set up subscriptions
@@ -429,6 +433,12 @@ async def _async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> Non
     # stores are the system's source of truth; entities wrap them for display
     # and the coordinator reads their resolved values.
     runtime_data.input_stores = build_input_stores(hass, entry, horizon_manager)
+
+    # A source that stays without a reading does not reload its stores, so the
+    # readings they hold for it are marked degraded on a timer once the hold passes.
+    hold_expiry = InputHoldExpiry(hass, runtime_data.input_stores)
+    hold_expiry.start()
+    entry.async_on_unload(hold_expiry.cleanup)
 
     # A calendar's state carries no events, so stores reading a calendar are
     # loaded by a loader that fetches its events over the horizon.

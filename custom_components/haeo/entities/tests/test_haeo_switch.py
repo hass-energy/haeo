@@ -724,7 +724,7 @@ async def test_horizon_change_updates_forecast_timestamps(
     ("source_state", "is_on", "available"),
     [
         pytest.param(STATE_ON, True, True, id="on"),
-        pytest.param("unavailable", False, False, id="unavailable"),
+        pytest.param("unavailable", False, True, id="held"),
     ],
 )
 async def test_source_change_updates_switch(
@@ -737,7 +737,7 @@ async def test_source_change_updates_switch(
     is_on: bool,
     available: bool,
 ) -> None:
-    """A source change shows on the switch, which goes unavailable while its source has no reading."""
+    """A source change shows on the switch, which keeps its last reading while its source has none."""
     hass.states.async_set("input_boolean.curtail", STATE_OFF)
     subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
     config_entry.runtime_data = None
@@ -750,7 +750,7 @@ async def test_source_change_updates_switch(
 
     assert entity.is_on is is_on
     assert entity.available is available
-    entity.async_write_ha_state.assert_called_once()
+    entity.async_write_ha_state.assert_called()
 
 
 # --- Tests for readiness ---

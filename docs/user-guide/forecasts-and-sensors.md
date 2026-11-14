@@ -92,6 +92,9 @@ This approach accurately represents energy consumption and costs over time.
 
 HAEO automatically converts sensor units to the internal representation used for optimization.
 You don't need to create template sensors for unit conversion.
+A unit can be written with spaces or in another case, such as `kWh / 100 km` or `kwh`.
+Case doesn't matter either, so `kwh`, `KWH`, and `KM` all read, except where it tells units apart: `m` is milli and `M` mega at the start of a unit, as in `mW` and `MW`, and a one-letter unit keeps its case, as `w` is weeks and `W` watts.
+Currency symbols, such as `c` for cents, are read as typed.
 
 **Power conversions**:
 
@@ -133,7 +136,7 @@ Each sensor, or joined group, then repeats by time of day past its own forecast,
 - Each forecast, or joined group, fills the rest of the horizon by [repeating by time of day](#forecast-coverage-and-cycling), so a short forecast beside a long one still applies on every day
 - With only present values, the summed value repeats across the horizon
 - With a forecast, the summed present value is the value for now (the first period) and the summed forecast covers the rest
-- If any of the sensors is unavailable, the whole field is unavailable, as it would be for a single unavailable sensor
+- If any of the sensors is unavailable, the field keeps using that sensor's last reading for a short while, and then the whole field is unavailable, as it would be for a single unavailable sensor
 
 **Example scenarios**:
 
@@ -372,8 +375,11 @@ HAEO reads the value by these rules:
 
 - A number must stand as its own word: the `2` in `EV2` or the `1.2` in `v1.2` is not a number.
     Pieces of a larger number are not read on their own either, such as the `500` in `1,500` or the `30` in `10:30`.
+    A number straight after a word and a colon, comma, or slash is read, so `Charge:8kWh` holds 8 kWh.
     Use a dot for decimals and no thousands separators: write `1.5 kWh` rather than `1,5 kWh`, and `1500 Wh` rather than `1,500 Wh`.
-- The unit is the word typed right after the number, with or without a space between them.
+- The unit is typed right after the number, with or without a space between them.
+    It reads as a sensor's unit does, so spaces around a slash and letter case do not matter, except where case tells units apart: `16 kWh / 100 km`, `0.30 € / kWh`, and `5 kwh` all hold their value.
+    A unit is only as long as a unit HAEO knows, so `8 kWh / night` and `8 kWh/day` hold 8 kWh, while a rate between two units HAEO knows, such as `5 kWh/h`, is not a value.
 - The location, summary, and description are checked in that order, and the first holding any number is the value's field.
     Fields after it are not read, even when its numbers cannot be used, so a mistyped value is reported rather than replaced.
     Keep other numbers, such as a street address, out of the fields before the value.
@@ -454,8 +460,11 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 **Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
 
-An input with no reading shows as unavailable, and HAEO does not optimize until it has one, whether at startup or while running.
-A repair issue names the element, the input, and the sensors with no reading, and clears itself once they report again.
+An input whose sensor has no reading, either since HAEO started or in the recorder, shows as unavailable, and HAEO does not optimize until it has a reading.
+At startup, a sensor that has not reported yet is planned on with its last reading in the recorder.
+A sensor that stops reporting while HAEO runs is planned on with its last reading, and once that lasts longer than the hub's **Sensor gap tolerance**, 60 seconds by default, the optimization status reads **Degraded**.
+Either way, a repair issue names the element, the input, and the sensors, and clears itself once they report again.
+See [an input has no reading](troubleshooting.md#an-input-has-no-reading).
 
 **Solutions**:
 
