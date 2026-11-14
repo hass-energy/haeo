@@ -45,6 +45,8 @@ def get_or_create_element_device(
 ) -> DeviceEntry:
     """Get or create a device for an element.
 
+    The device's model ID is the element's type, so selectors can filter by it.
+
     Args:
         hass: Home Assistant instance
         config_entry: The config entry for the integration
@@ -61,6 +63,7 @@ def get_or_create_element_device(
         identifiers={build_device_identifier(config_entry, subentry, device_name)},
         config_entry_id=config_entry.entry_id,
         config_subentry_id=subentry.subentry_id,
+        model_id=subentry.subentry_type,
         translation_key=device_name,
         translation_placeholders={"name": subentry.title},
     )
@@ -88,6 +91,7 @@ def get_or_create_network_device(
         identifiers={build_device_identifier(config_entry, network_subentry, ELEMENT_TYPE_NETWORK)},
         config_entry_id=config_entry.entry_id,
         config_subentry_id=network_subentry.subentry_id,
+        model_id=ELEMENT_TYPE_NETWORK,
         translation_key=ELEMENT_TYPE_NETWORK,
         translation_placeholders={"name": network_subentry.title},
     )

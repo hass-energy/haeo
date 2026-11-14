@@ -31,6 +31,7 @@ offer_curve:
         device:
           filter:
             - integration: haeo
+              model_id: grid
     intervals:
       required: true
       selector:
