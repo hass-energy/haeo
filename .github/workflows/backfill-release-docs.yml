@@ -94,7 +94,8 @@ jobs:
                 echo "Tag $tag has guide tests; installing Playwright and regenerating screenshots."
                 uv run playwright install --with-deps firefox
                 uv run pytest -m guide -v --timeout=300
-                find docs -name '*.png' -exec optipng -o5 -quiet {} +
+                # optipng -o5 picks these settings for nearly every screenshot, so try only them.
+                find docs -name '*.png' -print0 | xargs -0 -P "$(nproc)" -n 4 optipng -quiet -zc9 -zm8 -zs0 -f0
               else
                 echo "Tag $tag has no guide marker; skipping screenshot generation."
               fi
