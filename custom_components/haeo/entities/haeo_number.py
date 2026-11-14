@@ -21,7 +21,7 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.input_attributes import held_reading_attributes
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
-from custom_components.haeo.sensor_utils import round_entity_values
+from custom_components.haeo.sensor_utils import round_sig, snap_noise
 from custom_components.haeo.unique_id import element_unique_id
 
 # Attributes to exclude from recorder when forecast recording is disabled
@@ -187,17 +187,18 @@ class HaeoInputNumber(NumberEntity):
 
     def _sync_from_store(self) -> None:
         """Synchronize HA entity attributes from the store's current state."""
-        native_value = self._display_value(self._store.native_value)
-        forecast_values = self._forecast_values() if self._uses_forecast and native_value is not None else None
-
         # A driven value is converted from its source's units, which leaves
-        # digits the source never had, so it is shown to the precision outputs
-        # use. An editable value is shown as the user entered it.
-        if native_value is not None and self._store.mode == InputMode.DRIVEN:
-            *rounded_forecast, native_value = round_entity_values([*(forecast_values or []), native_value])
-            forecast_values = rounded_forecast if forecast_values is not None else None
-
-        self._attr_native_value = native_value
+        # digits the source never had, so it is shown to the significant
+        # figures diagnostics round outputs to. An editable value keeps every
+        # digit the user entered, losing only the noise of percentage scaling.
+        shown = round_sig if self._store.mode == InputMode.DRIVEN else snap_noise
+        native_value = self._display_value(self._store.native_value)
+        forecast_values = (
+            [shown(value) for value in self._forecast_values()]
+            if self._uses_forecast and native_value is not None
+            else None
+        )
+        self._attr_native_value = None if native_value is None else shown(native_value)
 
         extra_attrs = dict(self._base_extra_attrs)
         if forecast_values is not None:
