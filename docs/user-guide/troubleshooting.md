@@ -194,7 +194,7 @@ A sensor that one of your inputs reads has stopped reporting, and shows as `unav
 - HAEO keeps planning with the sensor's last reading, and the input keeps showing that reading
 - The input's entity then shows `held_source_entity`, naming the sensor, and `held_since`, the time it stopped reporting
 - If the gap lasts longer than the hub's **Sensor gap tolerance**, the optimization status is **Degraded** and a repair issue titled "… is planning on an old reading for …" names the element, the input, the sensors, and when they stopped reporting
-- After a restart, a sensor that has not reported yet is planned on with its last reading in the recorder, timed from when the sensor last reported it, so a restart that took longer than the tolerance is degraded at once
+- After a restart, a sensor that has not reported yet is planned on with its last reading in the recorder, timed from when the sensor last reported it, so a restart that took longer than the tolerance is degraded at once, though its repair issue waits until one tolerance has passed since HAEO started
 - If a sensor has no last reading to plan with, because it is new, excluded from the recorder, or its history was purged, the input shows as unavailable, the optimization status is **Failed**, the other output sensors are unavailable, and a repair issue titled "… has no reading for …" names the sensors
 - A calendar HAEO cannot read upcoming events from, or an energy meter read over a window, has no last reading HAEO plans with: its input shows as unavailable at once
 

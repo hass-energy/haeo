@@ -49,6 +49,11 @@ class SensorStateDict(TypedDict):
     attributes: SensorAttributes
 
 
+def snap_noise(value: float) -> float:
+    """Read a value at _NOISE_SIG_FIGS, dropping floating-point noise but keeping every digit it was given."""
+    return float(f"{value:.{_NOISE_SIG_FIGS}g}") + 0.0  # +0.0 normalizes -0.0
+
+
 def _round_decimal(value: float, decimal_places: int) -> float:
     """Round a value half away from zero to decimal_places, the same on every platform.
 
@@ -65,7 +70,7 @@ def _round_decimal(value: float, decimal_places: int) -> float:
     return float(rounded) + 0.0  # +0.0 normalizes -0.0
 
 
-def _round_sig(value: float) -> float:
+def round_sig(value: float) -> float:
     """Round a value to _TARGET_SIG_FIGS significant figures.
 
     Returns 0.0 for zero input.
@@ -117,9 +122,9 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
             if val is not None:
                 forecast_values.append((item, val))
 
-        abs_values = [abs(_round_sig(v)) for _, v in forecast_values]
+        abs_values = [abs(round_sig(v)) for _, v in forecast_values]
         if state_val is not None:
-            abs_values.append(abs(_round_sig(state_val)))
+            abs_values.append(abs(round_sig(state_val)))
 
         if not abs_values:
             continue

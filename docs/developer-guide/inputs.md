@@ -88,6 +88,7 @@ Last readings are kept only in memory, so after a restart a source that comes up
 `SourceInputLoader` looks such a source up in the recorder once, through `async_last_recorded_reading()` in [`inputs/recorded_reading.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/recorded_reading.py), which takes the latest of its last recorded states that has a reading.
 It passes that state to `seed_reading()` on each store in `sources_without_last_reading` and reloads them.
 A seeded reading is held as if the source lost it at the state's `last_reported` time, so the hold, `held_since`, and the degraded issue's time all count from then, and a restart that took longer than the hold is degraded at once.
+The coordinator holds back new `degraded_input` issues for one hold after it is created, so sources whose integrations are still starting are not reported, as described in [the coordinator's inputs](coordinator.md#inputs).
 `last_reported` is the last time the source reported that reading, even unchanged, so a steady sensor's reading is not mistaken for an old one, as its `last_updated` would be.
 Calendar-driven stores, which hold calendars' events and meters' totals, are loaded by the calendar loader and never seeded.
 A source with no reading in memory or in the recorder is never held, so setup still waits for every input, and a store that cannot resolve without one is unavailable and raises the `unavailable_input` issue.

@@ -329,10 +329,11 @@ async def test_sensor_unavailable_at_startup_plans_on_its_recorded_reading(
         assert state.state == "0.3"
         assert state.attributes[ATTR_HELD_SOURCE_ENTITY] == PRICE_SENSOR
         assert state.attributes[ATTR_HELD_SINCE] == reported_at
-        assert (_issue(hass, hub, "degraded") is not None) is (status == "degraded")
+        # Repair issues wait one hold after startup, while the integrations HAEO reads start
+        assert _issue(hass, hub, "degraded") is None
 
-        # Wait out what is left of the hold, if anything, then reload the store
-        await _wait(hass, freezer, max(1, HOLD_SECONDS - age + 1))
+        # Wait out that grace, which outlasts what is left of the hold, then reload the store
+        await _wait(hass, freezer, HOLD_SECONDS)
         await _set_price(hass, freezer, "unknown")
 
     assert _status(hub) == "degraded"

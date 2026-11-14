@@ -1,5 +1,6 @@
 """Tests for how the coordinator reports failed and relaxed optimizations."""
 
+from datetime import UTC, datetime
 import logging
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -10,20 +11,27 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.coordinator.coordinator import FAILURE_SECONDS_BEFORE_REPAIR_ISSUE, ReportedUpdateFailed
 from custom_components.haeo.coordinator.tests.helpers import network_double
+from custom_components.haeo.core.const import CONF_INPUT_HOLD_SECONDS
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import SolverError
 from custom_components.haeo.core.model.infeasibility import InfeasibleError, Relaxation, RowLabel
 from custom_components.haeo.core.schema.elements.battery import CONF_MAX_POWER_SOURCE_TARGET
 from custom_components.haeo.core.schema.elements.grid import CONF_PRICE_SOURCE_TARGET
 from custom_components.haeo.core.schema.sections import SECTION_POWER_LIMITS, SECTION_PRICING
-from custom_components.haeo.repairs import create_optimization_infeasible_issue, create_optimization_relaxed_issue
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED
+from custom_components.haeo.input_stores import degraded_inputs
+from custom_components.haeo.repairs import (
+    create_optimization_infeasible_issue,
+    create_optimization_relaxed_issue,
+    sync_input_issues,
+)
 
 from .helpers import EARLIER_DIAGNOSTICS, EARLIER_ISSUE, saved_diagnostics
 
@@ -463,5 +471,125 @@ async def test_a_cause_with_its_own_issue_dismisses_the_general_one(
         assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
         frozen.tick(1)
         await coordinator.async_refresh()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+def _degraded_store() -> MagicMock:
+    """Return a store planning on a reading of sensor.price held past the hold."""
+    store = MagicMock()
+    store.available = True
+    store.error = None
+    store.source_entity_ids = ["sensor.price"]
+    store.degraded_sources = ("sensor.price",)
+    store.degraded_since = datetime(2025, 1, 1, 11, tzinfo=UTC).timestamp()
+    store.captured_source_states = {}
+    return store
+
+
+def _set_input_hold(hass: HomeAssistant, entry: MockConfigEntry, hold_seconds: int) -> None:
+    """Set the hub's input hold."""
+    advanced = {**entry.data[HUB_SECTION_ADVANCED], CONF_INPUT_HOLD_SECONDS: hold_seconds}
+    hass.config_entries.async_update_entry(entry, data={**entry.data, HUB_SECTION_ADVANCED: advanced})
+
+
+@pytest.mark.parametrize(
+    ("recovers", "issue_raised"),
+    [
+        pytest.param(False, True, id="still_degraded_after_the_grace"),
+        pytest.param(True, False, id="recovers_within_the_grace"),
+    ],
+)
+@pytest.mark.usefixtures("mock_grid_subentry")
+async def test_degraded_input_issues_wait_one_hold_after_startup(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    recovers: bool,
+    issue_raised: bool,
+) -> None:
+    """An input degraded at startup is degraded at once, but its repair issue waits until one hold has passed."""
+    _set_input_hold(hass, mock_hub_entry, 60)
+    store = _degraded_store()
+    mock_runtime_data.input_stores[("Test Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = store
+    issue_id = f"degraded_input_{mock_hub_entry.entry_id}_Test Grid_{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}"
+
+    with freeze_time("2025-01-01 12:00:00") as frozen:
+        coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+        frozen.tick(59)
+        degraded = coordinator._check_inputs(Mock(source_states={}))
+        assert list(degraded) == [("Test Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))]
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+        if recovers:
+            store.degraded_sources = ()
+            store.degraded_since = None
+        frozen.tick(1)
+        async_fire_time_changed(hass, dt_util.utcnow())
+        await hass.async_block_till_done()
+
+    assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None) == issue_raised
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("mock_grid_subentry")
+async def test_degraded_input_issues_are_raised_at_once_with_no_hold(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """With the hold at 0 there is no grace, so an input degraded at startup is reported at once."""
+    _set_input_hold(hass, mock_hub_entry, 0)
+    mock_runtime_data.input_stores[("Test Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = _degraded_store()
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    coordinator._check_inputs(Mock(source_states={}))
+
+    issue_id = f"degraded_input_{mock_hub_entry.entry_id}_Test Grid_{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
+@pytest.mark.usefixtures("mock_grid_subentry")
+async def test_degraded_input_issues_already_raised_stay_through_the_grace(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """An issue raised before a reload stays raised while the reloaded coordinator's grace runs."""
+    _set_input_hold(hass, mock_hub_entry, 60)
+    mock_runtime_data.input_stores[("Test Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = _degraded_store()
+    issue_id = f"degraded_input_{mock_hub_entry.entry_id}_Test Grid_{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}"
+    sync_input_issues(
+        hass,
+        mock_hub_entry.entry_id,
+        unavailable={},
+        degraded=degraded_inputs(mock_runtime_data.input_stores),
+    )
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    coordinator._check_inputs(Mock(source_states={}))
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    coordinator.cleanup()
+
+
+@pytest.mark.usefixtures("mock_grid_subentry")
+async def test_unloading_in_the_grace_stops_waiting_for_it(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A coordinator unloaded before its grace ends raises no issue when the grace would have ended."""
+    _set_input_hold(hass, mock_hub_entry, 60)
+    mock_runtime_data.input_stores[("Test Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = _degraded_store()
+    issue_id = f"degraded_input_{mock_hub_entry.entry_id}_Test Grid_{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}"
+
+    with freeze_time("2025-01-01 12:00:00") as frozen:
+        coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+        coordinator._check_inputs(Mock(source_states={}))
+        coordinator.cleanup()
+        frozen.tick(60)
+        async_fire_time_changed(hass, dt_util.utcnow())
+        await hass.async_block_till_done()
 
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None

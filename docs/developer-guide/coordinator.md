@@ -158,6 +158,10 @@ If one rejects its source's value, or the stores do not settle in time, setup ra
 
 Before each solve, `_check_inputs()` keeps the input repair issues current through `sync_input_issues()`: an `unavailable_input` error per input without a reading, naming its sources, and a `degraded_input` warning per input holding a reading past its [hold](inputs.md#holding-a-reading-through-a-gap), naming the held sources and when they lost their reading.
 It dismisses the issues of inputs that have recovered.
+New `degraded_input` issues wait until one `input_hold_seconds` has passed since the coordinator was created at entry setup, because after a restart HAEO usually sets up before the integrations whose sensors it reads, and their seeded readings are already past the hold.
+The status still reads `degraded` at once, and issues already raised stay current.
+The first sync that holds an issue back schedules `_end_repair_grace()` for the end of the grace, which syncs the issues again, so an input still degraded then gets its issue even if nothing else changes.
+With the hold at 0 there is no grace.
 An input holding a reading is available, so it never stops the solve; the solve goes ahead and its status reads `degraded` once the hold has passed.
 An unavailable input fails the update with the `input_unavailable` translation, and a store that rejected its source's value fails it with that error.
 It also keeps the mixed price currencies issue current.
