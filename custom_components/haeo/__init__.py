@@ -295,7 +295,7 @@ async def _async_first_refresh(
         async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
             await asyncio.gather(*[store.wait_settled() for store in runtime_data.input_stores.values()])
     except TimeoutError:
-        raise_for_rejected_input(runtime_data.input_stores, ConfigEntryNotReady)
+        raise_for_rejected_input(hass, entry.entry_id, runtime_data.input_stores, ConfigEntryNotReady)
         # The last input can settle while the timed-out wait is being cancelled,
         # leaving none to report; setup then carries on as if the wait finished
         not_ready = unavailable_input_sources(runtime_data.input_stores, lambda store: not store.is_ready())
@@ -305,9 +305,9 @@ async def _async_first_refresh(
             raise ConfigEntryNotReady(
                 translation_domain=DOMAIN,
                 translation_key="input_unavailable",
-                translation_placeholders=unavailable_input_placeholders(key, entities),
+                translation_placeholders=unavailable_input_placeholders(hass, entry.entry_id, key, entities),
             ) from None
-    raise_for_rejected_input(runtime_data.input_stores, ConfigEntryNotReady)
+    raise_for_rejected_input(hass, entry.entry_id, runtime_data.input_stores, ConfigEntryNotReady)
     _LOGGER.debug("All input entities ready")
 
     # Initialize the network and set up subscriptions

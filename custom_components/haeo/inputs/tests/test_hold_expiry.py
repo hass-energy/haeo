@@ -268,7 +268,7 @@ async def test_long_gap_keeps_optimizing_degraded_until_the_sensor_reports(
     assert issue is not None
     assert issue.translation_placeholders == {
         "element": "Grid",
-        "field": f"{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}",
+        "field": "Import price",
         "entities": PRICE_SENSOR,
         "since": dt_util.as_local(lost_at).strftime("%Y-%m-%d %H:%M:%S"),
     }

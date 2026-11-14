@@ -4,10 +4,12 @@ import asyncio
 from collections.abc import Callable
 from datetime import UTC, date, datetime
 import logging
+from types import MappingProxyType
 from unittest.mock import Mock, patch
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
@@ -15,12 +17,15 @@ from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.util import dt as dt_util
 import numpy as np
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, calendar_input
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.inputs.calendar_loader import CalendarInputLoader
@@ -587,10 +592,22 @@ def _forecast_store() -> InputStore:
 ISSUE_ID = "calendar_event_values_entry_id_Load_forecast.forecast"
 
 
+@pytest.mark.usefixtures("haeo_translations")
 async def test_loader_raises_a_repair_for_event_values_an_input_ignores(
     hass: HomeAssistant, horizon_manager: Mock
 ) -> None:
     """An event whose value the input cannot use is ignored, raising a repair issue that clears once it is fixed."""
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="entry_id")
+    entry.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(
+        entry,
+        ConfigSubentry(
+            data=MappingProxyType({CONF_ELEMENT_TYPE: ElementType.LOAD, CONF_NAME: "Load"}),
+            subentry_type=ElementType.LOAD,
+            title="Load",
+            unique_id=None,
+        ),
+    )
     pump = CalendarEvent(
         start=datetime.fromtimestamp(3600.0, tz=UTC),
         end=datetime.fromtimestamp(7200.0, tz=UTC),
@@ -612,6 +629,7 @@ async def test_loader_raises_a_repair_for_event_values_an_input_ignores(
         '- 1970-01-01T01:00:00+00:00 Pool pump — "Run 2 kW or 3 kW Join the call at https://example.com/meeti…"'
     )
     assert issue.translation_placeholders["unit"] == "kW"
+    assert issue.translation_placeholders["field"] == "Forecast"
 
     calendar._events = [_demand(0.0, 3600.0, "2 kW")]
     await loader.async_load_all()

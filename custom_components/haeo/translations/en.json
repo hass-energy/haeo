@@ -558,7 +558,12 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
-  "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
+  "common": {
+    "default_hub_name": "Home",
+    "list_item_field": "{field} ({item})",
+    "network_subentry_name": "System",
+    "switchboard_node_name": "Switchboard"
+  },
   "device": {
     "battery": { "name": "{name}" },
     "battery_section": { "name": "{name}" },

@@ -14,8 +14,10 @@ from homeassistant.helpers.issue_registry import IssueSeverity, async_create_iss
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
+from .field_labels import input_field_label
 
 if TYPE_CHECKING:
+    from .elements import InputFieldPath
     from .input_stores import DegradedInput, InputStoreKey
 
 _LOGGER = logging.getLogger(__name__)
@@ -368,7 +370,7 @@ def create_calendar_event_values_issue(
     hass: HomeAssistant,
     entry_id: str,
     element_name: str,
-    field_path: Sequence[str],
+    field_path: "InputFieldPath",
     *,
     calendars: Sequence[str],
     events: Sequence[str],
@@ -385,7 +387,7 @@ def create_calendar_event_values_issue(
         translation_key="calendar_event_values_ignored",
         translation_placeholders={
             "element": element_name,
-            "field": ".".join(field_path),
+            "field": input_field_label(hass, entry_id, element_name, field_path),
             "calendars": ", ".join(calendars),
             "events": "\n".join(f"- {event}" for event in events),
             "unit": unit,
@@ -444,17 +446,21 @@ def sync_input_issues(
     """
     wanted: dict[str, tuple[str, IssueSeverity, dict[str, str]]] = {}
     for (element_name, field_path), entities in unavailable.items():
-        placeholders = {"element": element_name, "field": ".".join(field_path), "entities": ", ".join(entities)}
-        issue_id = f"unavailable_input_{entry_id}_{element_name}_{placeholders['field']}"
+        placeholders = {
+            "element": element_name,
+            "field": input_field_label(hass, entry_id, element_name, field_path),
+            "entities": ", ".join(entities),
+        }
+        issue_id = f"unavailable_input_{entry_id}_{element_name}_{'.'.join(field_path)}"
         wanted[issue_id] = ("unavailable_input", IssueSeverity.ERROR, placeholders)
     for (element_name, field_path), held in degraded.items():
         placeholders = {
             "element": element_name,
-            "field": ".".join(field_path),
+            "field": input_field_label(hass, entry_id, element_name, field_path),
             "entities": ", ".join(held.entities),
             "since": dt_util.as_local(held.since).strftime("%Y-%m-%d %H:%M:%S"),
         }
-        issue_id = f"degraded_input_{entry_id}_{element_name}_{placeholders['field']}"
+        issue_id = f"degraded_input_{entry_id}_{element_name}_{'.'.join(field_path)}"
         wanted[issue_id] = ("degraded_input", IssueSeverity.WARNING, placeholders)
 
     prefixes = (f"unavailable_input_{entry_id}_", f"degraded_input_{entry_id}_")

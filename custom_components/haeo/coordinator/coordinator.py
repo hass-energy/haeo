@@ -942,18 +942,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         passed since setup.
         """
         input_stores = self._runtime_data.input_stores
+        entry_id = self.config_entry.entry_id
         unavailable, degraded = self._sync_input_issues(in_grace=time.monotonic() < self._repair_grace_ends)
-        raise_for_rejected_input(input_stores, UpdateFailed)
+        raise_for_rejected_input(self.hass, entry_id, input_stores, UpdateFailed)
         if unavailable:
             key, entities = next(iter(unavailable.items()))
             raise ReportedUpdateFailed(
                 translation_domain=DOMAIN,
                 translation_key="input_unavailable",
-                translation_placeholders=unavailable_input_placeholders(key, entities),
+                translation_placeholders=unavailable_input_placeholders(self.hass, entry_id, key, entities),
             )
-        sync_mixed_price_currencies_issue(
-            self.hass, self.config_entry.entry_id, price_currency_sources(context.source_states)
-        )
+        sync_mixed_price_currencies_issue(self.hass, entry_id, price_currency_sources(context.source_states))
         return degraded
 
     def _sync_input_issues(

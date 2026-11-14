@@ -17,6 +17,7 @@ from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.translation import async_load_integrations
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -98,6 +99,12 @@ def _load_flow_cases(cases: Iterable[dict[str, Any]], *, include_error: bool) ->
             )
         )
     return tuple(structured_cases)
+
+
+@pytest.fixture
+async def haeo_translations(hass: HomeAssistant) -> None:
+    """Load HAEO's translations, as Home Assistant does before setting up the integration."""
+    await async_load_integrations(hass, {DOMAIN})
 
 
 @pytest.fixture

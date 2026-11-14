@@ -554,7 +554,10 @@ async def test_element_flow_in_progress(
     ("input_error", "expected_translation_key", "expected_issues"),
     [
         pytest.param(
-            None, "input_unavailable", ["unavailable_input_{entry_id}_Test Element_section.field"], id="unavailable"
+            None,
+            "input_unavailable",
+            ["unavailable_input_{entry_id}_Test Battery_storage.initial_charge_percentage"],
+            id="unavailable",
         ),
         pytest.param(
             InputError(translation_key="negative_input_value", translation_placeholders={"value": "-4.5"}),
@@ -564,6 +567,7 @@ async def test_element_flow_in_progress(
         ),
     ],
 )
+@pytest.mark.usefixtures("haeo_translations", "mock_battery_subentry")
 async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -629,7 +633,9 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # Patch store construction so the never-ready store is the one awaited
     monkeypatch.setattr(
         "custom_components.haeo.build_input_stores",
-        lambda *_args, **_kwargs: {("Test Element", ("section", "field")): never_ready_store},
+        lambda *_args, **_kwargs: {
+            ("Test Battery", (SECTION_STORAGE, CONF_INITIAL_CHARGE_PERCENTAGE)): never_ready_store
+        },
     )
 
     # Patch forward_entry_setups to bypass real platform setup
@@ -653,8 +659,8 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # Verify the exception has the correct translation key
     assert exc_info.value.translation_key == expected_translation_key
     assert exc_info.value.translation_placeholders == {
-        "element": "Test Element",
-        "field": "section.field",
+        "element": "Test Battery",
+        "field": "State of charge",
         "entities": "sensor.limit, sensor.other" if input_error else "sensor.limit",
         **({"value": "-4.5"} if input_error else {}),
     }
@@ -707,6 +713,7 @@ async def test_first_refresh_continues_when_the_last_input_settles_as_the_wait_t
     coordinator.async_refresh.assert_awaited_once()
 
 
+@pytest.mark.usefixtures("mock_battery_subentry")
 async def test_setup_reentry_after_timeout_failure(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -769,7 +776,7 @@ async def test_setup_reentry_after_timeout_failure(
     # Patch store construction so the conditional store is the one awaited
     monkeypatch.setattr(
         "custom_components.haeo.build_input_stores",
-        lambda *_args, **_kwargs: {("Test Element", ("section", "field")): store},
+        lambda *_args, **_kwargs: {("Test Battery", (SECTION_STORAGE, CONF_INITIAL_CHARGE_PERCENTAGE)): store},
     )
 
     # Mock horizon manager - use a real-like one that tracks state

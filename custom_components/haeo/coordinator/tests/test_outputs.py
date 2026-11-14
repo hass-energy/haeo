@@ -428,6 +428,7 @@ def test_price_currency_sources(units: tuple[str, ...], expected: dict[str, list
     assert price_currency_sources(states) == expected
 
 
+@pytest.mark.usefixtures("mock_grid_subentry")
 async def test_async_update_data_warns_about_mixed_price_currencies(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -441,7 +442,7 @@ async def test_async_update_data_warns_about_mixed_price_currencies(
         "sensor.import_price": source_state("£/kWh"),
         "sensor.export_price": source_state("€/kWh"),
     }
-    mock_runtime_data.input_stores[("Main Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = store
+    mock_runtime_data.input_stores[("Test Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = store
     issue_id = f"mixed_price_currencies_{mock_hub_entry.entry_id}"
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
