@@ -218,7 +218,12 @@ def test_save_updates_existing_rule(
         hass,
         hub_entry,
         [
-            {"name": "old name", "target": ["Battery"], "price": as_constant_value(0.0)},
+            {
+                "name": "old name",
+                "enabled": as_constant_value(value=True),
+                "target": ["Battery"],
+                "price": as_constant_value(0.0),
+            },
         ],
     )
     save_surfaced_rule(
@@ -233,6 +238,60 @@ def test_save_updates_existing_rule(
     assert len(rules) == 1
     assert rules[0]["name"] == "new name"
     assert rules[0]["price"] == as_constant_value(0.5)
+
+
+@pytest.mark.parametrize(
+    "stored_enabled",
+    [
+        pytest.param(as_constant_value(value=False), id="constant"),
+        pytest.param(False, id="bare_bool"),
+    ],
+)
+def test_save_updating_a_rule_keeps_it_disabled(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    stored_enabled: ConstantValue | bool,
+) -> None:
+    """Saving a new price for a disabled rule leaves it disabled."""
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {
+                "name": "Battery charge cost",
+                "enabled": stored_enabled,
+                "target": ["Battery"],
+                "price": as_constant_value(0.0),
+            },
+        ],
+    )
+    save_surfaced_rule(
+        hass,
+        hub_entry,
+        rule_name="Battery charge cost",
+        source=None,
+        target=["Battery"],
+        price=as_constant_value(0.5),
+    )
+    rules = _get_rules(hub_entry)
+    assert rules[0]["enabled"] == stored_enabled
+    assert rules[0]["price"] == as_constant_value(0.5)
+
+
+def test_save_creates_a_rule_enabled(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """A newly created surfaced rule is stored enabled as a constant."""
+    save_surfaced_rule(
+        hass,
+        hub_entry,
+        rule_name="Battery charge cost",
+        source=None,
+        target=["Battery"],
+        price=as_constant_value(0.5),
+    )
+    assert _get_rules(hub_entry)[0]["enabled"] == as_constant_value(value=True)
 
 
 def test_save_appends_new_rule(
