@@ -1317,7 +1317,7 @@ async def test_user_step_stores_enabled_false(
     )
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
-    assert created_data[CONF_RULES][0].get("enabled") is False
+    assert created_data[CONF_RULES][0]["enabled"] == as_constant_value(value=False)
 
 
 async def test_user_step_stores_enabled_true_by_default(
@@ -1341,7 +1341,7 @@ async def test_user_step_stores_enabled_true_by_default(
     )
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
-    assert created_data[CONF_RULES][0].get("enabled") is True
+    assert created_data[CONF_RULES][0]["enabled"] == as_constant_value(value=True)
 
 
 def test_extract_policy_rules_includes_disabled_with_enabled_flag() -> None:
@@ -1390,26 +1390,33 @@ def test_endpoint_selector_empty_elements_raises_invalid(
         sel({"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: []})
 
 
-def test_rule_to_defaults_enabled_always_present() -> None:
-    """Enabled is always present in defaults, defaulting to True when missing."""
+@pytest.mark.parametrize(
+    ("stored_enabled", "shown_enabled"),
+    [
+        (as_constant_value(value=True), True),
+        (as_constant_value(value=False), False),
+        (True, True),
+        (False, False),
+    ],
+)
+def test_rule_to_defaults_shows_enabled_as_a_bool(
+    stored_enabled: ConstantValue | bool,
+    shown_enabled: bool,
+) -> None:
+    """The enabled toggle shows a bool whichever form the rule stores it in."""
     flow = PolicySubentryFlowHandler()
-    defaults = flow._rule_to_defaults({"name": "Test", "enabled": True, "price": {"type": "constant", "value": 0.0}})
-    assert defaults[CONF_ENABLED] is True
-
-    defaults_disabled = flow._rule_to_defaults(
-        {"name": "Test", "enabled": False, "price": {"type": "constant", "value": 0.0}}
-    )
-    assert defaults_disabled[CONF_ENABLED] is False
+    defaults = flow._rule_to_defaults({"name": "Test", "enabled": stored_enabled, "price": as_constant_value(0.0)})
+    assert defaults[CONF_ENABLED] is shown_enabled
 
 
 def test_parse_rule_input_stores_enabled() -> None:
     """Enabled field is always stored in the rule."""
     flow = PolicySubentryFlowHandler()
     rule = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: True, CONF_PRICE: 0.05})
-    assert rule.get("enabled") is True
+    assert rule["enabled"] == as_constant_value(value=True)
 
     rule_disabled = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: False, CONF_PRICE: 0.01})
-    assert rule_disabled.get("enabled") is False
+    assert rule_disabled["enabled"] == as_constant_value(value=False)
 
 
 @pytest.mark.parametrize(
@@ -1527,3 +1534,49 @@ async def test_reshown_edit_rule_form_keeps_the_submitted_price_choice(
 
     assert result.get("errors") == {CONF_RULE_NAME: "name_exists"}
     assert _price_first_choice(result) == submitted_choice
+
+
+@pytest.mark.parametrize(
+    "stored_enabled",
+    [
+        pytest.param(as_constant_value(value=False), id="constant"),
+        pytest.param(False, id="bare_bool"),
+    ],
+)
+async def test_edit_rule_submitted_as_shown_keeps_a_disabled_rule_disabled(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    stored_enabled: ConstantValue | bool,
+) -> None:
+    """A disabled rule shows as disabled, and saving its form unchanged leaves it disabled."""
+    subentry = _make_policy_subentry(
+        [
+            {
+                "name": "Battery discharge cost",
+                "enabled": stored_enabled,
+                "source": ["Battery"],
+                "price": as_constant_value(0.02),
+            },
+        ]
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    flow = _create_flow(hass, hub_entry)
+    flow.context = {"subentry_id": subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    flow.async_update_and_abort = Mock(
+        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
+    )
+    await flow.async_step_reconfigure(user_input=None)
+    shown = await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
+
+    assert _get_suggested_value(shown, CONF_ENABLED) is False
+
+    await flow.async_step_edit_rule(
+        user_input={
+            field: _get_suggested_value(shown, field)
+            for field in (CONF_RULE_NAME, CONF_ENABLED, CONF_SOURCE, CONF_TARGET, CONF_PRICE)
+        }
+    )
+
+    saved_rule = flow.async_update_and_abort.call_args.kwargs["data"][CONF_RULES][0]
+    assert saved_rule[CONF_ENABLED] == as_constant_value(value=False)

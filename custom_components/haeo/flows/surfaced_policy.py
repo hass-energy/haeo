@@ -101,7 +101,7 @@ def save_surfaced_rule(
 
     rule: PolicyRuleConfig = {
         "name": rule_name,
-        "enabled": True,
+        "enabled": as_constant_value(value=True),
         "price": price,
     }
     if source:

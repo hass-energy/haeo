@@ -95,6 +95,12 @@ def _as_str_list(value: object) -> list[str] | None:
     return None
 
 
+def _rule_enabled(rule: PolicyRuleConfig) -> bool:
+    """Return whether a stored rule is enabled, from its constant or a bare bool."""
+    enabled = rule[CONF_ENABLED]
+    return enabled["value"] is True if is_constant_value(enabled) else enabled is True
+
+
 def _element_roles(element_type: ElementType, config: Mapping[str, object]) -> tuple[bool, bool]:
     """Return whether an element can source and can sink power."""
     adapter = ELEMENT_TYPES[element_type]
@@ -281,7 +287,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         name = user_input[CONF_RULE_NAME]
         rule: PolicyRuleConfig = {
             "name": name if isinstance(name, str) else str(name),
-            "enabled": bool(user_input[CONF_ENABLED]),
+            "enabled": as_constant_value(bool(user_input[CONF_ENABLED])),
             "price": price_value,
         }
 
@@ -299,7 +305,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         """Convert a stored rule back to form defaults."""
         defaults: dict[str, object] = {
             CONF_RULE_NAME: rule["name"],
-            CONF_ENABLED: rule.get(CONF_ENABLED, True),
+            CONF_ENABLED: _rule_enabled(rule),
         }
 
         source = rule.get(CONF_SOURCE)
@@ -318,7 +324,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         """Convert a stored rule into parse-ready form input values."""
         input_values: dict[str, object] = {
             CONF_RULE_NAME: rule["name"],
-            CONF_ENABLED: rule.get(CONF_ENABLED, True),
+            CONF_ENABLED: _rule_enabled(rule),
             CONF_SOURCE: rule.get(CONF_SOURCE, ""),
             CONF_TARGET: rule.get(CONF_TARGET, ""),
         }

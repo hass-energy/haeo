@@ -32,10 +32,14 @@ WILDCARD: Final = "*"
 
 
 class PolicyRuleConfig(TypedDict):
-    """A single policy rule as stored in Home Assistant config."""
+    """A single policy rule as stored in Home Assistant config.
+
+    Flows and the rule's switch store ``enabled`` as a constant; rules saved
+    by HAEO 0.5.0 flows may still hold a bare bool, which reads the same.
+    """
 
     name: str
-    enabled: bool
+    enabled: ConstantValue | bool
     source: NotRequired[list[str]]
     target: NotRequired[list[str]]
     price: EntityValue | ConstantValue
