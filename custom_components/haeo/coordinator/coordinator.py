@@ -3,7 +3,7 @@
 import asyncio
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import itertools
 import logging
 import math
@@ -628,71 +628,110 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     ) -> tuple[tuple[float, ...], dict[str, list[GridOffer]]]:
         """Return each grid's offer curves over the settlement intervals of the plan from a start time.
 
-        The periods are grouped into windows by the interval of the clock they
-        start in, such as each five minutes, and a price is shifted across a whole
-        window. Only intervals the plan covers from start to end are offered, so
-        the first window is the first interval to start at or after the start
-        time. Without an end time that window is the only one; with one, every
-        interval that starts before it follows. The curves are traced from the
-        plan the latest optimization found, while no optimization can change it.
+        The periods are grouped into windows by the interval of the local clock
+        they start in, such as each five minutes, and a price is shifted across a
+        whole window. Only intervals the plan covers from their start to their end
+        are offered, so the first window is the first interval to start at or
+        after the start time. Without an end time that window is the only one;
+        with one, every interval that starts before it follows. The curves are
+        traced from the plan the latest optimization found, while no optimization
+        can change it, and an optimization requested meanwhile runs afterwards.
         With an emissions intensity sensor, each step also says how it changes the
         plan's grid emissions. Returns the plan's period boundaries, as timestamps,
         and the offers of each grid by name.
 
         Raises:
-            HomeAssistantError: When the latest optimization found no plan, or
-                the emissions intensity sensor cannot be read.
+            HomeAssistantError: When the latest optimization found no plan, the
+                plan covers no whole interval in the time asked for, the emissions
+                intensity sensor cannot be read, or the solver fails on a curve.
 
         """
-        async with self._optimization_lock:
-            timestamps = self._plan_timestamps
-            if not self.last_update_success or not timestamps:
-                raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_no_plan")
-            if self.network.relaxations:
-                raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_relaxed_plan")
-            first = max(start, timestamps[0])
-            last = math.inf if end is None else end
-            windows = [
-                list(window)
-                for number, window in itertools.groupby(
-                    range(len(timestamps) - 1), key=lambda index: timestamps[index] // interval
+        try:
+            async with self._optimization_lock:
+                return await self._trace_grid_offers(
+                    start=start,
+                    end=end,
+                    interval=interval,
+                    min_price=min_price,
+                    max_price=max_price,
+                    emissions_intensity=emissions_intensity,
                 )
-                if first <= number * interval < last and (number + 1) * interval <= timestamps[-1]
-            ]
-            if end is None:
-                del windows[1:]
-            grids = [
-                name
-                for name, config in self._participant_configs.items()
-                if config[CONF_ELEMENT_TYPE] == ElementType.GRID
-            ]
-            try:
-                intensity = (
-                    None
-                    if emissions_intensity is None
-                    else load_emissions_intensity(HomeAssistantStateMachine(self.hass), emissions_intensity, timestamps)
+        finally:
+            # Requests made while the lock was held left their optimization to whoever held it
+            if self._rerun_wanted and not self._waiting_optimizations:
+                self.signal_optimization_stale()
+
+    async def _trace_grid_offers(
+        self,
+        *,
+        start: float,
+        end: float | None,
+        interval: float,
+        min_price: float,
+        max_price: float,
+        emissions_intensity: str | None,
+    ) -> tuple[tuple[float, ...], dict[str, list[GridOffer]]]:
+        """Trace each grid's offer curves from the plan the network holds, with the optimization lock held."""
+        timestamps = self._plan_timestamps
+        if not self.last_update_success or not timestamps:
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_no_plan")
+        if self.network.relaxations:
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_relaxed_plan")
+        # Intervals are counted on the local clock, which is not the UTC one in a zone a half hour off it
+        offset = dt_util.as_local(dt_util.utc_from_timestamp(timestamps[0])).utcoffset() or timedelta()
+        local = [timestamp + offset.total_seconds() for timestamp in timestamps]
+        first = start + offset.total_seconds()
+        last = math.inf if end is None else end + offset.total_seconds()
+        groups = (
+            (number * interval, list(group))
+            for number, group in itertools.groupby(range(len(local) - 1), key=lambda index: local[index] // interval)
+        )
+        windows = [
+            window
+            for opens, window in groups
+            if local[window[0]] == opens and first <= opens < last and opens + interval <= local[-1]
+        ]
+        if end is None:
+            del windows[1:]
+        if not windows:
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_no_interval")
+        grids = [
+            name for name, config in self._participant_configs.items() if config[CONF_ELEMENT_TYPE] == ElementType.GRID
+        ]
+        try:
+            intensity = (
+                None
+                if emissions_intensity is None
+                else load_emissions_intensity(HomeAssistantStateMachine(self.hass), emissions_intensity, timestamps)
+            )
+        except InputError as error:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key=error.translation_key,
+                translation_placeholders=error.translation_placeholders,
+            ) from error
+
+        def trace() -> dict[str, list[GridOffer]]:
+            return {
+                grid: grid_offers(
+                    self.network,
+                    grid,
+                    windows=windows,
+                    min_price=min_price,
+                    max_price=max_price,
+                    emissions_intensity=intensity,
                 )
-            except InputError as error:
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key=error.translation_key,
-                    translation_placeholders=error.translation_placeholders,
-                ) from error
+                for grid in grids
+            }
 
-            def trace() -> dict[str, list[GridOffer]]:
-                return {
-                    grid: grid_offers(
-                        self.network,
-                        grid,
-                        windows=windows,
-                        min_price=min_price,
-                        max_price=max_price,
-                        emissions_intensity=intensity,
-                    )
-                    for grid in grids
-                }
-
+        try:
             return timestamps, await self.hass.async_add_executor_job(trace)
+        except SolverError as error:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="optimization_solver_failed",
+                translation_placeholders={"status": error.status},
+            ) from error
 
     async def async_refresh(self) -> None:
         """Optimize with the current inputs, after any optimization already running."""

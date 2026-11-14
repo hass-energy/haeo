@@ -41,7 +41,7 @@ from numpy.typing import NDArray
 from .linear import LinearArray
 from .solver import Solver, SolverError
 
-# Cost in $ by which a crossing must beat the cost lines to count as another kink
+# Cost by which a crossing must beat the cost lines to count as another kink, in $ and as a share of the cost
 _COST_TOLERANCE: Final = 1e-9
 # Power in kW within which two steps of a curve count as the same
 _POWER_TOLERANCE: Final = 1e-6
@@ -75,6 +75,7 @@ class OfferCurve:
 
     Attributes:
         periods: Indices of the periods in the window.
+        power: Average power in kW of the flow over the window in the plan.
         steps: Steps in rising price order, the first starting at the bottom of
             the range and each holding until the next one starts. Power falls
             from each step to the next.
@@ -82,6 +83,7 @@ class OfferCurve:
     """
 
     periods: tuple[int, ...]
+    power: float
     steps: tuple[OfferStep, ...]
 
     def step_at(self, price: float) -> OfferStep:
@@ -151,7 +153,7 @@ def _kinks(probe: _Probe, energy: NDArray[np.float64], low: _Point, high: _Point
     crossing = (high.cost - low.cost + low.energy * low.price - high.energy * high.price) / (low.energy - high.energy)
     middle = probe.solve(energy, crossing)
     on_lines = low.cost + low.energy * (crossing - low.price)
-    if on_lines - middle.cost <= _COST_TOLERANCE or depth >= _MAX_DEPTH:
+    if on_lines - middle.cost <= _COST_TOLERANCE * max(1.0, abs(on_lines)) or depth >= _MAX_DEPTH:
         # The plan solved at the top is cheapest all the way down to the crossing
         return [_Point(crossing, on_lines, high.energy, high.measure)]
     return [*_kinks(probe, energy, low, middle, depth + 1), *_kinks(probe, energy, middle, high, depth + 1)]
@@ -189,6 +191,7 @@ def offer_curves(
     """
     measured = np.zeros(len(cost)) if measure is None else measure.column_coefficients(len(cost))
     probe = _Probe(solver, cost, options, measured)
+    plan = np.asarray(solver.getSolution().col_value)
     curves: list[OfferCurve] = []
     for window, bottom_price, top_price in zip(windows, low, high, strict=True):
         probe.restart()
@@ -204,7 +207,7 @@ def offer_curves(
             if steps and abs(steps[-1].power - power) <= _POWER_TOLERANCE:
                 continue
             steps.append(OfferStep(point.price, power, point.measure))
-        curves.append(OfferCurve(tuple(window), tuple(steps)))
+        curves.append(OfferCurve(tuple(window), float(energy @ plan) / duration, tuple(steps)))
     return curves
 
 

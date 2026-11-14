@@ -93,6 +93,16 @@ def test_offer_curve_steps_where_stored_energy_changes_use() -> None:
     assert _curve(network, flow, 0) == [(-1.0, 4.0), (-0.2, 1.0), (0.2, 0.0), (0.4, -1.0)]
 
 
+def test_offer_curve_gives_the_power_of_the_plan() -> None:
+    """A curve gives the window's power in the plan itself, beside the steps the prices trace."""
+    network, flow = _home(initial_charge=3.0)
+
+    (curve,) = network.offer_curves(flow, windows=[[0]], low=[-1.0], high=[1.0])
+
+    # The battery keeps 2 kWh for the second period and gives the first period's load the other 1 kWh
+    assert curve.power == pytest.approx(1.0)
+
+
 def test_offer_curve_of_a_later_period() -> None:
     """A later period's curve shifts that period's prices only."""
     network, flow = _home(initial_charge=0.0)

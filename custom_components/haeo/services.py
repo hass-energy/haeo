@@ -159,11 +159,12 @@ def _loaded_coordinator(hass: HomeAssistant, entry_id: str) -> "HaeoDataUpdateCo
     return runtime_data.coordinator
 
 
-def _service_timestamp(time: datetime) -> float:
-    """Return a service call's time as a timestamp, reading a time without a zone in Home Assistant's."""
-    if time.tzinfo is None:
-        time = time.replace(tzinfo=dt_util.get_default_time_zone())
-    return time.timestamp()
+def _service_time(time: datetime) -> datetime:
+    """Return a service call's time with a zone, reading a time without one in Home Assistant's.
+
+    The datetime selector sends a time without a zone.
+    """
+    return time if time.tzinfo is not None else time.replace(tzinfo=dt_util.get_default_time_zone())
 
 
 def _rounded(value: float, digits: int) -> float:
@@ -215,10 +216,9 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         entry_id = call.data[ATTR_CONFIG_ENTRY]
         target_timestamp: datetime | None = call.data.get(ATTR_TIMESTAMP)
-        # The datetime selector sends a time without a zone, which means Home
-        # Assistant's; left naive, the recorder would read it in the OS zone
-        if target_timestamp is not None and target_timestamp.tzinfo is None:
-            target_timestamp = target_timestamp.replace(tzinfo=dt_util.get_default_time_zone())
+        # Left without a zone, the recorder would read the time in the OS zone
+        if target_timestamp is not None:
+            target_timestamp = _service_time(target_timestamp)
 
         # Validate config entry exists
         entry = hass.config_entries.async_get_entry(entry_id)
@@ -307,8 +307,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         if min_price >= max_price:
             raise ServiceValidationError(translation_domain=DOMAIN, translation_key="offer_price_range")
         timestamps, offers = await coordinator.async_grid_offers(
-            start=_service_timestamp(start if start is not None else dt_util.utcnow()),
-            end=_service_timestamp(end) if end is not None else None,
+            start=_service_time(start if start is not None else dt_util.utcnow()).timestamp(),
+            end=_service_time(end).timestamp() if end is not None else None,
             interval=call.data[ATTR_INTERVAL] * 60.0,
             emissions_intensity=call.data.get(ATTR_EMISSIONS_INTENSITY),
             min_price=min_price,

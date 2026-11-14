@@ -1,6 +1,8 @@
 """Tests for the coordinator's grid offer curves."""
 
+from datetime import datetime
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -13,6 +15,7 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.coordinator.tests.helpers import network_double
 from custom_components.haeo.core.adapters.offer import GridOffer
+from custom_components.haeo.core.model import SolverError
 from custom_components.haeo.core.model.infeasibility import Relaxation, RowLabel
 
 # Two 30 minute intervals, the first split into periods of 10 and 20 minutes
@@ -38,8 +41,6 @@ def _planned(hass: HomeAssistant, entry: MockConfigEntry) -> HaeoDataUpdateCoord
         pytest.param(0.0, 1800.0, 1800.0, [[0, 1]], id="end_on_an_interval_start"),
         pytest.param(0.0, 3600.0, 600.0, [[0], [1], [2]], id="shorter_than_periods"),
         pytest.param(0.0, 3600.0, 3600.0, [[0, 1, 2]], id="hour"),
-        pytest.param(0.0, None, 7200.0, [], id="plan_ends_inside_the_interval"),
-        pytest.param(3600.0, None, 1800.0, [], id="start_after_the_plan"),
     ],
 )
 async def test_grid_offers_trace_each_grid_over_whole_intervals_from_the_start(
@@ -88,6 +89,93 @@ async def test_grid_offers_skip_the_interval_the_plan_starts_inside(
         await coordinator.async_grid_offers(start=0.0, end=None, interval=1800.0, min_price=-1.0, max_price=2.0)
 
     assert traced.call_args.kwargs["windows"] == [[1]]
+
+
+async def test_grid_offers_count_intervals_on_the_local_clock(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_grid_subentry: ConfigSubentry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """An hour starts on the local hour, which in Adelaide is half way through a UTC one."""
+    await hass.config.async_set_time_zone("Australia/Adelaide")
+    start = datetime(2026, 11, 3, 6, 0, tzinfo=ZoneInfo("Australia/Adelaide")).timestamp()
+    coordinator = _planned(hass, mock_hub_entry)
+    coordinator._plan_timestamps = tuple(start + 1800.0 * index for index in range(5))
+
+    with patch("custom_components.haeo.coordinator.coordinator.grid_offers", return_value=[]) as traced:
+        await coordinator.async_grid_offers(
+            start=start, end=start + 7200.0, interval=3600.0, min_price=-1.0, max_price=2.0
+        )
+
+    assert traced.call_args.kwargs["windows"] == [[0, 1], [2, 3]]
+
+
+@pytest.mark.parametrize(
+    ("start", "interval"),
+    [
+        pytest.param(0.0, 7200.0, id="plan_ends_inside_the_interval"),
+        pytest.param(3600.0, 1800.0, id="start_after_the_plan"),
+    ],
+)
+async def test_grid_offers_need_a_whole_interval_of_the_plan(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    start: float,
+    interval: float,
+) -> None:
+    """A time the plan covers no whole interval of has no offer."""
+    coordinator = _planned(hass, mock_hub_entry)
+
+    with pytest.raises(HomeAssistantError) as error:
+        await coordinator.async_grid_offers(start=start, end=None, interval=interval, min_price=-1.0, max_price=2.0)
+
+    assert error.value.translation_key == "offer_no_interval"
+
+
+async def test_grid_offers_report_a_solver_failure(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_grid_subentry: ConfigSubentry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A solve that ends without a plan while tracing is reported with the solver's status."""
+    coordinator = _planned(hass, mock_hub_entry)
+
+    with (
+        patch("custom_components.haeo.coordinator.coordinator.grid_offers", side_effect=SolverError("Time limit")),
+        pytest.raises(HomeAssistantError) as error,
+    ):
+        await coordinator.async_grid_offers(start=0.0, end=None, interval=1800.0, min_price=-1.0, max_price=2.0)
+
+    assert error.value.translation_key == "optimization_solver_failed"
+    assert error.value.translation_placeholders == {"status": "Time limit"}
+
+
+async def test_grid_offers_hand_on_an_optimization_requested_while_tracing(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A request made while the curves hold the optimization lock is signaled once they are done."""
+    coordinator = _planned(hass, mock_hub_entry)
+
+    with (
+        patch("custom_components.haeo.coordinator.coordinator.grid_offers", return_value=[]),
+        patch.object(coordinator, "signal_optimization_stale") as signaled,
+    ):
+        await coordinator.async_grid_offers(start=0.0, end=None, interval=1800.0, min_price=-1.0, max_price=2.0)
+        signaled.assert_not_called()
+
+        with patch(
+            "custom_components.haeo.coordinator.coordinator.load_emissions_intensity",
+            side_effect=lambda *_args: coordinator._request_optimization(),
+        ):
+            await coordinator.async_grid_offers(
+                start=0.0, end=None, interval=1800.0, min_price=-1.0, max_price=2.0, emissions_intensity="sensor.any"
+            )
+        signaled.assert_called_once_with()
 
 
 async def test_grid_offers_need_a_plan(

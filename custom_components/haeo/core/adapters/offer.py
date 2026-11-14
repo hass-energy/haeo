@@ -138,7 +138,7 @@ def grid_offers(
                 periods=curve.periods,
                 import_price=imported,
                 export_price=exported,
-                power=planned.power,
+                power=curve.power,
                 emissions_intensity=None
                 if emissions_intensity is None
                 else _average(emissions_intensity, network.periods, curve.periods),
