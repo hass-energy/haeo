@@ -39,7 +39,7 @@ def load_sensor(sm: StateMachine, entity_id: str, *, output_type: OutputType | N
         extracted = extract(state, time_zone=sm.time_zone, output_type=output_type)
     except ValueError:
         return None
-    _check_unit(extracted.unit, output_type)
+    _check_unit(extracted.source_unit, extracted.unit, output_type)
     return extracted.data
 
 
@@ -67,14 +67,14 @@ def load_reading(sm: StateMachine, entity_id: str, *, output_type: OutputType | 
         reading = extract_reading(state)
     except ValueError:
         return None
-    _check_unit(reading.unit, output_type)
+    _check_unit(reading.source_unit, reading.unit, output_type)
     return reading.data
 
 
-def _check_unit(unit: UnitOfMeasurement | str | None, output_type: OutputType | None) -> None:
+def _check_unit(source_unit: str | None, unit: UnitOfMeasurement | str | None, output_type: OutputType | None) -> None:
     """Check a sensor's unit converts to the input's unit, when the input's output type is given."""
     if output_type is not None:
-        check_source_unit(None if unit is None else str(unit), output_type)
+        check_source_unit(source_unit, None if unit is None else str(unit), output_type)
 
 
 def load_sensors(
