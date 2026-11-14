@@ -99,6 +99,7 @@ A source becoming degraded, or a degraded source reading again, does notify them
 It notifies `add_hold_listener` listeners instead: the input entities, which update the attributes naming the held source, and `InputHoldExpiry`.
 A source that stays without a reading does not change, so nothing would reload its store when the hold passes.
 `InputHoldExpiry` in [`inputs/hold_expiry.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/inputs/hold_expiry.py) waits for the earliest `hold_expires_at`, and then calls `expire_holds()` on each store and notifies those with newly degraded sources.
+A reading already held for the hold or longer, such as a seeded one, is degraded before hold listeners are told, so it has no `hold_expires_at` to wait for.
 
 Diagnostics capture a held source as its last reading with a `haeo_held_since` attribute, the time it lost that reading, so a replay resolves the same value and the held reading is told apart from a live one.
 

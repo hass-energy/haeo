@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
+from homeassistant.util.async_ import get_scheduled_timer_handles
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
@@ -119,6 +120,34 @@ async def test_hold_expiry_ignores_a_hold_that_ended(hass: HomeAssistant, freeze
     await hass.async_block_till_done()
 
     assert store.degraded_sources == ()
+    expiry.cleanup()
+
+
+async def test_hold_expiry_has_nothing_to_wait_for_when_a_held_reading_is_already_too_old(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """A reading held from before its hold could pass is degraded as it is held, so no timer is set for it.
+
+    A timer due at once never runs while the clock is frozen, and the event
+    loop polls for it without rest, which starves the optimization's thread.
+    """
+    freezer.move_to(START)
+    store = _store(HOLD_SECONDS)
+    expiry = InputHoldExpiry(hass, {("Grid", ("price",)): store})
+    expiry.start()
+    store.load(_price("unavailable"))
+    reported_at = dt_util.utcnow().timestamp() - HOLD_SECONDS * 4
+    assert store.seed_reading(PRICE_SENSOR, FakeEntityState(PRICE_SENSOR, "0.3", {}), reported_at)
+
+    store.load(_price("unavailable"))
+
+    assert store.degraded_sources == (PRICE_SENSOR,)
+    due = [
+        handle
+        for handle in get_scheduled_timer_handles(hass.loop)
+        if not handle.cancelled() and handle.when() <= hass.loop.time()
+    ]
+    assert due == []
     expiry.cleanup()
 
 
