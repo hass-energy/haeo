@@ -58,11 +58,20 @@ def _install() -> None:
     run = solver.Solver.run
 
     def recorded_run(self: solver.Solver) -> object:
-        _note("highs run start")
+        _, presolve = self.getOptionValue("presolve")
+        _, iteration_limit = self.getOptionValue("simplex_iteration_limit")
+        _note(
+            f"highs run start: {self.getNumCol()} cols, {self.getNumRow()} rows, {self.getNumNz()} nonzeros, "
+            f"presolve {presolve}, iteration limit {iteration_limit}"
+        )
         try:
             return run(self)
         finally:
-            _note(f"highs run end, iterations {self.getInfo().simplex_iteration_count}")
+            info = self.getInfo()
+            _note(
+                f"highs run end: {self.modelStatusToString(self.getModelStatus())}, "
+                f"{info.simplex_iteration_count} iterations, highs time {self.getRunTime():.3f}s"
+            )
 
     solver.Solver.run = recorded_run  # type: ignore[method-assign]
 
