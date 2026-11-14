@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import Generator
-import io
+import gc
 import os
 from pathlib import Path
 import shutil
@@ -13,7 +13,7 @@ import traceback
 
 import pytest
 
-DUMP_AFTER_SECONDS = 3.5
+DUMP_AFTER_SECONDS = 2.5
 DUMP_FILE = Path("hang-dumps.txt")
 
 
@@ -26,6 +26,8 @@ _events: list[str] = []
 _test_start = 0.0
 _loops: list[asyncio.AbstractEventLoop] = []
 _installed = False
+# Held so a dump still running is never garbage collected, which would warn
+_detached: list[subprocess.Popen[bytes]] = []
 
 
 def _note(text: str) -> None:
@@ -75,14 +77,17 @@ def _install() -> None:
 
     asyncio.BaseEventLoop.run_in_executor = recorded_run_in_executor  # type: ignore[method-assign]
 
+    gc_started: dict[str, float] = {}
 
-def _run(out: io.TextIOBase, label: str, command: list[str]) -> None:
-    out.write(f"----- {label} -----\n")
-    out.flush()
-    # No timeout: subprocess measures it with time.monotonic, which freezegun may have frozen
-    result = subprocess.run(command, capture_output=True, text=True, check=False)  # noqa: S603
-    out.write(f"(exit {result.returncode})\n{result.stdout}{result.stderr}")
-    out.flush()
+    def record_gc(phase: str, info: dict[str, int]) -> None:
+        if phase == "start":
+            gc_started["at"] = _clock()
+            return
+        took = _clock() - gc_started.get("at", _clock())
+        if info["generation"] == 2 or took >= 0.05:  # noqa: PLR2004
+            _note(f"gc gen {info['generation']} took {took:.3f}s, collected {info['collected']}")
+
+    gc.callbacks.append(record_gc)
 
 
 def _dump(nodeid: str) -> None:
@@ -113,10 +118,23 @@ def _dump(nodeid: str) -> None:
                 out.write(f"  task {task.get_name()}: {task.get_coro()!r}\n")
                 for frame in task.get_stack(limit=6):
                     out.write(f"      {frame.f_code.co_filename}:{frame.f_lineno} {frame.f_code.co_name}\n")
+        out.write(f"----- gc -----\ncounts {gc.get_count()} thresholds {gc.get_threshold()} stats {gc.get_stats()}\n")
+        out.write(f"objects tracked {len(gc.get_objects())} allocated blocks {sys.getallocatedblocks()}\n")
         out.flush()
-        _run(out, "ps threads", ["ps", "-L", "-o", "tid,stat,pcpu,wchan:32,comm", "-p", pid])
-        _run(out, "py-spy dump --nonblocking", ["sudo", "-n", py_spy, "dump", "--nonblocking", "--pid", pid])
-        _run(out, "py-spy dump --native", ["sudo", "-n", py_spy, "dump", "--native", "--pid", pid])
+    # Slow tools run detached, so this thread ends before the test's lingering-thread check
+    spy = f"sudo -n {py_spy}"
+    script = (
+        f"echo '----- ps threads -----'; ps -L -o tid,stat,pcpu,wchan:32,comm -p {pid}; "
+        "echo '----- py-spy record 2s native, heaviest stacks -----'; "
+        f"{spy} record --nonblocking --native --duration 2 --rate 200 --format raw "
+        f"--output /tmp/spy.raw --pid {pid} >/dev/null 2>&1; "
+        "awk '{n=$NF; $NF=\"\"; print n, $0}' /tmp/spy.raw | sort -rn | head -25 | cut -c1-1500; "
+        f"echo '----- py-spy dump --native -----'; {spy} dump --native --pid {pid}"
+    )
+    with DUMP_FILE.open("a") as out:
+        _detached.append(
+            subprocess.Popen(["sh", "-c", script], stdout=out, stderr=subprocess.STDOUT, start_new_session=True)  # noqa: S603, S607
+        )
 
 
 def _safe_dump(nodeid: str) -> None:
