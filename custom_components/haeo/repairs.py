@@ -431,13 +431,16 @@ def sync_input_issues(
     *,
     unavailable: Mapping["InputStoreKey", Sequence[str]],
     degraded: Mapping["InputStoreKey", "DegradedInput"],
+    defer_new_degraded: bool = False,
 ) -> None:
     """Raise a repair issue for each unavailable or degraded input and dismiss those that recovered.
 
     ``unavailable`` maps (element name, field path) to the source entities with
     no reading. An input whose sources all have readings but still cannot load
     names every source it reads. ``degraded`` maps the inputs HAEO still plans
-    with to the sources whose last reading they hold past the hold.
+    with to the sources whose last reading they hold past the hold. With
+    ``defer_new_degraded`` a degraded input whose issue is not raised yet is
+    left without one, while issues already raised are kept current.
     """
     wanted: dict[str, tuple[str, IssueSeverity, dict[str, str]]] = {}
     for (element_name, field_path), entities in unavailable.items():
@@ -459,7 +462,14 @@ def sync_input_issues(
         if domain == DOMAIN and issue_id.startswith(prefixes) and issue_id not in wanted:
             async_delete_issue(hass, DOMAIN, issue_id)
 
+    issues = ir.async_get(hass)
     for issue_id, (translation_key, severity, placeholders) in wanted.items():
+        if (
+            defer_new_degraded
+            and translation_key == "degraded_input"
+            and issues.async_get_issue(DOMAIN, issue_id) is None
+        ):
+            continue
         async_create_issue(
             hass,
             DOMAIN,

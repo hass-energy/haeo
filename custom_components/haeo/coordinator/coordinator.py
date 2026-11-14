@@ -39,8 +39,10 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
+    CONF_INPUT_HOLD_SECONDS,
     CONF_RELAX_INFEASIBLE,
     DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_INPUT_HOLD_SECONDS,
 )
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
@@ -418,6 +420,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._failure_issue_raised = False
         # Elements whose inputs changed since an optimization last applied them to the network
         self._stale_elements: set[str] = set()
+        # New degraded input issues wait until one hold has passed since setup, on the
+        # monotonic clock, so sources that have not reported yet after a restart
+        # are not reported while their integrations start
+        hold_seconds = float(advanced_data.get(CONF_INPUT_HOLD_SECONDS, DEFAULT_INPUT_HOLD_SECONDS))
+        self._repair_grace_ends = time.monotonic() + hold_seconds
+        self._repair_grace_timer: CALLBACK_TYPE | None = None
 
         # No update_interval - we're event-driven from input entities
         # No request_refresh_debouncer - we handle debouncing ourselves
@@ -762,6 +770,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             unsub()
         self._state_change_unsubs.clear()
         self._cancel_scheduled_optimization()
+        if self._repair_grace_timer is not None:
+            self._repair_grace_timer()
+            self._repair_grace_timer = None
         self._stale_elements.clear()
         # Optimize actions still waiting get no optimization from this coordinator
         for waiter in self._result_waiters:
@@ -930,10 +941,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         get a warning issue naming the sensors and since when.
         """
         input_stores = self._runtime_data.input_stores
-        entry_id = self.config_entry.entry_id
-        unavailable = unavailable_input_sources(input_stores, lambda store: not store.available)
-        degraded = degraded_inputs(input_stores)
-        sync_input_issues(self.hass, entry_id, unavailable=unavailable, degraded=degraded)
+        unavailable, degraded = self._sync_input_issues()
         raise_for_rejected_input(input_stores, UpdateFailed)
         if unavailable:
             key, entities = next(iter(unavailable.items()))
@@ -942,8 +950,40 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 translation_key="input_unavailable",
                 translation_placeholders=unavailable_input_placeholders(key, entities),
             )
-        sync_mixed_price_currencies_issue(self.hass, entry_id, price_currency_sources(context.source_states))
+        sync_mixed_price_currencies_issue(
+            self.hass, self.config_entry.entry_id, price_currency_sources(context.source_states)
+        )
         return degraded
+
+    def _sync_input_issues(
+        self,
+    ) -> tuple[dict["InputStoreKey", tuple[str, ...]], dict["InputStoreKey", DegradedInput]]:
+        """Keep the input repair issues current, and return the unavailable and degraded inputs.
+
+        Until one hold has passed since setup, inputs that become degraded get no
+        issue yet, and the issues are synced again once it has passed.
+        """
+        input_stores = self._runtime_data.input_stores
+        unavailable = unavailable_input_sources(input_stores, lambda store: not store.available)
+        degraded = degraded_inputs(input_stores)
+        grace_left = self._repair_grace_ends - time.monotonic()
+        if grace_left > 0 and degraded and self._repair_grace_timer is None:
+            self._repair_grace_timer = async_call_later(self.hass, grace_left, self._end_repair_grace)
+        sync_input_issues(
+            self.hass,
+            self.config_entry.entry_id,
+            unavailable=unavailable,
+            degraded=degraded,
+            defer_new_degraded=grace_left > 0,
+        )
+        return unavailable, degraded
+
+    @callback
+    def _end_repair_grace(self, _now: datetime) -> None:
+        """Raise the issues of the inputs still degraded once the grace after setup has passed."""
+        self._repair_grace_timer = None
+        self._repair_grace_ends = time.monotonic()
+        self._sync_input_issues()
 
     async def _solve(
         self,
