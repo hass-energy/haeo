@@ -126,8 +126,8 @@ def _dump(nodeid: str) -> None:
     script = (
         f"echo '----- ps threads -----'; ps -L -o tid,stat,pcpu,wchan:32,comm -p {pid}; "
         "echo '----- py-spy record 2s native, heaviest stacks -----'; "
-        f"{spy} record --nonblocking --native --duration 2 --rate 200 --format raw "
-        f"--output /tmp/spy.raw --pid {pid} >/dev/null 2>&1; "
+        f"{spy} record --native --duration 2 --rate 200 --format raw "
+        f"--output /tmp/spy.raw --pid {pid} 2>&1 | tail -3; "
         "awk '{n=$NF; $NF=\"\"; print n, $0}' /tmp/spy.raw | sort -rn | head -25 | cut -c1-1500; "
         f"echo '----- py-spy dump --native -----'; {spy} dump --native --pid {pid}"
     )
