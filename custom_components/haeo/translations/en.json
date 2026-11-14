@@ -726,6 +726,10 @@
     "config_entry_not_found": { "message": "Config entry {entry_id} not found" },
     "config_entry_not_loaded": { "message": "Config entry {entry_id} is not loaded (state: {state})" },
     "config_entry_wrong_domain": { "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})" },
+    "emissions_intensity_unavailable": { "message": "The emissions intensity sensor {entity_id} has no reading" },
+    "emissions_intensity_unit": {
+      "message": "The emissions intensity sensor {entity_id} is in {unit}, but needs g, kg or t of CO2 per kWh or MWh"
+    },
     "horizon_entity_not_ready": {
       "message": "The planning horizon sensor {entity_id} does not report a usable HAEO-format forecast yet."
     },
@@ -744,6 +748,13 @@
     "no_history_at_time": {
       "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
+    "offer_device_not_grid": { "message": "Device {device} does not belong to a HAEO grid" },
+    "offer_interval_outside_plan": {
+      "message": "An interval must end after it starts and lie inside the plan, which runs from {plan_start} to {plan_end}, but one runs from {start} to {end}"
+    },
+    "offer_no_plan": { "message": "The latest optimization found no plan to make an offer from" },
+    "offer_price_range": { "message": "The lowest import price must be below the highest" },
+    "offer_relaxed_plan": { "message": "The latest plan relaxed constraints to be found, so it has no offer curve" },
     "optimization_failed": { "message": "The optimization failed: {error}" },
     "optimization_infeasible": {
       "message": "No plan meets every constraint: {elements} cannot all be met {minutes} minutes into the plan."
@@ -844,6 +855,29 @@
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
   },
   "services": {
+    "offer_curve": {
+      "description": "Returns the average power a grid would take over each interval of time at each import and export price that interval could have, with the prices of all other time as forecast",
+      "fields": {
+        "emissions_intensity": {
+          "description": "A sensor giving the grid's emissions intensity, now or as a forecast, in g, kg or t of CO2 per kWh or MWh. Each step then says how much it changes the plan's grid emissions.",
+          "name": "Emissions intensity"
+        },
+        "grid": { "description": "The device of the HAEO grid to get offer curves for", "name": "Grid" },
+        "intervals": {
+          "description": "The start and end time of each interval to get a curve for, such as your market's coming settlement intervals. Each must lie inside the plan.",
+          "name": "Intervals"
+        },
+        "max_price": {
+          "description": "Highest average import price per kWh each curve is traced to",
+          "name": "Highest import price"
+        },
+        "min_price": {
+          "description": "Lowest average import price per kWh each curve is traced from",
+          "name": "Lowest import price"
+        }
+      },
+      "name": "Offer curve"
+    },
     "optimize": {
       "description": "Runs an optimization for the given system and waits for it to finish",
       "fields": {

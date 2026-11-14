@@ -50,6 +50,24 @@ async def test_main_device_identifier_pattern(
     assert expected_identifier in device.identifiers
 
 
+async def test_element_device_model_id_is_the_element_type(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Every device of an element has the element's type as its model ID, so selectors can filter by type."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType({"name": "Grid", "element_type": "grid"}),
+        subentry_type="grid",
+        title="Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_config_entry, subentry)
+
+    device = get_or_create_element_device(hass, mock_config_entry, subentry, ElementType.GRID)
+
+    assert device.model_id == subentry.subentry_type
+
+
 async def test_same_device_returned_on_subsequent_calls(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
@@ -84,6 +102,7 @@ async def test_network_device_identifier_pattern(
 
     device = get_or_create_network_device(hass, mock_config_entry, network_subentry)
 
+    assert device.model_id == ELEMENT_TYPE_NETWORK
     expected_identifier = (
         DOMAIN,
         f"{mock_config_entry.entry_id}_{network_subentry.subentry_id}_{ELEMENT_TYPE_NETWORK}",

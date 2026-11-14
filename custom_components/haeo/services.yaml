@@ -22,3 +22,53 @@ optimize:
       default: true
       selector:
         boolean:
+
+offer_curve:
+  fields:
+    grid:
+      required: true
+      selector:
+        device:
+          filter:
+            - integration: haeo
+              model_id: grid
+    intervals:
+      required: true
+      selector:
+        object:
+          multiple: true
+          label_field: start
+          fields:
+            start:
+              required: true
+              label: Start
+              selector:
+                datetime:
+            end:
+              required: true
+              label: End
+              selector:
+                datetime:
+    min_price:
+      required: false
+      default: -1.0
+      selector:
+        number:
+          min: -1000
+          max: 1000
+          step: 0.01
+          mode: box
+    max_price:
+      required: false
+      default: 20.0
+      selector:
+        number:
+          min: -1000
+          max: 1000
+          step: 0.01
+          mode: box
+    emissions_intensity:
+      required: false
+      selector:
+        entity:
+          domain: sensor

@@ -35,6 +35,7 @@ from custom_components.haeo.core.adapters.network_builder import (
     build_network,
     periods_in_hours,
 )
+from custom_components.haeo.core.adapters.offer import GridOffer, grid_offers
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -46,7 +47,9 @@ from custom_components.haeo.core.const import (
 )
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
+from custom_components.haeo.core.data.loader.emissions import load_emissions_intensity
 from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType, SolverError
 from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel, listing
 from custom_components.haeo.core.model.topology import serialize_topology
@@ -68,6 +71,7 @@ from custom_components.haeo.input_stores import (
     unavailable_input_placeholders,
     unavailable_input_sources,
 )
+from custom_components.haeo.inputs.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import (
     create_optimization_infeasible_issue,
     create_optimization_persistent_failure_issue,
@@ -414,6 +418,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._result_waiters: list[asyncio.Future[None]] = []
         # Whether an optimization was requested that no optimization has started reading inputs for since
         self._rerun_wanted: bool = False
+        # Boundaries of the periods of the plan the network holds, set once a solve finds one
+        self._plan_timestamps: tuple[float, ...] = ()
         # When optimizations started failing, and whether that failure raises an issue of its own
         self._failing_since: float | None = None
         self._failure_reported = False
@@ -607,6 +613,107 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         finally:
             if result in self._result_waiters:
                 self._result_waiters.remove(result)
+
+    async def async_grid_offers(
+        self,
+        grid: str,
+        *,
+        intervals: Sequence[tuple[float, float]],
+        min_price: float,
+        max_price: float,
+        emissions_intensity: str | None = None,
+    ) -> list[GridOffer]:
+        """Return a grid's offer curve over each of the given intervals of time, in their order.
+
+        Each interval is a start and end timestamp inside the plan, and a price
+        is shifted across the whole of it. Intervals need not line up with the
+        plan's periods or with each other. The curves are traced from the plan
+        the latest optimization found, while no optimization can change it, and
+        an optimization requested meanwhile runs afterwards. With an emissions
+        intensity sensor, each step also says how it changes the plan's grid
+        emissions.
+
+        Raises:
+            HomeAssistantError: When the latest optimization found no plan, an
+                interval is not inside the plan, the emissions intensity sensor
+                cannot be read, or the solver fails on a curve.
+
+        """
+        try:
+            async with self._optimization_lock:
+                return await self._trace_grid_offers(
+                    grid,
+                    intervals=intervals,
+                    min_price=min_price,
+                    max_price=max_price,
+                    emissions_intensity=emissions_intensity,
+                )
+        finally:
+            # Requests made while the lock was held left their optimization to whoever held it
+            if self._rerun_wanted and not self._waiting_optimizations:
+                self.signal_optimization_stale()
+
+    async def _trace_grid_offers(
+        self,
+        grid: str,
+        *,
+        intervals: Sequence[tuple[float, float]],
+        min_price: float,
+        max_price: float,
+        emissions_intensity: str | None,
+    ) -> list[GridOffer]:
+        """Trace a grid's offer curves from the plan the network holds, with the optimization lock held."""
+        timestamps = self._plan_timestamps
+        if not self.last_update_success or not timestamps:
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_no_plan")
+        if self.network.relaxations:
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_relaxed_plan")
+        for start, end in intervals:
+            if not timestamps[0] <= start < end <= timestamps[-1]:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="offer_interval_outside_plan",
+                    translation_placeholders={
+                        name: dt_util.as_local(dt_util.utc_from_timestamp(time)).isoformat()
+                        for name, time in (
+                            ("start", start),
+                            ("end", end),
+                            ("plan_start", timestamps[0]),
+                            ("plan_end", timestamps[-1]),
+                        )
+                    },
+                )
+        try:
+            intensity = (
+                None
+                if emissions_intensity is None
+                else load_emissions_intensity(HomeAssistantStateMachine(self.hass), emissions_intensity, timestamps)
+            )
+        except InputError as error:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key=error.translation_key,
+                translation_placeholders=error.translation_placeholders,
+            ) from error
+
+        def trace() -> list[GridOffer]:
+            return grid_offers(
+                self.network,
+                grid,
+                intervals=[(start - timestamps[0], end - timestamps[0]) for start, end in intervals],
+                min_price=min_price,
+                max_price=max_price,
+                emissions_intensity=intensity,
+            )
+
+        try:
+            return await self.hass.async_add_executor_job(trace)
+        except SolverError as error:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="optimization_solver_failed",
+                translation_placeholders={"status": error.status},
+            ) from error
 
     async def async_refresh(self) -> None:
         """Optimize with the current inputs, after any optimization already running."""
@@ -913,7 +1020,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             network = self._build_network(loaded_configs)
         self._stale_elements.clear()
 
+        self._plan_timestamps = ()
         cost = await self._solve(network, context, started_at, forecast_timestamps)
+        self._plan_timestamps = tuple(forecast_timestamps)
 
         end_time = time.time()
         self._last_optimization_time = time.monotonic()

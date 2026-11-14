@@ -10,6 +10,18 @@ from numpy.typing import NDArray
 from .linear import INF, LinearArray, Rows
 
 
+class SolverError(ValueError):
+    """The solver stopped without a plan for a reason other than infeasibility.
+
+    The status is HiGHS's name for how the solve ended, such as ``Unbounded``.
+    """
+
+    def __init__(self, status: str) -> None:
+        """Record the solver status the solve ended with."""
+        super().__init__(f"Optimization failed with status: {status}")
+        self.status = status
+
+
 class Solver(Highs):
     """HiGHS solver that creates variables as ``LinearArray`` columns and caches its solution.
 
@@ -137,4 +149,4 @@ class Solver(Highs):
         return self._row_duals
 
 
-__all__ = ["Solver"]
+__all__ = ["Solver", "SolverError"]

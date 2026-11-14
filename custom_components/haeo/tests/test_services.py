@@ -3,20 +3,25 @@
 from datetime import UTC, datetime
 import json
 from pathlib import Path
+from types import MappingProxyType
 from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.auth.models import User
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import ServiceValidationError, Unauthorized
+from homeassistant.helpers import device_registry as dr
 from homeassistant.loader import Manifest
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData, async_setup
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
-from custom_components.haeo.core.const import CONF_NAME
+from custom_components.haeo.core.adapters.offer import GridOffer, GridOfferStep
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.diagnostics import DIAGNOSTICS_SCHEMA_VERSION, DiagnosticsResult, EnvironmentInfo
+from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.services import _format_manifest
 
 
@@ -43,6 +48,7 @@ async def test_async_setup_registers_services(hass: HomeAssistant) -> None:
     assert result is True
     assert hass.services.has_service(DOMAIN, "save_diagnostics")
     assert hass.services.has_service(DOMAIN, "optimize")
+    assert hass.services.has_service(DOMAIN, "offer_curve")
 
 
 async def test_save_diagnostics_service_success(
@@ -484,3 +490,152 @@ async def test_optimize_service_no_coordinator(
         )
 
     assert exc_info.value.translation_key == "config_entry_not_loaded"
+
+
+# ===== Tests for the offer_curve service =====
+
+
+def _element_device(hass: HomeAssistant, entry: MockConfigEntry, element_type: str, name: str) -> str:
+    """Add an element of a type to a config entry and return the ID of its device."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: name}),
+        subentry_type=element_type,
+        title=name,
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, subentry)
+    return get_or_create_element_device(hass, entry, subentry, ElementType.GRID).id
+
+
+def _loaded_grid(hass: HomeAssistant, entry: MockConfigEntry) -> tuple[AsyncMock, str]:
+    """Return the coordinator of a loaded entry with a grid, and the ID of the grid's device."""
+    entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+    coordinator = AsyncMock()
+    entry.runtime_data = HaeoRuntimeData(coordinator=coordinator, horizon_manager=Mock())
+    return coordinator, _element_device(hass, entry, ElementType.GRID, "Grid")
+
+
+async def test_offer_curve_service_returns_the_grids_offer_over_each_interval(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Each offer is named by the start and end of its interval, with its prices, planned power and steps."""
+    await hass.config.async_set_time_zone("Australia/Brisbane")
+    await async_setup(hass, {})
+    coordinator, device_id = _loaded_grid(hass, mock_hub_entry)
+    start = datetime(2026, 11, 3, 6, 0, tzinfo=UTC).timestamp()
+    offer = GridOffer(
+        import_price=0.25,
+        export_price=0.08,
+        power=-1.23456,
+        emissions_intensity=0.61234,
+        steps=(
+            GridOfferStep(import_price=-1.0, export_price=-1.17, power=9.0, emissions=3.21),
+            GridOfferStep(import_price=0.170004, export_price=-0.000004, power=-1.23456, emissions=0.0),
+        ),
+    )
+    coordinator.async_grid_offers.return_value = [
+        offer,
+        GridOffer(import_price=0.3, export_price=0.1, power=2.0, emissions_intensity=None, steps=()),
+    ]
+
+    response = await hass.services.async_call(
+        DOMAIN,
+        "offer_curve",
+        {
+            "grid": device_id,
+            "intervals": [
+                {"start": "2026-11-03 16:00:00", "end": "2026-11-03 16:05:00"},
+                {"start": "2026-11-03T06:30:00+00:00", "end": "2026-11-03T07:00:00+00:00"},
+            ],
+            "max_price": 5,
+            "emissions_intensity": "sensor.intensity",
+        },
+        blocking=True,
+        return_response=True,
+    )
+
+    # A time without a zone is in Home Assistant's
+    coordinator.async_grid_offers.assert_awaited_once_with(
+        "Grid",
+        intervals=[(start, start + 300), (start + 1800, start + 3600)],
+        min_price=-1.0,
+        max_price=5.0,
+        emissions_intensity="sensor.intensity",
+    )
+    assert response == {
+        "offers": [
+            {
+                "start": "2026-11-03T16:00:00+10:00",
+                "end": "2026-11-03T16:05:00+10:00",
+                "import_price": 0.25,
+                "export_price": 0.08,
+                "power": -1.235,
+                "emissions_intensity": 0.612,
+                "offer": [
+                    {"import_price": -1.0, "export_price": -1.17, "power": 9.0, "emissions": 3.21},
+                    {"import_price": 0.17, "export_price": 0.0, "power": -1.235, "emissions": 0.0},
+                ],
+            },
+            {
+                "start": "2026-11-03T16:30:00+10:00",
+                "end": "2026-11-03T17:00:00+10:00",
+                "import_price": 0.3,
+                "export_price": 0.1,
+                "power": 2.0,
+                "offer": [],
+            },
+        ]
+    }
+
+
+async def test_offer_curve_service_needs_the_device_of_a_grid(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """A device that is unknown, of another integration, or of another kind of element has no offer curve."""
+    await async_setup(hass, {})
+    _loaded_grid(hass, mock_hub_entry)
+    other_entry = MockConfigEntry(domain="other")
+    other_entry.add_to_hass(hass)
+    other_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=other_entry.entry_id, identifiers={("other", "device")}
+    )
+
+    for device_id in ("unknown", other_device.id, _element_device(hass, mock_hub_entry, "battery", "Battery")):
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                "offer_curve",
+                {"grid": device_id, "intervals": [{"start": "2026-11-03 16:00:00", "end": "2026-11-03 16:05:00"}]},
+                blocking=True,
+                return_response=True,
+            )
+
+        assert exc_info.value.translation_key == "offer_device_not_grid"
+        assert exc_info.value.translation_placeholders == {"device": device_id}
+
+
+async def test_offer_curve_service_needs_a_price_range(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """The lowest price must be below the highest."""
+    await async_setup(hass, {})
+    _, device_id = _loaded_grid(hass, mock_hub_entry)
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "offer_curve",
+            {
+                "grid": device_id,
+                "intervals": [{"start": "2026-11-03 16:00:00", "end": "2026-11-03 16:05:00"}],
+                "min_price": 1.0,
+                "max_price": 1.0,
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    assert exc_info.value.translation_key == "offer_price_range"
