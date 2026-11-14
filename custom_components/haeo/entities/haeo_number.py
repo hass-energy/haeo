@@ -21,6 +21,7 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.input_attributes import held_reading_attributes
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
+from custom_components.haeo.sensor_utils import round_sig, snap_noise
 from custom_components.haeo.unique_id import element_unique_id
 
 # Attributes to exclude from recorder when forecast recording is disabled
@@ -86,9 +87,6 @@ class HaeoInputNumber(NumberEntity):
         # Wrap the prebuilt InputStore (the system's source of truth)
         self._store = store
 
-        # Set initial native value from store
-        self._attr_native_value = self._display_value(self._store.native_value)
-
         # Unique ID
         field_path_key = ".".join(self._field_path)
         is_list_item_field = len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH
@@ -151,7 +149,7 @@ class HaeoInputNumber(NumberEntity):
                     if key != own_field:
                         self._base_extra_attrs[key] = value
 
-        self._attr_extra_state_attributes = dict(self._base_extra_attrs)
+        self._sync_from_store()
 
         self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
 
@@ -189,36 +187,40 @@ class HaeoInputNumber(NumberEntity):
 
     def _sync_from_store(self) -> None:
         """Synchronize HA entity attributes from the store's current state."""
-        self._attr_native_value = self._display_value(self._store.native_value)
+        # A driven value is converted from its source's units, which leaves
+        # digits the source never had, so it is shown to the significant
+        # figures diagnostics round outputs to. An editable value keeps every
+        # digit the user entered, losing only the noise of percentage scaling.
+        shown = round_sig if self._store.mode == InputMode.DRIVEN else snap_noise
+        native_value = self._display_value(self._store.native_value)
+        forecast_values = (
+            [shown(value) for value in self._forecast_values()]
+            if self._uses_forecast and native_value is not None
+            else None
+        )
+        self._attr_native_value = None if native_value is None else shown(native_value)
 
         extra_attrs = dict(self._base_extra_attrs)
-        if self._uses_forecast and self._store.native_value is not None:
-            extra_attrs["forecast"] = self._build_forecast_attribute()
+        if forecast_values is not None:
+            extra_attrs["forecast"] = self._build_forecast_attribute(forecast_values)
             if not self._field_info.boundaries:
                 extra_attrs["interpolation_mode"] = InterpolationMode.PREVIOUS
         extra_attrs.update(held_reading_attributes(self._store))
         self._attr_extra_state_attributes = extra_attrs
 
-    def _build_forecast_attribute(self) -> list[dict[str, datetime | float | None]]:
-        """Build the HA forecast attribute from store values.
+    def _forecast_values(self) -> list[float]:
+        """Return the store's display values (percentage fields scaled back to 0-100) as this entity shows them."""
+        return [-float(value) if self._negate else float(value) for value in self._store.display_values or ()]
 
-        Uses the store's display values (percentage fields already scaled back
-        to 0-100) paired with the loaded forecast timestamps.
-        """
-        if not self._uses_forecast:
-            return []
-
-        display_values = self._store.display_values
-        if display_values is None:
-            return []
-
+    def _build_forecast_attribute(self, values: list[float]) -> list[dict[str, datetime | float]]:
+        """Pair forecast values with the loaded forecast timestamps for the HA forecast attribute."""
         forecast_timestamps = self._store.forecast_timestamps
         local_tz = dt_util.get_default_time_zone()
 
         timestamps = forecast_timestamps if self._field_info.boundaries else forecast_timestamps[:-1]
         return [
-            {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._display_value(val)}
-            for ts, val in zip(timestamps, display_values, strict=True)
+            {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": value}
+            for ts, value in zip(timestamps, values, strict=True)
         ]
 
     @property
