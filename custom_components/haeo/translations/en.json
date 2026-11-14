@@ -36,7 +36,7 @@
             },
             "data_description": {
               "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
-              "input_hold_seconds": "When a sensor an input reads has no reading, HAEO keeps planning with its last reading. For this long it does so silently. After that the optimization status reads degraded and a repair issue names the sensor until it reports again. Set to 0 to report every gap at once.",
+              "input_hold_seconds": "When a sensor an input reads has no reading, HAEO keeps planning with its last reading. For this long it does so silently. After that the optimization status reads degraded and a repair issue names the sensor until it reports again. After HAEO starts, repair issues also wait this long, so sensors of integrations that are still starting are not reported. Set to 0 to report every gap at once.",
               "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
               "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
             },
@@ -79,7 +79,7 @@
             },
             "data_description": {
               "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
-              "input_hold_seconds": "When a sensor an input reads has no reading, HAEO keeps planning with its last reading. For this long it does so silently. After that the optimization status reads degraded and a repair issue names the sensor until it reports again. Set to 0 to report every gap at once.",
+              "input_hold_seconds": "When a sensor an input reads has no reading, HAEO keeps planning with its last reading. For this long it does so silently. After that the optimization status reads degraded and a repair issue names the sensor until it reports again. After HAEO starts, repair issues also wait this long, so sensors of integrations that are still starting are not reported. Set to 0 to report every gap at once.",
               "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
               "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
             },
