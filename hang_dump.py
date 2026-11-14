@@ -122,18 +122,10 @@ def _dump(nodeid: str) -> None:
         out.write(f"objects tracked {len(gc.get_objects())} allocated blocks {sys.getallocatedblocks()}\n")
         out.flush()
     # Slow tools run detached, so this thread ends before the test's lingering-thread check
-    spy = f"sudo -n {py_spy}"
-    script = (
-        f"echo '----- ps threads -----'; ps -L -o tid,stat,pcpu,wchan:32,comm -p {pid}; "
-        "echo '----- py-spy record 2s native, heaviest stacks -----'; "
-        f"{spy} record --native --duration 2 --rate 200 --format raw "
-        f"--output /tmp/spy.raw --pid {pid} 2>&1 | tail -3; "
-        "awk '{n=$NF; $NF=\"\"; print n, $0}' /tmp/spy.raw | sort -rn | head -25 | cut -c1-1500; "
-        f"echo '----- py-spy dump --native -----'; {spy} dump --native --pid {pid}"
-    )
+    probe = str(Path(__file__).with_name("hang_probe.sh"))
     with DUMP_FILE.open("a") as out:
         _detached.append(
-            subprocess.Popen(["sh", "-c", script], stdout=out, stderr=subprocess.STDOUT, start_new_session=True)  # noqa: S603, S607
+            subprocess.Popen(["sh", probe, pid, py_spy], stdout=out, stderr=subprocess.STDOUT, start_new_session=True)  # noqa: S603, S607
         )
 
 
