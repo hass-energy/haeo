@@ -82,13 +82,20 @@ class ExtractedData[T: Sequence[tuple[float, float]] | float = Sequence[tuple[fl
     """Extracted forecast data, either a sequence of (timestamp, value) tuples or a single float value."""
     unit: UnitOfMeasurement | str | None
     """Unit of measurement after conversion to base units. (None if unknown)"""
+    source_unit: str | None
+    """Unit of measurement the source states, before conversion. (None if it states none)"""
+
+
+def state_unit(state: EntityState) -> str | None:
+    """Return the unit a state states, or None when it states none."""
+    unit = state.attributes.get("unit_of_measurement")
+    return unit if isinstance(unit, str) else None
 
 
 def state_unit_conversion(state: EntityState) -> tuple[UnitConversion, UnitOfMeasurement | str | None]:
     """Return how a state's values convert to base units, by its stated unit and device class, and the base unit."""
-    unit = state.attributes.get("unit_of_measurement")
     conversion, base_unit, _ = base_unit_conversion(
-        unit if isinstance(unit, str) else None, DeviceClass.of(state.attributes.get("device_class"))
+        state_unit(state), DeviceClass.of(state.attributes.get("device_class"))
     )
     return conversion, base_unit
 
@@ -115,7 +122,7 @@ def extract_reading(state: EntityState) -> ExtractedData[float]:
         msg = f"{state.entity_id} reads {state.state}, which is not a finite number"
         raise ValueError(msg)
     conversion, base_unit = state_unit_conversion(state)
-    return ExtractedData(conversion.apply(value), base_unit)
+    return ExtractedData(conversion.apply(value), base_unit, state_unit(state))
 
 
 def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | None = None) -> ExtractedData:
@@ -136,7 +143,7 @@ def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | 
     parsed = next((found for parse in PARSERS if (found := parse(state, time_zone, output_type)) is not None), None)
     if parsed is None:
         reading = extract_reading(state)
-        return ExtractedData(reading.data, reading.unit)
+        return ExtractedData(reading.data, reading.unit, reading.source_unit)
     data, unit, device_class = parsed
 
     # Normalize unit to string (handle enum values with .value attribute)
@@ -149,11 +156,11 @@ def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | 
 
         # Separate duplicate timestamps to prevent interpolation
         separated_data = separate_duplicate_timestamps(points[:, 0], conversion.apply(points[:, 1]))
-        return ExtractedData(separated_data, base_unit)
+        return ExtractedData(separated_data, base_unit, unit_str)
 
     # Convert single value
     converted_value, base_unit, _ = convert_to_base_unit(data, unit_str, device_class)
-    return ExtractedData(converted_value, base_unit)
+    return ExtractedData(converted_value, base_unit, unit_str)
 
 
 __all__ = [
@@ -163,5 +170,6 @@ __all__ = [
     "Parse",
     "extract",
     "extract_reading",
+    "state_unit",
     "state_unit_conversion",
 ]

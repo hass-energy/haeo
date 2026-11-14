@@ -60,10 +60,13 @@ def source_units(output_type: OutputType) -> tuple[str, ...]:
     )
 
 
-def check_source_unit(base_unit: str | None, output_type: OutputType) -> None:
+def check_source_unit(source_unit: str | None, base_unit: str | None, output_type: OutputType) -> None:
     """Reject a source whose values, converted to base units, are not in the field's unit.
 
-    A source that states no unit, or a field without one, passes.
+    A source whose values have no base unit, or a field without one, passes.
+    The error names the unit the source states, which is what a user can see
+    and change, or the base unit when the source states none, such as a
+    sensor whose device class alone gives its unit.
 
     Raises:
         InputError: If the source's unit cannot convert to the field's unit.
@@ -74,7 +77,10 @@ def check_source_unit(base_unit: str | None, output_type: OutputType) -> None:
     if not matches_unit_spec(base_unit, _FIELD_UNITS[output_type][0]):
         raise InputError(
             translation_key="input_unit_incompatible",
-            translation_placeholders={"unit": base_unit, "expected": ", ".join(source_units(output_type))},
+            translation_placeholders={
+                "unit": source_unit if source_unit is not None else base_unit,
+                "expected": ", ".join(source_units(output_type)),
+            },
         )
 
 
