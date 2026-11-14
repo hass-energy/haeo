@@ -33,22 +33,4 @@ echo '----- thread names -----'
 $spy dump --nonblocking --pid "$pid" 2>&1 | grep '^Thread'
 
 echo '----- profile -----'
-python3 - /tmp/spy.raw <<'EOF'
-import collections, re, sys
-
-leaf = collections.defaultdict(collections.Counter)
-inclusive = collections.defaultdict(collections.Counter)
-for line in open(sys.argv[1]):
-    stack, _, count = line.rstrip("\n").rpartition(" ")
-    frames = stack.split(";")
-    thread, frames = frames[0], [re.sub(r":\d+\)", ")", f) for f in frames[1:]]
-    leaf[thread][frames[-1] if frames else "?"] += int(count)
-    for frame in set(frames):
-        inclusive[thread][frame] += int(count)
-for thread, counter in sorted(leaf.items(), key=lambda item: -sum(item[1].values())):
-    print(f"== {thread}: {sum(counter.values())} samples")
-    for frame, count in counter.most_common(8):
-        print(f"   leaf {count:5d} {frame[:160]}")
-    for frame, count in inclusive[thread].most_common(20):
-        print(f"   incl {count:5d} {frame[:160]}")
-EOF
+python3 "$(dirname "$0")/hang_profile.py" /tmp/spy.raw

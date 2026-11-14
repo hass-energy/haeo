@@ -1,7 +1,6 @@
 """Temporary diagnostics: record solves and dump stacks of any test still running after a few seconds."""
 
 import asyncio
-import collections
 from collections.abc import Generator
 import gc
 import os
@@ -31,28 +30,6 @@ _installed = False
 _detached: list[subprocess.Popen[bytes]] = []
 
 
-class _Sampler(threading.Thread):
-    """Record every thread's innermost Python frames every 20 ms while a test runs."""
-
-    def __init__(self) -> None:
-        super().__init__(name="hang-dump-sampler", daemon=True)
-        self.stop = threading.Event()
-        self.samples: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
-        self.ticks = 0
-
-    def run(self) -> None:
-        own = threading.get_ident()
-        while not self.stop.wait(0.02):
-            self.ticks += 1
-            names = {t.ident: t.name for t in threading.enumerate()}
-            for ident, frame in sys._current_frames().items():  # noqa: SLF001
-                if ident == own:
-                    continue
-                inner = traceback.extract_stack(frame)[-4:]
-                where = " > ".join(f"{Path(f.filename).name}:{f.lineno} {f.name}" for f in inner)
-                self.samples[names.get(ident, str(ident))][where] += 1
-
-
 def _task_stats() -> dict[str, str]:
     """Return each thread's CPU, page faults and context switches from /proc, where there is one."""
     stats: dict[str, str] = {}
@@ -70,8 +47,21 @@ def _task_stats() -> dict[str, str]:
     return stats
 
 
-_sampler: _Sampler | None = None
 _start_stats: dict[str, str] = {}
+
+
+PROFILED_TEST = "test_sensor_unavailable_at_startup_plans_on_its_recorded_reading[older_than_the_hold]"
+
+
+def _profile_whole_test() -> None:
+    """Profile every thread, natively, for the four seconds after the slow test starts."""
+    py_spy = shutil.which("py-spy") or str(Path(sys.executable).parent / "py-spy")
+    command = [
+        *("sudo", "-n", py_spy, "record", "--native", "--threads", "--idle", "--duration", "4"),
+        *("--rate", "250", "--format", "raw", "--output", "hang-profile.raw", "--pid", str(os.getpid())),
+    ]
+    with Path("hang-profile.log").open("a") as out:
+        _detached.append(subprocess.Popen(command, stdout=out, stderr=subprocess.STDOUT, start_new_session=True))  # noqa: S603
 
 
 def _note(text: str) -> None:
@@ -149,12 +139,6 @@ def _dump(nodeid: str) -> None:
     with DUMP_FILE.open("a") as out:
         out.write(f"\n===== {nodeid} still running after {DUMP_AFTER_SECONDS}s =====\n")
         out.write("----- events -----\n" + "\n".join(_events) + "\n")
-        out.write("----- sampled frames since the test started, every 20 ms -----\n")
-        if _sampler is not None:
-            out.write(f"{_sampler.ticks} ticks\n")
-            for name, counter in sorted((name, counter.copy()) for name, counter in list(_sampler.samples.items())):
-                out.write(f"== {name}\n")
-                out.writelines(f"   {count:4d} {where}\n" for where, count in counter.most_common(12))
         out.write("----- per-thread stats at test start, then now -----\n")
         out.writelines(f"start {tid} {line}\n" for tid, line in sorted(_start_stats.items()))
         out.writelines(f"now   {tid} {line}\n" for tid, line in sorted(_task_stats().items()))
@@ -205,17 +189,17 @@ def pytest_runtest_call(item: pytest.Item) -> Generator[None]:
     global _test_start  # noqa: PLW0603
     _install()
     _events.clear()
-    global _sampler, _start_stats  # noqa: PLW0603
+    global _start_stats  # noqa: PLW0603
     _test_start = _clock()
     _start_stats = _task_stats()
-    _sampler = _Sampler()
-    _sampler.start()
+    if PROFILED_TEST in item.nodeid:
+        _profile_whole_test()
     timer = threading.Timer(DUMP_AFTER_SECONDS, _safe_dump, args=(item.nodeid,))
+    # HA's cleanup check lets threads named waitpid-* outlive a test
+    timer.name = "waitpid-hang-dump"
     timer.daemon = True
     timer.start()
     try:
         return (yield)
     finally:
         timer.cancel()
-        _sampler.stop.set()
-        _sampler.join()

@@ -261,7 +261,11 @@ jobs:
 
       - name: Show hang dumps
         if: ${{ !cancelled() }}
-        run: cat hang-dumps.txt 2>/dev/null || echo "No test ran past the dump threshold"
+        run: |
+          cat hang-dumps.txt 2>/dev/null || echo "No test ran past the dump threshold"
+          echo "===== whole-test profile of the hold expiry test ====="
+          cat hang-profile.log 2>/dev/null
+          python3 hang_profile.py hang-profile.raw 2>&1 || echo "No profile"
 
       - name: Upload test results to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
