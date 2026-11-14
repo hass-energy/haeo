@@ -240,3 +240,26 @@ def test_an_unusable_unit_is_reported_as_the_sensor_states_it(load: Callable[...
 
     assert err.value.translation_key == "input_unit_incompatible"
     assert err.value.translation_placeholders["unit"] == "Wh"
+
+
+def test_an_unusable_forecast_unit_is_reported_as_the_sensor_states_it() -> None:
+    """A forecast in a unit the input cannot use names the unit the sensor states, not its base unit."""
+    sm = FakeStateMachine(
+        {
+            "sensor.forecast": FakeEntityState(
+                entity_id="sensor.forecast",
+                state="1500",
+                attributes={
+                    "forecast": [{"time": "2025-07-01T12:00:00+00:00", "value": 1500.0}],
+                    "device_class": "power",
+                    "unit_of_measurement": "W",
+                },
+            )
+        }
+    )
+
+    with pytest.raises(InputError) as err:
+        load_sensor(sm, "sensor.forecast", output_type=OutputType.PRICE)
+
+    assert err.value.translation_key == "input_unit_incompatible"
+    assert err.value.translation_placeholders["unit"] == "W"
