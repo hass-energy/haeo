@@ -4,7 +4,6 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 import json
 import logging
-import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
@@ -46,8 +45,8 @@ ATTR_EMISSIONS_INTENSITY = "emissions_intensity"
 # The NEM's price floor and, roughly, its cap, in $/kWh
 DEFAULT_MIN_PRICE: Final = -1.0
 DEFAULT_MAX_PRICE: Final = 20.0
-# Minutes a price change lasts, the NEM's trading interval
-DEFAULT_INTERVAL: Final = 30
+# Minutes in a settlement interval, the NEM's
+DEFAULT_INTERVAL: Final = 5
 # Decimal places offers are reported to: a hundredth of a cent, a watt, a gram per kWh and a gram
 _PRICE_DIGITS: Final = 4
 _POWER_DIGITS: Final = 3
@@ -299,7 +298,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     )
 
     async def async_handle_offer_curve(call: ServiceCall) -> ServiceResponse:
-        """Return each grid's offer curve over each interval of the plan between a start and end time."""
+        """Return each grid's offer curve over the next settlement interval, or each one from a start to an end time."""
         coordinator = _loaded_coordinator(hass, call.data[ATTR_CONFIG_ENTRY])
         start: datetime | None = call.data.get(ATTR_START)
         end: datetime | None = call.data.get(ATTR_END)
@@ -308,8 +307,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         if min_price >= max_price:
             raise ServiceValidationError(translation_domain=DOMAIN, translation_key="offer_price_range")
         timestamps, offers = await coordinator.async_grid_offers(
-            start=_service_timestamp(start) if start is not None else -math.inf,
-            end=_service_timestamp(end) if end is not None else math.inf,
+            start=_service_timestamp(start if start is not None else dt_util.utcnow()),
+            end=_service_timestamp(end) if end is not None else None,
             interval=call.data[ATTR_INTERVAL] * 60.0,
             emissions_intensity=call.data.get(ATTR_EMISSIONS_INTENSITY),
             min_price=min_price,

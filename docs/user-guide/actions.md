@@ -89,35 +89,46 @@ data:
 
 ## Get offer curves
 
-`haeo.offer_curve` answers "if the price for this half hour were different, how much would my home import or export?"
-For each interval of the current plan, it lists the average grid power your home would use at every price that interval could have,
-with the prices outside it left as forecast.
-This is an offer: the information a retailer, aggregator or market operator needs to know how your home responds to a price,
+`haeo.offer_curve` answers "what would my home bid for the next settlement interval?"
+It lists the average grid power your home would use over that interval at every price it could have,
+with the prices of every other interval left as forecast.
+This is the offer a generator or a battery makes to a market, one curve for each interval:
+a retailer, aggregator or market operator learns how your home responds to a price,
 while every decision stays with HAEO in your home.
 
-| Field                | Required | Description                                                                                         |
-| -------------------- | -------- | --------------------------------------------------------------------------------------------------- |
-| System               | Yes      | The HAEO system to get offer curves for                                                             |
-| Start                | No       | Includes intervals that end after this time. Leave it out to start from now                         |
-| End                  | No       | Includes intervals that start before this time. Leave it out for the whole plan                     |
-| Interval             | No       | How long a price change lasts, in minutes. Defaults to 30                                           |
-| Lowest import price  | No       | Lowest average import price per kWh each curve covers. Defaults to -1                               |
-| Highest import price | No       | Highest average import price per kWh each curve covers. Defaults to 20                              |
-| Emissions intensity  | No       | A sensor giving the grid's emissions intensity, to report how each step changes your grid emissions |
+| Field                | Required | Description                                                                                                    |
+| -------------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
+| System               | Yes      | The HAEO system to get offer curves for                                                                        |
+| Start                | No       | The first curve is for the first whole interval to start at or after this time. Leave it out to start from now |
+| End                  | No       | Also returns each later interval that starts before this time. Leave it out for the first interval only        |
+| Interval             | No       | Length of your market's settlement interval, in minutes. Defaults to 5                                         |
+| Lowest import price  | No       | Lowest average import price per kWh each curve covers. Defaults to -1                                          |
+| Highest import price | No       | Highest average import price per kWh each curve covers. Defaults to 20                                         |
+| Emissions intensity  | No       | A sensor giving the grid's emissions intensity, to report how each step changes your grid emissions            |
 
-The plan is split into intervals of this length on the clock, such as each half hour,
-and the price changes across the whole of an interval.
-How long a price change lasts matters a great deal.
+With only a system chosen, the action returns one curve, for the next interval to start.
+The interval already under way is left out, since its price is already set.
+Your home can keep to that curve whatever the forecast turns out to be:
+what it can import or export over the next few minutes depends on the battery's charge and power limits now.
+The forecast decides only the prices at which the home responds, through what its stored energy would be worth later.
+
+Set **End** to get the later intervals as well, as a market takes bids for the rest of the day.
+Treat those as a guide.
+Each one assumes every interval before it goes as forecast, so they do not add up:
+a battery's charge can only be spent once, and energy sold in one interval is not there for the next.
+Call the action again as each interval comes up, the way a generator rebids.
+
+Set **Interval** to the length of your market's settlement interval.
+The default of 5 minutes is that of Australia's National Electricity Market.
+The length matters a great deal.
 A price that holds for one minute can be met by emptying the battery for that minute at almost no cost to the rest of the plan,
 while one that holds for half an hour uses far more of the battery's charge, so the home responds less to it.
-The default of 30 minutes is the length of a trading interval in the Australian market and of most price forecasts.
-Use 5 minutes for the market's dispatch intervals, or the length of an event, such as two hours, for a network's demand response event.
+For a price change that lasts longer, such as a two-hour demand response event, set **Interval** to its length.
 
 Short intervals give an all-or-nothing curve: a cent or two above the forecast and the battery exports flat out.
-Longer intervals give a gentler curve with more steps, as the battery's stored energy is spread across the whole interval,
-and the energy the home can move into one stops growing once the interval is longer than its battery can cover.
-The first interval runs from now to the next boundary, and an interval is never shorter than the plan's own periods in it.
-Those grow longer further ahead, often to an hour, so 5 minute curves are only 5 minutes long for the next half hour or so.
+Longer intervals give a gentler curve with more steps, as the battery's stored energy is spread across the whole interval.
+An interval is never shorter than the plan's own periods in it.
+Those grow longer further ahead, often to an hour, so 5 minute curves are only 5 minutes long for the next hour or so.
 
 The default prices cover the full range of Australian wholesale market prices, -\$1000 to about \$20,000 per MWh.
 Each curve always includes the forecast price.
@@ -125,36 +136,35 @@ Each curve always includes the forecast price.
 Use it when:
 
 - You want to share how your home would respond to a price, such as with a demand response program or a price-responsive resource trial
-- You want to see how much flexibility your home has at a time, and what price it takes to use it
+- You want to see how much flexibility your home has right now, and what price it takes to use it
 
 ```yaml
 action: haeo.offer_curve
 data:
   config_entry: <your HAEO system>
-  end: '2026-11-03 21:00:00'
 response_variable: offers
 ```
 
-The action returns its result rather than changing any entity, so call it from a script or automation with `response_variable`,
+The action returns its result without changing any entity, so call it from a script or automation with `response_variable`,
 or run it from **Developer Tools** → **Actions** to see the result there.
-It looks like this, with one list of intervals for each grid, shortened here:
+Called at 5:08 pm, it looks like this, with one list of intervals for each grid:
 
 ```yaml
 grids:
   Grid:
-    - start: '2026-11-03T17:08:00+10:00'
-      end: '2026-11-03T17:30:00+10:00'
-      import_price: 0.2111
-      export_price: 0.1472
-      power: -0.7
+    - start: '2026-11-03T17:10:00+10:00'
+      end: '2026-11-03T17:15:00+10:00'
+      import_price: 0.2105
+      export_price: 0.1467
+      power: 0.0
       offer:
-        - {import_price: -1.0, export_price: -1.0639, power: 9.41}
-        - {import_price: 0.0021, export_price: -0.0618, power: 1.48}
-        - {import_price: 0.1519, export_price: 0.088, power: 0.0}
-        - {import_price: 0.2087, export_price: 0.1448, power: -0.7}
-        - {import_price: 0.2178, export_price: 0.1539, power: -7.14}
-        - {import_price: 0.2424, export_price: 0.1785, power: -8.88}
-        - {import_price: 0.2493, export_price: 0.1854, power: -26.34}
+        - {import_price: -1.0, export_price: -1.0638, power: 17.548}
+        - {import_price: 0.0, export_price: -0.0638, power: 9.253}
+        - {import_price: 0.1483, export_price: 0.0845, power: 3.272}
+        - {import_price: 0.1498, export_price: 0.086, power: 0.0}
+        - {import_price: 0.2136, export_price: 0.1498, power: -2.65}
+        - {import_price: 0.2158, export_price: 0.152, power: -7.547}
+        - {import_price: 0.2473, export_price: 0.1835, power: -26.747}
 ```
 
 `import_price`, `export_price` and `power` at the top of an interval are its average forecast prices and planned grid power.
@@ -162,10 +172,9 @@ Power is in kW, positive for import and negative for export, like the grid's act
 Each entry in `offer` is a step: from those prices up to the next step's, the average grid power over the interval would be `power`.
 Import and export prices move together, as a change in the wholesale price changes both.
 
-In this example the plan exports 0.7 kW on average at the forecast prices.
-If the export price for the interval rose to 15.39c the home would export 7.14 kW, and from 18.54c all it can, 26.34 kW.
-Below an export price of 14.48c it would stop exporting,
-below an import price of 15.19c it would start importing,
+In this example the plan takes nothing from the grid at the forecast prices.
+If the export price for the interval rose to 14.98c the home would export 2.65 kW, from 15.2c 7.55 kW, and from 18.35c all it can, 26.75 kW.
+Below an import price of 14.98c it would import 3.27 kW, below 14.83c 9.25 kW,
 and below an import price of zero it would charge from the grid as fast as it can.
 
 With **Emissions intensity** set, each interval also gives its average `emissions_intensity` in kg/kWh,
@@ -176,16 +185,10 @@ Exported energy counts as avoiding emissions at the grid's intensity when it is 
 The sensor can give a single reading or a forecast, in g, kg or t of CO2 or CO2-e per kWh or MWh,
 such as an emissions intensity sensor from your region's market data.
 
-Each curve holds the prices outside its interval at their forecast,
-so curves of different intervals do not add up:
-a battery's charge can only be spent once,
-and a high price across several intervals draws less from it in each than their separate curves show.
-For a price change that lasts longer, such as a two-hour event, set **Interval** to its length.
-[Offer curves](../modeling/offer-curves.md) explains how they are worked out.
+[Offer curves](../modeling/offer-curves.md) explains how the curves are worked out and why they make a sound bid.
 
-Working out a curve means solving the plan again several times,
-so the action can take several seconds for a long plan, or longer on slower hardware.
-Set **End** to get curves only for the time you need.
+Working out a curve means solving the plan again several times.
+The next interval takes a fraction of a second, and every interval of a long plan can take several seconds, or longer on slower hardware.
 The plan and the output sensors are not changed, and HAEO does not plan again while the action runs.
 
 ## Errors

@@ -1,8 +1,11 @@
 # Offer curves
 
-An offer curve says how much power a home would take from the grid over a window of time at each price that window could have.
-It answers "if the price from 6 pm to 6:30 pm were X, how much would I import or export?", with every price outside the window left as forecast.
-The `haeo.offer_curve` [action](../user-guide/actions.md#get-offer-curves) returns one for each grid in each interval of the plan.
+An offer curve says how much power a home would take from the grid over a window of time at each price that window could have,
+with every price outside the window left as forecast.
+It answers "what does this home bid for the next settlement interval?",
+the question a generator answers with a quantity in each of a set of price bands.
+The `haeo.offer_curve` [action](../user-guide/actions.md#get-offer-curves) returns one for each grid,
+for the next settlement interval or for each interval up to an end time.
 
 ## What the curve is
 
@@ -28,7 +31,7 @@ a higher price in one window can empty the battery into it and refill it in a la
 
 ### Why a window
 
-The window is how long a price change lasts, and the response depends heavily on it.
+The window is the market's settlement interval, the time one price holds for, and the response depends heavily on its length.
 A shift in one short period can be met by moving a little energy into or out of it,
 which costs the rest of the plan almost nothing,
 so a curve of a single minute shows nearly the full power of the battery for a small change in price.
@@ -42,7 +45,8 @@ On scenario 7, raising both prices by 3.5c/kWh from the start of the plan gives:
 | 30 minutes | 11.0 kW        |
 
 The action groups the plan's periods into windows by the interval of the clock each starts in,
-30 minutes by default to match the market's trading intervals.
+5 minutes by default, the settlement interval of Australia's National Electricity Market.
+A curve traced over any other length than the market settles on promises the wrong power.
 The shift is the same in every period of the window, so the price shape within it is kept,
 as a change in the wholesale price leaves the tariffs added to it as they are.
 A shift is used rather than a scaling of the price, since scaling does nothing to a price of zero
@@ -118,17 +122,44 @@ the LPs are degenerate, so most basis changes move nothing the curve shows,
 and runs of them a fraction of a cent apart leave ranging creeping forward.
 Eisner and Severance solves only where the cost says another step must be.
 
-## Using the curve
+## The curve as a bid
 
 Each window's curve is a set of price bands with a quantity in each,
 the shape a scheduled resource's bid takes in a market.
 Import steps read as a load bid: the power the home would consume at or below each price.
 Export steps read as a generation offer: the power it would supply at or above each price.
 
-Each curve holds every price outside its window fixed.
-Curves of different windows do not add up, since the battery's energy can only be spent once:
+A home too small to move the market price does best by bidding the curve as it is.
+At whatever price the interval clears, the quantity the curve gives is the one the cheapest plan takes at that price,
+so no other bid leaves the home better off at any price.
+The edges are the home's marginal costs: what the next kilowatt-hour is worth elsewhere in the plan.
+
+### The next interval
+
+The next interval's curve is a bid the home can deliver.
+What it can import or export over the next few minutes is set by its state of charge and power limits now.
+The forecast sets only where the edges sit, through what stored energy is worth later.
+A wrong forecast therefore misprices the bid, which costs the home, and the power it offered can still be delivered.
+
+The action starts from the first whole interval after the start time and leaves out the one already under way.
+That interval's price is set, and what is left of it is a shorter window, which overstates the response.
+
+### Later intervals
+
+A later interval's curve depends on what happens before it, through the energy left in storage.
+Each curve holds every price outside its window at forecast,
+so curves of different windows do not add up, since the battery's energy can only be spent once:
 a price spike across several windows draws less from it in each than the separate curves suggest.
-A longer event is better described by a curve over a window of its length.
+The home's response to every price at once is the slope of $V$ in all the shifts together, which no set of separate curves can hold.
+
+Markets meet the same problem by rebidding.
+A generator bids each later interval for the state it expects to reach it in, and bids again as that state changes.
+The later curves are bids of that kind:
+each assumes every interval before it clears at its forecast price,
+and calling the action again after the next optimization replaces them.
+
+A price change that lasts longer than one interval, such as a demand response event,
+is better described by a curve over a window of its length.
 
 ## Next steps
 

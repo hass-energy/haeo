@@ -852,7 +852,7 @@
   },
   "services": {
     "offer_curve": {
-      "description": "Returns, for each interval of the plan, the average grid power the plan would take at each import and export price that interval could have, with every other interval's prices as forecast",
+      "description": "Returns the average grid power the plan would take over the next settlement interval at each import and export price that interval could have, with every other interval's prices as forecast",
       "fields": {
         "config_entry": { "description": "The HAEO system to get offer curves for", "name": "System" },
         "emissions_intensity": {
@@ -860,11 +860,11 @@
           "name": "Emissions intensity"
         },
         "end": {
-          "description": "Includes intervals that start before this time. Runs to the end of the plan if omitted.",
+          "description": "Also returns a curve for each later interval that starts before this time. Only the first interval is returned if omitted.",
           "name": "End"
         },
         "interval": {
-          "description": "How long a price change lasts. The plan is split into intervals of this length on the clock, and each gets its own curve.",
+          "description": "Length of your market's settlement interval. The plan is split into intervals of this length on the clock, and each gets its own curve.",
           "name": "Interval"
         },
         "max_price": {
@@ -876,7 +876,7 @@
           "name": "Lowest import price"
         },
         "start": {
-          "description": "Includes intervals that end after this time. Starts from the beginning of the plan if omitted.",
+          "description": "The first curve is for the first whole interval to start at or after this time. Starts from now if omitted.",
           "name": "Start"
         }
       },

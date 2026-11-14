@@ -31,25 +31,29 @@ def _planned(hass: HomeAssistant, entry: MockConfigEntry) -> HaeoDataUpdateCoord
 @pytest.mark.parametrize(
     ("start", "end", "interval", "windows"),
     [
-        pytest.param(-float("inf"), float("inf"), 1800.0, [[0, 1], [2]], id="half_hours"),
-        pytest.param(-float("inf"), float("inf"), 600.0, [[0], [1], [2]], id="shorter_than_periods"),
-        pytest.param(-float("inf"), float("inf"), 3600.0, [[0, 1, 2]], id="hour"),
-        pytest.param(700.0, 2000.0, 1800.0, [[1], [2]], id="overlapping"),
-        pytest.param(600.0, 1800.0, 1800.0, [[1]], id="on_boundaries"),
+        pytest.param(0.0, None, 1800.0, [[0, 1]], id="next_interval"),
+        pytest.param(700.0, None, 1800.0, [[2]], id="start_inside_an_interval"),
+        pytest.param(-5000.0, None, 1800.0, [[0, 1]], id="start_before_the_plan"),
+        pytest.param(0.0, 3600.0, 1800.0, [[0, 1], [2]], id="every_interval_before_the_end"),
+        pytest.param(0.0, 1800.0, 1800.0, [[0, 1]], id="end_on_an_interval_start"),
+        pytest.param(0.0, 3600.0, 600.0, [[0], [1], [2]], id="shorter_than_periods"),
+        pytest.param(0.0, 3600.0, 3600.0, [[0, 1, 2]], id="hour"),
+        pytest.param(0.0, None, 7200.0, [], id="plan_ends_inside_the_interval"),
+        pytest.param(3600.0, None, 1800.0, [], id="start_after_the_plan"),
     ],
 )
-async def test_grid_offers_trace_each_grid_over_windows_of_the_periods_the_range_overlaps(
+async def test_grid_offers_trace_each_grid_over_whole_intervals_from_the_start(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_grid_subentry: ConfigSubentry,
     mock_battery_subentry: ConfigSubentry,
     mock_runtime_data: HaeoRuntimeData,
     start: float,
-    end: float,
+    end: float | None,
     interval: float,
     windows: list[list[int]],
 ) -> None:
-    """Every grid is traced over the range's periods, grouped by the clock interval each starts in."""
+    """Every grid is traced over the intervals the plan covers whole, the first one alone without an end."""
     coordinator = _planned(hass, mock_hub_entry)
     offer = GridOffer(periods=(0,), import_price=0.3, export_price=0.05, power=1.0, emissions_intensity=None, steps=())
 
@@ -68,6 +72,22 @@ async def test_grid_offers_trace_each_grid_over_windows_of_the_periods_the_range
         max_price=2.0,
         emissions_intensity=None,
     )
+
+
+async def test_grid_offers_skip_the_interval_the_plan_starts_inside(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_grid_subentry: ConfigSubentry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """The rest of an interval already under way is not offered, however early the start."""
+    coordinator = _planned(hass, mock_hub_entry)
+    coordinator._plan_timestamps = PLAN_TIMESTAMPS[1:]
+
+    with patch("custom_components.haeo.coordinator.coordinator.grid_offers", return_value=[]) as traced:
+        await coordinator.async_grid_offers(start=0.0, end=None, interval=1800.0, min_price=-1.0, max_price=2.0)
+
+    assert traced.call_args.kwargs["windows"] == [[1]]
 
 
 async def test_grid_offers_need_a_plan(

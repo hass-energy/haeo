@@ -538,7 +538,7 @@ async def test_offer_curve_service_returns_each_grids_offers(
     # A start without a zone is in Home Assistant's
     mock_coordinator.async_grid_offers.assert_awaited_once_with(
         start=start,
-        end=float("inf"),
+        end=None,
         interval=300.0,
         min_price=-1.0,
         max_price=5.0,
@@ -562,6 +562,32 @@ async def test_offer_curve_service_returns_each_grids_offers(
             ]
         }
     }
+
+
+@pytest.mark.freeze_time("2026-11-03 06:02:30+00:00")
+async def test_offer_curve_service_starts_from_now_over_five_minute_intervals(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """With only a system the offers start from now, and an end time is passed on."""
+    await async_setup(hass, {})
+    mock_hub_entry._async_set_state(hass, ConfigEntryState.LOADED, None)
+    mock_coordinator = AsyncMock()
+    mock_coordinator.async_grid_offers.return_value = ((), {})
+    mock_hub_entry.runtime_data = HaeoRuntimeData(coordinator=mock_coordinator, horizon_manager=Mock())
+    now = datetime(2026, 11, 3, 6, 2, 30, tzinfo=UTC).timestamp()
+
+    for data, end in (({}, None), ({"end": "2026-11-03T07:00:00+00:00"}, now + 3450)):
+        await hass.services.async_call(
+            DOMAIN,
+            "offer_curve",
+            {"config_entry": mock_hub_entry.entry_id, **data},
+            blocking=True,
+            return_response=True,
+        )
+        mock_coordinator.async_grid_offers.assert_awaited_with(
+            start=now, end=end, interval=300.0, min_price=-1.0, max_price=20.0, emissions_intensity=None
+        )
 
 
 async def test_offer_curve_service_needs_a_price_range(

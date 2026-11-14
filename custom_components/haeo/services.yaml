@@ -58,7 +58,7 @@ offer_curve:
           mode: box
     interval:
       required: false
-      default: 30
+      default: 5
       selector:
         number:
           min: 1

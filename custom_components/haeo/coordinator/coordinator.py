@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 import itertools
 import logging
+import math
 import time
 from typing import TYPE_CHECKING, Literal, TypedDict
 
@@ -619,20 +620,24 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self,
         *,
         start: float,
-        end: float,
+        end: float | None,
         interval: float,
         min_price: float,
         max_price: float,
         emissions_intensity: str | None = None,
     ) -> tuple[tuple[float, ...], dict[str, list[GridOffer]]]:
-        """Return each grid's offer curves over the plan's periods that overlap a time range.
+        """Return each grid's offer curves over the settlement intervals of the plan from a start time.
 
         The periods are grouped into windows by the interval of the clock they
-        start in, such as each half hour, and a price is shifted across a whole
-        window. The curves are traced from the plan the latest optimization found,
-        while no optimization can change it. With an emissions intensity sensor,
-        each step also says how it changes the plan's grid emissions. Returns the
-        plan's period boundaries, as timestamps, and the offers of each grid by name.
+        start in, such as each five minutes, and a price is shifted across a whole
+        window. Only intervals the plan covers from start to end are offered, so
+        the first window is the first interval to start at or after the start
+        time. Without an end time that window is the only one; with one, every
+        interval that starts before it follows. The curves are traced from the
+        plan the latest optimization found, while no optimization can change it.
+        With an emissions intensity sensor, each step also says how it changes the
+        plan's grid emissions. Returns the plan's period boundaries, as timestamps,
+        and the offers of each grid by name.
 
         Raises:
             HomeAssistantError: When the latest optimization found no plan, or
@@ -645,15 +650,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_no_plan")
             if self.network.relaxations:
                 raise HomeAssistantError(translation_domain=DOMAIN, translation_key="offer_relaxed_plan")
-            periods = [
-                index
-                for index, (period_start, period_end) in enumerate(itertools.pairwise(timestamps))
-                if period_start < end and start < period_end
-            ]
+            first = max(start, timestamps[0])
+            last = math.inf if end is None else end
             windows = [
                 list(window)
-                for _, window in itertools.groupby(periods, key=lambda index: timestamps[index] // interval)
+                for number, window in itertools.groupby(
+                    range(len(timestamps) - 1), key=lambda index: timestamps[index] // interval
+                )
+                if first <= number * interval < last and (number + 1) * interval <= timestamps[-1]
             ]
+            if end is None:
+                del windows[1:]
             grids = [
                 name
                 for name, config in self._participant_configs.items()
