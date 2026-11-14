@@ -13,7 +13,7 @@ import traceback
 
 import pytest
 
-DUMP_AFTER_SECONDS = 2.5
+DUMP_AFTER_SECONDS = 1.5
 DUMP_FILE = Path("hang-dumps.txt")
 
 
