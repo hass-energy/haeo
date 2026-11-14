@@ -49,10 +49,10 @@ def input_field_label(hass: HomeAssistant, entry_id: str, element_name: str, fie
     the item. The config path stands in when no label is translated.
     """
     entry = hass.config_entries.async_get_known_entry(entry_id)
-    subentry = next(subentry for subentry in entry.subentries.values() if subentry.title == element_name)
-    config_path = next(
-        element_input.config_path for element_input in element_inputs(subentry.data) if element_input.path == field_path
-    )
+    subentry = {subentry.title: subentry for subentry in entry.subentries.values()}[element_name]
+    config_path = {element_input.path: element_input.config_path for element_input in element_inputs(subentry.data)}[
+        field_path
+    ]
     translations = async_get_cached_translations(hass, hass.config.language, "config_subentries", DOMAIN)
     label = translations.get(_form_label_key(subentry.subentry_type, config_path))
     if label is None:
