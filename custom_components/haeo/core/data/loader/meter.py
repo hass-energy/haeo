@@ -21,7 +21,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.state import EntityState, StateMachine
 
 from .calendar import CalendarEventData, load_calendar_events, open_window_start
-from .extractors import state_unit_conversion
+from .extractors import state_unit, state_unit_conversion
 
 # State attribute carrying a meter's recorded totals, injected by the integration
 METER_TOTALS_ATTRIBUTE: Final = "haeo_meter_totals"
@@ -120,7 +120,7 @@ def _rise_in_base_unit(state: EntityState, since: float, output_type: OutputType
     if rise is None:
         return None
     conversion, base_unit = state_unit_conversion(state)
-    check_source_unit(None if base_unit is None else str(base_unit), output_type)
+    check_source_unit(state_unit(state), None if base_unit is None else str(base_unit), output_type)
     return conversion.apply(rise)
 
 

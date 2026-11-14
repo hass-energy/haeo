@@ -965,6 +965,7 @@ def test_sensor_in_a_unit_the_field_cannot_use_is_rejected() -> None:
         load_element_config("Grid", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
 
     assert err.value.translation_key == "input_unit_incompatible"
+    assert err.value.translation_placeholders["unit"] == "kWh"
 
 
 # -- meter fields --
@@ -1068,7 +1069,7 @@ def test_meter_field_rejects_a_meter_in_the_wrong_unit(monkeypatch: pytest.Monke
     """A meter whose unit cannot convert to the field's unit is rejected like any source."""
     monkeypatch.setattr(cl, "extract_field_hints", lambda _schema: _meter_hints())
     states = {
-        _METER: FakeEntityState(_METER, "3", {"unit_of_measurement": "km", METER_TOTALS_ATTRIBUTE: [[0.0, 1.0]]}),
+        _METER: FakeEntityState(_METER, "3", {"unit_of_measurement": "MW", METER_TOTALS_ATTRIBUTE: [[0.0, 1.0]]}),
         _RUNS: FakeEntityState(_RUNS, "on", {CALENDAR_EVENTS_ATTRIBUTE: [_run(0, 3)]}),
     }
     config = _battery_config(
@@ -1076,8 +1077,11 @@ def test_meter_field_rejects_a_meter_in_the_wrong_unit(monkeypatch: pytest.Monke
         initial_soc={"type": "entity", "value": [_RUNS]},
     )
 
-    with pytest.raises(InputError):
+    with pytest.raises(InputError) as err:
         load_element_config("Battery", config, FakeStateMachine(states), (5400.0, 9000.0))  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    assert err.value.translation_key == "input_unit_incompatible"
+    assert err.value.translation_placeholders["unit"] == "MW"
 
 
 _HAEO_FORECAST: list[dict[str, object]] = [
