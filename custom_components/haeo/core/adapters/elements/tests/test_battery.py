@@ -226,7 +226,9 @@ def test_model_elements_battery_charge_bounds(
     elements = battery_adapter.model_elements(config_data)
     battery_element = next(e for e in elements if e["element_type"] == MODEL_ELEMENT_TYPE_BATTERY)
 
-    np.testing.assert_allclose(battery_element["capacity"], [10.0, 10.0, 10.0])
+    capacity = battery_element["capacity"]
+    assert capacity is not None
+    np.testing.assert_allclose(capacity, [10.0, 10.0, 10.0])
     assert "charge_limit_cost" in battery_element
     np.testing.assert_allclose(battery_element["charge_limit_cost"], [50.0, 60.0])
     for key, expected in (("min_charge", expected_min), ("max_charge", expected_max)):

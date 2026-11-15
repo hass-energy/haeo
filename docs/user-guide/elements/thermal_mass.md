@@ -9,20 +9,19 @@ Heaters, heat pumps, and air conditioners reach it through [connections](connect
 
 ## Configuration
 
-| Field                                          | Type                                     | Required | Default | Description                                      |
-| ---------------------------------------------- | ---------------------------------------- | -------- | ------- | ------------------------------------------------ |
-| **[Name](#name)**                              | String                                   | Yes      | -       | Unique identifier for this thermal mass          |
-| **[Heat capacity](#heat-capacity)**            | Number                                   | Yes      | -       | Energy to warm it by one degree (kWh/°C)         |
-| **[Temperature](#temperature)**                | [sensor](../forecasts-and-sensors.md)    | Yes      | -       | Its temperature now (°C)                         |
-| **[Lowest temperature](#temperature-limits)**  | Number                                   | No       | -       | Lowest temperature cooling may bring it to (°C)  |
-| **[Highest temperature](#temperature-limits)** | Number                                   | No       | -       | Highest temperature heating may bring it to (°C) |
-| **[Minimum temperature](#comfort-band)**       | [sensor(s)](../forecasts-and-sensors.md) | No       | -       | Keep it at or above this temperature (°C)        |
-| **[Maximum temperature](#comfort-band)**       | [sensor(s)](../forecasts-and-sensors.md) | No       | -       | Keep it at or below this temperature (°C)        |
-| **[Comfort cost](#comfort-band)**              | [sensor(s)](../forecasts-and-sensors.md) | Yes      | 1.0     | Cost of heat outside the band (\$/kWh/h)         |
-| **[Ambient temperature](#surroundings)**       | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Temperature around it (°C)                       |
-| **[Heat loss](#surroundings)**                 | Number                                   | Yes      | -       | Power lost per degree above ambient (kW/°C)      |
+| Field                                    | Type                                     | Required | Default | Description                                 |
+| ---------------------------------------- | ---------------------------------------- | -------- | ------- | ------------------------------------------- |
+| **[Name](#name)**                        | String                                   | Yes      | -       | Unique identifier for this thermal mass     |
+| **[Heat capacity](#heat-capacity)**      | Number                                   | Yes      | -       | Energy to warm it by one degree (kWh/°C)    |
+| **[Temperature](#temperature)**          | [sensor](../forecasts-and-sensors.md)    | Yes      | -       | Its temperature now (°C)                    |
+| **[Minimum temperature](#comfort-band)** | [sensor(s)](../forecasts-and-sensors.md) | No       | -       | Keep it at or above this temperature (°C)   |
+| **[Maximum temperature](#comfort-band)** | [sensor(s)](../forecasts-and-sensors.md) | No       | -       | Keep it at or below this temperature (°C)   |
+| **[Comfort cost](#comfort-band)**        | [sensor(s)](../forecasts-and-sensors.md) | Yes      | 1.0     | Cost of heat outside the band (\$/kWh/h)    |
+| **[Ambient temperature](#surroundings)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Temperature around it (°C)                  |
+| **[Heat loss](#surroundings)**           | Number                                   | Yes      | -       | Power lost per degree above ambient (kW/°C) |
 
 Temperatures are in °C.
+Sensors that report °F or K are converted.
 
 ## Name
 
@@ -41,15 +40,12 @@ A room's heat capacity includes its walls, floor, and furniture, and is usually 
 The temperature the mass is at now, usually a sensor.
 A tank sensor can read low while the tank is heating; HAEO plans from whatever it reports.
 
-## Temperature limits
-
-Limits on how far heating or cooling may push the temperature, such as a tank thermostat's cut-out.
-The surroundings can still take the mass past a limit, since nothing the plan does stops heat leaking in or out.
-
 ## Comfort band
 
 The minimum and maximum temperatures to keep, which can change through the day.
-HAEO keeps the temperature inside the band unless leaving it costs less than the comfort cost.
+They are the only limits on the temperature:
+HAEO keeps the temperature inside the band unless leaving it costs less than the comfort cost,
+and never forbids a temperature, since the surroundings can push the mass anywhere.
 A high comfort cost makes the band firm; a low one lets HAEO trade comfort for savings.
 
 ## Surroundings
@@ -69,14 +65,20 @@ Divide it by 24 and by that difference: 1.2 kWh/day at 45 °C above ambient is 0
 | **Name**                | Hot Water               |
 | **Heat capacity**       | 0.29                    |
 | **Temperature**         | sensor.tank_temperature |
-| **Highest temperature** | 65                      |
 | **Minimum temperature** | 45                      |
+| **Maximum temperature** | 65                      |
 | **Comfort cost**        | 1.0                     |
 | **Ambient temperature** | 20                      |
 | **Heat loss**           | 0.0011                  |
 
 Connect the heater with a [connection](connection.md) from the switchboard to the tank, with its power limit and an efficiency of 100% for an element or the heat pump's COP, such as 350%.
 Connect a [load](load.md) to the tank with your hot water use forecast in kW of heat.
+
+### Hot water through a coil
+
+When mains water is heated by passing through a coil in the tank, the coil delivers less as the tank cools toward the inlet temperature.
+Add a [junction](junction.md) for the tap and connect the hot water load to it.
+Then connect the tank to the tap with a [connection](connection.md#level-driven-flow) whose **Maximum conductance** is the coil's rating in kW/°C and whose **Target temperature** is the cold inlet temperature.
 
 ### Room with an air conditioner
 

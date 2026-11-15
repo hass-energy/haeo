@@ -17,6 +17,7 @@ from typing import (
     # unknown output-name type" here.
     ClassVar,
     Literal,
+    NotRequired,
     Protocol,
     runtime_checkable,
 )
@@ -49,6 +50,7 @@ class ConductionSegmentSpec(TypedDict):
 
     segment_type: Literal["conduction"]
     conductance: NDArray[np.float64] | float
+    target_level: NotRequired[NDArray[np.float64] | float | None]
 
 
 class LevelLimitSegmentSpec(TypedDict):
@@ -56,6 +58,7 @@ class LevelLimitSegmentSpec(TypedDict):
 
     segment_type: Literal["level_limit"]
     conductance: NDArray[np.float64] | float
+    target_level: NotRequired[NDArray[np.float64] | float | None]
 
 
 class LevelSegment(Segment):
@@ -63,9 +66,12 @@ class LevelSegment(Segment):
 
     Conductance is power per unit of level difference, such as kW/°C between two
     thermal masses or kW/kWh (one per hour) for a store leaking a share of its energy.
+    A target level, when given, replaces the target's own, such as the temperature
+    of the cold water a coil heats on its way to a tap.
     """
 
     conductance: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    target_level: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
 
     def __init__(
         self,
@@ -95,12 +101,13 @@ class LevelSegment(Segment):
         self._source_level: HasLevel = source_element
         self._target_level: HasLevel = target_element
         self.conductance = broadcast_to_sequence(spec["conductance"], self._n_periods)
+        self.target_level = broadcast_to_sequence(spec.get("target_level"), self._n_periods)
 
     @property
     def level_flow(self) -> LinearArray:
         """Power the level difference drives from source to target at the end of each period."""
-        level_difference = self._source_level.end_level - self._target_level.end_level
-        return level_difference * self.conductance
+        target = self._target_level.end_level if self.target_level is None else LinearArray.constants(self.target_level)
+        return (self._source_level.end_level - target) * self.conductance
 
 
 class ConductionSegment(LevelSegment):

@@ -273,18 +273,22 @@ class Buffer(Element[BufferOutputName]):
         """
         if self.kind == "reserve":
             limit = battery.charge_floor
-            return limit if self.level is None else np.maximum(limit, self.level * battery.capacity)
+            return limit if self.level is None else np.maximum(limit, self.level * self._capacity_of(battery))
         limit = battery.charge_ceiling
-        return limit if self.level is None else np.minimum(limit, self.level * battery.capacity)
+        return limit if self.level is None else np.minimum(limit, self.level * self._capacity_of(battery))
 
     def _network_factor(self, battery: Battery) -> NDArray[np.float64]:
         """Return how much energy at the network side each kWh stored in the battery is worth to the buffer."""
         efficiency = self._efficiency(battery)
         return efficiency if self.kind == "reserve" else 1.0 / efficiency
 
+    def _capacity_of(self, battery: Battery) -> NDArray[np.float64]:
+        """Return a battery's capacity at each boundary, which is none for an unbounded store."""
+        return np.zeros(self.n_periods + 1) if battery.capacity is None else battery.capacity
+
     def _capacity(self) -> NDArray[np.float64]:
         """Return the batteries' combined capacity at each boundary."""
-        return sum((battery.capacity for battery in self._storage), np.zeros(self.n_periods + 1))
+        return sum((self._capacity_of(battery) for battery in self._storage), np.zeros(self.n_periods + 1))
 
     def _scale(self) -> NDArray[np.float64]:
         """Return the capacity-weighted network-side worth of a stored kWh, at each boundary.
@@ -296,7 +300,7 @@ class Buffer(Element[BufferOutputName]):
         stored energy.
         """
         empty = self._capacity() <= 0.0
-        weights = [np.where(empty, 1.0, battery.capacity) for battery in self._storage]
+        weights = [np.where(empty, 1.0, self._capacity_of(battery)) for battery in self._storage]
         weighted = sum(
             (self._network_factor(battery) * weight for battery, weight in zip(self._storage, weights, strict=True)),
             np.zeros(self.n_periods + 1),

@@ -7,7 +7,6 @@ from custom_components.haeo.core.schema.elements.thermal_mass import (
     CONF_COMFORT_COST,
     CONF_HEAT_CAPACITY,
     CONF_HEAT_LOSS,
-    CONF_HIGHEST_TEMPERATURE,
     CONF_MAX_TEMPERATURE,
     CONF_MIN_TEMPERATURE,
     CONF_TEMPERATURE,
@@ -24,10 +23,10 @@ VALID_DATA = [
             SECTION_STORAGE: {
                 CONF_HEAT_CAPACITY: as_constant_value(0.29),
                 CONF_TEMPERATURE: as_entity_value(["sensor.tank_temperature"]),
-                CONF_HIGHEST_TEMPERATURE: as_constant_value(65.0),
             },
             SECTION_COMFORT: {
                 CONF_MIN_TEMPERATURE: as_constant_value(45.0),
+                CONF_MAX_TEMPERATURE: as_constant_value(65.0),
                 CONF_COMFORT_COST: as_constant_value(1.0),
             },
             SECTION_SURROUNDINGS: {

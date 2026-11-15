@@ -19,6 +19,7 @@ class DeviceClass(StrEnum):
     MONETARY = "monetary"
     DISTANCE = "distance"
     ENERGY_DISTANCE = "energy_distance"
+    TEMPERATURE = "temperature"
 
     @classmethod
     def of(cls, value: object) -> "DeviceClass | None":
@@ -62,6 +63,8 @@ class UnitOfMeasurement(StrEnum):
     KILOMETER_PER_KILO_WATT_HOUR = "km/kWh"
     MILE_PER_KILO_WATT_HOUR = "mi/kWh"
     CELSIUS = "°C"
+    FAHRENHEIT = "°F"
+    KELVIN = "K"
     KILO_WATT_HOUR_PER_CELSIUS = "kWh/°C"
     KILO_WATT_PER_CELSIUS = "kW/°C"
 
@@ -118,6 +121,7 @@ BASE_UNITS: Final[dict[DeviceClass, UnitOfMeasurement]] = {
     DeviceClass.DURATION: UnitOfMeasurement.HOUR,
     DeviceClass.DISTANCE: UnitOfMeasurement.KILOMETER,
     DeviceClass.ENERGY_DISTANCE: UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER,
+    DeviceClass.TEMPERATURE: UnitOfMeasurement.CELSIUS,
 }
 
 _POWER_TO_KW: Final[dict[UnitOfMeasurement, float]] = {
@@ -189,11 +193,13 @@ _TO_RECIPROCAL_BASE_UNIT: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]
 class UnitConversion:
     """How values in a unit convert to their base unit.
 
-    Values are scaled by ``factor``, then inverted when the unit is the
-    reciprocal of the base unit, as km/kWh is of kWh/km.
+    Values are scaled by ``factor`` and shifted by ``offset``, as °F is to °C,
+    then inverted when the unit is the reciprocal of the base unit, as km/kWh
+    is of kWh/km.
     """
 
     factor: float = 1.0
+    offset: float = 0.0
     reciprocal: bool = False
 
     @overload
@@ -208,13 +214,25 @@ class UnitConversion:
                 finite value in the base unit.
 
         """
-        scaled = values * self.factor
+        scaled = values * self.factor + self.offset
         if not self.reciprocal:
             return scaled
         if np.any(np.equal(scaled, 0)):
             msg = "A zero in a reciprocal unit has no finite value in the base unit"
             raise ValueError(msg)
         return 1 / scaled
+
+
+# Conversions to °C, which shift values as well as scale them
+_TEMPERATURE_TO_CELSIUS: Final[dict[UnitOfMeasurement, UnitConversion]] = {
+    UnitOfMeasurement.FAHRENHEIT: UnitConversion(5 / 9, offset=-32 * 5 / 9),
+    UnitOfMeasurement.KELVIN: UnitConversion(offset=-273.15),
+}
+
+# Conversions to each device class's base unit that shift values, for device classes whose units are offset
+_SHIFTED_TO_BASE_UNIT: Final[dict[DeviceClass, dict[UnitOfMeasurement, UnitConversion]]] = {
+    DeviceClass.TEMPERATURE: _TEMPERATURE_TO_CELSIUS,
+}
 
 
 # Display symbols for common ISO 4217 currency codes. Codes not listed are shown
@@ -297,6 +315,9 @@ def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass
     if unit in _ENERGY_DISTANCE_TO_KWH_PER_KM or unit in _DISTANCE_ENERGY_TO_KM_PER_KWH:
         return DeviceClass.ENERGY_DISTANCE
 
+    if unit is UnitOfMeasurement.CELSIUS or unit in _TEMPERATURE_TO_CELSIUS:
+        return DeviceClass.TEMPERATURE
+
     return None
 
 
@@ -312,7 +333,9 @@ def _base_conversion(unit: UnitOfMeasurement | None, device_class: DeviceClass |
         return None
     if unit == base_unit:
         return UnitConversion()
-    if (factor := _TO_BASE_UNIT[device_class].get(unit)) is not None:
+    if (shifted := _SHIFTED_TO_BASE_UNIT.get(device_class, {}).get(unit)) is not None:
+        return shifted
+    if (factor := _TO_BASE_UNIT.get(device_class, {}).get(unit)) is not None:
         return UnitConversion(factor)
     if (factor := _TO_RECIPROCAL_BASE_UNIT.get(device_class, {}).get(unit)) is not None:
         return UnitConversion(factor, reciprocal=True)

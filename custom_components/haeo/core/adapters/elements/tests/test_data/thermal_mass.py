@@ -23,16 +23,11 @@ from . import CreateCase, OutputsCase
 
 CREATE_CASES: list[CreateCase] = [
     {
-        "description": "Thermal mass stores heat above the lowest temperature it can reach",
+        "description": "Thermal mass measures heat from its current temperature with no bounds",
         "data": ThermalMassConfigData(
             element_type=ElementType.THERMAL_MASS,
             name="tank",
-            storage={
-                "heat_capacity": 0.2,
-                "temperature": 50.0,
-                "lowest_temperature": 10.0,
-                "highest_temperature": 70.0,
-            },
+            storage={"heat_capacity": 0.2, "temperature": 50.0},
             comfort={
                 "min_temperature": np.array([40.0, 40.0, 40.0]),
                 "max_temperature": np.array([65.0, 65.0, 65.0]),
@@ -44,13 +39,13 @@ CREATE_CASES: list[CreateCase] = [
             {
                 "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": "tank",
-                "capacity": 12.0,
-                "initial_charge": 8.0,
+                "capacity": None,
+                "initial_charge": 0.0,
                 "charge_limit_cost": 1.0,
-                "level_offset": 10.0,
+                "level_offset": 50.0,
                 "energy_per_level": 0.2,
-                "min_charge": [6.0, 6.0, 6.0],
-                "max_charge": [11.0, 11.0, 11.0],
+                "min_charge": [-2.0, -2.0, -2.0],
+                "max_charge": [3.0, 3.0, 3.0],
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
@@ -69,7 +64,7 @@ CREATE_CASES: list[CreateCase] = [
         ],
     },
     {
-        "description": "Thermal mass without limits or a comfort band spans only its own and the ambient temperatures",
+        "description": "Thermal mass without a comfort band has no charge limits",
         "data": ThermalMassConfigData(
             element_type=ElementType.THERMAL_MASS,
             name="room",
@@ -81,10 +76,10 @@ CREATE_CASES: list[CreateCase] = [
             {
                 "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": "room",
-                "capacity": 20.0,
-                "initial_charge": 11.0,
+                "capacity": None,
+                "initial_charge": 0.0,
                 "charge_limit_cost": 0.5,
-                "level_offset": 10.0,
+                "level_offset": 21.0,
                 "energy_per_level": 1.0,
             },
             {
@@ -118,7 +113,7 @@ OUTPUTS_CASES: list[OutputsCase] = [
         ),
         "model_outputs": {
             "room": {
-                battery.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(12.0, 11.0)),
+                battery.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(0.0, -1.0)),
             },
             "room:heat_loss": {
                 connection.CONNECTION_POWER: OutputData(

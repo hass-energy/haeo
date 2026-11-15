@@ -24,6 +24,7 @@ from custom_components.haeo.core.units import (
         (DeviceClass.DISTANCE, "km"),
         (DeviceClass.ENERGY_DISTANCE, "kWh/km"),
         (DeviceClass.DURATION, "h"),
+        (DeviceClass.TEMPERATURE, "°C"),
         (None, None),
     ],
 )
@@ -60,6 +61,11 @@ def test_base_unit_for_device_class(device_class: DeviceClass | None, expected: 
         (7200.0, UnitOfMeasurement.SECOND, DeviceClass.DURATION, 2.0),
         (1.0, UnitOfMeasurement.DAY, DeviceClass.DURATION, 24.0),
         (30.0, UnitOfMeasurement.MINUTE, None, 0.5),
+        # Temperature conversions shift as well as scale
+        (212.0, UnitOfMeasurement.FAHRENHEIT, DeviceClass.TEMPERATURE, 100.0),
+        (-40.0, UnitOfMeasurement.FAHRENHEIT, None, -40.0),
+        (273.15, UnitOfMeasurement.KELVIN, DeviceClass.TEMPERATURE, 0.0),
+        (21.5, UnitOfMeasurement.CELSIUS, None, 21.5),
         # No conversion when already in base unit
         (5.0, UnitOfMeasurement.KILO_WATT, DeviceClass.POWER, 5.0),
         # Fallback conversion when device_class is missing but unit is informative

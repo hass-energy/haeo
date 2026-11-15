@@ -62,7 +62,7 @@ class BatteryElementConfig(TypedDict):
 
     element_type: BatteryElementTypeName
     name: str
-    capacity: NDArray[np.float64] | float
+    capacity: NDArray[np.float64] | float | None
     initial_charge: float
     min_charge: NotRequired[NDArray[np.float64] | float]
     max_charge: NotRequired[NDArray[np.float64] | float]
@@ -78,16 +78,18 @@ class Battery(NetworkElement[BatteryOutputName]):
     """Battery entity for electrical system modeling.
 
     Represents a single battery section with cumulative energy tracking.
-    Stored energy runs from empty to its capacity. The min and max charge are kept
-    with priced slack instead, so the plan stays feasible when the battery starts
-    outside them. Uses TrackedParam for parameters that can change between optimizations.
+    Stored energy runs from empty to its capacity. Without a capacity the store
+    is unbounded and its stored energy may also fall below zero, as a store of
+    heat measured from a reference temperature does. The min and max charge are
+    kept with priced slack instead, so the plan stays feasible when the battery
+    starts outside them. Uses TrackedParam for parameters that can change between optimizations.
 
     Its level is ``level_offset + stored_energy / energy_per_level``, such as a
     temperature for a store of heat. It defaults to the stored energy in kWh.
     """
 
     # Parameters
-    capacity: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    capacity: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     initial_charge: TrackedParam[float] = TrackedParam()
     min_charge: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     max_charge: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
@@ -102,7 +104,7 @@ class Battery(NetworkElement[BatteryOutputName]):
         periods: NDArray[np.float64],
         *,
         solver: Solver,
-        capacity: NDArray[np.float64] | float,
+        capacity: NDArray[np.float64] | float | None = None,
         initial_charge: float,
         min_charge: NDArray[np.float64] | float | None = None,
         max_charge: NDArray[np.float64] | float | None = None,
@@ -147,13 +149,17 @@ class Battery(NetworkElement[BatteryOutputName]):
 
     @property
     def charge_floor(self) -> NDArray[np.float64]:
-        """Stored energy the battery is held above at each boundary: its min charge, or empty when unset."""
-        return np.zeros(self.n_periods + 1) if self.min_charge is None else self.min_charge
+        """Stored energy the battery is held above at each boundary: its min charge, or else empty or unbounded."""
+        if self.min_charge is not None:
+            return self.min_charge
+        return np.full(self.n_periods + 1, 0.0 if self.capacity is not None else -np.inf)
 
     @property
     def charge_ceiling(self) -> NDArray[np.float64]:
-        """Stored energy the battery is held below at each boundary: its max charge, or full when unset."""
-        return self.capacity if self.max_charge is None else self.max_charge
+        """Stored energy the battery is held below at each boundary: its max charge, or else full or unbounded."""
+        if self.max_charge is not None:
+            return self.max_charge
+        return self.capacity if self.capacity is not None else np.full(self.n_periods + 1, np.inf)
 
     @property
     def end_level(self) -> LinearArray:
@@ -209,7 +215,10 @@ class Battery(NetworkElement[BatteryOutputName]):
         """Constraint: energy above the max charge fits in the capacity, so the battery never overfills.
 
         With no max charge, there is no room above it and the max charge row holds at the capacity.
+        Without a capacity the battery never fills and the rows are free.
         """
+        if self.capacity is None:
+            return self._above_max.free()
         return self._above_max - (self.capacity[1:] - self.charge_ceiling[1:]) <= 0.0
 
     @constraint
@@ -217,7 +226,10 @@ class Battery(NetworkElement[BatteryOutputName]):
         """Constraint: energy below the min charge is at most the min charge, so the battery never goes negative.
 
         With no min charge, there is no room below it and the min charge row holds at empty.
+        Without a capacity the battery never empties and the rows are free.
         """
+        if self.capacity is None:
+            return self._below_min.free()
         return self._below_min - self.charge_floor[1:] <= 0.0
 
     @constraint(output=True, unit="$/kWh")
@@ -226,7 +238,10 @@ class Battery(NetworkElement[BatteryOutputName]):
 
         Output: shadow price indicating the marginal value of a higher max charge.
         """
-        return self.stored_energy[1:] - self._above_max <= self.charge_ceiling[1:]
+        excess = self.stored_energy[1:] - self._above_max
+        if self.max_charge is None and self.capacity is None:
+            return excess.free()
+        return excess <= self.charge_ceiling[1:]
 
     @constraint(output=True, unit="$/kWh")
     def battery_soc_min(self) -> Rows:
@@ -234,7 +249,10 @@ class Battery(NetworkElement[BatteryOutputName]):
 
         Output: shadow price indicating the marginal cost of the min charge.
         """
-        return self.stored_energy[1:] + self._below_min >= self.charge_floor[1:]
+        shortfall = self.stored_energy[1:] + self._below_min
+        if self.min_charge is None and self.capacity is None:
+            return shortfall.free()
+        return shortfall >= self.charge_floor[1:]
 
     def element_power_produced(self) -> LinearArray:
         """Return power produced by discharging the battery."""

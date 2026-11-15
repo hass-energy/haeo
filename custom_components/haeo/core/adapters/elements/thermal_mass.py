@@ -1,16 +1,16 @@
 """Thermal mass element adapter for model layer integration.
 
-A thermal mass is a store of heat whose level is its temperature. It builds a
-battery that stores heat above its lowest reachable temperature, a node at the
-ambient temperature, and a conduction connection between them that carries the
-heat lost to the surroundings.
+A thermal mass is a store of heat whose level is its temperature. It builds an
+unbounded battery that measures heat from the mass's current temperature, a
+node at the ambient temperature, and a conduction connection between them that
+carries the heat lost to the surroundings. Every temperature limit is the
+priced comfort band, so no temperature the surroundings push it to is forbidden.
 """
 
 from collections.abc import Mapping
 from typing import Final, Literal
 
 import numpy as np
-from numpy.typing import NDArray
 
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -31,8 +31,6 @@ from custom_components.haeo.core.schema.elements.thermal_mass import (
     CONF_COMFORT_COST,
     CONF_HEAT_CAPACITY,
     CONF_HEAT_LOSS,
-    CONF_HIGHEST_TEMPERATURE,
-    CONF_LOWEST_TEMPERATURE,
     CONF_MAX_TEMPERATURE,
     CONF_MIN_TEMPERATURE,
     CONF_TEMPERATURE,
@@ -62,41 +60,6 @@ THERMAL_MASS_DEVICE_NAMES: Final[frozenset[ThermalMassDeviceName]] = frozenset(
 )
 
 
-def temperature_range(config: ThermalMassConfigData) -> tuple[float, float]:
-    """Return the lowest and highest temperatures the mass can reach.
-
-    The range covers the configured limits and comfort band, and also the
-    current and ambient temperatures, since the surroundings move the mass
-    toward their temperature whatever the plan does. A limit inside the
-    surroundings' range therefore does not bind.
-    """
-    storage = config[SECTION_STORAGE]
-    comfort = config[SECTION_COMFORT]
-    temperatures = [
-        np.atleast_1d(np.asarray(value, dtype=float))
-        for value in (
-            storage[CONF_TEMPERATURE],
-            config[SECTION_SURROUNDINGS][CONF_AMBIENT_TEMPERATURE],
-            storage.get(CONF_LOWEST_TEMPERATURE),
-            storage.get(CONF_HIGHEST_TEMPERATURE),
-            comfort.get(CONF_MIN_TEMPERATURE),
-            comfort.get(CONF_MAX_TEMPERATURE),
-        )
-        if value is not None
-    ]
-    every_temperature = np.concatenate(temperatures)
-    return float(every_temperature.min()), float(every_temperature.max())
-
-
-def _band_energy(
-    temperature: NDArray[np.float64] | None, lowest: float, heat_capacity: float, capacity: float
-) -> NDArray[np.float64] | None:
-    """Return the stored energy at a band edge, kept within the store."""
-    if temperature is None:
-        return None
-    return np.clip((np.asarray(temperature, dtype=float) - lowest) * heat_capacity, 0.0, capacity)
-
-
 class ThermalMassAdapter:
     """Adapter for thermal mass elements."""
 
@@ -116,22 +79,21 @@ class ThermalMassAdapter:
         comfort = config[SECTION_COMFORT]
         surroundings = config[SECTION_SURROUNDINGS]
         heat_capacity = storage[CONF_HEAT_CAPACITY]
-        lowest, highest = temperature_range(config)
-        capacity = (highest - lowest) * heat_capacity
+        temperature = storage[CONF_TEMPERATURE]
 
         store: BatteryElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
             "name": name,
-            "capacity": capacity,
-            "initial_charge": float(np.clip((storage[CONF_TEMPERATURE] - lowest) * heat_capacity, 0.0, capacity)),
+            "capacity": None,
+            "initial_charge": 0.0,
             "charge_limit_cost": comfort[CONF_COMFORT_COST],
-            "level_offset": lowest,
+            "level_offset": temperature,
             "energy_per_level": heat_capacity,
         }
-        if (min_charge := _band_energy(comfort.get(CONF_MIN_TEMPERATURE), lowest, heat_capacity, capacity)) is not None:
-            store["min_charge"] = min_charge
-        if (max_charge := _band_energy(comfort.get(CONF_MAX_TEMPERATURE), lowest, heat_capacity, capacity)) is not None:
-            store["max_charge"] = max_charge
+        if (min_temperature := comfort.get(CONF_MIN_TEMPERATURE)) is not None:
+            store["min_charge"] = (min_temperature - temperature) * heat_capacity
+        if (max_temperature := comfort.get(CONF_MAX_TEMPERATURE)) is not None:
+            store["max_charge"] = (max_temperature - temperature) * heat_capacity
 
         return [
             store,
@@ -162,9 +124,9 @@ class ThermalMassAdapter:
         **_kwargs: object,
     ) -> Mapping[ThermalMassDeviceName, Mapping[ThermalMassOutputName, OutputData]]:
         """Map the stored heat to a temperature, and report the heat lost to the surroundings."""
+        storage = config[SECTION_STORAGE]
         energy = expect_output_data(model_outputs[name][BATTERY_ENERGY_STORED])
-        lowest, _ = temperature_range(config)
-        temperatures = lowest + np.asarray(energy.values, dtype=float) / config[SECTION_STORAGE][CONF_HEAT_CAPACITY]
+        temperatures = storage[CONF_TEMPERATURE] + np.asarray(energy.values, dtype=float) / storage[CONF_HEAT_CAPACITY]
         heat_loss = connection_power(model_outputs.get(f"{name}:heat_loss"), len(energy.values) - 1)
         return {
             THERMAL_MASS_DEVICE_THERMAL_MASS: {

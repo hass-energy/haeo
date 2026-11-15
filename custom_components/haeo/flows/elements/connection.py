@@ -16,6 +16,7 @@ from custom_components.haeo.core.schema.elements.connection import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_SOURCE,
     CONF_TARGET,
+    CONF_TARGET_TEMPERATURE,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
     SECTION_LEVEL,
@@ -41,7 +42,9 @@ class ConnectionSubentryFlowHandler(SectionedElementSubentryFlow):
         power_limits_section((CONF_MAX_POWER_SOURCE_TARGET,), collapsed=False),
         pricing_section((CONF_PRICE_SOURCE_TARGET,), collapsed=False),
         efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_DRAWS_FROM_TARGET), collapsed=True),
-        SectionDefinition(key=SECTION_LEVEL, fields=(CONF_CONDUCTANCE, CONF_MAX_CONDUCTANCE), collapsed=True),
+        SectionDefinition(
+            key=SECTION_LEVEL, fields=(CONF_CONDUCTANCE, CONF_MAX_CONDUCTANCE, CONF_TARGET_TEMPERATURE), collapsed=True
+        ),
     )
 
     def _current_endpoints(self, subentry_data: Mapping[str, object] | None) -> tuple[str, str]:

@@ -7,8 +7,6 @@ from custom_components.haeo.core.schema.elements.thermal_mass import (
     CONF_COMFORT_COST,
     CONF_HEAT_CAPACITY,
     CONF_HEAT_LOSS,
-    CONF_HIGHEST_TEMPERATURE,
-    CONF_LOWEST_TEMPERATURE,
     CONF_MAX_TEMPERATURE,
     CONF_MIN_TEMPERATURE,
     CONF_TEMPERATURE,
@@ -27,11 +25,7 @@ class ThermalMassSubentryFlowHandler(SectionedElementSubentryFlow):
     element_type = ELEMENT_TYPE
 
     sections: ClassVar[tuple[SectionDefinition, ...]] = (
-        SectionDefinition(
-            key=SECTION_STORAGE,
-            fields=(CONF_HEAT_CAPACITY, CONF_TEMPERATURE, CONF_LOWEST_TEMPERATURE, CONF_HIGHEST_TEMPERATURE),
-            collapsed=False,
-        ),
+        SectionDefinition(key=SECTION_STORAGE, fields=(CONF_HEAT_CAPACITY, CONF_TEMPERATURE), collapsed=False),
         SectionDefinition(
             key=SECTION_COMFORT, fields=(CONF_MIN_TEMPERATURE, CONF_MAX_TEMPERATURE, CONF_COMFORT_COST), collapsed=False
         ),

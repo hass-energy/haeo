@@ -15,8 +15,11 @@ Each element a level segment joins exposes one level per period, read at the end
 
 A battery's level offset $L_0$ defaults to 0 and its energy per level $c$ to 1,
 so its level is its stored energy in kWh unless the device layer sets them.
-A thermal mass sets $L_0$ to the lowest temperature it can reach and $c$ to its heat capacity, so its level is its temperature.
+A thermal mass is an unbounded battery with $L_0$ at its current temperature and $c$ its heat capacity, so its level is its temperature.
 A node's level defaults to 0.
+
+A segment may be given a target level, a forecast that replaces the target's own level.
+A coil feeding a tap uses the cold inlet temperature this way, so the tap can be a plain junction.
 
 A level segment joining an element without a level is a configuration error.
 
@@ -77,7 +80,7 @@ For periods much shorter than $C / G$ both approach the exact exponential decay.
 | Heat lost through a wall or insulation | Conduction  | A thermal mass and a node at ambient   |
 | Heat passing between two rooms         | Conduction  | Two thermal masses                     |
 | A battery's self-discharge             | Conduction  | A battery and a node at level 0        |
-| A heat exchanger coil                  | Level limit | A tank and a node at the inlet's level |
+| A heat exchanger coil                  | Level limit | A tank and a tap, at the inlet's level |
 
 ## Next steps
 

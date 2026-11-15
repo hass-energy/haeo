@@ -35,6 +35,7 @@ CONF_SOURCE: Final = "source"
 CONF_TARGET: Final = "target"
 CONF_CONDUCTANCE: Final = "conductance"
 CONF_MAX_CONDUCTANCE: Final = "max_conductance"
+CONF_TARGET_TEMPERATURE: Final = "target_temperature"
 CONF_DRAWS_FROM_TARGET: Final = "draws_from_target"
 
 
@@ -57,6 +58,7 @@ class LevelConfig(TypedDict, total=False):
 
     conductance: EntityValue | ConstantValue | NoneValue
     max_conductance: EntityValue | ConstantValue | NoneValue
+    target_temperature: EntityValue | ConstantValue | NoneValue
 
 
 class LevelData(TypedDict, total=False):
@@ -64,6 +66,7 @@ class LevelData(TypedDict, total=False):
 
     conductance: NDArray[np.float64] | float
     max_conductance: NDArray[np.float64] | float
+    target_temperature: NDArray[np.float64] | float
 
 
 class ConnectionEfficiencyConfig(EfficiencyConfig, total=False):
@@ -131,6 +134,7 @@ class ConnectionConfigSchema(CommonConfig):
                 {
                     CONF_CONDUCTANCE: FieldHint(output_type=OutputType.CONDUCTANCE, time_series=True),
                     CONF_MAX_CONDUCTANCE: FieldHint(output_type=OutputType.CONDUCTANCE, time_series=True),
+                    CONF_TARGET_TEMPERATURE: FieldHint(output_type=OutputType.TEMPERATURE, time_series=True),
                 }
             ),
         ]
@@ -157,6 +161,7 @@ __all__ = [
     "CONF_PRICE_SOURCE_TARGET",
     "CONF_SOURCE",
     "CONF_TARGET",
+    "CONF_TARGET_TEMPERATURE",
     "ELEMENT_TYPE",
     "SECTION_EFFICIENCY",
     "SECTION_ENDPOINTS",

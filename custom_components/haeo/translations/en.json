@@ -247,10 +247,15 @@
             },
             "endpoints": { "data": { "source": "Source device", "target": "Target device" }, "name": "Endpoints" },
             "level": {
-              "data": { "conductance": "Conductance", "max_conductance": "Maximum conductance" },
+              "data": {
+                "conductance": "Conductance",
+                "max_conductance": "Maximum conductance",
+                "target_temperature": "Target temperature"
+              },
               "data_description": {
                 "conductance": "Fix the flow at this conductance times the difference in temperature between source and target, in either direction",
-                "max_conductance": "Cap the flow at this conductance times the difference in temperature between source and target"
+                "max_conductance": "Cap the flow at this conductance times the difference in temperature between source and target",
+                "target_temperature": "Temperature to use for the target in place of its own, such as the cold water a coil heats"
               },
               "name": "Level-driven flow"
             },
@@ -601,16 +606,9 @@
               "name": "Comfort"
             },
             "storage": {
-              "data": {
-                "heat_capacity": "Heat capacity",
-                "highest_temperature": "Highest temperature",
-                "lowest_temperature": "Lowest temperature",
-                "temperature": "Temperature"
-              },
+              "data": { "heat_capacity": "Heat capacity", "temperature": "Temperature" },
               "data_description": {
                 "heat_capacity": "Energy to warm it by one degree. Water holds 0.00116 kWh per litre per degree",
-                "highest_temperature": "The highest temperature heating may bring it to",
-                "lowest_temperature": "The lowest temperature cooling may bring it to",
                 "temperature": "Its temperature now"
               },
               "name": "Storage"
@@ -681,6 +679,7 @@
       "connection_max_conductance": { "name": "Maximum conductance" },
       "connection_max_power_source_target": { "name": "Max power" },
       "connection_price_source_target": { "name": "Price" },
+      "connection_target_temperature": { "name": "Target temperature" },
       "deferrable_load_deficit_price": { "name": "Shortfall price" },
       "deferrable_load_due": { "name": "Energy due" },
       "deferrable_load_energy_meter": { "name": "Energy since window started" },
@@ -716,8 +715,6 @@
       "thermal_mass_comfort_cost": { "name": "Comfort cost" },
       "thermal_mass_heat_capacity": { "name": "Heat capacity" },
       "thermal_mass_heat_loss": { "name": "Heat loss" },
-      "thermal_mass_highest_temperature": { "name": "Highest temperature" },
-      "thermal_mass_lowest_temperature": { "name": "Lowest temperature" },
       "thermal_mass_max_temperature": { "name": "Maximum temperature" },
       "thermal_mass_min_temperature": { "name": "Minimum temperature" },
       "thermal_mass_temperature": { "name": "Temperature" }

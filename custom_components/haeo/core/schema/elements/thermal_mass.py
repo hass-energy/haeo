@@ -19,8 +19,6 @@ SECTION_SURROUNDINGS: Final = "surroundings"
 
 CONF_HEAT_CAPACITY: Final = "heat_capacity"
 CONF_TEMPERATURE: Final = "temperature"
-CONF_LOWEST_TEMPERATURE: Final = "lowest_temperature"
-CONF_HIGHEST_TEMPERATURE: Final = "highest_temperature"
 
 CONF_MIN_TEMPERATURE: Final = "min_temperature"
 CONF_MAX_TEMPERATURE: Final = "max_temperature"
@@ -31,21 +29,17 @@ CONF_HEAT_LOSS: Final = "heat_loss"
 
 
 class StorageConfig(TypedDict):
-    """Heat capacity, current temperature, and the temperatures heating and cooling may reach."""
+    """Heat capacity and current temperature."""
 
     heat_capacity: EntityValue | ConstantValue
     temperature: EntityValue | ConstantValue
-    lowest_temperature: NotRequired[EntityValue | ConstantValue | NoneValue]
-    highest_temperature: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 
 class StorageData(TypedDict):
-    """Loaded heat capacity, temperature, and temperature limits."""
+    """Loaded heat capacity and temperature."""
 
     heat_capacity: float
     temperature: float
-    lowest_temperature: NotRequired[float]
-    highest_temperature: NotRequired[float]
 
 
 class ComfortConfig(TypedDict):
@@ -88,8 +82,6 @@ class ThermalMassConfigSchema(CommonConfig):
             {
                 CONF_HEAT_CAPACITY: FieldHint(output_type=OutputType.HEAT_CAPACITY),
                 CONF_TEMPERATURE: FieldHint(output_type=OutputType.TEMPERATURE),
-                CONF_LOWEST_TEMPERATURE: FieldHint(output_type=OutputType.TEMPERATURE),
-                CONF_HIGHEST_TEMPERATURE: FieldHint(output_type=OutputType.TEMPERATURE),
             }
         ),
     ]
@@ -135,8 +127,6 @@ __all__ = [
     "CONF_COMFORT_COST",
     "CONF_HEAT_CAPACITY",
     "CONF_HEAT_LOSS",
-    "CONF_HIGHEST_TEMPERATURE",
-    "CONF_LOWEST_TEMPERATURE",
     "CONF_MAX_TEMPERATURE",
     "CONF_MIN_TEMPERATURE",
     "CONF_TEMPERATURE",

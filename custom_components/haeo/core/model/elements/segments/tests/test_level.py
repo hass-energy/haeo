@@ -201,3 +201,27 @@ def test_level_segment_requires_a_level_at_both_ends() -> None:
                 "segments": {"conduction": {"segment_type": "conduction", "conductance": 1.0}},
             }
         )
+
+
+def test_target_level_replaces_the_level_of_the_target() -> None:
+    """A coil feeding a tap whose node has no temperature of its own uses the inlet temperature it is given."""
+    network = Network(name="coil", periods=np.full(2, 1.0))
+    tank = _store(network, "tank", 60.0)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "tap", "is_source": False})
+    coil = network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "coil",
+            "source": "tank",
+            "target": "tap",
+            "tags": {1},
+            "segments": {
+                "level_limit": {"segment_type": "level_limit", "conductance": 1.0, "target_level": 40.0},
+                "pricing": {"segment_type": "pricing", "price": -1.0},
+            },
+        }
+    )
+
+    network.optimize()
+
+    assert _flow(coil) == pytest.approx(_temperatures(tank) - 40.0)

@@ -42,7 +42,7 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 
 **Required parameters**:
 
-- $C(t)$: Battery capacity (kWh) at time boundary $t$ - `capacity`
+- $C(t)$: Battery capacity (kWh) at time boundary $t$, or none for an unbounded store - `capacity`
 - $E_{\text{initial}}$: Initial charge in kWh - `initial_charge`
 - $\Delta t$: Time step duration (hours) - `period`
 
@@ -52,6 +52,7 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 - $E_{\max}(t)$: Max charge in kWh, default $C(t)$ - `max_charge`
 - $c_{\text{limit}}(t)$: Holding cost for energy outside the min and max charge (\$/kWh/h), required with either limit - `charge_limit_cost`
 - $v_{\text{salvage}}$: Terminal value of stored energy (\$/kWh) - `salvage_value`
+- $L_0$, $c$: Level offset and energy per level, which set the battery's [level](../segments/level.md#levels) $L_0 + E / c$ - `level_offset`, `energy_per_level`
 - `outbound_tags`: Tags that discharged power can be placed on (see [Tagged Power](../../tagged-power.md))
 - `inbound_tags`: Tags this battery can consume (charge from) — None means all tags
 
@@ -79,6 +80,10 @@ Net energy must stay within capacity:
 $$
 0 \leq E_{\text{in}}(t) - E_{\text{out}}(t) \leq C(t) \quad \forall t \in [1, T]
 $$
+
+A battery without a capacity is an unbounded store: these rows are free and its net energy may fall below zero,
+as a store of heat measured from a reference temperature does.
+Its min and max charge, where set, still apply with their priced slack.
 
 Net energy stays within the min and max charge, or the slack carries the difference:
 

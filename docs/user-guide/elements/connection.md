@@ -41,6 +41,7 @@ Connections define explicit, **unidirectional** power paths between elements, wi
 | **Price**                        | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for power leaving the source                       |
 | **Conductance**                  | [sensor(s)](../forecasts-and-sensors.md) | No       | -         | Fix the flow by the temperature difference (kW/°C)                |
 | **Maximum conductance**          | [sensor(s)](../forecasts-and-sensors.md) | No       | -         | Cap the flow by the temperature difference (kW/°C)                |
+| **Target temperature**           | [sensor(s)](../forecasts-and-sensors.md) | No       | -         | Temperature used for the target in place of its own (°C)          |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -141,7 +142,9 @@ A conductance sets the flow by the difference in temperature between the source 
 - **Maximum conductance** caps the flow at the conductance times the temperature difference.
     Use it for a heat exchanger coil, which delivers less as the tank cools toward the water it heats.
 
-Both endpoints must have a temperature, as thermal masses do.
+The source must have a temperature, as a thermal mass does.
+The target uses its own temperature, or the **Target temperature** when you set one,
+such as the cold inlet temperature for a coil feeding a tap junction.
 
 ### Availability windows
 

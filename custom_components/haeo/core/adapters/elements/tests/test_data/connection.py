@@ -54,6 +54,61 @@ CREATE_CASES: list[CreateCase] = [
         ],
     },
     {
+        "description": "Cooling connection takes its efficiency times its power from the target",
+        "data": ConnectionConfigData(
+            element_type=ElementType.CONNECTION,
+            name="cooler",
+            endpoints={"source": as_connection_target("ac"), "target": as_connection_target("room")},
+            power_limits={},
+            efficiency={"efficiency_source_target": np.array([3.0]), "draws_from_target": True},
+            pricing={},
+        ),
+        "model": [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "cooler",
+                "source": "ac",
+                "target": "room",
+                "segments": {
+                    "power_limit": {"segment_type": "power_limit", "max_power": None},
+                    "pricing": {"segment_type": "pricing", "price": None},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [-3.0]},
+                },
+            },
+        ],
+    },
+    {
+        "description": "Conductances set and cap the flow by the temperature difference to the target temperature",
+        "data": ConnectionConfigData(
+            element_type=ElementType.CONNECTION,
+            name="coil",
+            endpoints={"source": as_connection_target("tank"), "target": as_connection_target("tap")},
+            power_limits={},
+            efficiency={},
+            pricing={},
+            level={
+                "conductance": np.array([0.1]),
+                "max_conductance": np.array([0.5]),
+                "target_temperature": np.array([15.0]),
+            },
+        ),
+        "model": [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "coil",
+                "source": "tank",
+                "target": "tap",
+                "segments": {
+                    "power_limit": {"segment_type": "power_limit", "max_power": None},
+                    "pricing": {"segment_type": "pricing", "price": None},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": None},
+                    "conduction": {"segment_type": "conduction", "conductance": [0.1], "target_level": [15.0]},
+                    "level_limit": {"segment_type": "level_limit", "conductance": [0.5], "target_level": [15.0]},
+                },
+            },
+        ],
+    },
+    {
         "description": "Connection with minimal fields",
         "data": MINIMAL,
         "model": [

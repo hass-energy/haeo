@@ -35,24 +35,22 @@ Thermal mass creates 1 device in Home Assistant:
 
 ## Parameter mapping
 
-The store holds the heat above the lowest temperature the mass can reach, $T_{\min}$.
-With heat capacity $C$ (kWh/°C), stored energy and temperature relate by $E = C \cdot (T - T_{\min})$.
+The store is an unbounded battery that measures heat from the mass's current temperature $T_0$.
+With heat capacity $C$ (kWh/°C), stored energy and temperature relate by $E = C \cdot (T - T_0)$,
+so the store starts empty and goes negative as the mass cools.
+It has no capacity: the comfort band, priced, is the only limit on its temperature,
+since the surroundings can push it anywhere whatever the plan does.
 
-$T_{\min}$ and $T_{\max}$ span the lowest and highest temperatures configured, the comfort band, the current temperature, and the ambient forecast.
-The surroundings pull the mass toward their temperature whatever the plan does,
-so the range always covers them and a temperature limit inside the ambient range does not bind.
-
-| User Configuration    | Model Element | Model Parameter     | Notes                                          |
-| --------------------- | ------------- | ------------------- | ---------------------------------------------- |
-| `heat_capacity`       | Battery       | `energy_per_level`  | $C$                                            |
-| `temperature`         | Battery       | `initial_charge`    | $C \cdot (T - T_{\min})$                       |
-| Temperature range     | Battery       | `capacity`          | $C \cdot (T_{\max} - T_{\min})$                |
-| Temperature range     | Battery       | `level_offset`      | $T_{\min}$                                     |
-| `min_temperature`     | Battery       | `min_charge`        | $C \cdot (T_{\text{low}} - T_{\min})$, priced  |
-| `max_temperature`     | Battery       | `max_charge`        | $C \cdot (T_{\text{high}} - T_{\min})$, priced |
-| `comfort_cost`        | Battery       | `charge_limit_cost` | \$/kWh/h of heat outside the band              |
-| `ambient_temperature` | Node          | `level`             | Forecast per period                            |
-| `heat_loss`           | Connection    | `conductance`       | kW/°C                                          |
+| User Configuration    | Model Element | Model Parameter     | Notes                                     |
+| --------------------- | ------------- | ------------------- | ----------------------------------------- |
+| `heat_capacity`       | Battery       | `energy_per_level`  | $C$                                       |
+| `temperature`         | Battery       | `level_offset`      | $T_0$; `initial_charge` is 0              |
+| -                     | Battery       | `capacity`          | None, an unbounded store                  |
+| `min_temperature`     | Battery       | `min_charge`        | $C \cdot (T_{\text{low}} - T_0)$, priced  |
+| `max_temperature`     | Battery       | `max_charge`        | $C \cdot (T_{\text{high}} - T_0)$, priced |
+| `comfort_cost`        | Battery       | `charge_limit_cost` | \$/kWh/h of heat outside the band         |
+| `ambient_temperature` | Node          | `level`             | Forecast per period                       |
+| `heat_loss`           | Connection    | `conductance`       | kW/°C                                     |
 
 ## Sensors created
 
