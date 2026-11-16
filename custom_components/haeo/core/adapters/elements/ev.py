@@ -276,6 +276,7 @@ class EvAdapter:
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power": (1.0 - home) * _UNLIMITED_POWER,
+                        "control_point": False,
                     },
                 },
             },

@@ -28,6 +28,8 @@ from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfi
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
 from .infeasibility import InfeasibleError, Relaxation, RowLabel, conflicting_rows, listing, row_labels, solve_relaxed
+from .limits import LimitRecommendation
+from .limits import recommend_limits as recommend_connection_limits
 from .linear import LinearArray, total
 from .solver import Solver
 from .util.solver_rows import RowIndices
@@ -483,6 +485,14 @@ class Network:
         weight = 10.0 ** max(lo, upper - _CAL_MARGIN)
         _LOGGER.debug("Calibrated blend weight: %.2e", weight)
         return weight
+
+    def recommend_limits(self) -> dict[str, LimitRecommendation]:
+        """Return the recommended first-period hardware limit of each connection with a power limit.
+
+        Read from the plan's basis after ``optimize``, without changing the solver.
+        """
+        connections = [e for e in self.elements.values() if isinstance(e, Connection)]
+        return recommend_connection_limits(self._solver, connections, self.elements, float(self.periods[0]))
 
     def constraints(self) -> dict[str, dict[str, RowIndices]]:
         """Return all constraints from all elements in the network.
