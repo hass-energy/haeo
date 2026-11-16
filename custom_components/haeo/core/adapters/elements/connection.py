@@ -20,6 +20,7 @@ from custom_components.haeo.core.schema.elements.connection import (
     CONF_MAX_CONDUCTANCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_PRICE_SOURCE_TARGET,
+    CONF_SOURCE_TEMPERATURE,
     CONF_TARGET_TEMPERATURE,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
@@ -57,8 +58,8 @@ class ConnectionAdapter:
         A connection that draws from its target delivers its efficiency times its
         flow as a loss to the target rather than a gain, as a cooler removes heat.
         Conductances add segments that set or cap the flow by the difference in
-        level between the endpoints, with the target temperature, when given,
-        standing in for the target's own.
+        level between the endpoints, with a source or target temperature, when
+        given, standing in for that endpoint's own.
         """
         efficiency = config[SECTION_EFFICIENCY]
         efficiency_value = efficiency.get(CONF_EFFICIENCY_SOURCE_TARGET)
@@ -79,17 +80,20 @@ class ConnectionAdapter:
             "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_value},
         }
         level = config.get(SECTION_LEVEL, {})
+        source_temperature = level.get(CONF_SOURCE_TEMPERATURE)
         target_temperature = level.get(CONF_TARGET_TEMPERATURE)
         if (conductance := level.get(CONF_CONDUCTANCE)) is not None:
             segments["conduction"] = {
                 "segment_type": "conduction",
                 "conductance": conductance,
+                "source_level": source_temperature,
                 "target_level": target_temperature,
             }
         if (max_conductance := level.get(CONF_MAX_CONDUCTANCE)) is not None:
             segments["level_limit"] = {
                 "segment_type": "level_limit",
                 "conductance": max_conductance,
+                "source_level": source_temperature,
                 "target_level": target_temperature,
             }
         return [

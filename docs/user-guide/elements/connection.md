@@ -142,9 +142,21 @@ A conductance sets the flow by the difference in temperature between the source 
 - **Maximum conductance** caps the flow at the conductance times the temperature difference.
     Use it for a heat exchanger coil, which delivers less as the tank cools toward the water it heats.
 
-The source must have a temperature, as a thermal mass does.
-The target uses its own temperature, or the **Target temperature** when you set one,
+Each endpoint uses its own temperature, or the **Source temperature** or **Target temperature** when you set one,
 such as the cold inlet temperature for a coil feeding a tap junction.
+A maximum conductance is broken only at a high cost, when the source is already colder than the target.
+
+### Fresh-air damper
+
+A damper that lets outdoor air into a room moves heat in proportion to how far it is open and to the temperature difference.
+Model it as a connection from the room to a [node](node.md) that is a source and a sink, with:
+
+- **Maximum conductance**: the conductance with the damper fully open in periods where outdoor air can cool the room, and 0 elsewhere.
+    Air carries about 1.2 kW/°C per m³/s, so 300 L/s is 0.36 kW/°C.
+    A template sensor can give the conductance only where the outdoor forecast is below the room's minimum temperature.
+- **Target temperature**: the outdoor temperature forecast.
+
+HAEO plans the heat the damper moves, and the damper opening is that heat divided by the conductance times the temperature difference.
 
 ### Availability windows
 

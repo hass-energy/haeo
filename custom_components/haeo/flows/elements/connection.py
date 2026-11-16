@@ -15,6 +15,7 @@ from custom_components.haeo.core.schema.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_PRICE_SOURCE_TARGET,
     CONF_SOURCE,
+    CONF_SOURCE_TEMPERATURE,
     CONF_TARGET,
     CONF_TARGET_TEMPERATURE,
     ELEMENT_TYPE,
@@ -43,7 +44,14 @@ class ConnectionSubentryFlowHandler(SectionedElementSubentryFlow):
         pricing_section((CONF_PRICE_SOURCE_TARGET,), collapsed=False),
         efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_DRAWS_FROM_TARGET), collapsed=True),
         SectionDefinition(
-            key=SECTION_LEVEL, fields=(CONF_CONDUCTANCE, CONF_MAX_CONDUCTANCE, CONF_TARGET_TEMPERATURE), collapsed=True
+            key=SECTION_LEVEL,
+            fields=(
+                CONF_CONDUCTANCE,
+                CONF_MAX_CONDUCTANCE,
+                CONF_SOURCE_TEMPERATURE,
+                CONF_TARGET_TEMPERATURE,
+            ),
+            collapsed=True,
         ),
     )
 

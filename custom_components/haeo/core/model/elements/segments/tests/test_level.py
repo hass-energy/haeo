@@ -131,7 +131,7 @@ def test_level_limit_caps_delivery_by_the_level_difference() -> None:
             "target": "tap",
             "tags": {1},
             "segments": {
-                "level_limit": {"segment_type": "level_limit", "conductance": conductance},
+                "level_limit": {"segment_type": "level_limit", "conductance": conductance, "violation_price": 100.0},
                 # Hot water is worth more than anything else, so the plan draws all the coil allows
                 "pricing": {"segment_type": "pricing", "price": -1.0},
             },
@@ -216,7 +216,12 @@ def test_target_level_replaces_the_level_of_the_target() -> None:
             "target": "tap",
             "tags": {1},
             "segments": {
-                "level_limit": {"segment_type": "level_limit", "conductance": 1.0, "target_level": 40.0},
+                "level_limit": {
+                    "segment_type": "level_limit",
+                    "conductance": 1.0,
+                    "violation_price": 100.0,
+                    "target_level": 40.0,
+                },
                 "pricing": {"segment_type": "pricing", "price": -1.0},
             },
         }
@@ -225,3 +230,61 @@ def test_target_level_replaces_the_level_of_the_target() -> None:
     network.optimize()
 
     assert _flow(coil) == pytest.approx(_temperatures(tank) - 40.0)
+
+
+def test_level_limit_below_zero_costs_rather_than_forcing_levels_apart() -> None:
+    """A tank colder than the water its coil heats stays feasible, paying for the shortfall in its cap."""
+    network = Network(name="cold_tank", periods=np.array([1.0]))
+    tank = _store(network, "tank", 20.0)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "tap", "is_source": False, "level": 30.0})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "coil",
+            "source": "tank",
+            "target": "tap",
+            "tags": {1},
+            "segments": {
+                "level_limit": {"segment_type": "level_limit", "conductance": 0.5, "violation_price": 2.0},
+            },
+        }
+    )
+
+    cost = network.optimize()
+
+    assert _temperatures(tank) == pytest.approx([20.0])
+    # The cap is 0.5 kW/°C times -10 °C, so the plan pays for 5 kWh over it
+    assert cost == pytest.approx(10.0)
+
+
+def test_level_limit_with_no_conductance_constrains_no_level() -> None:
+    """A period whose conductance is zero allows no flow and costs nothing however the levels sit."""
+    network = Network(name="damper", periods=np.array([1.0, 1.0]))
+    room = _store(network, "room", 25.0)
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "outside"})
+    damper = network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "damper",
+            "source": "room",
+            "target": "outside",
+            "tags": {1},
+            "segments": {
+                "level_limit": {
+                    "segment_type": "level_limit",
+                    "conductance": np.array([0.5, 0.0]),
+                    "violation_price": 100.0,
+                    "target_level": np.array([20.0, 30.0]),
+                },
+                # Cooling the room is worth something, so the plan opens the damper wherever it can
+                "pricing": {"segment_type": "pricing", "price": -0.01},
+            },
+        }
+    )
+
+    cost = network.optimize()
+
+    flows = _flow(damper)
+    assert flows[0] == pytest.approx(0.5 * (_temperatures(room)[0] - 20.0))
+    assert flows[1] == pytest.approx(0.0)
+    assert cost == pytest.approx(-0.01 * flows[0])

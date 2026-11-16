@@ -250,11 +250,13 @@
               "data": {
                 "conductance": "Conductance",
                 "max_conductance": "Maximum conductance",
+                "source_temperature": "Source temperature",
                 "target_temperature": "Target temperature"
               },
               "data_description": {
                 "conductance": "Fix the flow at this conductance times the difference in temperature between source and target, in either direction",
                 "max_conductance": "Cap the flow at this conductance times the difference in temperature between source and target",
+                "source_temperature": "Temperature to use for the source in place of its own, such as the outdoor air a damper lets in",
                 "target_temperature": "Temperature to use for the target in place of its own, such as the cold water a coil heats"
               },
               "name": "Level-driven flow"
@@ -679,6 +681,7 @@
       "connection_max_conductance": { "name": "Maximum conductance" },
       "connection_max_power_source_target": { "name": "Max power" },
       "connection_price_source_target": { "name": "Price" },
+      "connection_source_temperature": { "name": "Source temperature" },
       "connection_target_temperature": { "name": "Target temperature" },
       "deferrable_load_deficit_price": { "name": "Shortfall price" },
       "deferrable_load_due": { "name": "Energy due" },
