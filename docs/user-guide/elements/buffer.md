@@ -132,19 +132,20 @@ HAEO plans on the forecasts you give it.
 Many forecasts publish a range alongside their expected values, such as Solcast's 10% and 90% estimates, and a buffer can use the cautious end of that range while the plan keeps working to the expected values.
 Create template sensors that carry the estimate you want in a [supported format](../forecasts-and-sensors.md#supported-forecast-formats), then pick them as the buffer's loads or generation instead of your load or solar.
 
-**A reserve for outages** is where this helps most.
-A reserve that counts on solar to keep the house running through an outage should count on a low estimate of it, so the reserve still holds enough on a cloudy day.
+**A reserve for outages** should count on a low solar estimate, so it still holds enough to run the house through an outage on a cloudy day.
 Pick a low solar estimate as its generation, and your house load as its loads.
 
-**A reserve against costly forecast misses**, such as a high consumption estimate and a low solar estimate over a day, makes HAEO lean toward keeping energy rather than selling it or leaving the battery low.
-Keep it soft:
+**A reserve for a bad day** uses a high consumption estimate and a low solar estimate, with a very low shortfall cost, such as 0.001 \$/kWh/h.
+Often several plans cost the same on the expected forecast, such as storing the morning's solar now or filling the battery from the afternoon's.
+This reserve makes HAEO pick the one that still leaves the battery ready if the day turns out worse, and costs next to nothing when the forecast is right.
+It matters most when the battery can only charge from solar: on a cloudy day, morning sun that was not stored cannot be made up later from the grid.
+When the battery can also charge from the grid, HAEO already tops it up as the day turns out, so there is little left for this reserve to protect.
 
-- **Shortfall cost**: 0.005 \$/kWh/h or less.
-    HAEO re-plans as the day turns out, so a forecast miss usually costs little, and this reserve guards against a day that may not come.
-- **Window**: check that the reserve's line on the [forecast card](../lovelace-card.md) stays below 100%.
-    The window moves forward with every point in the plan, so a window that always reaches the next evening keeps the line at full.
-    With a firm cost, HAEO then holds the battery full instead of using it through the evening, which costs more on every day, cloudy ones included.
+Keep its shortfall cost low and check that its line on the [forecast card](../lovelace-card.md) stays below 100%.
+The window moves forward with every point in the plan, so a long window keeps the line high through the evening.
+With a firm cost, HAEO then holds the battery full instead of using it through the evening, which costs more on every day, cloudy ones included.
 
+You can use both: a firmer reserve over your load and solar for outages, and a near-free one over the cautious estimates for a bad day.
 Headroom works the same way in the other direction: a high solar estimate keeps room for a sunny day.
 
 ## Input entities
