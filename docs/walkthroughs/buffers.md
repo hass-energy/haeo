@@ -90,7 +90,7 @@ Click **Buffer** to add one, choose **Reserve: keep energy** as its kind, then p
     With more than one battery, they hold it together.
 
 Loads and generation also take any power forecast, such as a high estimate of your consumption or a low estimate of your solar.
-The [buffer reference](../user-guide/elements/buffer.md#planning-for-forecast-error) shows how to use them to plan for the forecast being wrong.
+The [buffer reference](../user-guide/elements/buffer.md#planning-for-forecast-error) shows how to use them to plan for a forecast that turns out wrong, such as a reserve that holds through an outage on a cloudy day.
 
 Then set the requirement and the cost of falling short:
 
