@@ -61,7 +61,7 @@ def validate_buffer(hass: LiveHomeAssistant, *, name: str, kind: str, participan
         }
         storage = stored["storage"]
         assert isinstance(storage, (list, tuple))
-        return str(config["kind"]), {**named, "storage": [str(name) for name in storage]}
+        return str(config["kind"]), {**named, "storage": [str(battery) for battery in storage]}
 
     async def _get_forecast() -> list[object]:
         ha = hass.hass
