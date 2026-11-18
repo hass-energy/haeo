@@ -387,6 +387,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # awaits (which schedules its own reload) leak in without matching
         # stores, breaking config assembly.
         self._participant_configs: dict[str, ElementConfigSchema] = get_element_configs(
+            hass,
             config_entry,
             {
                 participant.name: participant.subentry.subentry_id

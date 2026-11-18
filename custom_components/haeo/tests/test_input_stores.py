@@ -5,10 +5,11 @@ from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from conftest import FakeEntityState, FakeStateMachine
+from conftest import FakeEntityState, FakeStateMachine, add_participant
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
@@ -284,3 +285,50 @@ async def test_build_input_stores_uses_the_full_field_hint(
 
     assert store.error is not None
     assert store.error.translation_key == "negative_input_value"
+
+
+@pytest.mark.parametrize(
+    ("loads", "sources"),
+    [
+        pytest.param(["sensor.house_power", "sensor.load_p90"], ["sensor.load_p90"], id="only_other_sensors_are_read"),
+        pytest.param(["sensor.house_power"], None, id="element_sensors_alone_need_no_store"),
+    ],
+)
+def test_build_input_stores_reads_only_sensors_that_do_not_stand_for_elements(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+    loads: list[str],
+    sources: list[str] | None,
+) -> None:
+    """A buffer's load sensor that belongs to one of the hub's loads takes part directly and is never read."""
+    house = add_participant(hass, config_entry, "House", ElementType.LOAD)
+    er.async_get(hass).async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{config_entry.entry_id}_{house.subentry_id}_power",
+        config_entry=config_entry,
+        config_subentry_id=house.subentry_id,
+        suggested_object_id="house_power",
+    )
+    buffer = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.BUFFER,
+                CONF_NAME: "Backup",
+                "kind": "reserve",
+                "participants": {"loads": as_entity_value(loads), "storage": ["Battery"]},
+                "requirement": {"window": as_constant_value(4.0)},
+                "pricing": {"shortfall_cost": as_constant_value(0.05)},
+            }
+        ),
+        subentry_type=ElementType.BUFFER,
+        title="Backup",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, buffer)
+
+    stores = build_input_stores(hass, config_entry, horizon_manager)
+
+    store = stores.get(("Backup", ("participants", "loads")))
+    assert (store.source_entity_ids if store is not None else None) == sources

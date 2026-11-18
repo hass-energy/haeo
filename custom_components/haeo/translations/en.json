@@ -196,8 +196,8 @@
             "participants": {
               "data": { "generation": "Generation", "loads": "Loads", "storage": "Batteries" },
               "data_description": {
-                "generation": "Generation that keeps producing through an outage for a reserve, or that headroom keeps space for.",
-                "loads": "Loads to keep running through an outage for a reserve, or that use some of the generation for headroom.",
+                "generation": "Generation that keeps producing through an outage for a reserve, or that headroom keeps space for. Pick a generator's power sensor to count its forecast, or any power forecast, such as a low estimate of your solar.",
+                "loads": "Loads to keep running through an outage for a reserve, or that use some of the generation for headroom. Pick a load's power sensor to count it as planned, or any power forecast, such as a high estimate of your consumption.",
                 "storage": "Batteries that hold the buffer together."
               },
               "name": "Participants"
@@ -596,7 +596,9 @@
       "battery_salvage_value": { "name": "Salvage value" },
       "battery_section_capacity": { "name": "Capacity" },
       "battery_section_initial_charge": { "name": "Initial charge" },
+      "buffer_generation": { "name": "Generation forecast" },
       "buffer_level": { "name": "Level" },
+      "buffer_loads": { "name": "Load forecast" },
       "buffer_shortfall_cost": { "name": "Shortfall cost" },
       "buffer_window": { "name": "Window" },
       "connection_efficiency_source_target": { "name": "Efficiency" },

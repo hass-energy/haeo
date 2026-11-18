@@ -10,6 +10,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo import elements as elements_module
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
@@ -263,3 +264,21 @@ def test_get_list_input_fields_builds_policy_rule_fields() -> None:
     assert f"{CONF_RULES}.0" in groups
     assert CONF_ENABLED in groups[f"{CONF_RULES}.0"]
     assert "price" in groups[f"{CONF_RULES}.0"]
+
+
+async def test_element_entities_maps_each_element_entity_to_its_current_name(hass: HomeAssistant, entity_registry: er.EntityRegistry) -> None:
+    """Entities belong to an element through its subentry, so a renamed element is named as it is now."""
+    entry = MockConfigEntry(domain=DOMAIN, data={CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB})
+    entry.add_to_hass(hass)
+    subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: ElementType.LOAD, CONF_NAME: "House"}),
+        subentry_type=ElementType.LOAD,
+        title="House",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, subentry)
+    power = entity_registry.async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_power", config_entry=entry, config_subentry_id=subentry.subentry_id)
+    entity_registry.async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_horizon", config_entry=entry)
+    hass.config_entries.async_update_subentry(entry, subentry, title="Main house")
+
+    assert elements_module.element_entities(hass, entry) == {power.entity_id: "Main house"}

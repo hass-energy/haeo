@@ -24,8 +24,8 @@ You can add as many buffers as you like, for example a reserve for essential loa
 | ------------------------------------- | ---------------------------------------- | -------- | ------- | ---------------------------------------------------------------- |
 | **[Name](#name)**                     | String                                   | Yes      | -       | Unique identifier for this buffer                                |
 | **[Kind](#kind)**                     | Reserve or headroom                      | Yes      | -       | Whether the buffer keeps energy or empty space                   |
-| **[Loads](#loads)**                   | Elements                                 | No       | -       | Loads the buffer covers                                          |
-| **[Generation](#generation)**         | Elements                                 | No       | -       | Generation the buffer covers                                     |
+| **[Loads](#loads)**                   | [sensor(s)](../forecasts-and-sensors.md) | No       | -       | Loads the buffer covers                                          |
+| **[Generation](#generation)**         | [sensor(s)](../forecasts-and-sensors.md) | No       | -       | Generation the buffer covers                                     |
 | **[Batteries](#batteries)**           | Elements                                 | Yes      | -       | Batteries that hold the buffer together                          |
 | **[Window](#window)**                 | [sensor](../forecasts-and-sensors.md)    | Yes      | 12      | How far ahead the buffer looks (hours)                           |
 | **[Level](#level)**                   | [sensor(s)](../forecasts-and-sensors.md) | No       | -       | Charge level the buffer is measured from (%)                     |
@@ -46,19 +46,27 @@ The other fields mean the same for both kinds, mirrored.
 
 ## Loads
 
-The loads the buffer covers.
+The loads the buffer covers, as power sensors.
 A reserve keeps them running through an outage, and for headroom they use some of the generation before it reaches the batteries.
-Loads count by the power HAEO plans for them, so a load whose timing HAEO chooses moves the buffer with its schedule.
+
+Pick a load's own power sensor, such as your house load's power, to cover that load.
+It then counts by the power HAEO plans for it, so a load whose timing HAEO chooses moves the buffer with its schedule.
 A load that HAEO plans to leave short, such as an EV trip it expects you to top up publicly, still counts by the energy it needs, so leaving it short cannot shrink the buffer.
+
+Any other power sensor counts by its forecast, as it would for a [load](load.md#forecast).
+Use one to cover a circuit you do not model as a load, such as essential loads on a backup circuit, or to [plan for forecast error](#planning-for-forecast-error).
+Pick either a load's sensor or a forecast of the same load, not both, or the buffer counts it twice.
 
 ## Generation
 
-The generation the buffer covers.
+The generation the buffer covers, as power sensors.
 For a reserve it is generation that keeps producing during an outage, such as solar with an inverter that keeps running off grid.
 For headroom it is the generation the batteries should have room for.
 
-Generation counts by what it is forecast to produce, not what HAEO plans to use.
+Pick a generator's own power sensor, such as your solar's power, to cover it.
+It counts by what it is forecast to produce, not what HAEO plans to use.
 That way curtailing solar in the plan cannot remove the need for room it was meant to guarantee.
+Any other power sensor counts by its forecast, such as a low estimate of your solar.
 Within a window, a surplus offsets a need that comes after it, but not one before it.
 
 ## Batteries
@@ -118,17 +126,37 @@ Set it high to treat the buffer as nearly untouchable.
 The cost stops at the end of the forecast horizon, so a shortfall that starts near the end costs little.
 Use the battery's [salvage value](battery.md#salvage-value) to value the energy left at the end of the horizon.
 
+## Planning for forecast error
+
+HAEO plans on the forecasts you give it, so a cloudy day or a busy evening it did not expect can leave the battery emptier than planned.
+A reserve built from pessimistic forecasts makes HAEO hold back some energy for that case, rather than selling it or leaving the battery to run low.
+
+Many forecasts publish a range alongside their expected values, such as Solcast's 10% and 90% estimates.
+Create template sensors that carry the pessimistic end of the range in a [supported format](../forecasts-and-sensors.md#supported-forecast-formats): a high estimate of your consumption and a low estimate of your solar.
+Then add a reserve with those sensors as its loads and generation, instead of your load and solar.
+
+- **Window**: long enough to reach the next time the battery can refill cheaply, such as 24 hours.
+- **Shortfall cost**: low, such as 0.005 to 0.02 \$/kWh/h.
+    This reserve covers a day that may not come, so it should nudge the plan rather than hold the battery full.
+    A high cost keeps the battery charged for a bad day every day, which costs more on the days that turn out fine.
+
+The plan still works to your expected forecasts, and only leans toward keeping energy when using it now would leave little for a bad day.
+You can add more than one, such as a firmer reserve over the next few hours and a softer one over the whole day.
+Headroom works the same way in the other direction: an optimistic forecast of high solar and low consumption keeps room for a sunny day.
+
 ## Input entities
 
 Each field you configure creates an input entity on the buffer's device.
 Input entities appear as Number entities with the `config` entity category.
 Their IDs combine the buffer's name with the entity's name, so a buffer named "Backup Reserve" has `number.backup_reserve_window`.
 
-| Input                          | Unit     | Description           |
-| ------------------------------ | -------- | --------------------- |
-| `number.{name}_window`         | h        | Window                |
-| `number.{name}_level`          | %        | Level (if configured) |
-| `number.{name}_shortfall_cost` | \$/kWh/h | Shortfall cost        |
+| Input                               | Unit     | Description                                                              |
+| ----------------------------------- | -------- | ------------------------------------------------------------------------ |
+| `number.{name}_load_forecast`       | kW       | Forecast of the load sensors that are not a load's own sensor            |
+| `number.{name}_generation_forecast` | kW       | Forecast of the generation sensors that are not a generator's own sensor |
+| `number.{name}_window`              | h        | Window                                                                   |
+| `number.{name}_level`               | %        | Level (if configured)                                                    |
+| `number.{name}_shortfall_cost`      | \$/kWh/h | Shortfall cost                                                           |
 
 A field set to "Constant" can be adjusted from its input entity at runtime.
 

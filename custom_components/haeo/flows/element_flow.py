@@ -98,7 +98,12 @@ def build_inclusion_map(
         if reads_calendar(field_info):
             result[field_info.field_name] = calendars
         elif unit_spec is not None:
-            compatible = filter_compatible_entities(entity_metadata, unit_spec)
+            offered = [
+                metadata
+                for metadata in entity_metadata
+                if not metadata.element_roles or field_info.element_role in metadata.element_roles
+            ]
+            compatible = filter_compatible_entities(offered, unit_spec)
             included = [eid for eid in compatible if eid in totals] if field_info.meter is not None else compatible
             result[field_info.field_name] = (
                 [*included, *calendars] if accepts_calendar_forecast(field_info) else included

@@ -68,6 +68,8 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         source_field: For an input fed by another config field, that field's name
         meter: When set, the field reads meters, so it only offers sensors whose
             recorded statistics keep a running total
+        element_role: When set, the field also offers the sensors of the hub's
+            own elements that take this role in a buffer
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -89,6 +91,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     outputs: "Mapping[str, AnyInputFieldInfo] | None" = None
     source_field: str | None = None
     meter: MeterFieldHint | None = None
+    element_role: str | None = None
 
 
 # Union of the two concrete field-info instantiations; use when handling

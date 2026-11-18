@@ -300,7 +300,7 @@ def test_get_element_configs_raises_for_invalid_element_type(
     hass.config_entries.async_add_subentry(mock_hub_entry, invalid_subentry)
 
     with pytest.raises(ValueError, match="Subentry 'Invalid Element' failed config validation"):
-        get_element_configs(mock_hub_entry, {"Invalid Element": invalid_subentry.subentry_id})
+        get_element_configs(hass, mock_hub_entry, {"Invalid Element": invalid_subentry.subentry_id})
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")

@@ -129,6 +129,8 @@ def test_reserve_buffer_counts_the_planned_load() -> None:
             "kind": "reserve",
             "loads": ["load"],
             "generation": [],
+            "load_forecast": 0.0,
+            "generation_forecast": 0.0,
             "storage": ["battery"],
             "window": 1.0,
             "level": None,

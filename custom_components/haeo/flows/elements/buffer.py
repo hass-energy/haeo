@@ -12,7 +12,6 @@ from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.buffer import (
     BUFFER_KINDS,
-    BUFFER_ROLES,
     CONF_GENERATION,
     CONF_KIND,
     CONF_LEVEL,
@@ -24,7 +23,6 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_PARTICIPANTS,
     SECTION_PRICING,
     SECTION_REQUIREMENT,
-    BufferRole,
 )
 from custom_components.haeo.flows.field_schema import SectionDefinition, as_mapping
 from custom_components.haeo.flows.sectioned_flow import FieldEntries, SectionedElementSubentryFlow
@@ -66,20 +64,18 @@ class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
         entity_metadata: list[EntityMetadata],
         shown_data: Mapping[str, object] | None,
     ) -> dict[str, FieldEntries]:
-        """Add a multi-select of elements for each participant list."""
+        """Add a multi-select of the batteries that can hold the buffer."""
         return {
             **super()._section_entries(subentry_data, entity_metadata, shown_data),
-            SECTION_PARTICIPANTS: {
-                field: (vol.Optional(field), self._participant_selector(field)) for field in BUFFER_ROLES
-            },
+            SECTION_PARTICIPANTS: {CONF_STORAGE: (vol.Optional(CONF_STORAGE), self._storage_selector())},
         }
 
     def _section_defaults(self, subentry_data: Mapping[str, object] | None) -> dict[str, dict[str, object]]:
-        """Add the stored participant lists."""
+        """Add the stored batteries."""
         participants = as_mapping(subentry_data.get(SECTION_PARTICIPANTS)) if subentry_data else {}
         return {
             **super()._section_defaults(subentry_data),
-            SECTION_PARTICIPANTS: {field: participants.get(field, []) for field in BUFFER_ROLES},
+            SECTION_PARTICIPANTS: {CONF_STORAGE: participants.get(CONF_STORAGE, [])},
         }
 
     def _validate_fields(self, user_input: Mapping[str, object], errors: dict[str, str]) -> None:
@@ -90,26 +86,16 @@ class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
     def _config_fields(
         self, user_input: Mapping[str, object], sections: Mapping[str, Mapping[str, object]]
     ) -> dict[str, object]:
-        """Return the kind and the non-empty participant lists."""
+        """Return the kind."""
         _ = sections
-        participants = as_mapping(user_input.get(SECTION_PARTICIPANTS))
-        return {
-            CONF_KIND: user_input[CONF_KIND],
-            SECTION_PARTICIPANTS: {
-                field: list(values)
-                for field in BUFFER_ROLES
-                if isinstance(values := participants.get(field), list) and values
-            },
-        }
+        return {CONF_KIND: user_input[CONF_KIND]}
 
-    def _participant_selector(self, field: BufferRole) -> Selector[SelectSelectorConfig]:
-        """Build a multi-select of the elements that can take a participant list's role."""
-        current_id = self._get_current_subentry_id()
+    def _storage_selector(self) -> Selector[SelectSelectorConfig]:
+        """Build a multi-select of the elements that can hold the buffer."""
         options = [
             subentry.title
             for subentry in self._get_entry().subentries.values()
-            if subentry.subentry_id != current_id
-            and is_element_type(subentry.subentry_type)
-            and field in ELEMENT_TYPES[subentry.subentry_type].buffer_roles
+            if is_element_type(subentry.subentry_type)
+            and CONF_STORAGE in ELEMENT_TYPES[subentry.subentry_type].buffer_roles
         ]
         return SelectSelector(SelectSelectorConfig(options=options, multiple=True, mode=SelectSelectorMode.DROPDOWN))

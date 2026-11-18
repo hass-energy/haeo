@@ -1130,3 +1130,106 @@ def test_scalar_field_of_a_forecast_sensor_without_a_reading_is_unavailable(stat
     )
 
     assert cl.resolve_field(as_entity_value(["sensor.soc"]), _SOC_SCALAR_HINT, sm, FORECAST_TIMES) is None
+
+
+# -- fields that name elements by their sensors --
+
+
+def _buffer_naming(loads: object, generation: object | None = None) -> dict[str, object]:
+    participants: dict[str, object] = {"loads": loads, "storage": ["Battery"]}
+    if generation is not None:
+        participants["generation"] = generation
+    return {
+        "element_type": "buffer",
+        "name": "Backup",
+        "kind": "reserve",
+        "participants": participants,
+        "requirement": {"window": as_constant_value(4.0)},
+        "pricing": {"shortfall_cost": as_constant_value(0.05)},
+    }
+
+
+ELEMENT_ENTITIES = {"sensor.house_power": "House", "sensor.solar_power": "Solar", "number.house_forecast": "House"}
+
+
+@pytest.mark.parametrize(
+    ("loads", "expected"),
+    [
+        pytest.param(
+            as_entity_value(["sensor.house_power", "sensor.load_p90"]),
+            {**as_entity_value(["sensor.load_p90"]), "elements": ["House"]},
+            id="element_sensor_moves_to_elements",
+        ),
+        pytest.param(
+            as_entity_value(["sensor.house_power", "number.house_forecast"]),
+            {**as_entity_value([]), "elements": ["House"]},
+            id="sensors_of_one_element_name_it_once",
+        ),
+        pytest.param(
+            {**as_entity_value(["sensor.solar_power"]), "elements": ["Pool pump"]},
+            {**as_entity_value([]), "elements": ["Pool pump", "Solar"]},
+            id="elements_named_directly_are_kept",
+        ),
+        pytest.param(as_constant_value(1.5), as_constant_value(1.5), id="constant_is_untouched"),
+    ],
+)
+def test_resolve_element_entities_moves_the_sensors_of_elements_into_elements(loads: object, expected: object) -> None:
+    """Sensors that stand for elements become element names, and other sensors stay to be read."""
+    resolved = cl.resolve_element_entities(_buffer_naming(loads), ELEMENT_ENTITIES)  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    assert _dict(resolved["participants"])["loads"] == expected
+
+
+def test_resolve_element_entities_leaves_fields_without_an_element_role() -> None:
+    """Only fields with an element role can name elements, so an element's sensor elsewhere is read as a sensor."""
+    config = _buffer_naming(as_entity_value(["sensor.load_p90"]))
+    config["requirement"] = {"window": as_entity_value(["sensor.house_power"])}
+
+    resolved = cl.resolve_element_entities(config, ELEMENT_ENTITIES)  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    assert resolved["requirement"] == {"window": as_entity_value(["sensor.house_power"])}
+
+
+@pytest.mark.parametrize(
+    ("loads", "expected"),
+    [
+        pytest.param(
+            as_entity_value(["sensor.house_power", "sensor.load_p90"]),
+            {"elements": ["House"], "value": [2.0, 2.0, 2.0]},
+            id="elements_and_forecast",
+        ),
+        pytest.param(as_entity_value(["sensor.house_power"]), {"elements": ["House"]}, id="only_elements"),
+        pytest.param(
+            as_entity_value(["sensor.load_p90"]), {"elements": [], "value": [2.0, 2.0, 2.0]}, id="only_forecast"
+        ),
+    ],
+)
+def test_field_naming_elements_loads_its_elements_and_the_forecast_of_its_other_sensors(
+    loads: EntityValue, expected: dict[str, object]
+) -> None:
+    """A load sensor of an element names the element, and the other sensors load as one forecast."""
+    config = cl.resolve_element_entities(_buffer_naming(loads), ELEMENT_ENTITIES)  # type: ignore[arg-type]  # fixtures use loose dicts
+    sm = FakeStateMachine(
+        {
+            "sensor.load_p90": FakeEntityState(
+                entity_id="sensor.load_p90", state="2.0", attributes={"unit_of_measurement": "kW"}
+            )
+        }
+    )
+
+    result = _dict(load_element_config("Backup", config, sm, FORECAST_TIMES))
+
+    loaded = _dict(_dict(result["participants"])["loads"])
+    assert {key: np.asarray(value).tolist() if key == "value" else value for key, value in loaded.items()} == expected
+    assert "generation" not in _dict(result["participants"])
+
+
+def test_unresolved_element_sensor_is_read_as_a_sensor() -> None:
+    """Without the map of element sensors, an element's sensor is an ordinary input that must have data."""
+    with pytest.raises(InputsUnavailableError):
+        load_element_config(
+            "Backup",
+            _buffer_naming(as_entity_value(["sensor.house_power"])),  # type: ignore[arg-type]  # fixtures use loose dicts
+            FakeStateMachine({}),
+            FORECAST_TIMES,
+        )

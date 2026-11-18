@@ -14,7 +14,7 @@ import pytest
 
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
-from custom_components.haeo.core.schema import as_constant_value
+from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, battery
 from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from tools.diag import cli as diag
@@ -449,3 +449,31 @@ def test_migrate_participants_for_diag_migrates_a_v1_4_export_without_a_horizon(
     migrated = diag.migrate_participants_for_diag(config, {"Switchboard": switchboard})
 
     assert migrated["Switchboard"]["element_type"] == ElementType.JUNCTION
+
+
+@pytest.mark.parametrize(
+    ("minor_version", "expected_loads"),
+    [
+        pytest.param(6, {**as_entity_value([]), "elements": ["House"]}, id="before_v1_7_names_elements_directly"),
+        pytest.param(7, {**as_entity_value([]), "elements": ["House"]}, id="current_export_passes_through"),
+    ],
+)
+def test_migrate_participants_for_diag_names_buffer_elements_directly(
+    minor_version: int, expected_loads: dict[str, object]
+) -> None:
+    """A buffer listing its loads by name is read as naming them directly, as a current export records them."""
+    listed = ["House"] if minor_version < 7 else {**as_entity_value([]), "elements": ["House"]}
+    buffer: dict[str, object] = {
+        "element_type": ElementType.BUFFER,
+        "name": "Backup",
+        "kind": "reserve",
+        "participants": {"loads": listed, "storage": ["Battery"]},
+    }
+    config: dict[str, JsonValueType] = {
+        "minor_version": minor_version,
+        "common": {"name": "Home", "horizon": {"type": "preset", "value": "5_days"}},
+    }
+
+    migrated = diag.migrate_participants_for_diag(config, {"Backup": buffer})
+
+    assert migrated["Backup"]["participants"] == {"loads": expected_loads, "storage": ["Battery"]}

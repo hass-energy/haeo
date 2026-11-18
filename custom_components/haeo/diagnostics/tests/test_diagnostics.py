@@ -818,7 +818,7 @@ def test_collect_entity_ids_from_entry_with_battery_subentry(hass: HomeAssistant
     )
     hass.config_entries.async_add_subentry(entry, battery_subentry)
 
-    entity_ids = _collect_entity_ids_from_entry(entry)
+    entity_ids = _collect_entity_ids_from_entry(hass, entry)
 
     assert "sensor.battery_capacity" in entity_ids
     assert "sensor.battery_soc" in entity_ids
@@ -841,7 +841,7 @@ def test_collect_entity_ids_from_entry_skips_network_subentry(hass: HomeAssistan
     )
     hass.config_entries.async_add_subentry(entry, network_subentry)
 
-    entity_ids = _collect_entity_ids_from_entry(entry)
+    entity_ids = _collect_entity_ids_from_entry(hass, entry)
     assert entity_ids == set()
 
 
@@ -862,7 +862,7 @@ def test_collect_entity_ids_from_entry_skips_invalid_element(hass: HomeAssistant
     )
     hass.config_entries.async_add_subentry(entry, invalid_subentry)
 
-    entity_ids = _collect_entity_ids_from_entry(entry)
+    entity_ids = _collect_entity_ids_from_entry(hass, entry)
     assert entity_ids == set()
 
 
@@ -1384,3 +1384,46 @@ async def test_fetch_inputs_at_keeps_only_the_meter_totals_the_open_window_reads
     capacity = next(inp for inp in inputs if inp["entity_id"] == "sensor.battery_capacity")["attributes"]
     assert isinstance(capacity, Mapping)
     assert capacity[METER_TOTALS_ATTRIBUTE] == [week[1], week[-1]]
+
+
+def test_historical_diagnostics_do_not_fetch_the_sensors_of_buffer_elements(hass: HomeAssistant) -> None:
+    """A buffer's load sensor that belongs to one of the hub's loads stands for the load, so it is not fetched."""
+    entry = MockConfigEntry(domain=DOMAIN, data=_hub_entry_data(), entry_id="hub_entry")
+    entry.add_to_hass(hass)
+    house = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: ElementType.LOAD, CONF_NAME: "House"}),
+        subentry_type=ElementType.LOAD,
+        title="House",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, house)
+    house_power = (
+        er.async_get(hass)
+        .async_get_or_create(
+            "sensor",
+            DOMAIN,
+            f"{entry.entry_id}_{house.subentry_id}_power",
+            config_entry=entry,
+            config_subentry_id=house.subentry_id,
+            suggested_object_id="house_power",
+        )
+        .entity_id
+    )
+    buffer = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.BUFFER,
+                CONF_NAME: "Backup",
+                "kind": "reserve",
+                "participants": {"loads": as_entity_value([house_power, "sensor.load_p90"]), "storage": ["House"]},
+                "requirement": {"window": as_constant_value(4.0)},
+                "pricing": {"shortfall_cost": as_constant_value(0.05)},
+            }
+        ),
+        subentry_type=ElementType.BUFFER,
+        title="Backup",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, buffer)
+
+    assert _collect_entity_ids_from_entry(hass, entry) == {"sensor.load_p90"}

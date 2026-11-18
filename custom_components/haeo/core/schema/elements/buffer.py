@@ -3,6 +3,10 @@
 A buffer keeps energy (a reserve) or empty space (headroom) in a group of
 batteries, for a group of loads and generation over a window of time, measured
 from a level of the batteries' charge.
+
+Loads and generation are power sensors. A sensor of one of the hub's own load
+or generation elements stands for that element, which then takes part through
+its planned flows.
 """
 
 from collections.abc import Callable, Mapping
@@ -14,8 +18,8 @@ from numpy.typing import NDArray
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.constant_value import ConstantValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.entity_value import EntityValue
-from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
+from custom_components.haeo.core.schema.entity_value import EntityValue, is_entity_value
+from custom_components.haeo.core.schema.field_hints import ElementsData, FieldHint, SectionHints
 from custom_components.haeo.core.schema.none_value import NoneValue
 
 ELEMENT_TYPE = ElementType.BUFFER
@@ -45,10 +49,18 @@ BUFFER_KINDS: Final[tuple[BufferKind, ...]] = (KIND_RESERVE, KIND_HEADROOM)
 
 
 class ParticipantsConfig(TypedDict):
-    """Elements the buffer covers and the batteries that hold it."""
+    """Loads and generation the buffer covers and the batteries that hold it."""
 
-    loads: NotRequired[list[str]]
-    generation: NotRequired[list[str]]
+    loads: NotRequired[EntityValue | ConstantValue | NoneValue]
+    generation: NotRequired[EntityValue | ConstantValue | NoneValue]
+    storage: list[str]
+
+
+class ParticipantsData(TypedDict):
+    """Loaded participants: the elements named and the power of the other sensors."""
+
+    loads: NotRequired[ElementsData]
+    generation: NotRequired[ElementsData]
     storage: list[str]
 
 
@@ -84,7 +96,25 @@ class BufferConfigSchema(TypedDict):
     element_type: Literal[ElementType.BUFFER]
     name: str
     kind: BufferKind
-    participants: ParticipantsConfig
+    participants: Annotated[
+        ParticipantsConfig,
+        SectionHints(
+            {
+                CONF_LOADS: FieldHint(
+                    output_type=OutputType.POWER,
+                    direction="-",
+                    time_series=True,
+                    element_role=CONF_LOADS,
+                ),
+                CONF_GENERATION: FieldHint(
+                    output_type=OutputType.POWER,
+                    direction="+",
+                    time_series=True,
+                    element_role=CONF_GENERATION,
+                ),
+            }
+        ),
+    ]
     requirement: Annotated[
         RequirementConfig,
         SectionHints(
@@ -125,22 +155,29 @@ class BufferConfigData(TypedDict):
     element_type: Literal[ElementType.BUFFER]
     name: str
     kind: BufferKind
-    participants: ParticipantsConfig
+    participants: ParticipantsData
     requirement: RequirementData
     pricing: BufferPricingData
 
 
 def map_references(config: Mapping[str, object], resolve: Callable[[str], str]) -> dict[str, object]:
-    """Return the buffer with each participant replaced by what resolve returns for it.
+    """Return the buffer with each element it names replaced by what resolve returns for it.
 
-    A participant renamed to a name its list already holds is listed once.
+    It names batteries in a list, and loads and generation in the ``elements``
+    of their sensor fields. Sensors that stand for elements keep their entity
+    IDs when an element is renamed, so they are left as they are. An element
+    renamed to a name its list already holds is listed once.
     """
     participants = config[SECTION_PARTICIPANTS]
-    mapped = {
-        role: list(dict.fromkeys(resolve(name) for name in names))
-        for role, names in (participants.items() if isinstance(participants, Mapping) else ())
-        if isinstance(names, list)
-    }
+    if not isinstance(participants, Mapping):
+        return dict(config)
+    mapped: dict[str, object] = dict(participants)
+    if isinstance(storage := participants.get(CONF_STORAGE), list):
+        mapped[CONF_STORAGE] = list(dict.fromkeys(resolve(name) for name in storage))
+    for role in (CONF_LOADS, CONF_GENERATION):
+        value = participants.get(role)
+        if is_entity_value(value) and "elements" in value:
+            mapped[role] = {**value, "elements": list(dict.fromkeys(resolve(name) for name in value["elements"]))}
     return {**config, SECTION_PARTICIPANTS: mapped}
 
 
@@ -167,6 +204,7 @@ __all__ = [
     "BufferPricingData",
     "BufferRole",
     "ParticipantsConfig",
+    "ParticipantsData",
     "RequirementConfig",
     "RequirementData",
     "map_references",

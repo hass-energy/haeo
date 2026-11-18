@@ -513,6 +513,8 @@ def _buffered_home_network(buffers: dict[str, _BufferSpec], *, trip_periods: tup
                 "name": name,
                 "kind": "reserve",
                 "generation": [],
+                "load_forecast": 0.0,
+                "generation_forecast": 0.0,
                 "price": 1.0,
                 **spec,
             }
