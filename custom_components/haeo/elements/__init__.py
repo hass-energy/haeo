@@ -27,7 +27,9 @@ from collections.abc import Mapping, MutableSequence, Sequence
 import logging
 from typing import Final, NamedTuple, TypeAliasType, get_type_hints
 
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
@@ -248,6 +250,27 @@ def element_entities(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, str]:
     }
 
 
+def element_sensors(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, str]:
+    """Return an entity that stands for each of the hub's elements, by element name.
+
+    It is the element's first power sensor by unique ID, which is its main power
+    output, or its first entity of any kind when it has no power sensor.
+    """
+    names = element_entities(hass, entry)
+    registry = er.async_get(hass)
+    entities = sorted(
+        (entity for entity in er.async_entries_for_config_entry(registry, entry.entry_id) if entity.entity_id in names),
+        key=lambda entity: (
+            not (entity.domain == SENSOR_DOMAIN and entity.unit_of_measurement == UnitOfPower.KILO_WATT),
+            entity.unique_id,
+        ),
+    )
+    sensors: dict[str, str] = {}
+    for entity in entities:
+        sensors.setdefault(names[entity.entity_id], entity.entity_id)
+    return sensors
+
+
 def get_element_configs(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -443,6 +466,7 @@ __all__ = [
     "collect_element_subentries",
     "config_field_path",
     "element_entities",
+    "element_sensors",
     "find_nested_config_path",
     "get_element_configs",
     "get_input_field_schema_info",

@@ -28,12 +28,17 @@ def _add(hass: HomeAssistant, entry: MockConfigEntry, name: str, data: dict[str,
 
 
 def _sensor(
-    hass: HomeAssistant, entry: MockConfigEntry, subentry: ConfigSubentry, output: str, unit: str | None
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    subentry: ConfigSubentry,
+    output: str,
+    unit: str | None,
+    domain: str = "sensor",
 ) -> str:
     return (
         er.async_get(hass)
         .async_get_or_create(
-            "sensor",
+            domain,
             DOMAIN,
             element_output_unique_id(entry.entry_id, subentry.subentry_id, subentry.subentry_type, output),
             config_entry=entry,
@@ -46,12 +51,14 @@ def _sensor(
 
 
 async def test_buffer_names_its_loads_and_generation_by_their_power_sensors(hass: HomeAssistant) -> None:
-    """Each listed element is named by its first power sensor, and one without a power sensor directly."""
+    """Each listed element is named by its main power sensor, or another entity, or directly when it has none."""
     entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=6)
     entry.add_to_hass(hass)
     house = _add(hass, entry, "House", {CONF_ELEMENT_TYPE: ElementType.LOAD})
     solar = _add(hass, entry, "Solar", {CONF_ELEMENT_TYPE: ElementType.SOLAR})
     _add(hass, entry, "Pool pump", {CONF_ELEMENT_TYPE: ElementType.DEFERRABLE_LOAD})
+    heater = _add(hass, entry, "Heater", {CONF_ELEMENT_TYPE: ElementType.LOAD})
+    heater_forecast = _sensor(hass, entry, heater, "forecast", UnitOfPower.KILO_WATT, domain="number")
     _sensor(hass, entry, house, "load_shadow_price", "$/kWh")
     house_power = _sensor(hass, entry, house, "load_power", UnitOfPower.KILO_WATT)
     solar_power = _sensor(hass, entry, solar, "solar_power", UnitOfPower.KILO_WATT)
@@ -63,7 +70,11 @@ async def test_buffer_names_its_loads_and_generation_by_their_power_sensors(hass
         {
             CONF_ELEMENT_TYPE: ElementType.BUFFER,
             "kind": "reserve",
-            "participants": {"loads": ["House", "Pool pump"], "generation": ["Solar"], "storage": ["Battery"]},
+            "participants": {
+                "loads": ["House", "Heater", "Pool pump"],
+                "generation": ["Solar"],
+                "storage": ["Battery"],
+            },
         },
     )
 
@@ -71,8 +82,24 @@ async def test_buffer_names_its_loads_and_generation_by_their_power_sensors(hass
 
     assert entry.minor_version == v1_7.MINOR_VERSION
     assert entry.subentries[buffer.subentry_id].data["participants"] == {
-        "loads": {**as_entity_value([house_power]), "elements": ["Pool pump"]},
+        "loads": {**as_entity_value([house_power, heater_forecast]), "elements": ["Pool pump"]},
         "generation": as_entity_value([solar_power]),
         "storage": ["Battery"],
     }
     assert entry.subentries[house.subentry_id].data == house.data
+
+
+async def test_buffer_without_listed_elements_is_left_alone(hass: HomeAssistant) -> None:
+    """A buffer that lists no loads or generation is not rewritten."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=6)
+    entry.add_to_hass(hass)
+    buffer = _add(
+        hass,
+        entry,
+        "Battery care",
+        {CONF_ELEMENT_TYPE: ElementType.BUFFER, "kind": "headroom", "participants": {"storage": ["Battery"]}},
+    )
+
+    assert await v1_7.async_migrate_entry(hass, entry)
+
+    assert entry.subentries[buffer.subentry_id].data is buffer.data

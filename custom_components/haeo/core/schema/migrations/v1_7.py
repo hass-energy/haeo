@@ -44,10 +44,10 @@ def migrate_element_config(
     if config.get(CONF_ELEMENT_TYPE) != ElementType.BUFFER:
         return None
     participants = section_dict(config, SECTION_PARTICIPANTS)
-    for role in _ROLES:
-        names = _listed_names(participants.get(role))
-        if names is None:
-            continue
+    listed = {role: names for role in _ROLES if (names := _listed_names(participants.get(role))) is not None}
+    if not listed:
+        return None
+    for role, names in listed.items():
         del participants[role]
         if not names:
             continue

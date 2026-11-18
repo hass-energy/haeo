@@ -37,8 +37,12 @@ def _buffer(participants: dict[str, object]) -> dict[str, object]:
             id="empty_lists_are_dropped",
         ),
         pytest.param(
-            {"loads": as_entity_value(["sensor.load_p90"]), "storage": ["Battery"]},
-            {"loads": as_entity_value(["sensor.load_p90"]), "storage": ["Battery"]},
+            {"loads": as_entity_value(["sensor.load_p90"]), "generation": ["Solar"], "storage": ["Battery"]},
+            {
+                "loads": as_entity_value(["sensor.load_p90"]),
+                "generation": as_entity_value(["sensor.solar_power"]),
+                "storage": ["Battery"],
+            },
             id="sensor_fields_are_kept",
         ),
     ],
@@ -54,6 +58,17 @@ def test_buffer_names_its_loads_and_generation_by_sensor(
     assert migrated[CONF_NAME] == "Backup"
 
 
-def test_other_elements_are_left_alone() -> None:
-    """Only buffers list loads and generation."""
-    assert migrate_element_config({CONF_ELEMENT_TYPE: ElementType.LOAD, CONF_NAME: "House"}, SENSORS) is None
+@pytest.mark.parametrize(
+    "config",
+    [
+        pytest.param({CONF_ELEMENT_TYPE: ElementType.LOAD, CONF_NAME: "House"}, id="not_a_buffer"),
+        pytest.param(_buffer({"storage": ["Battery"]}), id="buffer_without_loads_or_generation"),
+        pytest.param(
+            _buffer({"loads": as_entity_value(["sensor.house_power"]), "storage": ["Battery"]}),
+            id="buffer_already_naming_sensors",
+        ),
+    ],
+)
+def test_configs_that_list_no_elements_are_left_alone(config: dict[str, object]) -> None:
+    """Only a buffer that lists its loads or generation by name changes."""
+    assert migrate_element_config(config, SENSORS) is None

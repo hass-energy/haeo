@@ -9,6 +9,7 @@ import voluptuous as vol
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
+from custom_components.haeo.core.schema import as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.buffer import (
     BUFFER_KINDS,
@@ -24,6 +25,7 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_PRICING,
     SECTION_REQUIREMENT,
 )
+from custom_components.haeo.elements import InputFieldGroups, element_sensors
 from custom_components.haeo.flows.field_schema import SectionDefinition, as_mapping
 from custom_components.haeo.flows.sectioned_flow import FieldEntries, SectionedElementSubentryFlow
 
@@ -77,6 +79,37 @@ class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
             **super()._section_defaults(subentry_data),
             SECTION_PARTICIPANTS: {CONF_STORAGE: participants.get(CONF_STORAGE, [])},
         }
+
+    def _stored_form_data(self, subentry_data: Mapping[str, object] | None) -> dict[str, object] | None:
+        """Return the stored config for the form, with elements named directly shown by their sensors."""
+        return super()._stored_form_data(self._with_element_sensors(subentry_data))
+
+    def _build_defaults(
+        self,
+        default_name: str,
+        input_fields: InputFieldGroups,
+        subentry_data: Mapping[str, object] | None = None,
+    ) -> dict[str, object]:
+        """Return the form defaults, with elements named directly shown by their sensors."""
+        return super()._build_defaults(default_name, input_fields, self._with_element_sensors(subentry_data))
+
+    def _with_element_sensors(self, subentry_data: Mapping[str, object] | None) -> dict[str, object] | None:
+        """Return the config with each element its loads and generation name directly replaced by its sensor.
+
+        The form picks entities, so an element it cannot show would be dropped when the form is saved.
+        """
+        if subentry_data is None:
+            return None
+        sensors = element_sensors(self.hass, self._get_entry())
+        participants = dict(as_mapping(subentry_data.get(SECTION_PARTICIPANTS)))
+        for role in (CONF_LOADS, CONF_GENERATION):
+            value = participants.get(role)
+            if is_entity_value(value) and value.get("elements"):
+                named = list(value.get("elements", ()))
+                participants[role] = as_entity_value(
+                    [*value["value"], *(sensors[name] for name in named if name in sensors)]
+                )
+        return {**subentry_data, SECTION_PARTICIPANTS: participants}
 
     def _validate_fields(self, user_input: Mapping[str, object], errors: dict[str, str]) -> None:
         """Require at least one battery to hold the buffer."""

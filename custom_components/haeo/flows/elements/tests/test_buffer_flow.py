@@ -294,3 +294,32 @@ async def test_reconfigure_keeps_kind_and_participants(hass: HomeAssistant, hub_
         CONF_STORAGE: ["Battery"],
     }
     assert data[SECTION_REQUIREMENT] == {CONF_WINDOW: as_constant_value(12.0), CONF_LEVEL: as_constant_value(20.0)}
+
+
+async def test_reconfigure_shows_elements_named_directly_by_their_sensors(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """An element a buffer names directly is shown as its sensor, so saving the form keeps it."""
+    _add_elements(hass, hub_entry)
+    subentry = _add_buffer(
+        hass,
+        hub_entry,
+        {
+            CONF_NAME: "Backup",
+            CONF_KIND: KIND_RESERVE,
+            SECTION_PARTICIPANTS: {
+                CONF_LOADS: {**as_entity_value(["sensor.load_p90"]), "elements": ["House"]},
+                CONF_STORAGE: ["Battery"],
+            },
+            SECTION_REQUIREMENT: {CONF_WINDOW: as_constant_value(6.0)},
+            SECTION_PRICING: {CONF_SHORTFALL_COST: as_constant_value(0.1)},
+        },
+    )
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+
+    form = await flow.async_step_reconfigure(user_input=None)
+
+    loads = next(key for key in _section_fields(form["data_schema"], SECTION_PARTICIPANTS) if key == CONF_LOADS)
+    assert loads.description == {"suggested_value": ["sensor.load_p90", "sensor.house_power"]}
