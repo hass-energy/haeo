@@ -22,6 +22,7 @@ from custom_components.haeo.core.schema.constant_value import is_constant_value
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.core.schema.field_hints import (
+    ElementsData,
     FieldHint,
     extract_field_hints,
     extract_list_field_hints,
@@ -99,16 +100,60 @@ def element_inputs(element_config: Mapping[str, object]) -> list[ElementInput]:
 def configured_value(element_config: Mapping[str, object], config_path: InputPath) -> SchemaValue | bool | None:
     """Return the value configured for an input, or None when the input is absent or disabled.
 
-    A bare number is a constant, as the input stores read it.
+    A bare number is a constant, as the input stores read it. A field whose
+    entities all stood for elements has no entity left to read, so the input is
+    absent.
     """
     value = get_nested_config_value_by_path(element_config, config_path)
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, float)):
         return as_constant_value(float(value))
+    if is_entity_value(value) and not value["value"] and "elements" in value:
+        return None
     if is_schema_value(value) and not is_none_value(value):
         return value
     return None
+
+
+def resolve_element_entities[C: ElementConfigSchema](element_config: C, element_entities: Mapping[str, str]) -> C:
+    """Return an element's config with the entities that stand for elements moved into ``elements``.
+
+    Only fields whose hint has an element role can name elements. Each entity
+    in ``element_entities`` is replaced by the element it maps to, and the rest
+    stay in ``value`` to be read as inputs. Elements the field already names
+    directly, as a diagnostics export does, are kept.
+
+    Args:
+        element_config: Element config as stored.
+        element_entities: Map of each entity that stands for an element to that element's name.
+
+    """
+    resolved: dict[str, object] = dict(element_config)
+    for element_input in element_inputs(element_config):
+        if element_input.hint.element_role is None:
+            continue
+        section_name, field_name = element_input.config_path
+        value = get_nested_config_value_by_path(element_config, element_input.config_path)
+        if not is_entity_value(value):
+            continue
+        entity_ids = list(value["value"])
+        stored_section = resolved.get(section_name)
+        section = dict(stored_section) if isinstance(stored_section, Mapping) else {}
+        section[field_name] = {
+            **value,
+            "value": [entity_id for entity_id in entity_ids if entity_id not in element_entities],
+            "elements": list(
+                dict.fromkeys(
+                    [
+                        *value.get("elements", ()),
+                        *(element_entities[entity_id] for entity_id in entity_ids if entity_id in element_entities),
+                    ]
+                )
+            ),
+        }
+        resolved[section_name] = section
+    return resolved  # type: ignore[return-value]
 
 
 def input_value(element_config: Mapping[str, object], element_input: ElementInput) -> SchemaValue | bool | None:
@@ -249,6 +294,9 @@ def load_element_config_from_values(
         for field_name, field_hint in section_fields.items():
             if field_hint.outputs:
                 _section_dict(loaded, section_name).pop(field_name, None)
+            if field_hint.element_role is not None:
+                _load_elements_field(loaded, element_config, (section_name, field_name), field_values)
+                continue
             for input_name, hint in field_inputs(field_name, field_hint):
                 path = (section_name, input_name)
                 default = _default_for_hint(hint, forecast_times)
@@ -290,6 +338,31 @@ def load_element_config_from_values(
         loaded[list_key] = loaded_items
 
     return loaded  # type: ignore[return-value]
+
+
+def _load_elements_field(
+    loaded: dict[str, object],
+    element_config: Mapping[str, object],
+    path: tuple[str, str],
+    field_values: Mapping[tuple[str, ...], bool | float | np.ndarray | None],
+) -> None:
+    """Load a field with an element role as the elements it names and its other entities' values.
+
+    The field is removed when it names no elements and has no value.
+    """
+    section_name, field_name = path
+    configured = get_nested_config_value_by_path(element_config, path)
+    elements = list(configured.get("elements", ())) if is_entity_value(configured) else []
+    value = field_values.get(path)
+    if not elements and not isinstance(value, np.ndarray):
+        loaded_section = loaded.get(section_name)
+        if isinstance(loaded_section, dict):
+            loaded_section.pop(field_name, None)
+        return
+    data: ElementsData = {"elements": elements}
+    if isinstance(value, np.ndarray):
+        data["value"] = value
+    _section_dict(loaded, section_name)[field_name] = data
 
 
 class _Sentinel:
@@ -469,5 +542,6 @@ __all__ = [
     "load_element_config_from_values",
     "load_element_configs",
     "resolve_constant",
+    "resolve_element_entities",
     "resolve_field",
 ]

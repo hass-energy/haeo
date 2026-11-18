@@ -24,8 +24,8 @@ VALID_DATA = [
             CONF_NAME: "Backup Reserve",
             CONF_KIND: KIND_RESERVE,
             SECTION_PARTICIPANTS: {
-                CONF_LOADS: ["House"],
-                CONF_GENERATION: ["Solar"],
+                CONF_LOADS: as_entity_value(["sensor.house_power"]),
+                CONF_GENERATION: as_entity_value(["sensor.solar_power"]),
                 CONF_STORAGE: ["Battery"],
             },
             SECTION_REQUIREMENT: {
@@ -38,13 +38,13 @@ VALID_DATA = [
         },
     },
     {
-        "description": "Headroom for solar less the house above a sensor-driven level",
+        "description": "Headroom for a high solar forecast less a low load forecast above a sensor-driven level",
         "config": {
             CONF_NAME: "Solar Headroom",
             CONF_KIND: KIND_HEADROOM,
             SECTION_PARTICIPANTS: {
-                CONF_LOADS: ["House"],
-                CONF_GENERATION: ["Solar"],
+                CONF_LOADS: as_entity_value(["sensor.load_p10"]),
+                CONF_GENERATION: as_entity_value(["sensor.solar_p90"]),
                 CONF_STORAGE: ["Battery"],
             },
             SECTION_REQUIREMENT: {

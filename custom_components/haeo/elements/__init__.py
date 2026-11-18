@@ -27,7 +27,11 @@ from collections.abc import Mapping, MutableSequence, Sequence
 import logging
 from typing import Final, NamedTuple, TypeAliasType, get_type_hints
 
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.const import UnitOfPower
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import (
     ELEMENT_TYPE_NETWORK,
@@ -75,6 +79,7 @@ from custom_components.haeo.core.adapters.elements.policy import PolicyDeviceNam
 from custom_components.haeo.core.adapters.elements.solar import SOLAR_OUTPUT_NAMES, SolarDeviceName, SolarOutputName
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.core.data.loader.config_loader import resolve_element_entities
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
@@ -227,7 +232,47 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
+def element_entities(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, str]:
+    """Return each entity of the hub's elements, mapped to the name of the element it belongs to.
+
+    Entities belong to an element through their subentry, which keeps its ID
+    when the element is renamed, so the map always names elements as they are now.
+    """
+    titles = {
+        subentry.subentry_id: subentry.title
+        for subentry in entry.subentries.values()
+        if subentry.subentry_type in ELEMENT_TYPES
+    }
+    return {
+        entity.entity_id: titles[entity.config_subentry_id]
+        for entity in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
+        if entity.config_subentry_id in titles
+    }
+
+
+def element_sensors(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, str]:
+    """Return an entity that stands for each of the hub's elements, by element name.
+
+    It is the element's first power sensor by unique ID, which is its main power
+    output, or its first entity of any kind when it has no power sensor.
+    """
+    names = element_entities(hass, entry)
+    registry = er.async_get(hass)
+    entities = sorted(
+        (entity for entity in er.async_entries_for_config_entry(registry, entry.entry_id) if entity.entity_id in names),
+        key=lambda entity: (
+            not (entity.domain == SENSOR_DOMAIN and entity.unit_of_measurement == UnitOfPower.KILO_WATT),
+            entity.unique_id,
+        ),
+    )
+    sensors: dict[str, str] = {}
+    for entity in entities:
+        sensors.setdefault(names[entity.entity_id], entity.entity_id)
+    return sensors
+
+
 def get_element_configs(
+    hass: HomeAssistant,
     entry: ConfigEntry,
     participant_subentry_ids: Mapping[str, str],
 ) -> dict[str, ElementConfigSchema]:
@@ -237,13 +282,15 @@ def get_element_configs(
     ``MappingProxyType[str, Any]`` subentry data and HAEO's
     ``ElementConfigSchema`` TypedDicts.  Each subentry is validated via the
     ``is_element_config_schema`` TypeGuard so downstream code receives fully
-    narrowed types with no ``Any``.
+    narrowed types with no ``Any``. Entities that stand for the hub's own
+    elements are resolved to those elements.
 
     Raises ValueError if any subentry fails validation — these were already
     validated at init by ``collect_element_subentries``, so a failure here
     indicates a bug.
     """
     subentries = entry.subentries
+    entities = element_entities(hass, entry)
     configs: dict[str, ElementConfigSchema] = {}
     for name, subentry_id in participant_subentry_ids.items():
         if subentry_id not in subentries:
@@ -252,7 +299,7 @@ def get_element_configs(
         if not is_element_config_schema(data):
             msg = f"Subentry '{name}' failed config validation on read"
             raise ValueError(msg)
-        configs[name] = data
+        configs[name] = resolve_element_entities(data, entities)
     return configs
 
 
@@ -418,6 +465,8 @@ __all__ = [
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "config_field_path",
+    "element_entities",
+    "element_sensors",
     "find_nested_config_path",
     "get_element_configs",
     "get_input_field_schema_info",

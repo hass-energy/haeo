@@ -26,13 +26,19 @@ from custom_components.haeo.core.data.loader.calendar import (
     load_calendar_events,
     open_window_start,
 )
-from custom_components.haeo.core.data.loader.config_loader import configured_value, element_inputs, input_value
+from custom_components.haeo.core.data.loader.config_loader import (
+    configured_value,
+    element_inputs,
+    input_value,
+    resolve_element_entities,
+)
 from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE, totals_since
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
+from custom_components.haeo.elements import element_entities
 from custom_components.haeo.inputs.calendar_loader import async_fetch_calendar_events
 from custom_components.haeo.inputs.meter_history import async_meter_totals_at
 from custom_components.haeo.sensor_utils import (
@@ -179,33 +185,40 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     return entity_ids
 
 
-def _config_from_entry(config_entry: HaeoConfigEntry) -> dict[str, object]:
+def _participants_from_entry(hass: HomeAssistant, config_entry: HaeoConfigEntry) -> dict[str, dict[str, object]]:
+    """Return each element's config from the config entry, with entities that stand for elements resolved.
+
+    Configs that fail validation are kept as stored, so diagnostics still show them.
+    """
+    entities = element_entities(hass, config_entry)
+    participants: dict[str, dict[str, object]] = {}
+    for subentry in config_entry.subentries.values():
+        if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
+            continue
+        raw_data = dict(subentry.data)
+        raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
+        raw_data.setdefault(CONF_NAME, subentry.title)
+        participants[subentry.title] = (
+            dict(resolve_element_entities(raw_data, entities)) if is_element_config_schema(raw_data) else raw_data
+        )
+    return participants
+
+
+def _config_from_entry(hass: HomeAssistant, config_entry: HaeoConfigEntry) -> dict[str, object]:
     """Build diagnostics config section from the config entry (current config).
 
     Used for historical diagnostics where we always use the current configuration.
     """
-    participants: dict[str, object] = {}
-    for subentry in config_entry.subentries.values():
-        if subentry.subentry_type != ELEMENT_TYPE_NETWORK:
-            raw_data = dict(subentry.data)
-            raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
-            raw_data.setdefault(CONF_NAME, subentry.title)
-            participants[subentry.title] = raw_data
-
     return {
         **dict(config_entry.data),
-        "participants": participants,
+        "participants": _participants_from_entry(hass, config_entry),
     }
 
 
-def _collect_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
+def _collect_entity_ids_from_entry(hass: HomeAssistant, config_entry: HaeoConfigEntry) -> set[str]:
     """Collect all input entity IDs referenced in config entry subentries."""
     all_entity_ids: set[str] = set()
-    for subentry in config_entry.subentries.values():
-        if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
-            continue
-        participant_config = dict(subentry.data)
-        participant_config[CONF_ELEMENT_TYPE] = subentry.subentry_type
+    for participant_config in _participants_from_entry(hass, config_entry).values():
         if is_element_config_schema(participant_config):
             all_entity_ids.update(_extract_entity_ids_from_config(participant_config))
     return all_entity_ids
@@ -241,7 +254,7 @@ async def _fetch_inputs_at(
         Tuple of (inputs, missing_entity_ids).
 
     """
-    all_entity_ids = _collect_entity_ids_from_entry(config_entry)
+    all_entity_ids = _collect_entity_ids_from_entry(hass, config_entry)
     if not all_entity_ids:
         return [], []
 
@@ -492,7 +505,7 @@ async def collect_diagnostics(
         raise RuntimeError(msg)
 
     started_at, completed_at, horizon_start = run
-    config = _config_from_entry(config_entry)
+    config = _config_from_entry(hass, config_entry)
     config["version"] = config_entry.version
     config["minor_version"] = config_entry.minor_version
     inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)

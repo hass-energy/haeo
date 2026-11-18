@@ -233,4 +233,5 @@ def _build_field_info(
         force_required=hint.force_required,
         calendar=hint.calendar,
         meter=hint.meter,
+        element_role=hint.element_role,
     )

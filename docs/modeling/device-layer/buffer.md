@@ -4,6 +4,10 @@ The Buffer device creates a single Buffer model element, with its kind set to `r
 It has no connection of its own.
 Instead the element reads the planned power and unmet energy of its loads, the forecast power of its generation, and the stored energy of its batteries, which the network resolves by name.
 
+Loads and generation are configured as power sensors.
+A sensor of one of the hub's own elements stands for that element, which takes part through its flows as below.
+The forecasts of every other sensor are summed into one load forecast and one generation forecast, which count as given.
+
 ## Model elements created
 
 | Model element | Name     | Parameters from configuration                                   |
@@ -33,10 +37,11 @@ The buffer reads all of this from the elements and their connections, so any ele
 ### Running demand
 
 The running net demand $D$ starts at zero and accumulates the loads' planned power $p_l$ and unmet energy $u_l$ less the generation's forecast power $g_j$ over each period $\Delta t_k$.
+The load forecast $f^L$ and generation forecast $f^G$ of the other sensors add to them as given.
 For headroom the sign is flipped, so $D$ tracks the running net surplus instead:
 
 $$
-D_0 = 0, \qquad D_{k+1} = D_k + \sigma \, \Delta t_k \left( \sum_l \left( p_l(k) + \frac{u_l(k)}{\Delta t_k} \right) - \sum_j g_j(k) \right), \qquad \sigma = \begin{cases} 1 & \text{reserve} \\ -1 & \text{headroom} \end{cases}
+D_0 = 0, \qquad D_{k+1} = D_k + \sigma \, \Delta t_k \left( \sum_l \left( p_l(k) + \frac{u_l(k)}{\Delta t_k} \right) + f^L(k) - \sum_j g_j(k) - f^G(k) \right), \qquad \sigma = \begin{cases} 1 & \text{reserve} \\ -1 & \text{headroom} \end{cases}
 $$
 
 The network-side requirement at boundary $t$ is the largest rise in $D$ over the window $W$ that starts there:
@@ -97,15 +102,15 @@ Each boundary is held for the period before it, and the first boundary, which ha
 
 ## Parameter mapping
 
-| User configuration | Model field  | Notes                                                                     |
-| ------------------ | ------------ | ------------------------------------------------------------------------- |
-| Kind               | `kind`       | `reserve` or `headroom`                                                   |
-| Loads              | `loads`      | Planned net power into each load                                          |
-| Generation         | `generation` | Forecast power, the limits on the connections out of each generator       |
-| Batteries          | `storage`    | Stored energy, limits, and the efficiency of their connections            |
-| Window             | `window`     | Hours                                                                     |
-| Level              | `level`      | Share of capacity at each boundary, or unset to use the min or max charge |
-| Shortfall cost     | `price`      | \$/kWh/h                                                                  |
+| User configuration | Model field                         | Notes                                                                                                                                 |
+| ------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Kind               | `kind`                              | `reserve` or `headroom`                                                                                                               |
+| Loads              | `loads`, `load_forecast`            | Planned net power into each load named by its sensor, and the summed forecast of the other sensors                                    |
+| Generation         | `generation`, `generation_forecast` | Forecast power, the limits on the connections out of each generator named by its sensor, and the summed forecast of the other sensors |
+| Batteries          | `storage`                           | Stored energy, limits, and the efficiency of their connections                                                                        |
+| Window             | `window`                            | Hours                                                                                                                                 |
+| Level              | `level`                             | Share of capacity at each boundary, or unset to use the min or max charge                                                             |
+| Shortfall cost     | `price`                             | \$/kWh/h                                                                                                                              |
 
 ## Outputs
 

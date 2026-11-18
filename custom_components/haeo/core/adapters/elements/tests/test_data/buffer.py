@@ -22,7 +22,11 @@ RESERVE = BufferConfigData(
     element_type=ElementType.BUFFER,
     name="reserve",
     kind="reserve",
-    participants={"loads": ["house"], "generation": ["solar"], "storage": ["battery"]},
+    participants={
+        "loads": {"elements": ["house"], "value": np.array([0.5, 1.0])},
+        "generation": {"elements": ["solar"]},
+        "storage": ["battery"],
+    },
     requirement={"window": 2.0, "level": np.array([0.2, 0.2])},
     pricing={"shortfall_cost": np.array([10.0])},
 )
@@ -34,7 +38,7 @@ STATE_OF_CHARGE = OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(
 
 CREATE_CASES: list[CreateCase] = [
     {
-        "description": "Reserve names its participants and passes its level on",
+        "description": "Reserve names its elements, passes its sensors' forecasts and its level on",
         "data": RESERVE,
         "model": [
             {
@@ -43,6 +47,8 @@ CREATE_CASES: list[CreateCase] = [
                 "kind": "reserve",
                 "loads": ["house"],
                 "generation": ["solar"],
+                "load_forecast": [0.5, 1.0],
+                "generation_forecast": 0.0,
                 "storage": ["battery"],
                 "window": 2.0,
                 "level": [0.2, 0.2],
@@ -67,6 +73,8 @@ CREATE_CASES: list[CreateCase] = [
                 "kind": "headroom",
                 "loads": [],
                 "generation": [],
+                "load_forecast": 0.0,
+                "generation_forecast": 0.0,
                 "storage": ["battery"],
                 "window": 4.0,
                 "level": None,

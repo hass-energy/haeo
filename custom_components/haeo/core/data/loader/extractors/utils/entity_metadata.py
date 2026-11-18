@@ -12,6 +12,8 @@ class EntityMetadata:
     entity_id: str
     unit_of_measurement: str | None
     state_class: str | None = None
+    # Roles the element an entity belongs to can take in a buffer, when it is one of the hub's own elements
+    element_roles: frozenset[str] = frozenset()
 
     @property
     def keeps_running_total(self) -> bool:

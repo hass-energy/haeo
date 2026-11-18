@@ -81,11 +81,16 @@ show_forecast_card(
 Click **Buffer** to add one, choose **Reserve: keep energy** as its kind, then pick its participants:
 
 - **Loads**: the loads to keep running through an outage.
-    This guide keeps the whole house running.
+    Pick a load's power sensor to count the load as HAEO plans it.
+    This guide keeps the whole house running, so it picks the house load's power sensor.
 - **Generation**: the generation that keeps producing during an outage.
+    Pick a generator's power sensor to count what it is forecast to produce.
     Only include solar if your inverter keeps running it when the grid is down.
 - **Batteries**: the batteries that hold the reserve.
     With more than one battery, they hold it together.
+
+Loads and generation also take any power forecast, such as a high estimate of your consumption or a low estimate of your solar.
+The [buffer reference](../user-guide/elements/buffer.md#planning-for-forecast-error) shows how to use them to plan for a forecast that turns out wrong, such as a reserve that holds through an outage on a cloudy day.
 
 Then set the requirement and the cost of falling short:
 
@@ -98,8 +103,8 @@ add_buffer(
     page,
     name="Backup",
     kind="reserve",
-    loads=["House load"],
-    generation=["Solar"],
+    loads=EntityInput("house load power", "Power"),
+    generation=EntityInput("solar power", "Power"),
     storage=["Battery"],
     window=ConstantInput(12.0),
     level=ConstantInput(15.0),
