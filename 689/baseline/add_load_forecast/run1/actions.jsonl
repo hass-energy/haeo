@@ -1,0 +1,11 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.0, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "click", "args": ["f2e484"], "error": null, "visible_errors": 0}
+{"t": 6.5, "command": "click", "args": ["f2e699"], "error": null, "visible_errors": 0}
+{"t": 7.7, "command": "click", "args": ["f2e798"], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "click", "args": ["f2e988"], "error": null, "visible_errors": 0}
+{"t": 9.4, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "click", "args": ["f2e1100"], "error": null, "visible_errors": 0}
+{"t": 12.0, "command": "click", "args": ["f2e497"], "error": null, "visible_errors": 0}
+{"t": 13.1, "command": "click", "args": ["f2e1109"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "done", "args": ["Added a Load element named 'Load' connected to the Switchboard, with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. It now shows in the Home hub with 12 entities."], "error": null, "visible_errors": 0}

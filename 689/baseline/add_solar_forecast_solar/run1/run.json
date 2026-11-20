@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.42883950000000015,
+  "turns": 49,
+  "report": "I added a Solar element to HAEO, connected to the Inverter, with all 32 Forecast.Solar estimated energy production sensors. That is East, North, South and West, with 8 sensors each (today, tomorrow, day after tomorrow, and 3 to 7 days from now). The form accepted it and showed \"Created configuration for Solar.\" I did not open the new Solar entry afterwards to check how it saved.\n\nPoints where I hesitated or went wrong:\n- **Name:** I kept the default name \"Solar\" and left the Curtailment section alone, since you didn't mention either.\n- **Connection:** I left it at Inverter because you said the panels feed into your inverter.\n- **South sensor names:** The South sensors are called \"South solar prediction forecast\u2026\" while the others are \"\u2026solar production forecast\u2026\". I assumed they belong to Forecast.Solar and added them, because the other three directions had no South counterpart.\n- **Slow adding:** The picker adds one sensor at a time, so it took 32 rounds. I tried to automate it with a shell loop, which was denied, so I did it by hand.\n- **Mistyped search:** I typed into the wrong search box once and the command errored harmlessly.\n- **Guessed refs:** I predicted element refs for several clicks without looking first. A couple landed on a different day than I expected, but I confirmed in the final list that every sensor appeared exactly once.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar (connected to Inverter) with all 32 Forecast.Solar sensors: East, North, South, West x 8 days each.",
+  "actions": 71,
+  "looks": 20,
+  "screenshots": 0,
+  "failed_commands": 2,
+  "errors_shown": 0,
+  "seconds": 141.4
+}

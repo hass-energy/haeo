@@ -1,0 +1,10 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.8, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 7.2, "command": "click", "args": ["f2e517"], "error": null, "visible_errors": 0}
+{"t": 7.7, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "click", "args": ["f2e556"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "type", "args": ["f2e549", "0.8"], "error": null, "visible_errors": 0}
+{"t": 11.2, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 13.1, "command": "click", "args": ["f2e565"], "error": null, "visible_errors": 0}
+{"t": 14.9, "command": "done", "args": ["Added 'Pool pump' as a Load in the Home hub, connected to Switchboard, with a constant forecast of 0.8 kW. It now appears in the hub with 12 entities."], "error": null, "visible_errors": 0}

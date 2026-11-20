@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.009764310000000002,
+  "turns": 13,
+  "report": "The Solar element is added and connected to your Inverter, with all three Solcast PV forecast sensors (Today, Tomorrow, Day 3) as its forecast. HAEO confirmed \"Created configuration for Solar\", and the Home hub now lists Solar with 4 entities.\n\nPoints where I hesitated or was unsure:\n\n1. **Forecast sensors:** The Forecast field takes a single entity by default, but an \"Add entity\" button let me add more. I assumed the three Solcast sensors should go into that one list so they form one continuous forecast, not three separate solar elements. I did not see any help text confirming how HAEO combines them.\n2. **Other forecast sensors:** The picker also listed East, North and South solar forecasts and Sigen sensors. I ignored them because you asked for Solcast only.\n3. **Solar name:** I left the default name \"Solar\" rather than something like \"Rooftop Solar\". This is a cosmetic choice you may want to change.\n4. **Curtailment:** I left this section collapsed and blank because you did not mention curtailment.\n5. **Connection:** It defaulted to \"Inverter\", which matches your setup, so I accepted it.\n6. **Verification:** I confirmed creation from the success dialog and the device count. I did not reopen the Solar element to check the saved forecast list.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 26.2
+}

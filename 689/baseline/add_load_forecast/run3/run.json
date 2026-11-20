@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.09185359999999998,
+  "turns": 14,
+  "report": "I added a Load named \"Household\" to HAEO, and HAEO confirmed it was created. I only checked that \"Household\" now shows in the hub's list, and I didn't open it again to check the saved settings. It uses both Sigen sensors: \"Sigen Plant Consumed Power Forecast\" and \"Sigen Plant Consumed Power\". I put them together in the load's single Forecast field, since the form has no separate field for a current-power sensor. I left the Shedding section at its defaults.\n\nPoints where I hesitated or made a mistake:\n- **Connection choice:** The form offered only Inverter or Switchboard, and I chose Switchboard. I assumed household consumption hangs off the switchboard, but I'm not certain that matches your wiring.\n- **Wrong sensor picked:** When adding the second sensor, I clicked the wrong entry and selected \"Sigen Plant ESS Rated Charging Power\". I removed it and added \"Sigen Plant Consumed Power\" before submitting.\n- **Combined sensors:** I'm not sure HAEO combines a forecast sensor and a live power sensor in that one field the way you intended. It was the only place the form accepted both.\n- **Load name:** I chose \"Household\" myself, replacing the default \"Load\".",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named Household, connected to the Switchboard, with forecast entities Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. HAEO shows it created.",
+  "actions": 15,
+  "looks": 3,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 33.4
+}

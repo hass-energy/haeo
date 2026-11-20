@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.10239110000000001,
+  "turns": 12,
+  "report": "I added a Load called \"Load\" to the Home hub. Its forecast uses both Sensor entities, \"Sigen Plant Consumed Power Forecast\" and \"Sigen Plant Consumed Power\". The Home hub now lists the Load as a new device with 12 entities. I didn't open the Load afterwards to check the saved settings.\n\nPoints where I hesitated:\n- **Connection:** I wasn't sure whether the load belongs on the Inverter or the Switchboard. I picked the Switchboard because household consumption is normally drawn from there. The form defaulted to Inverter, so change this if your wiring differs.\n- **Current sensor:** There was no separate field for the current consumed power sensor. I added it as a second entity in the same Forecast list and assumed that is how HAEO wants it.\n- **Name:** I kept the default name \"Load\" rather than choosing a more descriptive one.\n- **Shedding:** I did not open or change the Shedding section.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Load' connected to the Switchboard, with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. It now shows in the Home hub with 12 entities.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.8
+}

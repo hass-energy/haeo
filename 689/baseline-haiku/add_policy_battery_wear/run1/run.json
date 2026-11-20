@@ -1,0 +1,40 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": false,
+  "cost_usd": 0.011719300000000002,
+  "turns": 11,
+  "report": "I set the Battery element's Discharge cost to a constant $0.01/kWh and saved it. Reopening the Battery configuration showed the value stored as 0.01 with \"Constant\" selected.\n\n**What I did:** On the Battery element, under Pricing, I changed Discharge cost from \"None\" to \"Constant\" and entered 0.01 ($/kWh). I left Charge cost at None and Salvage value at 0.\n\n**Points where I hesitated or was unsure:**\n\n- **Which setting to use.** The task says \"every kWh discharged \u2026 wherever that energy goes.\" I took that to mean the Battery's Discharge cost field, since it sits on the battery's own pricing, and I assumed it applies to all battery discharge, including discharge to the load and to grid export. I can't read HAEO's code or docs, so I could not confirm that it covers every destination. I did not look for a separate per-destination setting, such as on Grid or Policy.\n- **Unexpected side effect.** After saving, the Home hub showed a new \"Policies\" entry (Policy, 2 entities), and the device and entity counts went from 7 to 8 and from 60 to 64. I did not create this. It probably came from the save, but I did not investigate it, so it is worth a look.\n- **Units.** The field is labelled \"$/kWh\" and I entered 0.01, which is $0.01 per kWh as the task asks. I did not check whether HAEO stores this in cents or dollars internally.\n- **Entity vs. constant.** I chose Constant because the task gives a fixed value. I did not consider whether a sensor would be more appropriate.\n- **Not verified in the optimizer.** I checked that the setting saved, not that the optimizer's schedule reflects it.",
+  "driver_error": null,
+  "problems": [
+    "Unintended change to battery 'Battery'"
+  ],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Set the Battery element's Discharge cost to a constant 0.01 $/kWh (Pricing section) and submitted; reopening confirmed it saved. Left Charge cost, Salvage value (0) and everything else unchanged.",
+  "actions": 10,
+  "looks": 5,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 24.7
+}

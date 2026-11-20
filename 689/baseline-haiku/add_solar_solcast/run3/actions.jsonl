@@ -1,0 +1,12 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.4, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.1, "command": "click", "args": ["f2e482"], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "type", "args": ["f2e505", "Solcast"], "error": null, "visible_errors": 0}
+{"t": 9.5, "command": "click", "args": ["f2e763"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e807"], "error": null, "visible_errors": 0}
+{"t": 12.1, "command": "click", "args": ["f2e1080"], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "click", "args": ["f2e807"], "error": null, "visible_errors": 0}
+{"t": 16.8, "command": "type", "args": ["f2e816", "Day", "3"], "error": "Locator.fill: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 18.4, "command": "click", "args": ["f2e1359"], "error": null, "visible_errors": 0}
+{"t": 20.2, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 21.4, "command": "click", "args": ["f2e1406"], "error": null, "visible_errors": 0}

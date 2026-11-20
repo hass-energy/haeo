@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.14350030000000003,
+  "turns": 15,
+  "report": "I added a Solar element to your Home hub and connected it to the Inverter. Its forecast uses the three Solcast PV Forecast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. HAEO showed \"Created configuration for Solar\", and Solar now appears in the hub with 4 entities.\n\nI left the Curtailment section alone and did not open it.\n\nPoints where I hesitated or made a mistake:\n- **Wrong sensor added:** On the third pick I added \"South solar prediction forecast \u2013 3 days from now\" instead of Day 3. The sensor list had reordered after each pick, so the reference I used pointed at a different row. I noticed in the next screenshot, removed it, reopened the list and picked \"Solcast PV Forecast Forecast Day 3\". The final list was correct before I submitted.\n- **Unclear multi-select:** I wasn't sure at first whether the Forecast field accepted more than one sensor. It showed an \"Add entity\" button, so I added Today, Tomorrow and Day 3 as separate entries.\n- **Similar sensors:** The list also held East, North and South solar forecast sensors. I ignored them because you said Solcast.\n- **Connection default:** The Connection field already said \"Inverter\", so I left it as it was.\n- **Final check:** My check was the hub page showing Solar with 4 entities. I did not open the saved configuration to read the forecast list back.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element connected to Inverter with the three Solcast PV Forecast sensors (Today, Tomorrow, Day 3) as forecast. Solar now appears in the hub with 4 entities.",
+  "actions": 12,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 32.2
+}

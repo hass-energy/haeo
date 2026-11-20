@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.0082554,
+  "turns": 12,
+  "report": "I added a Load element named \"Household\" to the Home hub. The integration page now lists a Household device with 12 entities, and the Home hub count went from 49 to 61 entities.\n\n- **Name and connection:** I named it \"Household\" and set Connection to Switchboard. I picked Switchboard because household consumption sits on the house side of the inverter, where the other elements meet, not behind the inverter.\n- **Forecast:** The forecast uses Entity mode with two sensors: \"Sigen Plant Consumed Power Forecast\" and \"Sigen Plant Consumed Power\". The forecast field takes a list, so I put the current sensor in the same list.\n- **Shedding:** I left the Shedding section at its default.\n\nI did not check the entities' states or the forecast values afterwards.\n\nPoints where I hesitated or was unsure:\n\n1. **Current sensor placement:** I was not sure whether HAEO treats the current consumed power sensor as a second forecast source, a current-value input, or something it merges with the forecast. The form gave no help text on this, so I put it in the forecast list because that was the only place it fit. The result may not be what you intend, so check how HAEO uses it.\n2. **Connection choice:** I chose Switchboard from the two options (Inverter or Switchboard) based on how the house loads are usually wired. I did not confirm this against your actual wiring.\n3. **Name:** \"Household\" is my own choice. The form offered \"Load\" as the default.\n4. **Shedding left at default:** I did not review the shedding options. I assumed the default is safe for a household load, but I did not check.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.7
+}

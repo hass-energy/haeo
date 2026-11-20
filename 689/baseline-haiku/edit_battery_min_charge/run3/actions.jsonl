@@ -1,0 +1,9 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.4, "command": "click", "args": ["f2e170"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "type", "args": ["f2e629", "20"], "error": null, "visible_errors": 0}
+{"t": 7.2, "command": "click", "args": ["f2e843"], "error": null, "visible_errors": 0}
+{"t": 8.6, "command": "click", "args": ["f2e854"], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "click", "args": ["f2e170"], "error": null, "visible_errors": 0}
+{"t": 11.7, "command": "click", "args": ["f2e865"], "error": null, "visible_errors": 0}
+{"t": 12.9, "command": "done", "args": ["Raised the Battery element's Min charge level from 5% to 20% (constant) and submitted. The form reported 'Configuration updated successfully', and reopening the Battery dialog shows 20%. Other fields were left unchanged."], "error": null, "visible_errors": 0}

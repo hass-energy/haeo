@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.093373,
+  "turns": 13,
+  "report": "I added a policy named \"Battery wear\" to Home. It charges 0.01 $/kWh (1 cent) for every kWh the Battery discharges, whatever the destination. Home Assistant reported success, and a new \"Policies\" device with 2 entities now appears under Home.\n\nThe policy is enabled, with the source set to Battery, the target set to Any and a constant price. I didn't open the saved policy again to check its values. I also didn't see HAEO's optimiser results change.\n\nPoints where I hesitated or was unsure:\n- **Direction of the price:** I assumed a positive price in a policy is a cost on the energy flow. The form didn't say so, and I didn't confirm it.\n- **Source and target choice:** I chose source = Battery with target = Any, so the cost applies wherever the discharged energy goes. The Target \"Any\" setting looked selected in the screenshot, but the page tree didn't show it.\n- **Entry creation:** I was never asked which hub the policy belonged to. It created a separate \"Policies\" element, which I take to be the normal behaviour.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a HAEO policy named 'Battery wear': source = Battery, target = Any, constant price 0.01 $/kWh, enabled. It saved, and a new Policies device with 2 entities now shows under Home.",
+  "actions": 8,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 25.5
+}

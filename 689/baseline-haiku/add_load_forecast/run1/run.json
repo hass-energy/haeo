@@ -1,0 +1,43 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": false,
+  "cost_usd": 0.011493699999999999,
+  "turns": 14,
+  "report": "I added a Load element named \"Household\" under the Home hub. It saved successfully and now shows up in the device list.\n\n**What I set:**\n- **Name:** \"Household\" (the default was \"Load\").\n- **Connection:** Inverter, which was the default.\n- **Forecast:** two entries in the forecast list:\n  1. Sigen Plant Consumed Power Forecast (the forecast you asked for)\n  2. Sigen Plant Consumed Power (the current consumed power sensor)\n- **Shedding:** left off, since its help text does not cover consumption.\n\nI did not open the created entities or check their values afterwards.\n\n**Points where I hesitated or may have got it wrong:**\n- **Current sensor placement:** The form has no separate \"current power\" field. The only place to add the current sensor was the forecast entity list, so I added it there as a second entry. I am not sure HAEO treats a live reading as a forecast source, or how it combines the two entries. Order may also matter, and I put the forecast first. This is the choice I would most want checked.\n- **Connection choice:** I kept Inverter because it was preselected. I did not confirm that the household load sits behind the inverter rather than on the Switchboard junction. Switchboard is the other option.\n- **Name:** I renamed the load from \"Load\" to \"Household\" on my own. You did not ask for a name.\n- **Shedding:** The \"Allow shedding\" switch is required, and I left it off without thinking about whether household load should be sheddable.",
+  "driver_error": null,
+  "problems": [
+    "$.connection.value: expected 'Switchboard', found 'Inverter'"
+  ],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 12,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 28.8
+}

@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.10997340000000001,
+  "turns": 13,
+  "report": "I added a Load named \"Load\" to HAEO, connected to the Switchboard. Its Forecast field has two entities: Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. HAEO showed \"Created configuration for Load\". The Load device now appears with 12 entities, and the hub total went from 6 to 7 devices.\n\nI didn't open the new Load to check how it uses the two sensors.\n\nPoints where I hesitated or guessed:\n- **Connection:** The form offered only Inverter or Switchboard, and the default was Inverter. I chose Switchboard because household consumption normally sits there. That was a guess, and I had no way to confirm it.\n- **Where the current sensor goes:** There was no separate field for the current consumed power sensor. I added it as a second entity in the same Forecast list, after seeing the picker accept several entities. I'm not sure that's how HAEO intends the current reading to be used.\n- **Name:** I left the default \"Load\" rather than naming it something like \"Household\".",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Load' connected to Switchboard, with forecast entities Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. HAEO created the Load device with 12 entities.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 25.7
+}

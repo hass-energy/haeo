@@ -1,0 +1,17 @@
+{"t": 2.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.4, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 6.0, "command": "click", "args": ["f2e482"], "error": null, "visible_errors": 0}
+{"t": 7.9, "command": "click", "args": ["f2e764"], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e1064"], "error": null, "visible_errors": 0}
+{"t": 12.6, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e1359"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 18.7, "command": "click", "args": ["f2e1395"], "error": null, "visible_errors": 0}
+{"t": 20.8, "command": "click", "args": ["f2e1401"], "error": null, "visible_errors": 0}
+{"t": 22.5, "command": "click", "args": ["f2e1564"], "error": null, "visible_errors": 0}
+{"t": 24.3, "command": "click", "args": ["f2e1574"], "error": null, "visible_errors": 0}
+{"t": 25.9, "command": "click", "args": ["f2e1847"], "error": null, "visible_errors": 0}
+{"t": 27.4, "command": "click", "args": ["f2e1584"], "error": null, "visible_errors": 0}
+{"t": 29.0, "command": "click", "args": ["f2e1890"], "error": null, "visible_errors": 0}
+{"t": 31.0, "command": "done", "args": ["Added a Solar element named 'Solar', connected to the Inverter, with the Solcast PV Forecast sensors Today, Tomorrow and Day 3 as its forecast. I had first saved the wrong third sensor, then reopened Solar and replaced it. HA confirmed the update."], "error": null, "visible_errors": 0}

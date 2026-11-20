@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.0089153,
+  "turns": 13,
+  "report": "I added the solar element to HAEO and it saved successfully. The Home hub now lists a Solar device with 4 entities.\n\n- **Name:** Solar (default)\n- **Connection:** Inverter (default; your panels feed the inverter)\n- **Forecast:** three Solcast PV Forecast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3\n- **Curtailment:** left at the defaults\n\nI did not open the new Solar device afterwards to confirm the three forecast sensors are stored, though the form showed them before I submitted.\n\nPoints where I hesitated or was unsure:\n- The forecast picker also offered East, North and South solar forecast sensors and a Sigen PV Power sensor. I used only the Solcast sensors because you named Solcast. If your panels are also covered by those other sensors, you may want to check that I didn't leave out a needed array.\n- The Forecast field looked like a single-entity picker at first. It turned out to take several entities through \"Add entity\", so I added all three Solcast sensors rather than only Today.\n- I left the name as \"Solar\" and did not change Curtailment. I had no information about curtailment for your system, so I chose not to guess.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Solar element named 'Solar' to the Home hub, connected to Inverter, with the forecast set to three Solcast PV Forecast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. The success dialog said 'Created configuration for Solar', and the Home hub now lists a Solar device with 4 entities.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.4
+}

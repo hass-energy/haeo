@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.08756900000000001,
+  "turns": 13,
+  "report": "I added a policy called \"Battery wear\" that charges $0.01 for every kWh discharged from your Battery, whatever the energy goes to. HAEO confirmed it was created, and a new \"Policies\" device now shows on the integration page. I didn't run an optimisation to see its effect on the plan.\n\nThe policy is enabled. Its source is Battery, its target is Any, and its price is a constant 0.01 $/kWh.\n\nPoints where I hesitated or was unsure:\n- **Direction of the price:** I assumed the price applies to energy flowing out of the source. I couldn't confirm that from the form, which only says it controls how power flows between elements.\n- **Source choices:** The source picker offered only Battery, Grid and Solar. It didn't offer Load, Inverter or Switchboard. I picked Battery as intended.\n- **Target setting:** I never clicked the Target \"Any\" button. It was already selected, which I confirmed on a screenshot.\n- **Delay:** I went a while without telling you what I was doing after the \"Success\" dialog appeared.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a policy named 'Battery wear' (enabled): source = Battery, target = Any, constant price 0.01 $/kWh. It was created and now appears as a Policies device.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 2,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.9
+}

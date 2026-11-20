@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.3305585200000001,
+  "turns": 47,
+  "report": "I added the Solar element to the Home hub, connected to the Inverter, with all four Forecast.Solar directions. The success dialog said \"Created configuration for Solar\", and the hub now lists a Solar device with 4 entities.\n\n**What I entered**\n- Name: Solar (default).\n- Connection: Inverter, since the panels feed the inverter.\n- Forecast: 32 sensors, 8 per direction: today, tomorrow, day after tomorrow, and 3 to 7 days from now. Each direction's group was complete in the picker before I moved on.\n- Curtailment: left at the default, \"Allow curtailment\" on as a constant.\n\n**Where I hesitated or made mistakes**\n- **South naming:** the South sensors are called \"South solar prediction forecast\", while East, North and West say \"solar production forecast\". Their descriptions match the others (\"Estimated energy production\"), so I treated them as Forecast.Solar, but I did not confirm their source.\n- **Miscount:** I first assumed 7 sensors per direction. The picker actually offers 8 (today, tomorrow, day after, and 3 to 7 days). I caught this when I reviewed the list and checked that all 32 were in the field.\n- **Stray click:** once I ran a click on an invalid ref (`f4057`) with its output discarded. The page state afterward looked unchanged, but I cannot fully rule out an unintended effect.\n- **Stale refs:** a few clicks used refs from an earlier page state and failed without changing anything. I retried with the current refs.\n- **Curtailment:** I did not decide whether HAEO should be allowed to curtail solar. I kept the default, which you may want to review.\n- **Unverified save:** I did not reopen the Solar configuration to confirm all 32 sensors were saved. I relied on the success message and the device's entity count.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 80,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 6,
+  "errors_shown": 0,
+  "seconds": 126.9
+}

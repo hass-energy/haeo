@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.18968510000000002,
+  "turns": 18,
+  "report": "Solar is now in HAEO, connected to the Inverter. Its forecast uses the three Solcast sensors: Today, Tomorrow and Day 3. Home Assistant said \"Configuration updated successfully\" after my fix. I didn't reopen the Solar settings afterwards to check the saved list.\n\nThe Solar entry now shows 1 device and 4 entities. I left the Curtailment section alone.\n\nPoints where I hesitated or made a mistake:\n- **Wrong sensor saved first:** I picked the wrong third forecast sensor. The picker list had shifted after each pick, and I clicked \"South solar prediction \u2026 3 days from now\" instead of \"Solcast PV Forecast Forecast Day 3\". I submitted before noticing. I then reopened Solar, removed that entry, added the Day 3 sensor and saved again.\n- **Several forecast sensors:** The forecast field takes several sensors through \"Add entity\". I assumed Solcast's three sensors are meant to be added together, because the field allows more than one.\n- **Look-alike sensors:** The picker also listed East, North and South solar sensors that look like forecasts. I took \"Solcast PV Forecast\" to be the Solcast one you meant, since you named it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Solar element named 'Solar', connected to the Inverter, with the Solcast PV Forecast sensors Today, Tomorrow and Day 3 as its forecast. I had first saved the wrong third sensor, then reopened Solar and replaced it. HA confirmed the update.",
+  "actions": 15,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 35.5
+}

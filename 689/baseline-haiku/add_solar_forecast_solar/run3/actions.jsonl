@@ -1,0 +1,77 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.3, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 4.8, "command": "click", "args": ["f2e467"], "error": null, "visible_errors": 0}
+{"t": 6.0, "command": "click", "args": ["f2e482"], "error": null, "visible_errors": 0}
+{"t": 8.4, "command": "type", "args": ["f2e505", "solar production forecast"], "error": null, "visible_errors": 0}
+{"t": 10.6, "command": "type", "args": ["f2e505", "Estimated energy production"], "error": null, "visible_errors": 0}
+{"t": 11.9, "command": "type", "args": ["f2e505", "West"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "type", "args": ["f2e505", "East solar production"], "error": null, "visible_errors": 0}
+{"t": 16.7, "command": "click", "args": ["f2e576"], "error": null, "visible_errors": 0}
+{"t": 18.2, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 21.7, "command": "type", "args": ["f2e981", "East solar production forecast Estimated energy production - tomorrow"], "error": null, "visible_errors": 0}
+{"t": 22.1, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 25.2, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 28.6, "command": "type", "args": ["f2e981", "East 3 days from now"], "error": "Locator.fill: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 31.4, "command": "click", "args": ["f2e1325"], "error": null, "visible_errors": 0}
+{"t": 32.9, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 34.6, "command": "click", "args": ["f2e1620"], "error": null, "visible_errors": 0}
+{"t": 35.1, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 37.2, "command": "click", "args": ["f2e1915"], "error": null, "visible_errors": 0}
+{"t": 37.6, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 39.1, "command": "click", "args": ["f2e2210"], "error": null, "visible_errors": 0}
+{"t": 39.5, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 40.8, "command": "click", "args": ["f2e2505"], "error": null, "visible_errors": 0}
+{"t": 41.2, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 42.7, "command": "click", "args": ["f2e2800"], "error": null, "visible_errors": 0}
+{"t": 43.1, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 46.5, "command": "click", "args": ["f2e3096"], "error": null, "visible_errors": 0}
+{"t": 46.9, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 48.6, "command": "click", "args": ["f2e3390"], "error": null, "visible_errors": 0}
+{"t": 49.0, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 50.4, "command": "click", "args": ["f2e3685"], "error": null, "visible_errors": 0}
+{"t": 50.8, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 52.2, "command": "click", "args": ["f2e3980"], "error": null, "visible_errors": 0}
+{"t": 52.6, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 53.8, "command": "click", "args": ["f2e4275"], "error": null, "visible_errors": 0}
+{"t": 54.2, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 55.7, "command": "click", "args": ["f2e4570"], "error": null, "visible_errors": 0}
+{"t": 56.1, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 57.6, "command": "click", "args": ["f2e4865"], "error": null, "visible_errors": 0}
+{"t": 58.1, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 59.3, "command": "click", "args": ["f2e5160"], "error": null, "visible_errors": 0}
+{"t": 59.7, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 62.0, "command": "click", "args": ["f2e5708"], "error": null, "visible_errors": 0}
+{"t": 62.4, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 63.9, "command": "click", "args": ["f2e5937"], "error": null, "visible_errors": 0}
+{"t": 64.4, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 65.8, "command": "click", "args": ["f2e6238"], "error": null, "visible_errors": 0}
+{"t": 66.2, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 67.5, "command": "click", "args": ["f2e6516"], "error": null, "visible_errors": 0}
+{"t": 67.9, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 69.5, "command": "click", "args": ["f2e6789"], "error": null, "visible_errors": 0}
+{"t": 70.1, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 71.4, "command": "click", "args": ["f2e7051"], "error": null, "visible_errors": 0}
+{"t": 71.8, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 77.0, "command": "click", "args": ["f2e7302"], "error": null, "visible_errors": 0}
+{"t": 77.4, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 78.7, "command": "click", "args": ["f2e7542"], "error": null, "visible_errors": 0}
+{"t": 79.1, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 83.4, "command": "click", "args": ["f2e7689"], "error": null, "visible_errors": 0}
+{"t": 83.8, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 85.0, "command": "click", "args": ["f2e7901"], "error": null, "visible_errors": 0}
+{"t": 85.5, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 86.8, "command": "click", "args": ["f2e8108"], "error": null, "visible_errors": 0}
+{"t": 87.2, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 88.5, "command": "click", "args": ["f2e8304"], "error": null, "visible_errors": 0}
+{"t": 88.9, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 90.2, "command": "click", "args": ["f2e8489"], "error": null, "visible_errors": 0}
+{"t": 90.6, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 92.0, "command": "click", "args": ["f2e8663"], "error": null, "visible_errors": 0}
+{"t": 92.5, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 93.7, "command": "click", "args": ["f2e8826"], "error": null, "visible_errors": 0}
+{"t": 94.2, "command": "click", "args": ["f2e972"], "error": null, "visible_errors": 0}
+{"t": 95.6, "command": "click", "args": ["f2e8978"], "error": null, "visible_errors": 0}
+{"t": 98.9, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 100.1, "command": "click", "args": ["f2e9015"], "error": null, "visible_errors": 0}
+{"t": 102.9, "command": "click", "args": ["f2e9021"], "error": null, "visible_errors": 0}
+{"t": 104.4, "command": "click", "args": ["f2e9072"], "error": null, "visible_errors": 0}

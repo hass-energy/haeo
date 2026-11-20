@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.12167450000000003,
+  "turns": 16,
+  "report": "I've added Solar to HAEO and connected it to the Inverter. Its forecast uses the three Solcast PV Forecast sensors: Today, Tomorrow and Day 3. HAEO showed \"Created configuration for Solar\", and Solar now appears on the integration page. I didn't open the saved Solar entry again to re-check its settings.\n\nPoints where I hesitated or made a mistake:\n- **Wrong sensor picked:** I picked a \"South solar prediction forecast\" sensor by mistake when adding the third forecast entity. The picker list had shifted after each addition, so my saved reference pointed at a different row. I removed it, reopened the picker, and chose \"Solcast PV Forecast Forecast Day 3\" instead.\n- **Search box didn't work:** Typing \"Solcast\" into the picker's search box timed out, so I scrolled the list and clicked entries instead.\n- **Connection assumed:** The Connection field already said Inverter, so I left it. You said the panels feed the inverter, so I think that's right.\n- **Curtailment skipped:** I didn't open the optional Curtailment section, since you didn't mention it.\n- **Other sensors ignored:** The picker also listed East, North and South solar forecast sensors. I ignored them because you asked for Solcast.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar, connected to Inverter, with the Solcast PV Forecast sensors for Today, Tomorrow and Day 3 as its forecast. HAEO confirmed it was created, and Solar now shows on the integration page.",
+  "actions": 13,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 32.3
+}

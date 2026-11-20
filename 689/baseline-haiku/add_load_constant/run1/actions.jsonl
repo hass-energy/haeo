@@ -1,0 +1,8 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.4, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e517"], "error": null, "visible_errors": 0}
+{"t": 9.4, "command": "type", "args": ["f2e549", "0.8"], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 15.7, "command": "click", "args": ["f2e558"], "error": null, "visible_errors": 0}
+{"t": 16.9, "command": "done", "args": ["Added a Load named 'Pool pump' to the Home hub with a constant forecast of 0.8 kW, connected to Inverter (the default). It now appears as a device with 12 entities alongside the existing Load."], "error": null, "visible_errors": 0}

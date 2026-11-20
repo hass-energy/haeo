@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.009736000000000002,
+  "turns": 14,
+  "report": "The Solar element is now part of Home. HAEO created \"Solar\" with 4 entities, and it appears under the Home hub alongside Grid, Inverter, Switchboard, Battery and Load.\n\nI configured it as follows:\n- **Name:** \"Solar\" (the default, left unchanged).\n- **Connection:** Inverter, the default. Your panels feed the inverter, so this matches.\n- **Forecast:** Entity mode, with three Solcast sensors added: \"Solcast PV Forecast Forecast Today\", \"Forecast Tomorrow\" and \"Forecast Day 3\".\n- **Curtailment:** left at its defaults.\n\nI didn't open the entity detail pages to confirm the three forecast sensors are being read, so I haven't checked the values.\n\nWhere I hesitated or was unsure:\n- **Three sensors in one field:** the Forecast field accepts a list, and I added all three Solcast sensors with \"Add entity\". I assumed that is how the forecast should be split across days, since the dialog offered no other way to enter them.\n- **Look-alike sensors:** the picker also listed East, North and South solar forecast sensors and Sigen plant sensors. I used only the Solcast ones because you asked for Solcast, but I didn't check whether those other sensors were duplicates of your array.\n- **Curtailment:** I didn't read its section or its help text, and left it at the defaults. I can't tell whether your inverter needs a curtailment setting.\n- **Solar name:** I kept the default \"Solar\" without considering whether you'd want a different label.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 11,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.8
+}

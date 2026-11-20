@@ -1,0 +1,15 @@
+{"t": 2.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.5, "command": "click", "args": ["f2e482"], "error": null, "visible_errors": 0}
+{"t": 7.2, "command": "click", "args": ["f2e764"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 12.6, "command": "type", "args": ["f2e505", "Solcast"], "error": "Locator.fill: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 14.2, "command": "click", "args": ["f2e1064"], "error": null, "visible_errors": 0}
+{"t": 15.7, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 17.1, "command": "click", "args": ["f2e1359"], "error": null, "visible_errors": 0}
+{"t": 19.5, "command": "click", "args": ["f2e1384"], "error": null, "visible_errors": 0}
+{"t": 21.0, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 22.9, "command": "click", "args": ["f2e1648"], "error": null, "visible_errors": 0}
+{"t": 24.5, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 26.0, "command": "click", "args": ["f2e1690"], "error": null, "visible_errors": 0}
+{"t": 27.7, "command": "done", "args": ["Added Solar, connected to Inverter, with the Solcast PV Forecast sensors for Today, Tomorrow and Day 3 as its forecast. HAEO confirmed it was created, and Solar now shows on the integration page."], "error": null, "visible_errors": 0}
