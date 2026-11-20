@@ -1,0 +1,50 @@
+{
+  "expect": {
+    "data": {
+      "connection": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "limits": {
+        "min_charge_percentage": {
+          "type": "constant",
+          "value": 5.0
+        }
+      },
+      "power_limits": {
+        "max_power_source_target": {
+          "type": "entity",
+          "value": {
+            "$set": ["sensor.sigen_plant_ess_rated_discharging_power"]
+          }
+        },
+        "max_power_target_source": {
+          "type": "entity",
+          "value": {
+            "$set": ["sensor.sigen_plant_ess_rated_charging_power"]
+          }
+        }
+      },
+      "storage": {
+        "capacity": {
+          "type": "entity",
+          "value": {
+            "$set": ["sensor.sigen_plant_rated_energy_capacity"]
+          }
+        },
+        "initial_charge_percentage": {
+          "type": "entity",
+          "value": {
+            "$set": ["sensor.sigen_plant_battery_state_of_charge"]
+          }
+        }
+      }
+    },
+    "element_type": "battery",
+    "kind": "add"
+  },
+  "goal": "You have a Sigenergy home battery that is connected through your inverter. Add it to HAEO. Its size comes from the battery's rated energy capacity sensor and its current charge from its state of charge sensor. Its maximum charging and discharging power are available as the ESS rated charging power and ESS rated discharging power sensors. The battery should never be discharged below 5%.",
+  "holdout": false,
+  "id": "add_battery",
+  "participants": ["Grid", "Inverter", "Switchboard", "Solar", "Load"]
+}

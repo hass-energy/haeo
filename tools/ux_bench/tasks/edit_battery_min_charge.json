@@ -1,0 +1,27 @@
+{
+  "expect": {
+    "data": {
+      "limits": {
+        "min_charge_percentage": {
+          "type": "constant",
+          "value": 20.0
+        }
+      },
+      "storage": {
+        "capacity": {
+          "type": "entity",
+          "value": {
+            "$set": ["sensor.sigen_plant_rated_energy_capacity"]
+          }
+        }
+      }
+    },
+    "element_type": "battery",
+    "kind": "edit",
+    "title": "Battery"
+  },
+  "goal": "Your battery is already set up in HAEO. Raise its minimum charge level from 5% to 20%.",
+  "holdout": true,
+  "id": "edit_battery_min_charge",
+  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar", "Load"]
+}

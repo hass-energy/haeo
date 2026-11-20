@@ -1,0 +1,28 @@
+{
+  "expect": {
+    "data": {
+      "connection": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "forecast": {
+        "forecast": {
+          "type": "entity",
+          "value": {
+            "$set": [
+              "sensor.solcast_pv_forecast_forecast_today",
+              "sensor.solcast_pv_forecast_forecast_tomorrow",
+              "sensor.solcast_pv_forecast_forecast_day_3"
+            ]
+          }
+        }
+      }
+    },
+    "element_type": "solar",
+    "kind": "add"
+  },
+  "goal": "Your rooftop solar panels feed into your inverter. Add the solar to HAEO and use your Solcast PV forecast for it (Solcast gives you sensors for today, tomorrow and day 3).",
+  "holdout": false,
+  "id": "add_solar_solcast",
+  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Load"]
+}

@@ -1,0 +1,30 @@
+{
+  "expect": {
+    "data": {
+      "rules": {
+        "$contains": [
+          {
+            "enabled": {
+              "type": "constant",
+              "value": true
+            },
+            "price": {
+              "type": "constant",
+              "value": 0.01
+            },
+            "source": ["Battery"],
+            "target": {
+              "$absent": true
+            }
+          }
+        ]
+      }
+    },
+    "element_type": "policy",
+    "kind": "add"
+  },
+  "goal": "To account for battery wear, make HAEO treat every kWh discharged from your battery as costing 1 cent ($0.01), wherever that energy goes.",
+  "holdout": true,
+  "id": "add_policy_battery_wear",
+  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar", "Load"]
+}
