@@ -2,8 +2,8 @@
 
 Element flows such as battery and load write their surfaced price fields as
 rules in the hub's single policy subentry. A policy change counts as part of the
-element's own change when every rule it adds or removes names that element as a
-source or target; any other change to a subentry the task did not ask for fails
+element's own change when every rule it adds or removes names that element, by
+its old or new title, as a source or target; any other change to a subentry the task did not ask for fails
 the run.
 """
 
@@ -59,11 +59,11 @@ def _names(rule: JsonValueType, key: str) -> list[JsonValueType]:
     return names if isinstance(names, list) else []
 
 
-def _only_surfaced_rules(before: Subentry | None, after: Subentry | None, element: str) -> bool:
-    """Return whether every rule added or removed names ``element``."""
+def _only_surfaced_rules(before: Subentry | None, after: Subentry | None, element_names: set[str]) -> bool:
+    """Return whether every rule added or removed names the element, by its old or new title."""
     old, new = _rules(before), _rules(after)
     differing = [rule for rule in new if rule not in old] + [rule for rule in old if rule not in new]
-    return all(element in _names(rule, "source") + _names(rule, "target") for rule in differing)
+    return all(element_names & set(map(str, _names(rule, "source") + _names(rule, "target"))) for rule in differing)
 
 
 def evaluate(task: Task, before: Subentries, after: Subentries) -> Outcome:
@@ -107,14 +107,14 @@ def evaluate(task: Task, before: Subentries, after: Subentries) -> Outcome:
             target = None
         unintended = [subentry_id for subentry_id in changed if subentry_id != target] + removed + added
 
-    element = after[target]["title"] if target is not None else None
+    element_names = {sub["title"] for sub in (before.get(target or ""), after.get(target or "")) if sub}
     for subentry_id in shared:
         old, new = before.get(subentry_id), after.get(subentry_id)
-        if old != new and (element is None or not _only_surfaced_rules(old, new, element)):
+        if old != new and not (element_names and _only_surfaced_rules(old, new, element_names)):
             unintended.append(subentry_id)
 
     if target is not None:
-        if "title" in expect and after[target]["title"] != expect["title"]:
+        if expect["kind"] == "add" and "title" in expect and after[target]["title"] != expect["title"]:
             problems.append(f"Expected the title {expect['title']!r}, found {after[target]['title']!r}")
         problems.extend(mismatches(expect["data"], after[target]["data"]))
     for subentry_id in unintended:

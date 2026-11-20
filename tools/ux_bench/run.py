@@ -22,11 +22,13 @@ from datetime import UTC, datetime
 import json
 import os
 from pathlib import Path
+import shlex
 import statistics
 import subprocess
 import sys
 import time
 from typing import NotRequired, Required, TypedDict
+import urllib.error
 import urllib.request
 
 from homeassistant.util.json import JsonValueType
@@ -182,7 +184,7 @@ def _finish_session(port: int) -> None:
 def browse_script(port: int) -> str:
     """Return the ``browse`` wrapper the agent runs, bound to its session's port."""
     browse = PROJECT_ROOT / "tools" / "ux_bench" / "browse.py"
-    return f'#!/bin/sh\nUX_BENCH_PORT={port} exec {sys.executable} {browse} "$@"\n'
+    return f'#!/bin/sh\nUX_BENCH_PORT={port} exec {shlex.quote(sys.executable)} {shlex.quote(str(browse))} "$@"\n'
 
 
 def run_one(task: Task, repeat: int, out: Path, *, model: str, budget: float, timeout: float) -> RunResult:
@@ -224,8 +226,11 @@ def run_one(task: Task, repeat: int, out: Path, *, model: str, budget: float, ti
             except subprocess.TimeoutExpired:
                 result["driver_error"] = f"The agent did not finish within {timeout:.0f} s"
 
-            _finish_session(port)
-            session.wait(timeout=FINISH_SECONDS)
+            try:
+                _finish_session(port)
+                session.wait(timeout=FINISH_SECONDS)
+            except (urllib.error.URLError, subprocess.TimeoutExpired) as err:
+                result["problems"] = [f"The session did not finish cleanly ({err}); see session.log"]
         finally:
             if session.poll() is None:
                 session.kill()
@@ -376,7 +381,14 @@ def main() -> None:
         for task in load_tasks(include_holdout=bool(args.holdout or selected))
         if not selected or task["id"] in selected
     ]
-    out = Path(args.out) if args.out else PROJECT_ROOT / ".ux-bench" / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    unknown = selected - {task["id"] for task in load_tasks(include_holdout=True)}
+    if unknown:
+        parser.error(f"Unknown task ids: {', '.join(sorted(unknown))}")
+    out = (
+        Path(args.out).resolve()
+        if args.out
+        else PROJECT_ROOT / ".ux-bench" / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    )
     out.mkdir(parents=True, exist_ok=True)
     jobs = [(task, repeat) for task in tasks for repeat in range(1, int(args.repeats) + 1)]
 

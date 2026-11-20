@@ -23,7 +23,12 @@ ALL_TASKS = load_tasks(include_holdout=True)
         ({"v": {"$contains": [{"k": 1}]}}, {"v": [{"k": 2}, {"k": 1, "j": 3}]}),
         ({"gone": {"$absent": True}}, {"other": 1}),
         (["a", "b"], ["a", "b"]),
+        (
+            {"v": {"$contains": [{"s": "B"}, {"s": "B", "p": 1}]}},
+            {"v": [{"s": "B", "p": 1}, {"s": "B", "p": 2}]},
+        ),
     ],
+    ids=["extra-keys", "close-float", "set-any-order", "contains", "absent", "list", "contains-loose-first"],
 )
 def test_matching_accepts(expected: JsonValueType, actual: JsonValueType) -> None:
     """Data that holds everything the expectation names matches."""
@@ -159,6 +164,18 @@ def test_evaluate_allows_only_the_elements_own_policy_rules(rules: list[JsonValu
     """A policy subentry the flow creates may only hold rules naming the new element."""
     after = {**BEFORE, "new": PUMP, "policy": _sub("policy", "Policies", {"rules": rules})}
     assert evaluate(ADD_TASK, BEFORE, after)["success"] is success
+
+
+def test_evaluate_edit_accepts_rules_renamed_with_the_element() -> None:
+    """Renaming the element rewrites its policy rules under the new name."""
+    before = {**BEFORE, "policy": _sub("policy", "Policies", {"rules": [_rule(0.01, ["Battery"])]})}
+    after = {
+        **before,
+        "bat": _sub("battery", "Home Battery", {"min": 20}),
+        "policy": _sub("policy", "Policies", {"rules": [_rule(0.01, ["Home Battery"])]}),
+    }
+    task: Task = {**EDIT_TASK, "expect": {"kind": "edit", "element_type": "battery", "title": "Battery", "data": {}}}
+    assert evaluate(task, before, after)["success"] is True
 
 
 def test_summarize_counts_runs() -> None:

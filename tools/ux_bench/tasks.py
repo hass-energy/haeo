@@ -32,8 +32,9 @@ HUB_TITLE = "Home"
 class Expectation(TypedDict):
     """What the goal should leave behind.
 
-    ``add`` expects exactly one new subentry of ``element_type``; ``edit`` expects
-    the existing subentry titled ``title`` to change. ``data`` is matched
+    ``add`` expects exactly one new subentry of ``element_type``, titled ``title``
+    when given; ``edit`` expects the existing subentry titled ``title`` to change,
+    and checks a new name through ``data``. ``data`` is matched
     partially (see ``matching``), and every other subentry must stay as it was.
     """
 

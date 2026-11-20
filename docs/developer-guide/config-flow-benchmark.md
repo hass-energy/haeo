@@ -29,17 +29,17 @@ That list is the most useful output: it names the labels, defaults, and missing 
 The agent needs the `claude` command logged in.
 If Playwright's pinned Chromium is not installed, set `UX_BENCH_CHROMIUM` to the path of a Chromium executable.
 
-| Flag          | Default    | Description                                       |
-| ------------- | ---------- | ------------------------------------------------- |
-| `--task`      | every task | Task id to run; repeat the flag for several tasks |
-| `--holdout`   | off        | Include the holdout tasks                         |
-| `--repeats`   | `3`        | Runs per task                                     |
-| `--parallel`  | `8`        | Runs at a time                                    |
-| `--model`     | `sonnet`   | Model the agent runs on                           |
-| `--budget`    | `3.0`      | Spend limit per run, in US dollars                |
-| `--timeout`   | `900`      | Time limit per run, in seconds                    |
-| `--out`       | timestamp  | Output directory                                  |
-| `--rescore`   | off        | Score the runs already in `--out` again           |
+| Flag         | Default    | Description                                       |
+| ------------ | ---------- | ------------------------------------------------- |
+| `--task`     | every task | Task id to run; repeat the flag for several tasks |
+| `--holdout`  | off        | Include the holdout tasks                         |
+| `--repeats`  | `3`        | Runs per task                                     |
+| `--parallel` | `8`        | Runs at a time                                    |
+| `--model`    | `sonnet`   | Model the agent runs on                           |
+| `--budget`   | `3.0`      | Spend limit per run, in US dollars                |
+| `--timeout`  | `900`      | Time limit per run, in seconds                    |
+| `--out`      | timestamp  | Output directory                                  |
+| `--rescore`  | off        | Score the runs already in `--out` again           |
 
 ## Reading the results
 
@@ -60,13 +60,26 @@ Every task runs in the same world: the inputs and environment of scenario 6, plu
   "id": "add_grid_amber",
   "holdout": false,
   "goal": "Add your grid connection to HAEO. ...",
-  "participants": ["Inverter", "Switchboard", "Battery", "Solar", "Load"],
+  "participants": [
+    "Inverter",
+    "Switchboard",
+    "Battery",
+    "Solar",
+    "Load"
+  ],
   "expect": {
     "kind": "add",
     "element_type": "grid",
     "data": {
       "pricing": {
-        "price_source_target": {"type": "entity", "value": {"$set": ["sensor.amber_express_home_general_price"]}}
+        "price_source_target": {
+          "type": "entity",
+          "value": {
+            "$set": [
+              "sensor.amber_express_home_general_price"
+            ]
+          }
+        }
       }
     }
   }

@@ -58,32 +58,29 @@ def mismatches(expected: JsonValueType, actual: JsonValueType, path: str = "$") 
     return [f"{path}: expected {expected!r}, found {actual!r}"]
 
 
-def _matching_index(want: JsonValueType, candidates: list[JsonValueType]) -> int | None:
-    return next((index for index, have in enumerate(candidates) if not mismatches(want, have)), None)
+def _assign(expected: list[JsonValueType], actual: list[JsonValueType]) -> bool:
+    """Return whether each expected item can match a distinct actual item."""
+    if not expected:
+        return True
+    want, rest = expected[0], expected[1:]
+    return any(
+        not mismatches(want, have) and _assign(rest, actual[:index] + actual[index + 1 :])
+        for index, have in enumerate(actual)
+    )
 
 
 def _set_mismatches(expected: JsonValueType, actual: JsonValueType, path: str) -> list[str]:
-    problem = [f"{path}: expected the items {expected!r} in any order, found {actual!r}"]
-    if not isinstance(expected, list) or not isinstance(actual, list) or len(expected) != len(actual):
-        return problem
-    remaining = list(actual)
-    for want in expected:
-        index = _matching_index(want, remaining)
-        if index is None:
-            return problem
-        remaining.pop(index)
-    return []
+    if (
+        isinstance(expected, list)
+        and isinstance(actual, list)
+        and len(expected) == len(actual)
+        and _assign(expected, actual)
+    ):
+        return []
+    return [f"{path}: expected the items {expected!r} in any order, found {actual!r}"]
 
 
 def _contains_mismatches(expected: JsonValueType, actual: JsonValueType, path: str) -> list[str]:
-    if not isinstance(expected, list) or not isinstance(actual, list):
-        return [f"{path}: expected a list containing {expected!r}, found {actual!r}"]
-    remaining = list(actual)
-    found: list[str] = []
-    for want in expected:
-        index = _matching_index(want, remaining)
-        if index is None:
-            found.append(f"{path}: no item matches {want!r} in {actual!r}")
-        else:
-            remaining.pop(index)
-    return found
+    if isinstance(expected, list) and isinstance(actual, list) and _assign(expected, actual):
+        return []
+    return [f"{path}: expected a list containing {expected!r}, found {actual!r}"]

@@ -44,6 +44,9 @@ ACTION_TIMEOUT_MS = 3000
 SETTLE_TIMEOUT_MS = 2000
 SETTLE_PAUSE_MS = 300
 READY_TIMEOUT_MS = 15000
+# Startup takes seconds; these keep a stuck start well inside run.READY_SECONDS
+START_TIMEOUT_SECONDS = 20
+SEED_TIMEOUT_SECONDS = 20
 VIEWPORT: ViewportSize = {"width": 1280, "height": 900}
 
 _LOGGER = logging.getLogger(__name__)
@@ -85,6 +88,7 @@ class SessionState:
     failed_commands: int = 0
     errors_shown: int = 0
     visible_errors: int = 0
+    finished: float | None = None
     finish_requested: bool = False
 
     def counts(self) -> dict[str, JsonValueType]:
@@ -97,7 +101,7 @@ class SessionState:
             "screenshots": self.screenshots,
             "failed_commands": self.failed_commands,
             "errors_shown": self.errors_shown,
-            "seconds": round(elapsed() - self.started, 1),
+            "seconds": round((self.finished or elapsed()) - self.started, 1),
         }
 
 
@@ -134,7 +138,7 @@ def run_command(state: SessionState, command: str, args: list[str]) -> str:
         state.failed_commands += 1
     if command in {"click", "type", "press"}:
         settle(page)
-    visible = int(page.evaluate(_VISIBLE_ERRORS_JS))
+    visible = _visible_errors(page)
     if visible > state.visible_errors:
         state.errors_shown += visible - state.visible_errors
     state.visible_errors = visible
@@ -148,10 +152,30 @@ def run_command(state: SessionState, command: str, args: list[str]) -> str:
     with state.log_path.open("a", encoding="utf-8") as log:
         log.write(json.dumps(entry) + "\n")
     if error is not None:
-        return f"Error: {error}\n\n{observe(page)}"
+        return f"Error: {error}\n\n{_observe_after_change(page)}"
     if command in {"done", "giveup", "screenshot"}:
         return result
-    return f"{result}\n\n{observe(page)}".lstrip()
+    return f"{result}\n\n{_observe_after_change(page)}".lstrip()
+
+
+def _visible_errors(page: Page) -> int:
+    """Count visible error alerts, or zero while the page is mid-navigation."""
+    try:
+        return int(page.evaluate(_VISIBLE_ERRORS_JS))
+    except PlaywrightError:
+        return 0
+
+
+def _observe_after_change(page: Page) -> str:
+    """Observe the page, waiting once more if a navigation replaced it mid-read."""
+    try:
+        return observe(page)
+    except PlaywrightError:
+        settle(page)
+    try:
+        return observe(page)
+    except PlaywrightError as err:
+        return f"The page is still changing ({str(err).splitlines()[0]}). Run ./browse look."
 
 
 def _dispatch(state: SessionState, command: str, args: list[str]) -> str:
@@ -179,6 +203,7 @@ def _dispatch(state: SessionState, command: str, args: list[str]) -> str:
             return f"Saved {path}"
         case ("done" | "giveup") as status, [*words] if words:
             state.status = status
+            state.finished = elapsed()
             state.message = " ".join(words)
             return "Recorded. You can stop now."
         case _:
@@ -212,7 +237,10 @@ def serve(state: SessionState, run_dir: Path) -> None:
             self.wfile.write(data)
 
     server = HTTPServer(("127.0.0.1", 0), Handler)
-    (run_dir / "session.json").write_text(json.dumps({"port": server.server_address[1]}), encoding="utf-8")
+    # Written whole and renamed into place, so a reader never sees it half written
+    pending = run_dir / "session.json.tmp"
+    pending.write_text(json.dumps({"port": server.server_address[1]}), encoding="utf-8")
+    pending.replace(run_dir / "session.json")
     while not state.finish_requested:
         server.handle_request()
     server.server_close()
@@ -254,9 +282,11 @@ def main() -> None:
     states_file = run_dir / "states.json"
     states_file.write_text(json.dumps(world_states()), encoding="utf-8")
 
-    with live_home_assistant(timeout=120, environment=world_environment(), states=states_file) as hass:
+    with live_home_assistant(
+        timeout=START_TIMEOUT_SECONDS, environment=world_environment(), states=states_file
+    ) as hass:
         _LOGGER.info("Home Assistant started, seeding the hub")
-        entry = hass.run_coro(setup_haeo_entry(hass.hass, hub_config(task)), timeout=120)
+        entry = hass.run_coro(setup_haeo_entry(hass.hass, hub_config(task)), timeout=SEED_TIMEOUT_SECONDS)
 
         async def retitle() -> None:
             hass.hass.config_entries.async_update_entry(entry, title=HUB_TITLE)
