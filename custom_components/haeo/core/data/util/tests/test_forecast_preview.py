@@ -25,6 +25,15 @@ def test_preview_rounds_to_four_significant_figures() -> None:
     assert forecast_preview([(0.0, 1.23456), (1.0, 1.23456)], 0.0, points=2) == (1.235, 1.235)
 
 
-def test_a_single_point_has_no_preview() -> None:
+@pytest.mark.parametrize(
+    "series",
+    [pytest.param([(0.0, 1.0)], id="one_point"), pytest.param([(0.0, 1.0), (1.0, float("inf"))], id="one_finite")],
+)
+def test_fewer_than_two_points_have_no_preview(series: list[tuple[float, float]]) -> None:
     """A line needs two points."""
-    assert forecast_preview([(0.0, 1.0)], 0.0) == ()
+    assert forecast_preview(series, 0.0) == ()
+
+
+def test_points_that_are_not_finite_are_left_out() -> None:
+    """A missing value read as NaN does not reach the preview."""
+    assert forecast_preview([(0.0, 0.0), (5.0, float("nan")), (10.0, 10.0)], 0.0, points=3) == (0.0, 5.0, 10.0)

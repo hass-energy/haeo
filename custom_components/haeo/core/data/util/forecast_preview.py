@@ -15,11 +15,13 @@ def forecast_preview(series: ForecastSeries, now: float, points: int = PREVIEW_P
 
     Values between the forecast's points are interpolated linearly, as the
     fuser does. A forecast that has ended, or not yet started, is previewed
-    over its whole span, and one with fewer than two points has no preview.
+    over its whole span. Points that are not finite are left out, and a
+    forecast with fewer than two other points has no preview.
     """
-    if len(series) < 2:  # noqa: PLR2004  # a line needs two points
+    array = np.asarray(series, dtype=np.float64).reshape(-1, 2)
+    array = array[np.isfinite(array).all(axis=1)]
+    if len(array) < 2:  # noqa: PLR2004  # a line needs two points
         return ()
-    array = np.asarray(series, dtype=np.float64)
     times, values = array[:, 0], array[:, 1]
     start = now if times[0] < now < times[-1] else times[0]
     samples = np.interp(np.linspace(start, times[-1], points), times, values)
