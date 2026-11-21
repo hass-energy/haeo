@@ -1,0 +1,41 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.006573020000000001,
+  "turns": 11,
+  "report": "I added the connection. HAEO confirmed \"Created configuration for Inverter to Switchboard\", and the Home hub now lists an \"Inverter to Switchboard\" Connection device with 2 entities.\n\n- **Source and target:** Inverter as the source and Switchboard as the target, which were already selected when the form opened.\n- **Limit:** one Limit segment set to a fixed value of 10 kW, chosen from the \"Fixed value 10 kW\" suggestion. The form's Limit field takes entities or values, and the 10 kW suggestion was the only fixed value offered.\n- **Name:** I renamed the connection from the default \"Connection\" to \"Inverter to Switchboard\". You didn't ask for a name, so change it if you prefer another.\n\nPoints where I hesitated or was unsure:\n- I did not check the 10 kW limit against the live Connection entity's attributes afterwards, so I'm relying on the form and the success message to confirm the value.\n- The connection is one-way, as the form's help text says. Power flowing back from the Switchboard to the Inverter is not limited by this connection. The help text suggests adding a second connection with the endpoints swapped if you need that, and I did not add one.\n- I assumed the Limit field's units are kW because the dropdown labelled the value \"10 kW\". I did not confirm the unit independently.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "segments": [
+      {
+        "segment_type": "power_limit",
+        "max_power": {
+          "type": "constant",
+          "value": 10.0
+        }
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Connection named 'Inverter to Switchboard' from Inverter (source) to Switchboard (target) with one Limit segment set to a fixed value of 10 kW. HAEO confirmed 'Created configuration for Inverter to Switchboard' and the Home hub now lists the new Connection device with 2 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 13.5
+}

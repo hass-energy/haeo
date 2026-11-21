@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_ordered",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1295755,
+  "turns": 15,
+  "report": "I added a connection called \"Inverter to Switchboard\", running from the Inverter to the Switchboard. Home Assistant confirmed it was created, but I didn't reopen it afterwards to check the saved values.\n\nIt has two segments, in this order:\n1. **Efficiency, 96%.** This models the transformer's 4% loss.\n2. **Limit, 8 kW.** Because it comes after the efficiency segment, the 8 kW cap applies to the power that arrives at the switchboard, not the power leaving the inverter.\n\nPoints where I hesitated or made mistakes:\n- **Efficiency value:** My first attempt at the 96 value didn't stick. Typing it only fills the search box, and I had to click the \"Fixed value 96 %\" option to commit it. I also used a stale option reference once and had to retry.\n- **Segment order:** The form doesn't say which order is correct. I put efficiency first on my own reasoning that the fuse sits on the switchboard side, after the loss.\n- **Limit direction:** The single Limit field doesn't say whether it caps one direction or both. The connection is one-way anyway, so I assumed it doesn't matter.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "segments": [
+      {
+        "segment_type": "efficiency",
+        "efficiency": {
+          "type": "constant",
+          "value": 96.0
+        }
+      },
+      {
+        "segment_type": "power_limit",
+        "max_power": {
+          "type": "constant",
+          "value": 8.0
+        }
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (Inverter -> Switchboard) with segments in order: Efficiency 96%, then Limit 8 kW, so the 8 kW cap applies after the 4% loss, at the switchboard side.",
+  "actions": 15,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 29.6
+}

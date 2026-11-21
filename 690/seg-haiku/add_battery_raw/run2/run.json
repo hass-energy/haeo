@@ -1,0 +1,85 @@
+{
+  "task": "add_battery_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.019208270000000003,
+  "turns": 17,
+  "report": "I added the Sigenergy battery to the Home hub. HAEO created \"Created configuration for Battery\", and the Battery device now shows 21 entities.\n\nSettings I entered:\n- **Connection:** Inverter (the default, which matches a battery behind the inverter).\n- **Capacity:** `sensor.sigen_plant_rated_energy_capacity` (32.24 kWh).\n- **State of charge:** `sensor.sigen_plant_battery_state_of_charge`.\n- **Min charge level:** fixed value 5 %.\n- **Max charge power:** `sensor.sigen_plant_ess_rated_charging_power` (16.8 kW).\n- **Max discharge power:** `sensor.sigen_plant_ess_rated_discharging_power` (19.2 kW).\n\nI did not open the saved battery's settings afterwards to re-check these values.\n\nPoints where I hesitated or was unsure:\n- **Connection:** The Sigenergy battery could be DC-coupled to the inverter, or it could be on a different connection. I kept the default \"Inverter, DC\" without confirming it against your hardware.\n- **Battery name:** I left the default \"Battery\" rather than naming it after the Sigenergy unit.\n- **Min charge level:** The field accepts a percentage or a sensor. I chose the fixed 5 % option, which showed the % unit in the dropdown.\n- **Left at defaults:** Max charge level, the Battery efficiency section, the Advanced section, and the pricing fields (charge cost -0.001 $/kWh, discharge cost 0, salvage 0). You didn't mention these, and I did not review them.\n- **Extra device:** After saving, a \"Policies\" device appeared with 4 entities. I did not create it on purpose and did not investigate whether it came from adding the battery.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 15,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 24.4
+}

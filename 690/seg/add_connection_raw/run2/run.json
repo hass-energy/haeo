@@ -1,0 +1,41 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.09749060000000001,
+  "turns": 10,
+  "report": "I added a connection called \"Inverter to Switchboard\", running from the Inverter to the Switchboard. It has a Limit segment set to a fixed 10 kW. HAEO showed \"Created configuration for Inverter to Switchboard\", and the connection now appears in the Home hub's list.\n\nI didn't reopen the connection to check the saved limit.\n\nPoints where I hesitated or made a choice:\n- **Name:** The form pre-filled \"Connection\". I changed it to \"Inverter to Switchboard\" so it's easy to recognise. You didn't ask for that name.\n- **Direction:** The form already had Inverter as source and Switchboard as target, so I left those alone. I did this because the limit applies only in the inverter-to-switchboard direction.\n- **Limit entry:** I typed 10 into the Limit box and picked the \"Fixed value 10 kW\" option. I wasn't sure typing alone would register, so I confirmed it showed as a chip before submitting.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "segments": [
+      {
+        "segment_type": "power_limit",
+        "max_power": {
+          "type": "constant",
+          "value": 10.0
+        }
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' from Inverter to Switchboard with a Limit segment of fixed 10 kW; success confirmed.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.2
+}

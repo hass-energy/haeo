@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_ordered",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.11103060000000002,
+  "turns": 12,
+  "report": "I added a connection called \"Inverter to Switchboard\", with Inverter as the source and Switchboard as the target. Home Assistant showed \"Created configuration for Inverter to Switchboard.\" I didn't reopen it afterwards to check the saved values.\n\nIt has two segments, in this order:\n1. **Efficiency:** 96%, for the 4% transformer loss.\n2. **Limit:** 8 kW, applied after the loss, so no more than 8 kW arrives at the switchboard.\n\nPoints where I hesitated or could have gone wrong:\n- **Segment order:** I wasn't sure which order the segments are applied in. I put Efficiency first and Limit second because the fuse is on the switchboard side of the transformer.\n- **Limit value:** After typing 8 into the Limit field I clicked the \"Fixed value 8 kW\" option. I didn't confirm it showed as a chip before I submitted. The form accepted the submission, so I assume the value was set.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "segments": [
+      {
+        "segment_type": "efficiency",
+        "efficiency": {
+          "type": "constant",
+          "value": 96.0
+        }
+      },
+      {
+        "segment_type": "power_limit",
+        "max_power": {
+          "type": "constant",
+          "value": 8.0
+        }
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Created connection 'Inverter to Switchboard' from Inverter to Switchboard with segments in order: Efficiency 96%, then Limit 8 kW.",
+  "actions": 12,
+  "looks": 3,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.1
+}

@@ -1,0 +1,41 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0707577,
+  "turns": 9,
+  "report": "I added a connection called \"Inverter to Switchboard\", running from the Inverter to the Switchboard. It has a fixed Limit of 10 kW, and Home Assistant confirmed it was created. I didn't reopen the connection afterwards to check the saved values.\n\nPoints where I hesitated or made a choice:\n- I typed the limit as `10` without being told the unit. The field showed \"Fixed value 10 kW\", so I accepted it.\n- I changed the default name \"Connection\" to \"Inverter to Switchboard\". You didn't ask for a name, so this was my choice.\n- The Source and Target were already set to Inverter and Switchboard, so I left them alone.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "segments": [
+      {
+        "segment_type": "power_limit",
+        "max_power": {
+          "type": "constant",
+          "value": 10.0
+        }
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with a Limit segment of fixed 10 kW; HA confirmed creation.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.0
+}

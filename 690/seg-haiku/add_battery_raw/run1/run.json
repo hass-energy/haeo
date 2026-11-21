@@ -1,0 +1,85 @@
+{
+  "task": "add_battery_raw",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.027114480000000003,
+  "turns": 21,
+  "report": "I added the Sigenergy battery to HAEO. The new \"Battery\" device now appears on the Home hub with 21 entities.\n\nI set these values on the Battery element:\n- **Connection:** Inverter (the default). The battery sits behind the inverter.\n- **Capacity:** Sigen Plant Rated Energy Capacity (currently 32.2 kWh).\n- **State of charge:** Sigen Plant Battery State of Charge (currently 12.8%).\n- **Min charge level:** fixed 5%, so the battery is never discharged below 5%.\n- **Max charge power:** Sigen Plant ESS Rated Charging Power (currently 16.8 kW).\n- **Max discharge power:** Sigen Plant ESS Rated Discharging Power (currently 19.2 kW).\n\nI left the name as \"Battery\" and did not change the max charge level, the pricing, the efficiency, or the advanced sections.\n\nI did not verify the saved values by reopening the battery configuration. The success dialog confirmed creation, and the entity count went from 41 to 66.\n\nPoints where I hesitated, were unsure, or made a mistake:\n- **Mis-click:** My first click opened the Connection dialog by mistake because I had mislabelled the button. I closed it with Close and did not submit anything, so no connection was created.\n- **Connection choice:** I kept the default \"Inverter\" connection. That assumes the battery is on the DC side of the inverter, which matches \"connected through your inverter\" but is an inference.\n- **Min charge unit:** The 5% option offered as a fixed value was shown as \"5 %\". I chose that suggestion rather than typing a bare number, so I'm assuming it's the percentage the battery's min level expects.\n- **Unexpected Policies device:** After submitting, a \"Policies\" device with 4 entities also appeared under HAEO. I did not create it, and I don't know whether HAEO adds it automatically or whether the battery triggered it. I did not investigate it further.\n- **Battery name:** I left the default name \"Battery\" even though the hub already has other batteries from the same site could be confused with it. Naming it \"Sigenergy Battery\" might be clearer, but I didn't change it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 18,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 30.3
+}

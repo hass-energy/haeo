@@ -1,0 +1,37 @@
+{
+  "runs": 9,
+  "passed": 9,
+  "success_rate": 1.0,
+  "actions": 13,
+  "cost_usd": 1.02,
+  "tasks": {
+    "add_battery_raw": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 18,
+      "actions_when_passed": 18,
+      "errors_shown": 0,
+      "seconds": 26.7,
+      "cost_usd": 0.39
+    },
+    "add_connection_ordered": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 15,
+      "actions_when_passed": 15,
+      "errors_shown": 0,
+      "seconds": 28.5,
+      "cost_usd": 0.36
+    },
+    "add_connection_raw": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 8,
+      "actions_when_passed": 8,
+      "errors_shown": 0,
+      "seconds": 17.2,
+      "cost_usd": 0.27
+    }
+  },
+  "model": "sonnet"
+}

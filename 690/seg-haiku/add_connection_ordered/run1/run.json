@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_ordered",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.01023327,
+  "turns": 15,
+  "report": "I added the connection \"Inverter to Switchboard transformer\" to the Home hub. It runs from Inverter to Switchboard with two segments in this order:\n\n1. **Efficiency: fixed 96%** (the transformer keeps 96% and loses 4%)\n2. **Limit: fixed 8 kW** (the fuse cap on what reaches the switchboard)\n\nThe success dialog confirmed creation, and the hub list now shows the connection with 3 entities.\n\nPoints where I hesitated, were unsure, or could have gone wrong:\n\n- **Segment order:** I put Efficiency before Limit so that the 8 kW cap applies to power after the 4% loss, which is what the fuse sees. I inferred that from the \"applied in order\" wording rather than from documentation, so I did not verify how the optimizer actually applies it.\n- **Efficiency units:** The field offered \"Fixed value 96 %\" when I typed 96, and I picked that rather than 0.96. The UI displayed it as a percentage, so I believe it is right, but I did not check the stored value.\n- **Limit meaning:** I assumed the 8 kW limit caps instantaneous power through the connection. I did not confirm that it is not an energy or per-interval limit.\n- **Connection name:** The default was \"Connection\". I renamed it to \"Inverter to Switchboard transformer\" for clarity. That was my choice, not something you asked for.\n- **Direction:** The help text says the connection is one-way. I left the default direction, so power can flow only from Inverter to Switchboard, which matches your setup.\n- **Not re-checked:** I did not reopen the saved connection to confirm the segments and values persisted as entered.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard transformer",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "segments": [
+      {
+        "segment_type": "efficiency",
+        "efficiency": {
+          "type": "constant",
+          "value": 96.0
+        }
+      },
+      {
+        "segment_type": "power_limit",
+        "max_power": {
+          "type": "constant",
+          "value": 8.0
+        }
+      }
+    ]
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 13,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.0
+}

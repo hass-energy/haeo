@@ -1,0 +1,41 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.010769540000000001,
+  "turns": 13,
+  "report": "The connection is set up: Inverter to Switchboard with a fixed 10 kW limit. HAEO now lists a new \"Inverter to Switchboard\" connection under Home, with 2 entities.\n\nI did not reopen the saved connection to read the limit back. The limit was confirmed as \"Fixed value 10 kW\" in the form before I submitted, and the success message appeared.\n\nPoints where I hesitated or made a choice:\n- **Wrong dialog first:** I clicked the hub's \"Configure\" button by mistake, which opened the Home hub settings. I closed it without changing anything and used the \"Connection\" add button instead.\n- **Name:** You didn't ask for a name, so I renamed the default \"Connection\" to \"Inverter to Switchboard\" so it is easy to identify. It can be changed if you prefer another name.\n- **Units:** The limit field took a bare \"10\" and offered it as \"Fixed value 10 kW\". I accepted that option rather than entering a unit myself.\n- **Direction:** The connection is one-way, which matches the cable limit you described (inverter to switchboard). The form says power in the other direction needs a second connection with the endpoints swapped. I did not add one, because you only asked for this direction.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "segments": [
+      {
+        "segment_type": "power_limit",
+        "max_power": {
+          "type": "constant",
+          "value": 10.0
+        }
+      }
+    ]
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 10,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.0
+}
