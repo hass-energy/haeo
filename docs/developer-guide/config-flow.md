@@ -169,7 +169,7 @@ The readout's accessible label carries the full value.
 A forecast with nothing to preview, such as a calendar, shows a chart icon instead.
 The list marks entities the same way, so forecasts and current values appear side by side.
 A select-all row with the match count checks every entity the search shows, and chosen entities keep the order they were picked in.
-Words appear only as accessible labels and the On and Off of an on/off field.
+Words appear only as accessible labels, the **Fixed value** label beside a fixed value's readout, and the On and Off of an on/off field.
 
 Every input opens with a value, as Home Assistant's form cannot start a required field of a selector it does not know without one.
 An existing element's field opens with what it stores, and `{"type": "none"}` when it stores nothing, so saving its form unchanged changes nothing; a new element's field opens with its default.

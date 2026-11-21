@@ -11,6 +11,7 @@ const STRINGS: Record<string, string> = {
   "input.options.current_value": "Current value {value}",
   "input.options.forecast": "Forecast",
   "input.options.enter_value": "{label}: enter a value",
+  "input.options.fixed": "Fixed value",
   "input.options.fixed_value": "Fixed value {value}",
   "input.options.off": "Off",
   "input.options.on": "On",
@@ -140,7 +141,7 @@ describe("InputField", () => {
     expect(container.textContent).toBe("Forecast");
   });
 
-  it("tells screen readers what the field searches, which sighted users see from its icon", () => {
+  it("tells screen readers the field searches entities and takes a value", () => {
     show();
     expect(field().getAttribute("aria-label")).toBe("Forecast: search entities or enter a value");
     show({ config: { ...numberConfig, kinds: ["constant", "none"] } });
@@ -176,6 +177,7 @@ describe("InputField", () => {
   it("shows a fixed value as a chip with its unit, distinct from entity chips", () => {
     show({ value: { type: "constant", value: 0.8 } });
     expect(container.querySelector(".chip.constant .readout.fixed")?.textContent).toBe("0.8kW");
+    expect(container.querySelector(".chip.constant")?.textContent).toBe("0.8kWFixed value");
     expect(container.querySelector(".chip.entity")).toBeNull();
   });
 

@@ -1,4 +1,4 @@
-import { mdiClose, mdiMagnify } from "@mdi/js";
+import { mdiClose } from "@mdi/js";
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
@@ -237,8 +237,6 @@ export function InputField(props: InputFieldProps): JSX.Element {
       </div>
 
       <div class="tokens" onClick={() => input.current?.focus()}>
-        {/* The field is also the search over the entities it offers */}
-        {allowsEntity && <Icon path={mdiMagnify} />}
         {value?.type === "constant" && (
           <span class="chip constant">
             <button
@@ -249,6 +247,7 @@ export function InputField(props: InputFieldProps): JSX.Element {
               onClick={() => editConstant(value.value)}
             >
               <Readout content={constantReadout(value.value)} />
+              <span class="entity-name">{t("input.options.fixed")}</span>
             </button>
             <button
               type="button"
@@ -323,6 +322,9 @@ export function InputField(props: InputFieldProps): JSX.Element {
               >
                 <span class="check-space" />
                 <Readout content={constantReadout(choice.value)} />
+                <span class="option-text">
+                  <span class="entity-name">{t("input.options.fixed")}</span>
+                </span>
               </li>
             )
           )}

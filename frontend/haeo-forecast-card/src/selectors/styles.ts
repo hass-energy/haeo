@@ -41,7 +41,6 @@ export const SELECTOR_STYLES = `
   border-radius: 4px 4px 0 0;
 }
 .tokens:focus-within { border-bottom: 2px solid var(--primary-color); }
-.tokens > .icon { color: var(--secondary-text-color); }
 .tokens input {
   flex: 1; min-width: 80px; height: 32px; padding: 0; border: none; outline: none; background: none;
   font: inherit; color: var(--primary-text-color);

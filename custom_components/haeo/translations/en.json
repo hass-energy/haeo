@@ -846,6 +846,7 @@
       "options": {
         "current_value": "Current value {value}",
         "enter_value": "{label}: enter a value",
+        "fixed": "Fixed value",
         "fixed_value": "Fixed value {value}",
         "forecast": "Forecast",
         "off": "Off",

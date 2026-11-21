@@ -139,7 +139,7 @@ Each input field takes a fixed value, one or more entities, or nothing.
 Type into the field and pick from the list below it:
 
 - **Fixed value**: Type a number, and the list's first row offers it with the field's unit.
-    Pick it, or press Enter, and it becomes a chip showing the value on a tinted background.
+    Pick it, or press Enter, and it becomes a **Fixed value** chip showing the value on a tinted background.
     An on/off field offers **On** and **Off** instead.
     Click a fixed value's chip to change it.
 - **Entities**: Type part of an entity's name to narrow the list, then check the ones to use.
