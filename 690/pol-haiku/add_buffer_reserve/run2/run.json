@@ -1,0 +1,50 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.028196100000000005,
+  "turns": 26,
+  "report": "I added a Buffer called \"Outage reserve\" to the Home hub and reopened it to confirm the saved values.\n\n- **Kind:** Reserve (keep energy), not Headroom.\n- **Participants:** Load under Loads, Solar under Generation, and Battery under Batteries. Solar is included so the reserve counts on the panels producing during the outage.\n- **Window:** 12 h (the default, which matches your requirement).\n- **Level:** 40 % (fixed value).\n- **Shortfall cost:** left at the default 0.05 $/kWh/h.\n\nI did not run a simulation or check the optimizer's result, so I can't confirm the reserve will actually hold 12 hours.\n\nPoints where I hesitated or was unsure:\n- **Level units:** The Level field took a percentage, but I couldn't see what it is a percentage of. I assumed the combined battery capacity (32.2 kWh per the Battery element), which would make 40 % about 12.9 kWh.\n- **Level value:** I chose 40 % from the Load forecast, which shows 0.5 kW now and up to 1.66 kW over the next 168 hours. I did not know the 12-hour average. Twelve hours at about 1 kW is roughly 12 kWh, about 37 %, so I rounded up to 40 %. The forecast is a rough range, so 40 % could be too low or too high.\n- **Solar credit:** Including Solar makes the reserve depend on panel output during the outage. Solar produces little at night, and I did not check how the buffer models that.\n- **Current state:** The battery is at 12.8 % now, below the 40 % level, so the reserve will push the optimizer to charge the battery. I didn't check whether that charging is acceptable to you.\n- **Shortfall cost:** I kept the default penalty without knowing what it implies for how hard HAEO works to hold the reserve.\n- **Mistake:** I opened the Battery, Load and Buffer dialogs several times and closed them without saving, so nothing else was changed. I didn't add any extra buffer or edit the existing elements.\n- **Permissions:** One command was blocked by the environment's permission mode. I worked around it by running the browser command alone and did not try anything else to get past the block.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "buffer",
+    "name": "Outage reserve",
+    "participants": {
+      "loads": [
+        "Load"
+      ],
+      "generation": [
+        "Solar"
+      ],
+      "storage": [
+        "Battery"
+      ]
+    },
+    "requirement": {
+      "window": {
+        "type": "constant",
+        "value": 12.0
+      },
+      "level": {
+        "type": "constant",
+        "value": 40.0
+      }
+    },
+    "pricing": {
+      "shortfall_cost": {
+        "type": "constant",
+        "value": 0.05
+      }
+    },
+    "kind": "reserve"
+  },
+  "status": "done",
+  "message": "Added a Buffer named 'Outage reserve' to the Home hub: kind Reserve, participants Load (loads), Solar (generation) and Battery (batteries), window 12 h, level 40 %, shortfall cost left at the default 0.05 $/kWh/h. Saved values confirmed by reopening it.",
+  "actions": 22,
+  "looks": 3,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 40.7
+}

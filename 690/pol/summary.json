@@ -1,0 +1,28 @@
+{
+  "runs": 6,
+  "passed": 6,
+  "success_rate": 1.0,
+  "actions": 11.0,
+  "cost_usd": 0.69,
+  "tasks": {
+    "add_buffer_reserve": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 9,
+      "actions_when_passed": 9,
+      "errors_shown": 0,
+      "seconds": 17.3,
+      "cost_usd": 0.42
+    },
+    "add_policy_battery_wear": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 13,
+      "actions_when_passed": 13,
+      "errors_shown": 0,
+      "seconds": 20.7,
+      "cost_usd": 0.27
+    }
+  },
+  "model": "sonnet"
+}

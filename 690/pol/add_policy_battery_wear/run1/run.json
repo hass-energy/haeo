@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.08868289999999998,
+  "turns": 11,
+  "report": "I added a Policy rule called \"Battery wear\". It charges $0.01 per kWh on any energy leaving the Battery. Home Assistant showed \"Created configuration for Policies.\" and I clicked Finish. I didn't reopen the Policy to check it afterwards.\n\n- **From:** Battery.\n- **To:** left as Any, so the charge applies wherever the discharged energy goes.\n- **Price:** a fixed value of 0.01 $/kWh.\n\nPoints where I hesitated or made a mistake:\n- **Extra Grid element:** The element dropdown was a plain select, so I used the keyboard to pick Battery. That added Grid and Battery together. I removed Grid before submitting.\n- **\"Any\" on the To side:** The To list offered Grid, Battery and Load but not Inverter or Solar. I assumed \"Any\" covers every destination, as the help text says, but I couldn't check that.\n- **Price entry:** Typing 0.01 did nothing until I selected the \"Fixed value 0.01 $/kWh\" suggestion that appeared.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Created a Policy rule 'Battery wear': From Battery, To Any, price fixed 0.01 $/kWh. Saved successfully.",
+  "actions": 13,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 1,
+  "errors_shown": 1,
+  "seconds": 20.7
+}

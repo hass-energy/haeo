@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.07548,
+  "turns": 11,
+  "report": "I added a Policy to HAEO with one rule, \"Battery wear\". It charges a fixed 0.01 $/kWh on power flowing from the Battery to anywhere. HAEO showed \"Created configuration for Policies\", and I clicked Finish. I didn't reopen the Policy afterwards to confirm the saved rule.\n\nI left \"To\" empty, which the dialog says means the rule applies to every element on that side.\n\nPoints where I hesitated or slipped:\n- **Element picker:** the \"From\" picker is a native dropdown. My first attempt to type into it failed, so I selected Battery with the keyboard instead. Battery then showed as a chip under \"From\".\n- **Price entry:** typing 0.01 only offered a \"Fixed value 0.01 $/kWh\" suggestion, so I clicked it to confirm. I assumed $/kWh was the right unit for \"1 cent per kWh\".\n- **Rule name:** the dialog suggested \"Rule 1\". I renamed it to \"Battery wear\" so it's recognisable later.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy with rule 'Battery wear': From Battery, To Any, price fixed 0.01 $/kWh.",
+  "actions": 11,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 19.0
+}

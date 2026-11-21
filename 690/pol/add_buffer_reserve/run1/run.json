@@ -1,0 +1,49 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1239223,
+  "turns": 12,
+  "report": "I added a Buffer to your Home setup so HAEO keeps enough energy in the battery to cover a 12-hour power cut. HAEO showed \"Created configuration for Buffer\", and the new Buffer is listed under Home. I didn't check that the optimizer now holds a reserve in practice.\n\n- **Kind:** Reserve (keep energy).\n- **Load:** your Load.\n- **Generation:** Solar, so it counts toward covering the outage.\n- **Battery:** your Battery.\n- **Window:** 12 hours. The form already had this as its default and I left it.\n\nPoints where I hesitated or left things to defaults:\n- **Level:** I left it empty. It is optional and I couldn't tell what an empty value means. I assumed it means \"cover the full window\", but I didn't confirm that. The only suggestion offered was the battery state-of-charge sensor, which didn't seem right for this.\n- **Shortfall cost:** I left it at the default of 0.05 $/kWh/h. I don't know whether that is high enough to make HAEO reliably hold the reserve, and I didn't change it.\n- **Switchboard and Grid:** I didn't add them as participants. The form only offered Load, Solar and Battery, and those seemed to be the right ones.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "buffer",
+    "name": "Buffer",
+    "participants": {
+      "loads": [
+        "Load"
+      ],
+      "generation": [
+        "Solar"
+      ],
+      "storage": [
+        "Battery"
+      ]
+    },
+    "requirement": {
+      "window": {
+        "type": "constant",
+        "value": 12.0
+      },
+      "level": {
+        "type": "none"
+      }
+    },
+    "pricing": {
+      "shortfall_cost": {
+        "type": "constant",
+        "value": 0.05
+      }
+    },
+    "kind": "reserve"
+  },
+  "status": "done",
+  "message": "Created a Reserve-type Buffer in Home: participants Load, Solar (generation), Battery; window 12 h; level left blank; shortfall cost left at default 0.05 $/kWh/h.",
+  "actions": 11,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.7
+}

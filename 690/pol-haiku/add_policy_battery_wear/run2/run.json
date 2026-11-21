@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.01226332,
+  "turns": 18,
+  "report": "I added a HAEO policy so every kWh discharged from the battery costs $0.01, wherever it goes. I reopened the saved policy and it shows the same settings.\n\nThe rule is named \"Battery wear\". From is Battery, To is left empty (which the dialog says applies to every element), and the price is the fixed value 0.01 $/kWh. I didn't run an optimization to check the effect on the schedule.\n\nWhere I hesitated or was unsure:\n- **Where to put the cost:** HAEO had no battery-wear setting, so I used the Policy element. I chose it because its From/To rules fit \"energy leaving the battery, to anywhere\". I didn't check whether the Battery element itself has a degradation or cost field that would be the more natural place.\n- **Empty To side:** I left To empty so the rule covers every destination, including Load, Grid and any other element. I relied on the help text for this and didn't test it.\n- **Price units:** The price picker offered \"Fixed value 0.01 $/kWh\", and I picked that. I assumed the $/kWh unit matches the 1 cent per kWh you asked for.\n- **Renaming the rule:** I renamed \"Rule 1\" to \"Battery wear\" so it's easy to recognise later. That was my choice, not something you asked for.\n- **Selecting From:** The From picker is a native dropdown that wouldn't take typed text. I used the arrow keys and Enter to choose Battery and confirmed it appeared in the rule.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a HAEO policy named 'Battery wear': From = Battery, To = any element (left empty), price = fixed 0.01 $/kWh. Every kWh discharged from the battery now carries a 1-cent cost, wherever it goes. Verified by reopening the saved policy; it shows the same settings.",
+  "actions": 14,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 25.9
+}

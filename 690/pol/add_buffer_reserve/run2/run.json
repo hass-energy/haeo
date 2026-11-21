@@ -1,0 +1,49 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.149418,
+  "turns": 12,
+  "report": "I added a Buffer to the Home hub, set as a Reserve with a 12 h window. Its participants are Load, Solar as generation, and Battery as the battery. HAEO showed \"Created configuration for Buffer\", and a Buffer device with 6 entities now appears under Home. I haven't checked whether the optimizer now holds the extra charge.\n\nPoints where I hesitated:\n- **Level:** I left it blank and didn't check what HAEO treats blank as. I assumed it means a full 12-hour reserve, but it may not.\n- **Window:** The form already had 12 h filled in as a fixed value, which matches your 12 hours, so I left it.\n- **Shortfall cost:** I left the default of 0.05 $/kWh/h without knowing if that is a sensible penalty for running short.\n- **Grid and Inverter:** I left them out of the participants because the form only asks for loads, generation and batteries. I assumed that is right for an outage, but I'm not certain.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "buffer",
+    "name": "Buffer",
+    "participants": {
+      "loads": [
+        "Load"
+      ],
+      "generation": [
+        "Solar"
+      ],
+      "storage": [
+        "Battery"
+      ]
+    },
+    "requirement": {
+      "window": {
+        "type": "constant",
+        "value": 12.0
+      },
+      "level": {
+        "type": "none"
+      }
+    },
+    "pricing": {
+      "shortfall_cost": {
+        "type": "constant",
+        "value": 0.05
+      }
+    },
+    "kind": "reserve"
+  },
+  "status": "done",
+  "message": "Created a Buffer element (kind Reserve) with participants Load, Solar (generation) and Battery, window 12 h, and left the level and the shortfall cost at their defaults. The Buffer device now appears in the Home hub.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 16.7
+}

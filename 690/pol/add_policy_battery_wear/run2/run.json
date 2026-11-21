@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1016697,
+  "turns": 13,
+  "report": "HAEO now has a Policy with one rule, \"Battery wear\". The rule charges a fixed $0.01/kWh on energy flowing from Battery to Any, so it applies wherever the discharged energy goes. The dialog said \"Created configuration for Policies.\" I didn't reopen the Policy afterwards to check that the rule saved as entered.\n\nPoints where I hesitated or made mistakes:\n- **Element picker:** The \"From\" picker is a plain dropdown, and typing into it failed. I picked items with the keyboard and twice added the wrong element (Solar, then Grid). I removed each one and re-added Battery. The form showed only Battery in \"From\" when I submitted.\n- **\"To\" side:** I left it as \"Any\" so the charge covers every destination. I wasn't sure whether \"Any\" includes the Switchboard, Inverter and similar parts.\n- **Price units:** I assumed the price field means $/kWh. The \"Fixed value 0.01 $/kWh\" option confirmed it.\n- **Rule name:** The form asked for no policy name, so I renamed the default \"Rule 1\" to \"Battery wear\".",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy with rule 'Battery wear': from Battery, to Any, price fixed 0.01 $/kWh.",
+  "actions": 24,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 28.4
+}

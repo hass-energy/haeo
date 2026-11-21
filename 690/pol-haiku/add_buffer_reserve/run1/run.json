@@ -1,0 +1,50 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.0380195,
+  "turns": 30,
+  "report": "I set up an \"Outage reserve\" buffer in HAEO so the optimizer keeps energy for a 12-hour outage. It's created and its sensors are live, but the battery is currently well below the reserve, so HAEO will be trying to charge it.\n\n**What I configured**\n- **Kind:** Reserve (keep energy), not Headroom.\n- **Participants:**\n  - Loads: Load (the house).\n  - Generation: Solar, since it keeps producing during an outage.\n  - Batteries: Battery.\n- **Window:** 12 h (the default, matching your requirement).\n- **Level:** 21%. The Battery's capacity is 32.2 kWh, so this is about 6.8 kWh. The Load's 168-hour average forecast is about 0.56 kW, which is about 6.7 kWh over 12 hours.\n- **Shortfall cost:** left at the default 0.05 $/kWh/h.\n\n**What the buffer reports now**\n- Energy shortfall: 6.06 kWh.\n- Required energy: 3.41 kWh.\n- Available energy: -2.64 kWh.\n- The battery is at 12.8% state of charge, so the reserve is not met yet.\n\n**Where I hesitated or may have gone wrong**\n- **Level units:** The Level field only offers percent. I had no sensor for \"energy needed for 12 hours\", so I worked the percentage out by hand from the battery capacity and the load forecast. If the Load's real overnight draw is higher than the 168-hour average, 21% may be too low.\n- **Solar credit:** I added Solar as generation because you said it helps during a cut. I don't know how much of the reserve HAEO will count on it, and I did not size the reserve to account for it, so 21% may be conservative.\n- **Shortfall cost:** I kept the default 0.05 $/kWh/h without checking it. Grid import was around 0.16 $/kWh in the entity list, so a shortfall may be cheaper to HAEO than buying energy to fill the reserve. If the reserve should be firm, this probably needs raising. I don't know the exact units, so I left it alone.\n- **Lost entry:** I closed the dialog once to look up the battery capacity and the load figures, which discarded my first attempt. I re-entered everything from scratch, and the final buffer matches what I intended.\n- **Charging cost:** Because the reserve is currently unmet, HAEO may buy grid energy to reach it. I did not check whether that is acceptable to you.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "buffer",
+    "name": "Outage reserve",
+    "participants": {
+      "loads": [
+        "Load"
+      ],
+      "generation": [
+        "Solar"
+      ],
+      "storage": [
+        "Battery"
+      ]
+    },
+    "requirement": {
+      "window": {
+        "type": "constant",
+        "value": 12.0
+      },
+      "level": {
+        "type": "constant",
+        "value": 21.0
+      }
+    },
+    "pricing": {
+      "shortfall_cost": {
+        "type": "constant",
+        "value": 0.05
+      }
+    },
+    "kind": "reserve"
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 31,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 63.2
+}

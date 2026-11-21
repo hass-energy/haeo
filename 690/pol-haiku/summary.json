@@ -1,0 +1,28 @@
+{
+  "runs": 6,
+  "passed": 5,
+  "success_rate": 0.833,
+  "actions": 18.0,
+  "cost_usd": 0.13,
+  "tasks": {
+    "add_buffer_reserve": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 29,
+      "actions_when_passed": 29,
+      "errors_shown": 0,
+      "seconds": 59.4,
+      "cost_usd": 0.1
+    },
+    "add_policy_battery_wear": {
+      "runs": 3,
+      "passed": 2,
+      "actions": 13,
+      "actions_when_passed": 13.5,
+      "errors_shown": 0,
+      "seconds": 22.2,
+      "cost_usd": 0.03
+    }
+  },
+  "model": "haiku"
+}

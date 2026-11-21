@@ -1,0 +1,50 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.038413039999999996,
+  "turns": 32,
+  "report": "I added a Buffer called \"Outage reserve\" to HAEO and confirmed the saved values by reopening it.\n\n- **Kind:** Reserve (keep energy), not Headroom.\n- **Loads:** Load.\n- **Generation:** Solar, so its output counts toward the 12 hours.\n- **Batteries:** Battery.\n- **Window:** 12 h.\n- **Level:** Fixed 30%.\n- **Shortfall cost:** left at the default 0.05 $/kWh/h.\n\nThe battery is 32.2 kWh, so 30% is about 9.7 kWh. The Load forecast shows about 0.5 kW now and up to 1.66 kW later. Twelve hours at that range needs roughly 6\u201320 kWh, so 30% is a judgement call that leans on Solar to cover the rest.\n\nPoints where I hesitated or was unsure:\n- **Level value:** I had no direct figure for the house's average load over 12 hours, so 30% is an estimate from the current and peak forecast values. I did not check whether the buffer's own load and solar calculation already covers part of this, so the level could be too high or too low.\n- **Level units:** The Level field only offered a percentage. I did not check whether the 30% is of total capacity or of usable range above the 5% minimum.\n- **Shortfall cost:** I kept the default 0.05 $/kWh/h. It is a soft penalty, not a hard floor, so the optimiser could still dip below the reserve if other costs outweigh it. For a power-cut case I may want a higher value, and I did not test that.\n- **Mistake:** I opened the form and typed a test level of 20 before I had the data I needed. I closed it and rebuilt the buffer from scratch, so the saved result is clean, but the first attempt was wasted effort.\n- **Naming:** I renamed the buffer from the default \"Buffer\" to \"Outage reserve\" for clarity. That was my choice, not something the task asked for.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "buffer",
+    "name": "Outage reserve",
+    "participants": {
+      "loads": [
+        "Load"
+      ],
+      "generation": [
+        "Solar"
+      ],
+      "storage": [
+        "Battery"
+      ]
+    },
+    "requirement": {
+      "window": {
+        "type": "constant",
+        "value": 12.0
+      },
+      "level": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "pricing": {
+      "shortfall_cost": {
+        "type": "constant",
+        "value": 0.05
+      }
+    },
+    "kind": "reserve"
+  },
+  "status": "done",
+  "message": "Added an 'Outage reserve' Buffer to HAEO: Reserve kind, Loads = Load, Generation = Solar, Batteries = Battery, Window 12 h, Level fixed 30%, shortfall cost left at default 0.05 $/kWh/h. Saved and re-opened to confirm values. Battery is 32.2 kWh, so 30% is about 9.7 kWh.",
+  "actions": 29,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 59.4
+}
