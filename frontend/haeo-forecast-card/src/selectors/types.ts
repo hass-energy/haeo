@@ -77,3 +77,27 @@ export interface ConnectionSelectorConfig {
   element_type: string;
   targets: ConnectionTarget[];
 }
+
+/** How the path element edits one kind of segment: the field it sets, through an input element. */
+export interface SegmentTypeConfig {
+  field: string;
+  input: InputSelectorConfig;
+}
+
+/** The `haeo_connection_path` selector config the integration sends. */
+export interface ConnectionPathConfig {
+  /** The elements a connection can start or end at. */
+  participants: ConnectedElement[];
+  /** Each kind of segment, in the order the element offers them. */
+  segment_types: Record<string, SegmentTypeConfig>;
+}
+
+/** One segment: its kind, and its one input under that kind's field. */
+export type PathSegment = { segment_type: string } & Record<string, unknown>;
+
+/** A connection's source, target, and segments in the order power passes through them. */
+export interface ConnectionPath {
+  source: string;
+  target: string;
+  segments: PathSegment[];
+}

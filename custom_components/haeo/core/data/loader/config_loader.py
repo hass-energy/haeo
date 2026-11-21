@@ -64,7 +64,7 @@ def element_inputs(element_config: Mapping[str, object]) -> list[ElementInput]:
 
     Section fields give ``(section, field)`` paths. A field with ``outputs``
     gives one input per output, each reading the field's own config value.
-    List fields give ``(list_key, index, field)`` paths for each mapping item.
+    List fields give ``(list_key, index, field)`` paths for each field of each mapping item.
     This is the one definition of an element's inputs, shared by the input
     stores at runtime and by offline loading.
     """
@@ -89,7 +89,7 @@ def element_inputs(element_config: Mapping[str, object]) -> list[ElementInput]:
         for index, item in enumerate(items):
             if not isinstance(item, Mapping):
                 continue
-            for field_name, hint in list_hints.fields.items():
+            for field_name, hint in list_hints.item_fields(item).items():
                 path = (list_key, str(index), field_name)
                 inputs.append(ElementInput(path, path, hint))
 
@@ -280,7 +280,7 @@ def load_element_config_from_values(
                 loaded_items.append(item)
                 continue
             loaded_item = dict(item)
-            for field_name in hints.fields:
+            for field_name in hints.item_fields(item):
                 path = (list_key, str(index), field_name)
                 if path in field_values:
                     loaded_item[field_name] = field_values[path]

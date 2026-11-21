@@ -6,7 +6,7 @@ hints into full HA InputFieldInfo and EntityDescription objects.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated, Literal, NotRequired, Required, get_args, get_origin, get_type_hints
 
 from custom_components.haeo.core.model.const import OutputType
@@ -159,6 +159,10 @@ class ListFieldHints:
     Attributes:
         fields: Mapping of field name to ``FieldHint`` for each item field
             that should become an input entity.
+        kind_key: When set, the item field naming each item's kind, so items
+            of different kinds have different fields.
+        kind_fields: For a list with ``kind_key``, the fields each kind of
+            item has, by kind.
 
     Example::
 
@@ -170,6 +174,14 @@ class ListFieldHints:
     """
 
     fields: dict[str, FieldHint]
+    kind_key: str | None = None
+    kind_fields: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+
+    def item_fields(self, item: Mapping[str, object]) -> dict[str, FieldHint]:
+        """Return the hinted fields an item has: every field, or those of the item's kind."""
+        if self.kind_key is None:
+            return dict(self.fields)
+        return {name: self.fields[name] for name in self.kind_fields.get(str(item.get(self.kind_key)), ())}
 
 
 def extract_field_hints(schema_cls: type) -> dict[str, dict[str, FieldHint]]:

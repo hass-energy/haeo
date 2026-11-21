@@ -12,12 +12,15 @@
           "value": "Switchboard"
         }
       },
-      "power_limits": {
-        "max_power_source_target": {
-          "type": "constant",
-          "value": 10.0
+      "segments": [
+        {
+          "max_power": {
+            "type": "constant",
+            "value": 10.0
+          },
+          "segment_type": "power_limit"
         }
-      }
+      ]
     },
     "element_type": "connection",
     "kind": "add"

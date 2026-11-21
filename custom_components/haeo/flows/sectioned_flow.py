@@ -57,9 +57,9 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
 
     # --- Hooks for fields beyond the name and the sectioned inputs ---
 
-    def _top_level_entries(self, subentry_data: Mapping[str, object] | None) -> FieldEntries:
+    def _top_level_entries(self, subentry_data: Mapping[str, object] | None, context: SelectorContext) -> FieldEntries:
         """Return the form fields shown above the sections."""
-        _ = subentry_data
+        _ = (subentry_data, context)
         return build_common_fields()
 
     def _top_level_defaults(self, subentry_data: Mapping[str, object] | None) -> dict[str, object]:
@@ -173,7 +173,7 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
             get_input_field_schema_info(self.element_type, input_fields),
             build_sectioned_inclusion_map(input_fields, entity_metadata),
             context=context,
-            top_level_entries=self._top_level_entries(subentry_data),
+            top_level_entries=self._top_level_entries(subentry_data, context),
             extra_field_entries=self._section_entries(subentry_data, context),
         )
 

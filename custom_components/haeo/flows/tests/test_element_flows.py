@@ -30,13 +30,14 @@ from custom_components.haeo.core.const import (
     ConnectivityLevel,
 )
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, OutputData
-from custom_components.haeo.core.schema.elements import ElementType, battery, connection, grid, node
+from custom_components.haeo.core.schema.elements import ElementType, connection, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import ElementOutputName, get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_COMMON, get_element_flow_classes
 from custom_components.haeo.flows.conftest import section_suggested_values
+from custom_components.haeo.flows.connected_flow import connection_target_name
 
 # Policy uses a multi-step menu-driven flow incompatible with the generic single-step tests
 SINGLE_STEP_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(et for et in ELEMENT_TYPES if et != ElementType.POLICY)
@@ -133,18 +134,15 @@ def _prepare_flow_context(
     element_type: ElementType,
     config: Mapping[str, object],
 ) -> None:
-    """Populate dependent participants required by connection flows."""
+    """Add the nodes a connection's endpoints name, so its form offers them."""
 
     if element_type == connection.ELEMENT_TYPE:
         endpoints = config.get(connection.SECTION_ENDPOINTS, {})
         if isinstance(endpoints, dict):
             for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
-                endpoint = endpoints.get(key)
-                if isinstance(endpoint, str) and endpoint:
-                    inferred_type: ElementType = (
-                        grid.ELEMENT_TYPE if "grid" in endpoint.lower() else battery.ELEMENT_TYPE
-                    )
-                    _add_participant_subentry(hass, hub_entry, endpoint, inferred_type)
+                endpoint = connection_target_name(endpoints.get(key))
+                if endpoint:
+                    _add_participant_subentry(hass, hub_entry, endpoint)
 
 
 def _inputs(element_type: ElementType, data: Mapping[str, Any]) -> dict[str, dict[str, object]]:
@@ -297,9 +295,9 @@ async def test_element_flow_user_step_success(
     flow = _create_flow(hass, hub_entry, element_type)
     cases = element_test_data[element_type]
     assert cases.valid, f"No valid test data for {element_type}"
-    user_input = deepcopy(cases.valid[0].config)
+    user_input = deepcopy(cases.valid[0].submission)
 
-    _prepare_flow_context(hass, hub_entry, element_type, user_input)
+    _prepare_flow_context(hass, hub_entry, element_type, cases.valid[0].config)
 
     flow.async_create_entry = Mock(
         return_value={
@@ -317,6 +315,7 @@ async def test_element_flow_user_step_success(
     # Single-step flow: submit values directly
     result = await flow.async_step_user(user_input=user_input)
 
+    assert result.get("errors") is None
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_kwargs = flow.async_create_entry.call_args.kwargs
@@ -334,10 +333,10 @@ async def test_element_flow_user_step_missing_name(
     """Ensure missing names are rejected for all element types."""
 
     flow = _create_flow(hass, hub_entry, element_type)
-    base_input = deepcopy(element_test_data[element_type].valid[0].config)
+    base_input = deepcopy(element_test_data[element_type].valid[0].submission)
     base_input[CONF_NAME] = ""
 
-    _prepare_flow_context(hass, hub_entry, element_type, base_input)
+    _prepare_flow_context(hass, hub_entry, element_type, element_test_data[element_type].valid[0].config)
 
     result = await flow.async_step_user(user_input=base_input)
     assert result.get("type") == FlowResultType.FORM
@@ -402,7 +401,7 @@ async def test_element_flow_user_step_duplicate_name(
 
     flow = _create_flow(hass, hub_entry, element_type)
 
-    result = await flow.async_step_user(user_input=existing_config)
+    result = await flow.async_step_user(user_input=deepcopy(element_test_data[element_type].valid[0].submission))
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "name_exists"}
     assert _shown_inputs(result, element_type, existing_config) == _inputs(element_type, existing_config)
@@ -434,7 +433,7 @@ async def test_element_flow_reconfigure_success(
     assert result.get("step_id") in ("reconfigure", "user")
     assert _shown_inputs(result, element_type, existing_config) == _inputs(element_type, existing_config)
 
-    reconfigure_input = deepcopy(existing_config)
+    reconfigure_input = deepcopy(element_test_data[element_type].valid[0].submission)
 
     # Single-step flow: submit values directly
     result = await flow.async_step_reconfigure(user_input=reconfigure_input)
@@ -466,7 +465,7 @@ async def test_element_flow_reconfigure_rename(
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
-    renamed_input = deepcopy(existing_config)
+    renamed_input = deepcopy(element_test_data[element_type].valid[0].submission)
     original_name = renamed_input[CONF_NAME]
     renamed_input[CONF_NAME] = f"{original_name} Updated"
 
@@ -500,7 +499,7 @@ async def test_element_flow_reconfigure_missing_name(
     flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    invalid_input = deepcopy(existing_config)
+    invalid_input = deepcopy(element_test_data[element_type].valid[0].submission)
     invalid_input[CONF_NAME] = ""
 
     result = await flow.async_step_reconfigure(user_input=invalid_input)
@@ -518,12 +517,8 @@ async def test_element_flow_reconfigure_duplicate_name(
     """Ensure reconfigure prevents renaming to an existing element."""
 
     primary_config = deepcopy(element_test_data[element_type].valid[0].config)
-    secondary_source = (
-        element_test_data[element_type].valid[1].config
-        if len(element_test_data[element_type].valid) > 1
-        else primary_config
-    )
-    secondary_config = deepcopy(secondary_source)
+    secondary_case = element_test_data[element_type].valid[min(1, len(element_test_data[element_type].valid) - 1)]
+    secondary_config = deepcopy(secondary_case.config)
     secondary_config[CONF_NAME] = f"{primary_config[CONF_NAME]} Secondary"
 
     _prepare_flow_context(hass, hub_entry, element_type, primary_config)
@@ -539,7 +534,7 @@ async def test_element_flow_reconfigure_duplicate_name(
     flow.context = {"subentry_id": secondary_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=secondary_subentry)
 
-    duplicate_input = deepcopy(secondary_config)
+    duplicate_input = deepcopy(secondary_case.submission)
     duplicate_input[CONF_NAME] = primary_config[CONF_NAME]
 
     result = await flow.async_step_reconfigure(user_input=duplicate_input)

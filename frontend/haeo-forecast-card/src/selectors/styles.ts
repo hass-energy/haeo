@@ -114,4 +114,47 @@ export const SELECTOR_STYLES = `
 .bus-element.ghost {
   background: none; border: 1px dashed var(--primary-color); color: var(--primary-color);
 }
+
+.path { display: flex; flex-direction: column; align-items: stretch; }
+.path-endpoint {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px;
+  border: 1px solid var(--divider-color); background: var(--card-background-color);
+}
+.path-endpoint-icon { width: 20px; text-align: center; }
+.path-endpoint select {
+  flex: 1; min-width: 0; height: 32px; border: none; background: none; font: inherit; font-weight: 500;
+  color: var(--primary-text-color);
+}
+.path-step { display: flex; flex-direction: column; align-items: stretch; }
+.path-link { display: flex; flex-direction: column; align-items: center; padding: 0 0 0 22px; align-self: flex-start; }
+.path-line { width: 2px; height: 10px; background: var(--divider-color); }
+.path-arrow { position: relative; }
+.path-arrow::after {
+  content: ""; position: absolute; left: -4px; bottom: -4px; border: 5px solid transparent;
+  border-top-color: var(--divider-color);
+}
+.path-add, .path-control {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0;
+  border-radius: 50%; border: 1px solid var(--divider-color); background: var(--card-background-color);
+  color: var(--secondary-text-color); cursor: pointer;
+}
+.path-control { border: none; background: none; }
+.path-add:hover, .path-control:hover:not(:disabled) { background: var(--secondary-background-color); }
+.path-control:disabled { opacity: 0.3; cursor: default; }
+.path-kinds { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 0; }
+.path-kind {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px;
+  border: 1px solid var(--primary-color); background: none; color: var(--primary-color); font: inherit; cursor: pointer;
+}
+.path-kind .icon { color: var(--primary-color); }
+.path-segment {
+  display: flex; flex-direction: column; gap: 4px; padding: 6px 12px 10px; border-radius: 12px;
+  border: 1px solid var(--divider-color); background: var(--card-background-color);
+}
+.path-segment-head { display: flex; align-items: center; gap: 8px; color: var(--secondary-text-color); }
+.path-segment-name { flex: 1; font-size: 0.875rem; }
+.path-controls { display: flex; gap: 2px; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
 `;

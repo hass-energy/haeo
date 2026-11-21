@@ -40,9 +40,9 @@ class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
         SectionDefinition(key=SECTION_PRICING, fields=(CONF_SHORTFALL_COST,)),
     )
 
-    def _top_level_entries(self, subentry_data: Mapping[str, object] | None) -> FieldEntries:
+    def _top_level_entries(self, subentry_data: Mapping[str, object] | None, context: SelectorContext) -> FieldEntries:
         """Return the name and kind fields."""
-        _ = subentry_data
+        _ = (subentry_data, context)
         return {
             CONF_NAME: (vol.Required(CONF_NAME), str),
             CONF_KIND: (

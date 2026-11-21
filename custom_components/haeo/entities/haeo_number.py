@@ -107,13 +107,14 @@ class HaeoInputNumber(NumberEntity):
 
         placeholders = build_translation_placeholders(subentry)
 
-        # For list item fields, add the item's name as a placeholder
+        # For list item fields, add the item's position and name as placeholders
         if len(self._field_path) > 1:
             list_key, index_str, *_ = self._field_path
             try:
                 items = subentry.data.get(list_key)
                 if isinstance(items, (list, tuple)):
                     item = items[int(index_str)]
+                    placeholders["position"] = str(int(index_str) + 1)
                     if isinstance(item, Mapping) and "name" in item:
                         placeholders["rule_name"] = str(item["name"])
             except (ValueError, IndexError, KeyError):

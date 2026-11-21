@@ -44,6 +44,7 @@ from custom_components.haeo.core.schema.migrations import battery_partitions as 
 from custom_components.haeo.core.schema.migrations import v1_3 as schema_migrations
 from custom_components.haeo.core.schema.migrations.v1_3 import ElementMigrationStep, migrate_hub_config
 from custom_components.haeo.core.schema.migrations.v1_4 import migrate_battery_config
+from custom_components.haeo.core.schema.migrations.v1_7 import migrate_element_config as migrate_connection_segments
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -90,7 +91,7 @@ def _migrate_to_current(subentry: ConfigSubentry) -> dict[str, object]:
     assert migrated is not None
     if subentry.subentry_type == battery.ELEMENT_TYPE:
         return migrate_battery_config(migrated, existing_names=set()).battery
-    return migrated
+    return migrate_connection_segments(migrated) or migrated
 
 
 def _section(config: Mapping[str, object], key: str) -> Mapping[str, object]:

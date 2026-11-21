@@ -245,9 +245,7 @@ def _connection(name: str, source: str, target: str, *, efficiency: float = 1.0)
         element_type=ElementType.CONNECTION,
         name=name,
         endpoints={"source": as_connection_target(source), "target": as_connection_target(target)},
-        power_limits={},
-        pricing={},
-        efficiency={"efficiency_source_target": np.full(N_PERIODS, efficiency)},
+        segments=[{"segment_type": "efficiency", "efficiency": np.full(N_PERIODS, efficiency)}],
     )
 
 

@@ -17,6 +17,8 @@ export interface InputFieldProps {
   value: InputValue | undefined;
   hass: SelectorHass | null;
   label: string;
+  /** Keep the label for screen readers only, when something around the field shows it. */
+  labelHidden?: boolean;
   helper?: string | undefined;
   required: boolean;
   disabled: boolean;
@@ -224,7 +226,7 @@ export function InputField(props: InputFieldProps): JSX.Element {
 
   return (
     <div class={`field${disabled ? " disabled" : ""}`}>
-      <div class="label" id={ids.label}>
+      <div class={props.labelHidden === true ? "visually-hidden" : "label"} id={ids.label}>
         {label}
         {required ? " *" : ""}
       </div>

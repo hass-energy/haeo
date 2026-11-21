@@ -236,14 +236,8 @@
       "step": {
         "user": {
           "title": "Connection configuration",
-          "description": "Configure a unidirectional power path from source to target. For reverse flow, add a second connection with swapped endpoints.",
-          "data": { "name": "Connection name" },
-          "sections": {
-            "efficiency": { "data": { "efficiency_source_target": "Efficiency" }, "name": "Connection efficiency" },
-            "endpoints": { "data": { "source": "Source device", "target": "Target device" }, "name": "Endpoints" },
-            "power_limits": { "data": { "max_power_source_target": "Max power" }, "name": "Power limits" },
-            "pricing": { "data": { "price_source_target": "Price" }, "name": "Pricing" }
-          }
+          "description": "Configure a one-way power path from a source, through segments applied in order, to a target. For power the other way, add a second connection with the endpoints swapped.",
+          "data": { "name": "Connection name", "path": "Connection" }
         }
       },
       "error": {
@@ -251,7 +245,8 @@
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
-        "required": "Choose an entity or enter a value for every required field in this section"
+        "required": "Choose an entity or enter a value for every required field in this section",
+        "segment_value_required": "Choose an entity or enter a value for every segment"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -600,9 +595,9 @@
       "buffer_level": { "name": "Level" },
       "buffer_shortfall_cost": { "name": "Shortfall cost" },
       "buffer_window": { "name": "Window" },
-      "connection_efficiency_source_target": { "name": "Efficiency" },
-      "connection_max_power_source_target": { "name": "Max power" },
-      "connection_price_source_target": { "name": "Price" },
+      "connection_efficiency": { "name": "Segment {position} efficiency" },
+      "connection_max_power": { "name": "Segment {position} max power" },
+      "connection_price": { "name": "Segment {position} price" },
       "deferrable_load_deficit_price": { "name": "Shortfall price" },
       "deferrable_load_due": { "name": "Energy due" },
       "deferrable_load_energy_meter": { "name": "Energy since window started" },
@@ -840,6 +835,20 @@
   "selector": {
     "buffer_kind": { "options": { "headroom": "Headroom: keep empty space", "reserve": "Reserve: keep energy" } },
     "connection": { "options": { "ac_bus": "{name}, AC", "bus": "{name}", "dc_bus": "{name}, DC" } },
+    "connection_path": {
+      "options": {
+        "add_segment": "Add a segment here",
+        "cancel": "Cancel",
+        "efficiency": "Efficiency",
+        "move_earlier": "Move {segment} earlier",
+        "move_later": "Move {segment} later",
+        "power_limit": "Limit",
+        "pricing": "Price",
+        "remove_segment": "Remove {segment}",
+        "source": "Source",
+        "target": "Target"
+      }
+    },
     "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
     "input": {

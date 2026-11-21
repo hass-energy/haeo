@@ -190,6 +190,15 @@ A bus is marked with its kind only when HAEO knows it: a target whose adapter ha
 In advanced mode, junctions and nodes are the user's own and may be either, so they are shown by their element's icon.
 A new element connects by default to a bus of its kind (DC when its adapter's `dc` attribute says its equipment is DC, such as a battery or solar panels, and AC otherwise), then to a bus of unknown kind, and only then to one of the other kind.
 
+### Connection path selector
+
+A connection element's endpoints and segments are one field, a `ConnectionPathSelector` (selector type `haeo_connection_path`) in [`flows/connection_path_selector.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/connection_path_selector.py), rendered by `ha-selector-haeo_connection_path`.
+It shows the connection as a chain from the source, through each segment in the order it applies, to the target, with a **+** on each link to insert a segment and controls on each segment to move or remove it.
+Its config lists the elements that can be endpoints and, for each kind of segment, the field it sets and that field's input selector config, so each segment edits its value with the same element as any other input.
+The selector validates the endpoints and each segment's value, and the flow saves them as the connection's `endpoints` and ordered `segments`.
+
+The segments are a list field: `ListFieldHints` on the schema names `segment_type` as the list's `kind_key`, and `kind_fields` gives each kind's one field, so each segment gets an input entity for its own field only.
+
 ### UI sections
 
 Config flows group related fields using `data_entry_flow.section` so advanced settings can be collapsed by default.

@@ -145,7 +145,9 @@ def _input_field_keys() -> dict[str, set[str]]:
     for element_type in ELEMENT_TYPES:
         groups = dict(get_input_fields(element_type))
         for list_key, hints in extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type]).items():
-            groups.update(build_list_input_fields(element_type, list_key, hints, [{}]))
+            # One item of each kind, or one item when the list's items are all alike
+            items = [{hints.kind_key: kind} for kind in hints.kind_fields] if hints.kind_key else [{}]
+            groups.update(build_list_input_fields(element_type, list_key, hints, items))
         fields = [info for _, info in iter_input_field_paths(groups)]
         fields.extend(get_surfaced_input_fields(element_type).values())
         for info in fields:

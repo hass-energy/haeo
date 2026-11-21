@@ -1,6 +1,6 @@
 # Connections
 
-Connections define explicit, **unidirectional** power paths between elements, with optional capacity limits, efficiency losses, and transfer pricing.
+Connections define explicit, **unidirectional** power paths between elements, through an ordered chain of limits, efficiency losses, and transfer prices.
 
 !!! warning "Raw model element"
 
@@ -16,7 +16,7 @@ Connections define explicit, **unidirectional** power paths between elements, wi
 !!! note "Bidirectional paths"
 
     Each Connection flows from **source** to **target** only.
-    To model flow in both directions (for example between two buses), add **two** Connection elements with swapped endpoints and independent limits, efficiency, and pricing.
+    To model flow in both directions (for example between two buses), add **two** Connection elements with swapped endpoints, each with its own segments.
     For AC/DC conversion between a battery or solar and the grid, consider the [Inverter](inverter.md) element instead.
 
 !!! info "Upgrading from bidirectional connections"
@@ -30,31 +30,46 @@ Connections define explicit, **unidirectional** power paths between elements, wi
 
 ## Configuration
 
-| Field          | Type                                     | Required | Default   | Description                                      |
-| -------------- | ---------------------------------------- | -------- | --------- | ------------------------------------------------ |
-| **Name**       | String                                   | Yes      | -         | Unique identifier for this connection            |
-| **Source**     | Element                                  | Yes      | -         | Element power flows from                         |
-| **Target**     | Element                                  | Yes      | -         | Element power flows to                           |
-| **Max power**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power leaving the source (kW)            |
-| **Efficiency** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for this direction |
-| **Price**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for power leaving the source      |
+A connection is a chain, read top to bottom in the direction power flows: its **source**, then each **segment** in the order it applies, then its **target**.
+
+| Field        | Type    | Required | Default | Description                                    |
+| ------------ | ------- | -------- | ------- | ---------------------------------------------- |
+| **Name**     | String  | Yes      | -       | Unique identifier for this connection          |
+| **Source**   | Element | Yes      | -       | Element power flows from, at the top           |
+| **Segments** | List    | No       | None    | What happens to the power on its way, in order |
+| **Target**   | Element | Yes      | -       | Element power flows to, at the bottom          |
+
+Each segment takes one [fixed value or sensor](../configuration.md#input-fields):
+
+| Segment        | Value                                    | Effect on the power passing through it |
+| -------------- | ---------------------------------------- | -------------------------------------- |
+| **Limit**      | [sensor](../forecasts-and-sensors.md)    | Caps it at the maximum power (kW)      |
+| **Price**      | [sensor(s)](../forecasts-and-sensors.md) | Charges the price on it (\$/kWh)       |
+| **Efficiency** | [sensor](../forecasts-and-sensors.md)    | Loses the rest of it (0-100%)          |
+
+Press **+** on a link in the chain to add a segment at that point, and use the arrows on a segment to move it earlier or later.
+A connection with no segments carries any amount of power, with no losses and no cost.
+The same kind of segment can appear more than once, such as a limit on each side of an efficiency.
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
-!!! tip "Configuration tips"
+!!! info "Upgrading from limit, price, and efficiency fields"
 
-    **Leaving fields unset**: When a path should allow unlimited flow with no losses or costs, leave the optional fields empty rather than creating sensors with maximum or default values.
+    Earlier versions had one **Max power**, **Price**, and **Efficiency** field per connection.
+    On upgrade, each one that was set becomes a segment, in the order they always applied: the limit, then the price, then the efficiency.
 
-    **Segment-based behavior**: Connections compose internal segments for limits, efficiency, and pricing.
-    You configure the fields above, and the model applies the corresponding segment behavior automatically.
+### Order matters
 
-    **Fixed values or sensors**: Each optional field takes a fixed value or one or more sensors, or is left not set.
-    See [input fields](../configuration.md#input-fields).
+A segment works on the power as it reaches that point in the chain.
+A limit or price before an efficiency counts the power before its losses, and one after counts the power that is left.
+
+Example: an efficiency of 95% followed by a 10 kW limit lets 10.5 kW enter the connection, so that 10 kW arrives.
+The same limit before the efficiency lets 10 kW enter, so that 9.5 kW arrives.
 
 ### Connection endpoint selection
 
 Elements attach to each other through endpoints: points in your network where power from several elements meets and is shared, such as a [Junction](junction.md).
-The **Connection** field of each element, and the **Source** and **Target** fields of a connection, list only endpoints.
+The **Connection** field of each element, and the **Source** and **Target** of a connection, list only endpoints.
 
 Elements that apply their own prices, forecasts, or limits on their own connection are not endpoints, because a connection made directly to them would bypass those.
 Connect to the endpoint such an element is attached to instead.
@@ -65,23 +80,23 @@ If an existing configuration connects directly to an element that is not an endp
 
 ### One-way link between junctions
 
-| Field         | Value                  |
-| ------------- | ---------------------- |
-| **Name**      | DC bus to AC bus       |
-| **Source**    | DC Bus                 |
-| **Target**    | AC Bus                 |
-| **Max power** | input_number.max_power |
+| Field        | Value                         |
+| ------------ | ----------------------------- |
+| **Name**     | DC bus to AC bus              |
+| **Source**   | DC Bus                        |
+| **Segments** | Limit: input_number.max_power |
+| **Target**   | AC Bus                        |
 
 ### Bidirectional link (two connections)
 
 Create one connection for each direction when both paths need limits or different parameters:
 
-| Connection | Source | Target | **Max power**             |
-| ---------- | ------ | ------ | ------------------------- |
-| DC to AC   | DC Bus | AC Bus | input_number.dc_to_ac_max |
-| AC to DC   | AC Bus | DC Bus | input_number.ac_to_dc_max |
+| Connection | Source | Segments                         | Target |
+| ---------- | ------ | -------------------------------- | ------ |
+| DC to AC   | DC Bus | Limit: input_number.dc_to_ac_max | AC Bus |
+| AC to DC   | AC Bus | Limit: input_number.ac_to_dc_max | DC Bus |
 
-Use separate **Efficiency** and **Price** values on each connection when the directions differ.
+Give each connection its own efficiency and price segments when the directions differ.
 
 ## Physical interpretation
 
@@ -89,19 +104,18 @@ Use separate **Efficiency** and **Price** values on each connection when the dir
 Power optimized on this connection always travels from source to target.
 Values are zero or positive in that direction.
 
-**Where each setting applies:**
-**Max power**, **Price**, and the reported connection power all apply to the power entering the connection, before its losses.
-Efficiency losses are applied after them, so the power arriving at the target is reduced by the efficiency.
-Example: with 95% efficiency and a **Max power** of 10 kW, the connection reports 10 kW at its limit, 9.5 kW arrives at the target, and **Price** is charged on 10 kW.
+**Reported power:**
+The connection's power sensor reports the power entering its last limit, or entering the connection when it has no limit.
+So a connection at its limit reports the limit.
 
 **Transmission costs:**
-Connection pricing models fees for using a power transfer path (wheeling charges, connection fees, peak demand charges).
+Price segments model fees for using a power transfer path (wheeling charges, connection fees, peak demand charges).
 
 ## Common patterns
 
 ### Unlimited one-way connection
 
-Leave **Max power** unset for unlimited flow in the configured direction:
+Leave out every segment for unlimited flow in the configured direction:
 
 | Field      | Value      |
 | ---------- | ---------- |
@@ -111,19 +125,18 @@ Leave **Max power** unset for unlimited flow in the configured direction:
 
 ### Conversion with efficiency
 
-| Field          | Value                   |
-| -------------- | ----------------------- |
-| **Name**       | DC to AC                |
-| **Source**     | DC Bus                  |
-| **Target**     | AC Bus                  |
-| **Max power**  | input_number.max_power  |
-| **Efficiency** | input_number.efficiency |
+| Field        | Value                                                       |
+| ------------ | ----------------------------------------------------------- |
+| **Name**     | DC to AC                                                    |
+| **Source**   | DC Bus                                                      |
+| **Segments** | Limit: input_number.max_power, Efficiency: input_number.eff |
+| **Target**   | AC Bus                                                      |
 
 Add a second connection (AC → DC) with its own efficiency if reverse conversion is required.
 
 ### Availability windows
 
-Use a time-varying sensor for **Max power** to model device availability.
+Use a time-varying sensor for a **Limit** segment to model device availability.
 Example: EV only available for charging 6 PM to 8 AM.
 
 Create a template sensor:
@@ -144,12 +157,12 @@ template:
 
 Then configure the connection:
 
-| Field         | Value                           |
-| ------------- | ------------------------------- |
-| **Name**      | Switchboard to EV               |
-| **Source**    | Switchboard                     |
-| **Target**    | EV Battery                      |
-| **Max power** | sensor.ev_charging_availability |
+| Field        | Value                                  |
+| ------------ | -------------------------------------- |
+| **Name**     | Switchboard to EV                      |
+| **Source**   | Switchboard                            |
+| **Segments** | Limit: sensor.ev_charging_availability |
+| **Target**   | EV Battery                             |
 
 !!! note "Battery Section endpoint"
 
@@ -160,18 +173,19 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 
 ### Input entities
 
-Each field you configure creates an input entity on the connection's device.
+Each segment creates an input entity on the connection's device, named by its position in the chain.
 Input entities appear as Number entities with the `config` entity category.
 Their IDs combine the connection's name with the entity's name.
 
-| Input                      | Unit   | Description                    |
-| -------------------------- | ------ | ------------------------------ |
-| `number.{name}_max_power`  | kW     | Maximum power (if configured)  |
-| `number.{name}_efficiency` | %      | Efficiency (if configured)     |
-| `number.{name}_price`      | \$/kWh | Transfer price (if configured) |
+| Input                                         | Unit   | Description                         |
+| --------------------------------------------- | ------ | ----------------------------------- |
+| `number.{name}_segment_{position}_max_power`  | kW     | Maximum power of a limit segment    |
+| `number.{name}_segment_{position}_efficiency` | %      | Efficiency of an efficiency segment |
+| `number.{name}_segment_{position}_price`      | \$/kWh | Transfer price of a price segment   |
 
-A field set to a fixed value can be adjusted from its input entity at runtime.
-A field linked to sensors shows the values HAEO reads from them.
+A segment set to a fixed value can be adjusted from its input entity at runtime.
+A segment linked to sensors shows the values HAEO reads from them.
+Moving a segment changes its position, and so the input entity it uses.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See [How data updates work](../data-updates.md) for how input entities receive their values.

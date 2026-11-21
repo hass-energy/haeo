@@ -2,6 +2,8 @@
 
 from typing import Annotated, NotRequired, Required, TypedDict
 
+import pytest
+
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import (
     FieldHint,
@@ -80,3 +82,38 @@ def test_extract_list_field_hints_no_annotations() -> None:
     """Schemas without Annotated fields return empty."""
     result = extract_list_field_hints(_SchemaWithNoAnnotations)
     assert result == {}
+
+
+_PRICE = FieldHint(output_type=OutputType.PRICE)
+_LIMIT = FieldHint(output_type=OutputType.POWER_LIMIT)
+
+
+@pytest.mark.parametrize(
+    ("hints", "item", "fields"),
+    [
+        pytest.param(
+            ListFieldHints(fields={"price": _PRICE, "max_power": _LIMIT}), {}, ["price", "max_power"], id="alike"
+        ),
+        pytest.param(
+            ListFieldHints(
+                fields={"price": _PRICE, "max_power": _LIMIT},
+                kind_key="segment_type",
+                kind_fields={"pricing": ("price",), "power_limit": ("max_power",)},
+            ),
+            {"segment_type": "power_limit", "price": 1.0},
+            ["max_power"],
+            id="of_its_kind",
+        ),
+        pytest.param(
+            ListFieldHints(fields={"price": _PRICE}, kind_key="segment_type", kind_fields={"pricing": ("price",)}),
+            {"segment_type": "unknown"},
+            [],
+            id="unknown_kind",
+        ),
+    ],
+)
+def test_item_fields_are_every_field_or_those_of_the_item_s_kind(
+    hints: ListFieldHints, item: dict[str, object], fields: list[str]
+) -> None:
+    """Items of a list without kinds have every field, and items of a list with kinds have their kind's fields."""
+    assert list(hints.item_fields(item)) == fields

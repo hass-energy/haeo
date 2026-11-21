@@ -8,19 +8,18 @@ from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
+from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.buffer import BufferRole
 from custom_components.haeo.core.schema.elements.connection import (
-    CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_PRICE_SOURCE_TARGET,
+    CONF_SEGMENTS,
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
     ConnectionConfigData,
+    SegmentData,
 )
-from custom_components.haeo.core.schema.sections import SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 
 type ConnectionOutputName = Literal["connection_power"]
 
@@ -31,6 +30,15 @@ type ConnectionDeviceName = Literal[ElementType.CONNECTION]
 CONNECTION_DEVICE_NAMES: Final[frozenset[ConnectionDeviceName]] = frozenset(
     (CONNECTION_DEVICE_CONNECTION := ElementType.CONNECTION,),
 )
+
+
+def _segment_spec(segment: SegmentData) -> SegmentSpec:
+    """Return the model's specification of a configured segment."""
+    if segment["segment_type"] == "power_limit":
+        return {"segment_type": "power_limit", "max_power": segment.get("max_power")}
+    if segment["segment_type"] == "pricing":
+        return {"segment_type": "pricing", "price": segment.get("price")}
+    return {"segment_type": "efficiency", "efficiency": segment.get("efficiency")}
 
 
 class ConnectionAdapter:
@@ -55,22 +63,11 @@ class ConnectionAdapter:
                 "name": config["name"],
                 "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
                 "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
-                # The limit and price apply to the power entering the connection, before
-                # its losses, where the connection power sensor measures, so a connection
-                # at its limit reads the limit.
+                # Power passes through the segments in the order they are listed. The
+                # connection power sensor measures the power entering its last limit.
                 "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
-                    },
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
-                    },
+                    f"{index}_{segment['segment_type']}": _segment_spec(segment)
+                    for index, segment in enumerate(config[CONF_SEGMENTS])
                 },
             },
         ]

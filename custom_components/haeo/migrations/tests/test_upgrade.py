@@ -35,6 +35,13 @@ from custom_components.haeo.core.const import (
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value
 from custom_components.haeo.core.schema.elements import battery, buffer, connection, grid, junction, node
 from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
+from custom_components.haeo.core.schema.elements.connection import (
+    CONF_EFFICIENCY,
+    CONF_MAX_POWER,
+    CONF_PRICE,
+    CONF_SEGMENT_TYPE,
+    CONF_SEGMENTS,
+)
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.sections import (
@@ -192,7 +199,11 @@ async def test_hub_from_0_4_upgrades_and_sets_up(
     assert subentries["Battery reserve"].subentry_type == buffer.ELEMENT_TYPE
     assert subentries["Battery headroom"].subentry_type == buffer.ELEMENT_TYPE
     reverse = subentries[f"Generator link (Switchboard to {SOURCE_NODE})"]
-    assert reverse.data[SECTION_POWER_LIMITS] == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(3.0)}
+    assert reverse.data[CONF_SEGMENTS] == [
+        {CONF_SEGMENT_TYPE: "power_limit", CONF_MAX_POWER: as_constant_value(3.0)},
+        {CONF_SEGMENT_TYPE: "pricing", CONF_PRICE: as_constant_value(0.01)},
+        {CONF_SEGMENT_TYPE: "efficiency", CONF_EFFICIENCY: as_constant_value(95.0)},
+    ]
     issues = ir.async_get(hass)
     junction_issue = issues.async_get_issue(DOMAIN, f"node_replaced_by_junction_{entry.entry_id}_{SOURCE_NODE}")
     assert (junction_issue is not None) is not advanced_mode

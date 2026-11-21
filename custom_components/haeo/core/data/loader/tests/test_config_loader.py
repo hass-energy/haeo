@@ -135,16 +135,12 @@ def _inverter_config(
     }
 
 
-def _connection_config(*, efficiency_source_target: object = None) -> dict[str, object]:
+def _connection_config(segments: list[dict[str, object]]) -> dict[str, object]:
     return {
         "element_type": "connection",
         "name": "Connection",
         "endpoints": {"source": as_connection_target("node_a"), "target": as_connection_target("node_b")},
-        "pricing": {},
-        "power_limits": {},
-        "efficiency": {
-            **({"efficiency_source_target": efficiency_source_target} if efficiency_source_target is not None else {}),
-        },
+        "segments": segments,
     }
 
 
@@ -230,7 +226,6 @@ def test_optional_pricing_field_is_absent(config: dict[str, object]) -> None:
 
 
 _BIDIRECTIONAL_EFFICIENCY = ("efficiency_source_target", "efficiency_target_source")
-_UNIDIRECTIONAL_EFFICIENCY = ("efficiency_source_target",)
 
 
 @pytest.mark.parametrize(
@@ -238,7 +233,6 @@ _UNIDIRECTIONAL_EFFICIENCY = ("efficiency_source_target",)
     [
         ("Inverter", _inverter_config(), _BIDIRECTIONAL_EFFICIENCY),
         ("Battery", {**_battery_config(), "efficiency": {}}, _BIDIRECTIONAL_EFFICIENCY),
-        ("Connection", _connection_config(), _UNIDIRECTIONAL_EFFICIENCY),
         (
             "Inverter",
             _inverter_config(
@@ -247,18 +241,11 @@ _UNIDIRECTIONAL_EFFICIENCY = ("efficiency_source_target",)
             ),
             _BIDIRECTIONAL_EFFICIENCY,
         ),
-        (
-            "Connection",
-            _connection_config(efficiency_source_target={"type": "none"}),
-            _UNIDIRECTIONAL_EFFICIENCY,
-        ),
     ],
     ids=(
         "inverter_missing",
         "battery_missing",
-        "connection_missing",
         "inverter_none",
-        "connection_none",
     ),
 )
 def test_efficiency_defaults_to_unity(
@@ -271,6 +258,30 @@ def test_efficiency_defaults_to_unity(
     efficiency = _dict(result["efficiency"])
     for field in efficiency_fields:
         np.testing.assert_allclose(_numeric(efficiency[field]), [1.0, 1.0, 1.0])
+
+
+def test_connection_loads_each_segment_s_own_input_in_order() -> None:
+    """Each segment loads only the input of its kind, as a series, and the segments keep their order."""
+    result = _load_config(
+        "Connection",
+        _connection_config(
+            [
+                {"segment_type": "efficiency", "efficiency": {"type": "constant", "value": 95.0}},
+                {"segment_type": "power_limit", "max_power": {"type": "constant", "value": 4.0}},
+                {"segment_type": "pricing", "price": {"type": "constant", "value": 0.1}},
+            ]
+        ),
+    )
+
+    segments = result["segments"]
+    assert isinstance(segments, list)
+    assert [(segment["segment_type"], sorted(segment)) for segment in segments] == [
+        ("efficiency", ["efficiency", "segment_type"]),
+        ("power_limit", ["max_power", "segment_type"]),
+        ("pricing", ["price", "segment_type"]),
+    ]
+    np.testing.assert_allclose(_numeric(segments[0]["efficiency"]), [0.95, 0.95, 0.95])
+    np.testing.assert_allclose(_numeric(segments[1]["max_power"]), [4.0, 4.0, 4.0])
 
 
 def test_unavailable_efficiency_entity_makes_the_element_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:

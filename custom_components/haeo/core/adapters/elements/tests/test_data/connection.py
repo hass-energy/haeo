@@ -17,27 +17,22 @@ MINIMAL = ConnectionConfigData(
     element_type=ElementType.CONNECTION,
     name="conn_min",
     endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
-    power_limits={},
-    efficiency={},
-    pricing={},
+    segments=[],
 )
 
 CREATE_CASES: list[CreateCase] = [
     {
-        "description": "Connection with all optional fields",
+        "description": "Connection with segments, in the order listed",
         "data": ConnectionConfigData(
             element_type=ElementType.CONNECTION,
             name="conn",
             endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
-            power_limits={
-                "max_power_source_target": np.array([4.0]),
-            },
-            efficiency={
-                "efficiency_source_target": np.array([0.95]),
-            },
-            pricing={
-                "price_source_target": np.array([0.1]),
-            },
+            segments=[
+                {"segment_type": "efficiency", "efficiency": np.array([0.95])},
+                {"segment_type": "power_limit", "max_power": np.array([4.0])},
+                {"segment_type": "pricing", "price": np.array([0.1])},
+                {"segment_type": "power_limit", "max_power": np.array([3.0])},
+            ],
         ),
         "model": [
             {
@@ -46,15 +41,16 @@ CREATE_CASES: list[CreateCase] = [
                 "source": "s",
                 "target": "t",
                 "segments": {
-                    "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
-                    "pricing": {"segment_type": "pricing", "price": [0.1]},
-                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "0_efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "1_power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
+                    "2_pricing": {"segment_type": "pricing", "price": [0.1]},
+                    "3_power_limit": {"segment_type": "power_limit", "max_power": [3.0]},
                 },
             },
         ],
     },
     {
-        "description": "Connection with minimal fields",
+        "description": "Connection with no segments",
         "data": MINIMAL,
         "model": [
             {
@@ -62,11 +58,7 @@ CREATE_CASES: list[CreateCase] = [
                 "name": "conn_min",
                 "source": "s",
                 "target": "t",
-                "segments": {
-                    "power_limit": {"segment_type": "power_limit", "max_power": None},
-                    "pricing": {"segment_type": "pricing", "price": None},
-                    "efficiency": {"segment_type": "efficiency", "efficiency": None},
-                },
+                "segments": {},
             },
         ],
     },

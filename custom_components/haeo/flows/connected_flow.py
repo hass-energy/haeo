@@ -18,7 +18,7 @@ from custom_components.haeo.flows.connection_selector import (
     ConnectionSelector,
     ConnectionTarget,
 )
-from custom_components.haeo.flows.field_schema import as_str
+from custom_components.haeo.flows.field_schema import SelectorContext, as_str
 from custom_components.haeo.flows.sectioned_flow import FieldEntries, SectionedElementSubentryFlow
 from custom_components.haeo.flows.sections import build_common_fields
 
@@ -91,8 +91,9 @@ class ConnectedElementSubentryFlow(SectionedElementSubentryFlow):
         ranked = sorted(targets, key=lambda target: 0 if target["bus"] == wanted else 1 if target["bus"] is None else 2)
         return ranked[0]["name"] if ranked else ""
 
-    def _top_level_entries(self, subentry_data: Mapping[str, object] | None) -> FieldEntries:
+    def _top_level_entries(self, subentry_data: Mapping[str, object] | None, context: SelectorContext) -> FieldEntries:
         """Return the name and connection fields."""
+        _ = context
         return {
             **build_common_fields(),
             CONF_CONNECTION: (

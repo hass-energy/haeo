@@ -3,46 +3,51 @@
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value
 from custom_components.haeo.core.schema.elements.connection import (
-    CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_EFFICIENCY,
+    CONF_MAX_POWER,
+    CONF_SEGMENT_TYPE,
+    CONF_SEGMENTS,
     CONF_SOURCE,
     CONF_TARGET,
-    SECTION_EFFICIENCY,
     SECTION_ENDPOINTS,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
 )
+from custom_components.haeo.flows.elements.connection import CONF_PATH
 
-# Each config is both what the connection form submits and what its subentry stores
+LIMIT_THEN_LOSSES = [
+    {CONF_SEGMENT_TYPE: "power_limit", CONF_MAX_POWER: as_constant_value(10.0)},
+    {CONF_SEGMENT_TYPE: "efficiency", CONF_EFFICIENCY: as_constant_value(95.0)},
+]
+
+# Each config is what the connection's subentry stores, and each user input what its form submits for it
 VALID_DATA = [
     {
-        "description": "Basic connection configuration (no optional fields)",
+        "description": "Connection with no segments",
         "config": {
             CONF_NAME: "Battery to Grid",
             SECTION_ENDPOINTS: {
                 CONF_SOURCE: as_connection_target("Battery1"),
                 CONF_TARGET: as_connection_target("Grid1"),
             },
-            SECTION_POWER_LIMITS: {},
-            SECTION_PRICING: {},
-            SECTION_EFFICIENCY: {},
+            CONF_SEGMENTS: [],
+        },
+        "user_input": {
+            CONF_NAME: "Battery to Grid",
+            CONF_PATH: {CONF_SOURCE: "Battery1", CONF_TARGET: "Grid1", CONF_SEGMENTS: []},
         },
     },
     {
-        "description": "Connection with power limits and efficiency",
+        "description": "Connection with a limit, then losses",
         "config": {
             CONF_NAME: "Battery to Grid",
             SECTION_ENDPOINTS: {
                 CONF_SOURCE: as_connection_target("Battery1"),
                 CONF_TARGET: as_connection_target("Grid1"),
             },
-            SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
-            },
-            SECTION_PRICING: {},
-            SECTION_EFFICIENCY: {
-                CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
-            },
+            CONF_SEGMENTS: LIMIT_THEN_LOSSES,
+        },
+        "user_input": {
+            CONF_NAME: "Battery to Grid",
+            CONF_PATH: {CONF_SOURCE: "Battery1", CONF_TARGET: "Grid1", CONF_SEGMENTS: LIMIT_THEN_LOSSES},
         },
     },
 ]

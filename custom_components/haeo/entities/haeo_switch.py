@@ -113,6 +113,7 @@ class HaeoInputSwitch(SwitchEntity):
                 items = subentry.data.get(list_key)
                 if isinstance(items, (list, tuple)):
                     item = items[int(index_str)]
+                    placeholders["position"] = str(int(index_str) + 1)
                     if isinstance(item, Mapping) and "name" in item:
                         placeholders["rule_name"] = str(item["name"])
             except (ValueError, IndexError, KeyError):

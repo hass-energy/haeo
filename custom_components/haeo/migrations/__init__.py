@@ -7,7 +7,7 @@ from collections.abc import Awaitable, Callable
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from . import v1_3, v1_4, v1_5, v1_6
+from . import v1_3, v1_4, v1_5, v1_6, v1_7
 
 type MigrationHandler = Callable[[HomeAssistant, ConfigEntry], Awaitable[bool]]
 
@@ -16,6 +16,7 @@ MIGRATIONS: tuple[tuple[int, MigrationHandler], ...] = (
     (v1_4.MINOR_VERSION, v1_4.async_migrate_entry),
     (v1_5.MINOR_VERSION, v1_5.async_migrate_entry),
     (v1_6.MINOR_VERSION, v1_6.async_migrate_entry),
+    (v1_7.MINOR_VERSION, v1_7.async_migrate_entry),
 )
 
 MIGRATION_MINOR_VERSION = MIGRATIONS[-1][0] if MIGRATIONS else 0
