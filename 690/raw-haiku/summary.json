@@ -1,0 +1,28 @@
+{
+  "runs": 6,
+  "passed": 6,
+  "success_rate": 1.0,
+  "actions": 10.5,
+  "cost_usd": 0.08,
+  "tasks": {
+    "add_battery_raw": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 18,
+      "actions_when_passed": 18,
+      "errors_shown": 0,
+      "seconds": 29.6,
+      "cost_usd": 0.06
+    },
+    "add_connection_raw": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 7,
+      "actions_when_passed": 7,
+      "errors_shown": 0,
+      "seconds": 11.8,
+      "cost_usd": 0.02
+    }
+  },
+  "model": "haiku"
+}

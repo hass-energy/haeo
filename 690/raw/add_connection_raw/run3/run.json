@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.10925090000000001,
+  "turns": 8,
+  "report": "I added a connection called \"Inverter to Switchboard\" in HAEO. It goes from the Inverter to the Switchboard, with Max power set to 10 kW. HAEO showed \"Created configuration for Inverter to Switchboard\", and the new connection now appears in the Home hub's device list.\n\nI left Price and Connection efficiency empty because you didn't give values for them.\n\nPoints where I hesitated or could have gone wrong:\n- **Endpoints:** The form already showed Inverter as source and Switchboard as target. I didn't open the dropdowns, so I trusted those defaults. They match what you asked for.\n- **Name:** You didn't give a name, so I chose \"Inverter to Switchboard\" in place of the default \"Connection\".\n- **Max power entry:** Typing \"10\" offered a \"Fixed value 10 kW\" option rather than accepting the text directly. I clicked it, and it showed as a \"10 kW\" chip.\n- **No re-check of the saved value:** I confirmed the connection exists but didn't reopen it to check that 10 kW was stored.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with max power 10 kW; HAEO confirmed creation.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 11.8
+}

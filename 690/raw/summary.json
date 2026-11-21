@@ -1,0 +1,28 @@
+{
+  "runs": 6,
+  "passed": 6,
+  "success_rate": 1.0,
+  "actions": 9.5,
+  "cost_usd": 0.7,
+  "tasks": {
+    "add_battery_raw": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 15,
+      "actions_when_passed": 15,
+      "errors_shown": 0,
+      "seconds": 24.0,
+      "cost_usd": 0.37
+    },
+    "add_connection_raw": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 6,
+      "actions_when_passed": 6,
+      "errors_shown": 0,
+      "seconds": 12.4,
+      "cost_usd": 0.33
+    }
+  },
+  "model": "sonnet"
+}

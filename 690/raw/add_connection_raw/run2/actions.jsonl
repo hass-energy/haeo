@@ -1,0 +1,8 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 6.0, "command": "type", "args": ["f2e505", "Inverter to Switchboard"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "type", "args": ["f2e543", "10"], "error": null, "visible_errors": 0}
+{"t": 7.7, "command": "click", "args": ["f2e574"], "error": null, "visible_errors": 0}
+{"t": 9.1, "command": "click", "args": ["f2e570"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e593"], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "done", "args": ["Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with Max power fixed at 10 kW; it now appears under the Home hub."], "error": null, "visible_errors": 0}

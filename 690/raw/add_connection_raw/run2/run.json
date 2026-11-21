@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.11136570000000001,
+  "turns": 8,
+  "report": "I added a connection called \"Inverter to Switchboard\" to HAEO, running from the Inverter to the Switchboard with a Max power of 10 kW. After I submitted it, HAEO said it had created the configuration. The connection now shows up under the Home hub with 2 entities.\n\nI didn't reopen the connection to re-check its settings. I also left Price and Connection efficiency at their defaults.\n\nPoints where I was unsure:\n- **Endpoints:** The form already had Inverter as source and Switchboard as target, so I left them. I read the page as showing these defaults but didn't re-select them.\n- **Max power:** Typing \"10\" offered a \"Fixed value 10 kW\" option, which I picked. I assumed kW was the unit you meant.\n- **Name:** The form asked for a name, so I chose \"Inverter to Switchboard\".",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with Max power fixed at 10 kW; it now appears under the Home hub.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.4
+}

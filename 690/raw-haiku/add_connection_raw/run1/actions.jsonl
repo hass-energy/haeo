@@ -1,0 +1,10 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.7, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "type", "args": ["f2e505", "Inverter to Switchboard"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "click", "args": ["f2e543"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "type", "args": ["f2e543", "10"], "error": null, "visible_errors": 0}
+{"t": 8.6, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 10.2, "command": "click", "args": ["f2e570"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e800"], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "done", "args": ["Added a Connection named 'Inverter to Switchboard' under Home: source Inverter, target Switchboard, max power 10 kW. Success dialog confirmed creation and the new Connection entry appears in the hub list with 2 entities."], "error": null, "visible_errors": 0}
