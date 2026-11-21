@@ -4,7 +4,8 @@ Each run starts a session (Home Assistant plus a browser), then a sandboxed
 ``claude -p`` that plays the user. The agent can only run ``./browse`` and read
 the screenshots it saves. Results go to ``--out``:
 
-- ``<task>/run<N>/``: the session log, actions, screenshots, the agent's reply, and ``result.json``.
+- ``<task>/run<N>/``: the session log, actions with the replies the agent saw, screenshots, the
+  agent's full stream as ``transcript.jsonl`` and readable as ``transcript.md``, and ``result.json``.
 - ``summary.json`` and ``summary.md``: success rate and effort per task.
 - ``report.md``: every run's problems and the agent's own account of where it struggled.
 
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from datetime import UTC, datetime
 import json
 import os
@@ -40,6 +42,8 @@ from tools.ux_bench.tasks import HUB_TITLE, PROJECT_ROOT, Task, load_task, load_
 READY_SECONDS = 60
 FINISH_SECONDS = 60
 DEFAULT_MODEL = "sonnet"
+# How much of each browse reply the readable transcript keeps; actions.jsonl has all of it
+TRANSCRIPT_REPLY_LINES = 12
 # Variables that tie a Claude process to the session that started it. The agent
 # gets none of them, so it runs as a standalone session.
 SESSION_VARIABLE_PREFIXES = ("CLAUDE", "AI_AGENT")
@@ -150,7 +154,8 @@ def driver_command(task: Task, agent_dir: Path, model: str, budget: float) -> li
         "--strict-mcp-config",
         "--no-session-persistence",
         "--output-format",
-        "json",
+        "stream-json",
+        "--verbose",
         "--max-budget-usd",
         str(budget),
     ]
@@ -223,7 +228,8 @@ def run_one(task: Task, repeat: int, out: Path, *, model: str, budget: float, ti
                     timeout=timeout,
                     check=False,
                 )
-                (run_dir / "driver.json").write_text(driver.stdout, encoding="utf-8")
+                (run_dir / "transcript.jsonl").write_text(driver.stdout, encoding="utf-8")
+                (run_dir / "transcript.md").write_text(transcript_markdown(driver.stdout), encoding="utf-8")
                 (run_dir / "driver.stderr").write_text(driver.stderr, encoding="utf-8")
                 _add_driver_summary(result, driver.stdout)
             except subprocess.TimeoutExpired:
@@ -252,19 +258,67 @@ def _save(run_dir: Path, result: RunResult) -> RunResult:
     return result
 
 
+def _events(stdout: str) -> list[dict[str, JsonValueType]]:
+    """Return the JSON objects in the agent's stream output, one per line, skipping anything else."""
+    events: list[dict[str, JsonValueType]] = []
+    for line in stdout.splitlines():
+        with suppress(json.JSONDecodeError):
+            event = json.loads(line)
+            if isinstance(event, dict):
+                events.append(event)
+    return events
+
+
 def _add_driver_summary(result: RunResult, stdout: str) -> None:
-    try:
-        reply: object = json.loads(stdout)
-    except json.JSONDecodeError:
-        reply = None
-    if not isinstance(reply, dict):
-        result["driver_error"] = "The agent's output was not a JSON object; see driver.json"
+    reply = next((event for event in reversed(_events(stdout)) if event.get("type") == "result"), None)
+    if reply is None:
+        result["driver_error"] = "The agent's output had no result; see transcript.jsonl"
         return
     cost, turns, report = reply.get("total_cost_usd"), reply.get("num_turns"), reply.get("result")
     result["cost_usd"] = float(cost) if isinstance(cost, int | float) else None
     result["turns"] = turns if isinstance(turns, int) else None
     result["report"] = report if isinstance(report, str) else ""
     result["driver_error"] = str(reply.get("subtype")) if reply.get("is_error") else None
+
+
+def _first_lines(text: str, count: int) -> str:
+    lines = text.splitlines()
+    if len(lines) > count:
+        lines = [*lines[:count], f"... ({len(lines) - count} more lines in actions.jsonl)"]
+    return "\n".join(lines)
+
+
+def transcript_markdown(stdout: str) -> str:
+    """Render the agent's stream output as its reasoning, commands, and the start of each reply."""
+    lines = ["# Transcript", ""]
+    for event in _events(stdout):
+        message = event.get("message")
+        if event.get("type") not in {"assistant", "user"} or not isinstance(message, dict):
+            continue
+        content = message.get("content")
+        for block in content if isinstance(content, list) else []:
+            if not isinstance(block, dict):
+                continue
+            match block.get("type"):
+                case "thinking":
+                    lines.extend(f"> {line}" for line in str(block.get("thinking", "")).splitlines())
+                    lines.append("")
+                case "text":
+                    lines.extend([str(block.get("text", "")), ""])
+                case "tool_use":
+                    raw_input = block.get("input")
+                    tool_input = raw_input if isinstance(raw_input, dict) else {}
+                    command = tool_input.get("command") or tool_input.get("file_path") or json.dumps(tool_input)
+                    if description := tool_input.get("description"):
+                        lines.append(f"*{description}*")
+                    lines.extend(["```", f"$ {command}", "```", ""])
+                case "tool_result":
+                    content = block.get("content")
+                    text = content if isinstance(content, str) else json.dumps(content)
+                    lines.extend(["```", _first_lines(text, TRANSCRIPT_REPLY_LINES), "```", ""])
+                case _:
+                    pass
+    return "\n".join(lines) + "\n"
 
 
 def _median(values: list[float]) -> float | None:

@@ -25,6 +25,7 @@ Results go to `.ux-bench/<timestamp>/` unless `--out` says otherwise.
 `summary.md` holds the pass rate and median effort per task.
 `report.md` holds each run's problems and the agent's own list of the points where it hesitated or made a mistake.
 That list is the most useful output: it names the labels, defaults, and missing explanations that slow users down.
+To see why an agent did something, each run's folder keeps its whole session: `transcript.md` has its reasoning and each command with the purpose it gave, `transcript.jsonl` the raw stream, and `actions.jsonl` every command with the full page it saw in reply.
 
 The agent needs the `claude` command logged in.
 If Playwright's pinned Chromium is not installed, set `UX_BENCH_CHROMIUM` to the path of a Chromium executable.

@@ -8,7 +8,7 @@ writes ``result.json`` to the run directory.
 Run directory files:
 
 - ``session.json``: the port, written once the page is ready.
-- ``actions.jsonl``: one line per browse command.
+- ``actions.jsonl``: one line per browse command, with the reply the agent saw.
 - ``subentries.json``: the hub's subentries before and after, for rescoring.
 - ``result.json``: the outcome and the action counts.
 - ``agent/``: screenshots the agent asked for.
@@ -142,20 +142,23 @@ def run_command(state: SessionState, command: str, args: list[str]) -> str:
     if visible > state.visible_errors:
         state.errors_shown += visible - state.visible_errors
     state.visible_errors = visible
+    if error is not None:
+        reply = f"Error: {error}\n\n{_observe_after_change(page)}"
+    elif command in {"done", "giveup", "screenshot"}:
+        reply = result
+    else:
+        reply = f"{result}\n\n{_observe_after_change(page)}".lstrip()
     entry = {
         "t": round(elapsed() - state.started, 1),
         "command": command,
         "args": args,
         "error": error,
         "visible_errors": visible,
+        "reply": reply,
     }
     with state.log_path.open("a", encoding="utf-8") as log:
         log.write(json.dumps(entry) + "\n")
-    if error is not None:
-        return f"Error: {error}\n\n{_observe_after_change(page)}"
-    if command in {"done", "giveup", "screenshot"}:
-        return result
-    return f"{result}\n\n{_observe_after_change(page)}".lstrip()
+    return reply
 
 
 def _visible_errors(page: Page) -> int:
