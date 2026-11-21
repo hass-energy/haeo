@@ -1,4 +1,4 @@
-import { mdiClose } from "@mdi/js";
+import { mdiClose, mdiPlus } from "@mdi/js";
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
@@ -23,10 +23,10 @@ export interface InputFieldProps {
   onChange: (value: InputValue) => void;
 }
 
-/** A row of the list: a fixed value, or an entity. */
+/** A row of the list: a fixed value, or an entity to add. */
 type Choice =
   | { kind: "constant"; value: number | boolean; allowed: boolean }
-  | { kind: "entity"; option: EntityOption; selected: boolean };
+  | { kind: "entity"; option: EntityOption };
 
 let idCounter = 0;
 
@@ -81,13 +81,14 @@ export function InputField(props: InputFieldProps): JSX.Element {
   // order is kept until the field's config changes; current states are read fresh below.
   const hasHass = hass !== null;
   const offeredIds = useMemo(() => (allowsEntity ? offeredEntityIds(hass, config) : []), [config, hasHass]);
+  // The list offers what can still be added; chosen entities are the chips
   const matches = useMemo(
     () =>
       filterOptions(
-        offeredIds.map((entityId) => describeEntity(hass, entityId)),
+        offeredIds.filter((entityId) => !selected.includes(entityId)).map((entityId) => describeEntity(hass, entityId)),
         query
       ),
-    [offeredIds, hass, query]
+    [offeredIds, hass, query, value]
   );
 
   const choices = useMemo((): Choice[] => {
@@ -100,13 +101,12 @@ export function InputField(props: InputFieldProps): JSX.Element {
       result.push({ kind: "constant", value: true, allowed: true }, { kind: "constant", value: false, allowed: true });
     }
     for (const option of matches.slice(0, MAX_OPTIONS)) {
-      result.push({ kind: "entity", option, selected: selected.includes(option.entityId) });
+      result.push({ kind: "entity", option });
     }
     return result;
-  }, [query, config, matches, value, allowsConstant]);
-
-  const unselectedMatches = matches.filter((option) => !selected.includes(option.entityId));
-  const allChecked = matches.length > 0 && unselectedMatches.length === 0;
+  }, [query, config, matches, allowsConstant]);
+  const constantChoices = choices.some((choice) => choice.kind === "constant");
+  const entityChoices = choices.some((choice) => choice.kind === "entity");
 
   const constantText = (constant: number | boolean): string => {
     if (typeof constant === "boolean") {
@@ -167,20 +167,12 @@ export function InputField(props: InputFieldProps): JSX.Element {
       finishPick();
       return;
     }
-    const id = choice.option.entityId;
-    const next = choice.selected ? selected.filter((entityId) => entityId !== id) : [...selected, id];
-    onChange(next.length === 0 ? empty : entityValue(next));
+    onChange(entityValue([...selected, choice.option.entityId]));
     finishPick();
   };
 
-  const toggleAll = (): void => {
-    if (unselectedMatches.length > 0) {
-      onChange(entityValue([...selected, ...unselectedMatches.map((option) => option.entityId)]));
-    } else {
-      const shown = new Set(matches.map((option) => option.entityId));
-      const next = selected.filter((entityId) => !shown.has(entityId));
-      onChange(next.length === 0 ? empty : entityValue(next));
-    }
+  const addAll = (): void => {
+    onChange(entityValue([...selected, ...matches.map((option) => option.entityId)]));
     finishPick();
   };
 
@@ -306,61 +298,70 @@ export function InputField(props: InputFieldProps): JSX.Element {
         />
       </div>
 
+      {/* Fixed values and entities are separate groups, so adding all can't be mistaken for a value */}
       {open && choices.length > 0 && (
-        <ul class="options" id={ids.list} role="listbox" aria-multiselectable={true}>
-          {choices.map((choice, index) =>
-            choice.kind !== "constant" ? null : (
-              <li
-                key={`constant-${String(choice.value)}`}
-                role="option"
-                class={`option constant${index === active ? " active" : ""}`}
-                aria-selected={false}
-                aria-disabled={!choice.allowed}
-                aria-label={t("input.options.fixed_value", { value: constantText(choice.value) })}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => choose(choice)}
-              >
-                <span class="check-space" />
-                <Readout content={constantReadout(choice.value)} />
-                <span class="option-text">
-                  <span class="entity-name">{t("input.options.fixed")}</span>
-                </span>
-              </li>
-            )
+        <div class="options" id={ids.list} role="listbox">
+          {constantChoices && (
+            <ul class="option-group" role="group">
+              {choices.map((choice, index) =>
+                choice.kind !== "constant" ? null : (
+                  <li
+                    key={`constant-${String(choice.value)}`}
+                    role="option"
+                    class={`option constant${index === active ? " active" : ""}`}
+                    aria-selected={false}
+                    aria-disabled={!choice.allowed}
+                    aria-label={t("input.options.fixed_value", { value: constantText(choice.value) })}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => choose(choice)}
+                  >
+                    <Readout content={constantReadout(choice.value)} />
+                    <span class="option-text">
+                      <span class="entity-name">{t("input.options.fixed")}</span>
+                    </span>
+                  </li>
+                )
+              )}
+            </ul>
           )}
-          {/* Choosing every entity only makes sense once a search has narrowed them */}
-          {allowsEntity && query.trim() !== "" && matches.length > 1 && (
-            <li
-              role="option"
-              class="option all"
-              aria-selected={allChecked}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={toggleAll}
-            >
-              <input type="checkbox" tabIndex={-1} checked={allChecked} aria-hidden="true" readOnly />
-              <span class="option-text">{t("input.options.select_all", { count: String(matches.length) })}</span>
-            </li>
+          {entityChoices && (
+            <ul class="option-group entities" role="group">
+              {/* Adding every entity only makes sense once a search has narrowed them */}
+              {allowsEntity && query.trim() !== "" && matches.length > 1 && (
+                <li
+                  role="option"
+                  class="option all"
+                  aria-selected={false}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={addAll}
+                >
+                  <span class="readout add" aria-hidden="true">
+                    <Icon path={mdiPlus} />
+                  </span>
+                  <span class="option-text">{t("input.options.add_all", { count: String(matches.length) })}</span>
+                </li>
+              )}
+              {choices.map((choice, index) =>
+                choice.kind !== "entity" ? null : (
+                  <li
+                    key={choice.option.entityId}
+                    role="option"
+                    class={`option${index === active ? " active" : ""}`}
+                    aria-selected={false}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => choose(choice)}
+                  >
+                    {entityReadout(choice.option)}
+                    <span class="option-text">
+                      <span class="entity-name">{choice.option.name}</span>
+                      <span class="entity-id">{choice.option.entityId}</span>
+                    </span>
+                  </li>
+                )
+              )}
+            </ul>
           )}
-          {choices.map((choice, index) =>
-            choice.kind !== "entity" ? null : (
-              <li
-                key={choice.option.entityId}
-                role="option"
-                class={`option${index === active ? " active" : ""}`}
-                aria-selected={choice.selected}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => choose(choice)}
-              >
-                <input type="checkbox" tabIndex={-1} checked={choice.selected} aria-hidden="true" readOnly />
-                {entityReadout(choice.option)}
-                <span class="option-text">
-                  <span class="entity-name">{choice.option.name}</span>
-                  <span class="entity-id">{choice.option.entityId}</span>
-                </span>
-              </li>
-            )
-          )}
-        </ul>
+        </div>
       )}
 
       {helper !== undefined && helper !== "" && <div class="helper">{helper}</div>}

@@ -30,6 +30,7 @@ INPUT_SELECTOR_TYPE = "haeo_input"
 INPUT_TRANSLATION_KEY = "input"
 # The element's text: accessible labels, the fixed value's label, and the words for on and off, with their placeholders
 INPUT_STRINGS: dict[str, tuple[str, ...]] = {
+    "add_all": ("count",),
     "current_value": ("value",),
     "enter_value": ("label",),
     "fixed": (),
@@ -39,7 +40,6 @@ INPUT_STRINGS: dict[str, tuple[str, ...]] = {
     "on": (),
     "remove": ("name",),
     "search": ("label",),
-    "select_all": ("count",),
 }
 
 type InputKind = Literal["entity", "constant", "none"]

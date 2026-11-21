@@ -82,21 +82,21 @@ def test_choose_selector_paths_include_serialized_nested_selectors() -> None:
 
 
 @pytest.mark.parametrize(
-    ("select_all", "problems"),
+    ("add_all", "problems"),
     [
-        pytest.param("Select all {count}", [], id="element_placeholder"),
+        pytest.param("Add all {count}", [], id="element_placeholder"),
         pytest.param(
-            "Select all {total}",
-            ["selector.input.options.select_all uses placeholder {total}, which is not supplied"],
+            "Add all {total}",
+            ["selector.input.options.add_all uses placeholder {total}, which is not supplied"],
             id="unknown_placeholder",
         ),
     ],
 )
 def test_input_selector_strings_take_the_element_placeholders(
-    monkeypatch: pytest.MonkeyPatch, select_all: str, problems: list[str]
+    monkeypatch: pytest.MonkeyPatch, add_all: str, problems: list[str]
 ) -> None:
     """An input selector's strings may use the placeholders its element fills in, and no others."""
-    options = dict.fromkeys(INPUT_STRINGS, "Text") | {"select_all": select_all}
+    options = dict.fromkeys(INPUT_STRINGS, "Text") | {"add_all": add_all}
     translations = {
         "config": {"step": {"user": {"data": {"power": "Power"}}}},
         "selector": {"input": {"options": options}},

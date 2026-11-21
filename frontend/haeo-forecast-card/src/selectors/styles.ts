@@ -17,6 +17,8 @@ export const SELECTOR_STYLES = `
 }
 .readout.fixed { background: color-mix(in srgb, var(--primary-color) 22%, transparent); }
 .readout .icon { color: var(--secondary-text-color); }
+.readout.add { background: none; }
+.readout.add .icon { color: var(--primary-color); }
 .readout-value {
   max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: 0.75rem; font-weight: 500; font-variant-numeric: tabular-nums;
@@ -31,7 +33,6 @@ export const SELECTOR_STYLES = `
   vector-effect: non-scaling-stroke;
 }
 .sparkline-area { fill: color-mix(in srgb, var(--primary-color) 18%, transparent); stroke: none; }
-.check-space { width: 13px; flex: none; }
 
 .tokens {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px; box-sizing: border-box; min-height: 48px;
@@ -67,15 +68,21 @@ export const SELECTOR_STYLES = `
 .option .entity-name { flex: 1; }
 .entity-id { font-size: 0.75rem; color: var(--secondary-text-color); overflow: hidden; text-overflow: ellipsis; }
 
-.options {
-  list-style: none; margin: 0; padding: 4px 0; max-height: 280px; overflow-y: auto;
+.options { display: flex; flex-direction: column; gap: 8px; }
+.option-group {
+  list-style: none; margin: 0; padding: 4px 0;
   background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 8px;
 }
+.option-group.entities { max-height: 280px; overflow-y: auto; }
 .option { display: flex; align-items: center; gap: 12px; padding: 6px 12px; cursor: pointer; }
 .option.active, .option:hover { background: var(--secondary-background-color); }
 .option[aria-disabled="true"] { opacity: 0.4; cursor: default; }
-.option.all { border-bottom: 1px solid var(--divider-color); color: var(--primary-color); font-weight: 500; }
-.option input[type="checkbox"] { margin: 0; accent-color: var(--primary-color); pointer-events: none; }
+.option.all {
+  position: sticky; top: -4px; z-index: 1; margin-top: -4px; padding-top: 10px;
+  border-bottom: 1px solid var(--divider-color); color: var(--primary-color); font-weight: 500;
+  background: var(--card-background-color);
+}
+.option.all:hover { background: var(--secondary-background-color); }
 .option-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .buses { display: flex; flex-wrap: wrap; gap: 8px; }
 .bus {

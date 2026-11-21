@@ -8,6 +8,7 @@ import { HaeoInputSelector } from "./input-selector";
 import type { InputSelectorConfig, InputValue, SelectorHass } from "./types";
 
 const STRINGS: Record<string, string> = {
+  "input.options.add_all": "Add all {count}",
   "input.options.current_value": "Current value {value}",
   "input.options.forecast": "Forecast",
   "input.options.enter_value": "{label}: enter a value",
@@ -17,7 +18,6 @@ const STRINGS: Record<string, string> = {
   "input.options.on": "On",
   "input.options.remove": "Remove {name}",
   "input.options.search": "{label}: search entities or enter a value",
-  "input.options.select_all": "Select all {count}",
 };
 
 const t = (key: string, values: Record<string, string> = {}): string =>
@@ -274,7 +274,7 @@ describe("InputField", () => {
     show({ config: { ...numberConfig, forecasts: { "sensor.west": [] } } });
     type("solar");
     const marks = options()
-      .slice(1)
+      .filter((option) => !option.classList.contains("all"))
       .map((option) => option.querySelector("[role=img]")?.getAttribute("aria-label"));
     expect(marks).toEqual(["Current value 3 kW", "Forecast"]);
   });
@@ -286,24 +286,24 @@ describe("InputField", () => {
     expect(onChange).toHaveBeenCalledWith({ type: "constant", value: 2 });
   });
 
-  it("checks every match with the select-all row, which says how many there are", () => {
+  it("adds every listed entity with the add-all row, which says how many there are", () => {
     const onChange = show();
     type("solar");
-    act(() => clickOption("Select all 2"));
+    clickOption("Add all 2");
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.east", "sensor.west"] });
   });
 
-  it("unchecks every match with the select-all row when all are checked", () => {
-    const onChange = show({ value: { type: "entity", value: ["sensor.east", "sensor.west", "sensor.load"] } });
+  it("adds the listed entities after the ones already chosen, whatever the earlier search", () => {
+    const onChange = show({ value: { type: "entity", value: ["sensor.load"] } });
     type("solar");
-    clickOption("Select all 2");
-    expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.load"] });
+    clickOption("Add all 2");
+    expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.load", "sensor.east", "sensor.west"] });
   });
 
-  it("offers to select all only once a search narrows the entities", () => {
+  it("offers to add all only once a search narrows the entities", () => {
     show();
     act(() => field().dispatchEvent(new FocusEvent("focus")));
-    expect(options().some((option) => option.textContent.startsWith("Select all"))).toBe(false);
+    expect(options().some((option) => option.textContent.startsWith("Add all"))).toBe(false);
   });
 
   it("clears the search and closes the list after a pick", () => {
@@ -314,12 +314,10 @@ describe("InputField", () => {
     expect(options()).toHaveLength(0);
   });
 
-  it("marks chosen entities and unchooses one on a second click", () => {
-    const onChange = show({ value: { type: "entity", value: ["sensor.east", "sensor.west"] } });
-    type("east");
-    expect(options()[0]?.getAttribute("aria-selected")).toBe("true");
-    clickOption("East solar");
-    expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.west"] });
+  it("leaves chosen entities out of the list, as they are already chips", () => {
+    show({ value: { type: "entity", value: ["sensor.east"] } });
+    type("solar");
+    expect(options().map((option) => option.textContent.includes("East solar"))).toEqual([false]);
   });
 
   it("drops the on and off words of entities that are replaced", () => {

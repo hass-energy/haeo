@@ -844,6 +844,7 @@
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
     "input": {
       "options": {
+        "add_all": "Add all {count}",
         "current_value": "Current value {value}",
         "enter_value": "{label}: enter a value",
         "fixed": "Fixed value",
@@ -852,8 +853,7 @@
         "off": "Off",
         "on": "On",
         "remove": "Remove {name}",
-        "search": "{label}: search entities or enter a value",
-        "select_all": "Select all {count}"
+        "search": "{label}: search entities or enter a value"
       }
     },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
