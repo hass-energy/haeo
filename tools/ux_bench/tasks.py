@@ -1,9 +1,9 @@
 """Benchmark tasks and the Home Assistant world they run in.
 
-Every task runs against the same world: scenario 6's inputs and environment,
-plus scenario 4's Solcast sensors. A task picks which of scenario 6's elements
-already exist, states a goal in the user's terms, and says what subentry data
-the goal should produce.
+A task runs in the world of the scenario it names: that scenario's entity
+states, environment, and hub config. It picks which of the scenario's
+elements already exist, states a goal in the user's terms, and says what
+subentry data the goal should produce.
 """
 
 from __future__ import annotations
@@ -18,14 +18,6 @@ from homeassistant.util.json import JsonValueType
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 TASKS_DIR = Path(__file__).parent / "tasks"
 SCENARIOS_DIR = PROJECT_ROOT / "tests" / "scenarios"
-BASE_SCENARIO = SCENARIOS_DIR / "scenario6"
-EXTRA_STATES: dict[str, tuple[str, ...]] = {
-    "scenario4": (
-        "sensor.solcast_pv_forecast_forecast_today",
-        "sensor.solcast_pv_forecast_forecast_tomorrow",
-        "sensor.solcast_pv_forecast_forecast_day_3",
-    ),
-}
 HUB_TITLE = "Home"
 
 
@@ -52,7 +44,8 @@ class Task(TypedDict):
     """
 
     id: str
-    holdout: bool
+    scenario: str
+    """The directory under ``tests/scenarios`` whose world the task runs in."""
     goal: str
     participants: list[str]
     expect: Expectation
@@ -66,7 +59,7 @@ def is_task(value: JsonValueType) -> TypeGuard[Task]:
     expect = value.get("expect")
     return (
         isinstance(value.get("id"), str)
-        and isinstance(value.get("holdout"), bool)
+        and isinstance(value.get("scenario"), str)
         and isinstance(value.get("goal"), str)
         and isinstance(value.get("participants"), list)
         and isinstance(expect, dict)
@@ -97,43 +90,37 @@ def load_task(task_id: str) -> Task:
     return value
 
 
-def load_tasks(*, include_holdout: bool) -> list[Task]:
+def load_tasks() -> list[Task]:
     """Load every task, sorted by id."""
-    tasks = [load_task(path.stem) for path in sorted(TASKS_DIR.glob("*.json"))]
-    return [task for task in tasks if include_holdout or not task["holdout"]]
+    return [load_task(path.stem) for path in sorted(TASKS_DIR.glob("*.json"))]
 
 
-def world_environment() -> dict[str, JsonValueType]:
-    """Return the environment every task runs in."""
-    return _object(_read_json(BASE_SCENARIO / "environment.json"), "scenario 6 environment")
+def _scenario(task: Task) -> Path:
+    return SCENARIOS_DIR / task["scenario"]
 
 
-def world_states() -> list[dict[str, JsonValueType]]:
-    """Return the entity states every task starts with."""
-    paths: list[tuple[Path, tuple[str, ...] | None]] = [(BASE_SCENARIO / "inputs.json", None)]
-    paths.extend(
-        (SCENARIOS_DIR / scenario / "inputs.json", entity_ids) for scenario, entity_ids in EXTRA_STATES.items()
-    )
-    states: list[dict[str, JsonValueType]] = []
-    for path, entity_ids in paths:
-        loaded = _read_json(path)
-        if not isinstance(loaded, list):
-            msg = f"{path} must hold a list of states"
-            raise TypeError(msg)
-        for raw in loaded:
-            state = _object(raw, f"a state in {path}")
-            if entity_ids is None or state["entity_id"] in entity_ids:
-                states.append(state)
-    return states
+def world_environment(task: Task) -> dict[str, JsonValueType]:
+    """Return the environment of the task's scenario."""
+    return _object(_read_json(_scenario(task) / "environment.json"), f"{task['scenario']} environment")
+
+
+def world_states(task: Task) -> list[dict[str, JsonValueType]]:
+    """Return the entity states of the task's scenario."""
+    path = _scenario(task) / "inputs.json"
+    loaded = _read_json(path)
+    if not isinstance(loaded, list):
+        msg = f"{path} must hold a list of states"
+        raise TypeError(msg)
+    return [_object(raw, f"a state in {path}") for raw in loaded]
 
 
 def hub_config(task: Task) -> dict[str, JsonValueType]:
-    """Return scenario 6's hub config keeping only the task's existing elements, in the task's mode."""
-    config = _object(_read_json(BASE_SCENARIO / "config.json"), "scenario 6 config")
-    participants = _object(config["participants"], "scenario 6 participants")
+    """Return the scenario's hub config keeping only the task's existing elements, in the task's mode."""
+    config = _object(_read_json(_scenario(task) / "config.json"), f"{task['scenario']} config")
+    participants = _object(config["participants"], f"{task['scenario']} participants")
     unknown = set(task["participants"]) - set(participants)
     if unknown:
-        msg = f"Task {task['id']} names elements scenario 6 does not have: {sorted(unknown)}"
+        msg = f"Task {task['id']} names elements {task['scenario']} does not have: {sorted(unknown)}"
         raise ValueError(msg)
     config["participants"] = {name: copy.deepcopy(participants[name]) for name in task["participants"]}
     advanced = _object(config.get("advanced", {}), "scenario 6 advanced settings")

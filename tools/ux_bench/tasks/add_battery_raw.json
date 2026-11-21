@@ -45,7 +45,7 @@
     "kind": "add"
   },
   "goal": "You have a Sigenergy home battery that is connected through your inverter. Add it to HAEO. Its size comes from the battery's rated energy capacity sensor and its current charge from its state of charge sensor. Its maximum charging and discharging power are available as the ESS rated charging power and ESS rated discharging power sensors. The battery should never be discharged below 5%.",
-  "holdout": false,
   "id": "add_battery_raw",
-  "participants": ["Grid", "Inverter", "Switchboard", "Solar", "Load"]
+  "participants": ["Grid", "Inverter", "Switchboard", "Solar", "Load"],
+  "scenario": "scenario6"
 }

@@ -364,7 +364,6 @@ def main() -> None:
     """Run the benchmark."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--task", action="append", help="Task id to run; repeat for several (default: all)")
-    parser.add_argument("--holdout", action="store_true", help="Include the holdout tasks")
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--parallel", type=int, default=8)
     parser.add_argument("--model", default=DEFAULT_MODEL)
@@ -384,12 +383,9 @@ def main() -> None:
         return
 
     selected: set[str] = set(args.task or [])
-    tasks = [
-        task
-        for task in load_tasks(include_holdout=bool(args.holdout or selected))
-        if not selected or task["id"] in selected
-    ]
-    unknown = selected - {task["id"] for task in load_tasks(include_holdout=True)}
+    all_tasks = load_tasks()
+    tasks = [task for task in all_tasks if not selected or task["id"] in selected]
+    unknown = selected - {task["id"] for task in all_tasks}
     if unknown:
         parser.error(f"Unknown task ids: {', '.join(sorted(unknown))}")
     out = (

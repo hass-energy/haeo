@@ -12,7 +12,7 @@ The task passes when the subentries it leaves behind match what the goal asks fo
 
 ```bash
 # Every task three times, eight runs at a time
-uv run python -m tools.ux_bench.run --holdout --repeats 3 --parallel 8
+uv run python -m tools.ux_bench.run --repeats 3 --parallel 8
 
 # One task once
 uv run python -m tools.ux_bench.run --task add_battery --repeats 1
@@ -32,7 +32,6 @@ If Playwright's pinned Chromium is not installed, set `UX_BENCH_CHROMIUM` to the
 | Flag         | Default    | Description                                       |
 | ------------ | ---------- | ------------------------------------------------- |
 | `--task`     | every task | Task id to run; repeat the flag for several tasks |
-| `--holdout`  | off        | Include the holdout tasks                         |
 | `--repeats`  | `3`        | Runs per task                                     |
 | `--parallel` | `8`        | Runs at a time                                    |
 | `--model`    | `sonnet`   | Model the agent runs on                           |
@@ -47,18 +46,15 @@ A run passes only when the subentry data matches the task and nothing else chang
 Compare pass rates first, then the actions taken by passing runs, then the agent's reports.
 A single run is noisy, so compare medians over at least three repeats.
 
-Holdout tasks are kept out of the default run.
-Use them to check that an improvement carries over to tasks a change was not tuned against.
-
 ## Tasks
 
 Tasks live in `tools/ux_bench/tasks/`, one JSON file per task.
-Every task runs in the same world: the inputs and environment of scenario 6, plus the Solcast sensors of scenario 4.
+A task runs in the world of the scenario it names: that scenario's entity states, environment, and hub config from `tests/scenarios/`.
 
 ```json
 {
   "id": "add_grid_amber",
-  "holdout": false,
+  "scenario": "scenario6",
   "goal": "Add your grid connection to HAEO. ...",
   "participants": [
     "Inverter",
@@ -88,7 +84,8 @@ Every task runs in the same world: the inputs and environment of scenario 6, plu
 
 - `goal` is what the user is told.
     Write it in the user's terms, naming their equipment and intent rather than HAEO's field names.
-- `participants` names the scenario 6 elements that already exist when the task starts.
+- `scenario` names the directory under `tests/scenarios/` the task's world comes from.
+- `participants` names the scenario's elements that already exist when the task starts.
 - `expect.kind` is `add` for one new subentry of `element_type`, or `edit` for a change to the existing subentry named by `title`.
 - `expect.data` lists only the values the goal decides.
     Keys it leaves out are not checked.
