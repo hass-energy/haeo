@@ -796,7 +796,8 @@ class HAPage:
         """Fill in the last rule of the policy rules editor, the one adding a policy opens.
 
         ``labels`` holds the editor's accessible labels by translation key, with
-        ``{end}`` left in ``add_endpoint`` for the end's own label.
+        ``{end}`` left in ``add_endpoint`` for the end's own label and ``{rule}``
+        in ``price`` for the rule's name.
         """
         card = self.page.locator("ha-selector-haeo_policy_rules .rule").last
         card.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
@@ -814,7 +815,8 @@ class HAPage:
                         self._capture_with_indicator(f"add_{end}_{element}", add)
                     add.select_option(value=element, timeout=DEFAULT_TIMEOUT)
             if price is not None:
-                search = card.get_by_role("combobox", name=re.compile(rf"{re.escape(labels['price'])}: "))
+                price_label = labels["price"].replace("{rule}", name)
+                search = card.get_by_role("combobox", name=re.compile(rf"^{re.escape(price_label)}: "))
                 if ctx:
                     self._capture_with_indicator("price", search)
                 search.fill(price)
