@@ -21,7 +21,7 @@ class JunctionSubentryFlowHandler(ElementSubentryFlow):
 
     def _build_schema(self) -> vol.Schema:
         """Build the voluptuous schema for junction configuration."""
-        return vol.Schema(dict(build_common_fields(include_connection=False).values()))
+        return vol.Schema(dict(build_common_fields().values()))
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle adding a new junction element."""

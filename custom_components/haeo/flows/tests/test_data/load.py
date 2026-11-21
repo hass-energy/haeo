@@ -10,8 +10,7 @@ from custom_components.haeo.core.schema.elements.load import (
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 
-# Test data for load flow - single-step with choose selector
-# config: Contains all field values in choose selector format
+# Each config is both what the load form submits and what its subentry stores
 VALID_DATA = [
     {
         "description": "Load with forecast sensors (variable load)",

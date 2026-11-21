@@ -54,6 +54,7 @@ def test_extract_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_dat
 
     result = extractors.extract(state, time_zone=UTC)
 
+    assert extractors.carries_forecast(state)
     assert result is not None, f"Expected data for {parser_type}"
     assert isinstance(result.data, list), "Valid forecasts should return a list of time series entries"
 
@@ -66,6 +67,22 @@ def test_extract_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_dat
     expected_unit = sensor_data["expected_unit"]
     assert isinstance(expected_unit, str)
     assert result.unit == expected_unit
+
+
+@pytest.mark.parametrize(
+    ("entity_id", "attributes", "expected"),
+    [
+        pytest.param("sensor.house_power", {"unit_of_measurement": "kW"}, False, id="reading"),
+        pytest.param("calendar.trips", {}, True, id="calendar"),
+    ],
+)
+def test_carries_forecast(
+    hass: HomeAssistant, entity_id: str, attributes: dict[str, object], *, expected: bool
+) -> None:
+    """A state in none of the forecast formats is a reading, and a calendar is a forecast of its events."""
+    state = _create_sensor_state(hass, entity_id, "1.5", attributes)
+
+    assert extractors.carries_forecast(state) is expected
 
 
 @pytest.mark.parametrize(

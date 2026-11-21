@@ -5,7 +5,6 @@ from typing import ClassVar
 
 import voluptuous as vol
 
-from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.schema import normalize_connection_target
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -18,7 +17,7 @@ from custom_components.haeo.core.schema.elements.connection import (
 )
 from custom_components.haeo.flows.connected_flow import connection_target_name
 from custom_components.haeo.flows.element_flow import build_participant_selector
-from custom_components.haeo.flows.field_schema import SectionDefinition, as_mapping
+from custom_components.haeo.flows.field_schema import SectionDefinition, SelectorContext, as_mapping
 from custom_components.haeo.flows.sectioned_flow import FieldEntries, SectionedElementSubentryFlow
 from custom_components.haeo.flows.sections import efficiency_section, power_limits_section, pricing_section
 
@@ -53,8 +52,7 @@ class ConnectionSubentryFlowHandler(SectionedElementSubentryFlow):
     def _section_entries(
         self,
         subentry_data: Mapping[str, object] | None,
-        entity_metadata: list[EntityMetadata],
-        shown_data: Mapping[str, object] | None,
+        context: SelectorContext,
     ) -> dict[str, FieldEntries]:
         """Add the source and target selectors to the endpoints section."""
         participants = self._get_participant_names()
@@ -64,7 +62,7 @@ class ConnectionSubentryFlowHandler(SectionedElementSubentryFlow):
             CONF_TARGET: (vol.Required(CONF_TARGET), build_participant_selector(participants, target)),
         }
         return {
-            **super()._section_entries(subentry_data, entity_metadata, shown_data),
+            **super()._section_entries(subentry_data, context),
             SECTION_ENDPOINTS: endpoint_fields,
         }
 

@@ -56,6 +56,8 @@ class BufferAdapter:
     can_source: bool = False
     can_sink: bool = False
     switchboard: bool = False
+    dc: bool = False
+    dc_bus: bool = False
     device_names: frozenset[BufferDeviceName] = BUFFER_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
 

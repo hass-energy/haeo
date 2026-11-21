@@ -22,6 +22,7 @@ HAEO reads these sensors and extracts either:
 - **Forecast series**: A list of future timestamped predictions (for forecast-capable sensors)
 
 These values are then processed to create a complete time series covering your optimization horizon.
+In the configuration form, an entity HAEO reads as a forecast starts with a small line of its values from now, and one it reads as its present value starts with that value.
 
 ## Single sensor values
 
@@ -400,20 +401,20 @@ The price sensor's forecast still repeats past its end, and the calendar adds to
 Calendar events are fetched whenever the calendar or the horizon changes.
 If a calendar cannot be read, the field is unavailable and optimization pauses until it can, as it would for an unavailable sensor.
 
-## Using constants vs sensors
+## Fixed values vs sensors
 
-For values that don't change over time (fixed prices, baseline loads, power limits), you have two options:
+For values that don't change over time (fixed prices, baseline loads, power limits), you have two options.
 
-### Direct constant entry
+### Fixed value entry
 
-During element configuration, select **Constant** for the field and enter your value directly in the form.
+During element configuration, type the value into the field and pick it as a fixed value, as described in [input fields](configuration.md#input-fields).
 This is the simplest approach for truly static values.
 
-| Selection | Value | Use Case                      |
-| --------- | ----- | ----------------------------- |
-| Constant  | 0.25  | Fixed price (source → target) |
-| Constant  | 15    | Static power limit            |
-| Constant  | 90    | Fixed SOC percentage          |
+| Value | Use case                      |
+| ----- | ----------------------------- |
+| 0.25  | Fixed price (source → target) |
+| 15    | Static power limit            |
+| 90    | Fixed SOC percentage          |
 
 ### Input number helpers
 
@@ -426,14 +427,14 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 3. Select **Number**
 4. Configure:
     - **Name**: Descriptive name (e.g., "Base Load Power", "Fixed Transfer Price")
-    - **Unit of measurement**: Match the element's expected unit (kW, \$/kWh, %, etc.)
+    - **Unit of measurement**: Match the field's unit (kW, \$/kWh, %, etc.), since a field only offers entities whose unit fits it
     - **Minimum/Maximum**: Set reasonable bounds
-    - **Initial value**: Set your desired constant
+    - **Initial value**: Set your desired value
 5. Click **Create**
 
 **Using in HAEO configuration**:
 
-During element configuration, select the input_number entity in the entity selector:
+During element configuration, choose the input_number entity in the field:
 
 | Field         | Value                             |
 | ------------- | --------------------------------- |
@@ -450,9 +451,9 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 **When to use each approach**:
 
-- **Constant**: Values that rarely change (capacity, efficiency) - enter a fixed value directly
-- **Entity with input_number**: Values you adjust regularly (target SOC, temporary overrides) - select the input_number helper
-- **Entity with forecast sensor**: Values that vary over time (prices, solar generation) - select the forecast sensor
+- **Fixed value**: Values that rarely change (capacity, efficiency) - enter a fixed value directly
+- **Input_number helper**: Values you adjust regularly (target SOC, temporary overrides) - choose the input_number helper
+- **Forecast sensor**: Values that vary over time (prices, solar generation) - choose the forecast sensor
 
 ## Troubleshooting
 

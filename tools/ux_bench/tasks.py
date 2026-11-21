@@ -37,7 +37,11 @@ class Expectation(TypedDict):
 
 
 class Task(TypedDict):
-    """One benchmark task, as stored in ``tasks/<id>.json``."""
+    """One benchmark task, as stored in ``tasks/<id>.json``.
+
+    ``advanced`` runs the task on a hub in advanced mode, which exposes raw
+    model elements such as junctions, nodes and connections.
+    """
 
     id: str
     scenario: str
@@ -45,6 +49,7 @@ class Task(TypedDict):
     goal: str
     participants: list[str]
     expect: Expectation
+    advanced: NotRequired[bool]
 
 
 def is_task(value: JsonValueType) -> TypeGuard[Task]:
@@ -110,7 +115,7 @@ def world_states(task: Task) -> list[dict[str, JsonValueType]]:
 
 
 def hub_config(task: Task) -> dict[str, JsonValueType]:
-    """Return the scenario's hub config keeping only the task's existing elements."""
+    """Return the scenario's hub config keeping only the task's existing elements, in the task's mode."""
     config = _object(_read_json(_scenario(task) / "config.json"), f"{task['scenario']} config")
     participants = _object(config["participants"], f"{task['scenario']} participants")
     unknown = set(task["participants"]) - set(participants)
@@ -118,4 +123,6 @@ def hub_config(task: Task) -> dict[str, JsonValueType]:
         msg = f"Task {task['id']} names elements {task['scenario']} does not have: {sorted(unknown)}"
         raise ValueError(msg)
     config["participants"] = {name: copy.deepcopy(participants[name]) for name in task["participants"]}
+    advanced = _object(config.get("advanced", {}), "scenario 6 advanced settings")
+    config["advanced"] = {**advanced, "advanced_mode": task.get("advanced", False)}
     return config

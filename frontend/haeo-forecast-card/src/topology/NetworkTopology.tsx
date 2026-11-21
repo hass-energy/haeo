@@ -2,16 +2,10 @@
 
 import type { JSX } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import {
-  computeLayout,
-  NODE_STYLES,
-  type LayoutEdge,
-  type LayoutGroup,
-  type LayoutNode,
-  type LayoutResult,
-} from "./layout";
+import { computeLayout, type LayoutEdge, type LayoutGroup, type LayoutNode, type LayoutResult } from "./layout";
 import { bufferMarkers, bufferRoles, bufferTooltipLines, type BufferRoles } from "./shared";
 import type { TopologyData, TopologyNode, TopologySegment } from "./types";
+import { NODE_STYLES } from "../element-styles";
 
 const NODE_RX = 6;
 const GROUP_RX = 10;

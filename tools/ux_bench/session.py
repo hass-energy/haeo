@@ -224,7 +224,10 @@ def serve(state: SessionState, run_dir: Path) -> None:
 
         def do_POST(self) -> None:
             length = int(self.headers.get("Content-Length", "0"))
-            body: object = json.loads(self.rfile.read(length) or b"{}")
+            try:
+                body: object = json.loads(self.rfile.read(length) or b"{}")
+            except json.JSONDecodeError:
+                body = None
             if self.path == "/finish":
                 state.finish_requested = True
                 reply = "ok"

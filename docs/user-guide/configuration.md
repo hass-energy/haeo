@@ -126,27 +126,40 @@ After creating your hub, add elements to represent your devices through the Home
 Most elements are configured in a single step where you enter:
 
 1. **Element name**: A unique, descriptive name for the element
-2. **Connection target**: Which element this connects to (for elements that require connections)
-3. **Input fields**: For each field, choose how to provide the value
+2. **Connection target**: Which element this connects to (for elements that require connections).
+    Each element it can connect to is shown as a bus with the elements already on it.
+    An inverter is marked as a DC bus, for the batteries and solar panels behind it, and the Switchboard as the home's AC bus.
+    In advanced mode, junctions and nodes you create yourself show their own icon instead, as HAEO can't tell whether they are AC or DC.
+    HAEO picks a DC bus for a battery or solar panels and an AC bus for other elements, preferring a bus of unknown kind to one of the other kind, and you can change it by clicking another bus.
+3. **Input fields**: The value for each field, as described below
 
-#### Input field options
+#### Input fields
 
-Each input field provides a dropdown with these choices:
+Each input field takes a fixed value, one or more entities, or nothing.
+Type into the field and pick from the list below it:
 
-| Choice       | Use When                                         |
-| ------------ | ------------------------------------------------ |
-| **Entity**   | Value should come from a Home Assistant sensor   |
-| **Constant** | Value is fixed (enter it directly in the form)   |
-| **None**     | Don't use this constraint (optional fields only) |
+- **Fixed value**: Type a number, and the list's first row offers it with the field's unit.
+    Pick it, or press Enter, and it becomes a **Fixed value** chip showing the value on a tinted background.
+    An on/off field offers **On** and **Off** instead.
+    Click a fixed value's chip to change it.
+- **Entities**: Type part of an entity's name to narrow the list, then pick one to add it as a chip; the list offers only entities you haven't added.
+    The list offers only entities whose unit fits the field.
+    **Add all** at the top of the list adds every entity it shows, so type a search to narrow the list first.
+    That suits forecast integrations that create one sensor per day or per array, such as Forecast.Solar or Solcast.
+    Each entity starts with what the field reads from it: a forecast shows a small line of its values from now, and a sensor whose current value is used shows that value, rounded to fit.
+    A forecast field takes both kinds, such as a consumption forecast and the live consumption sensor.
+    Each entity becomes a chip with the same readout, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors).
+    Below the chips of a forecast field, a small plot shows what they combine to over the planning horizon, as HAEO will read them: the value for now on the left, then the combined forecast, with a line at each midnight.
+- **Nothing**: Remove a field's chips with **×**, or Backspace in the empty field, for an optional field you don't need, such as an export limit.
+    HAEO leaves that field out of the optimization.
 
-- Select **Entity** to link the field to one or more sensors (for example, a price forecast sensor)
-- Select **Constant** to enter a fixed value directly (for example, a battery capacity of 10 kWh)
-- Select **None** for optional fields you don't need (for example, no export limit)
+!!! tip "Fixed values are adjustable"
 
-!!! tip "Constant values are adjustable"
+    Every field you set creates an input entity in Home Assistant.
+    A field set to a fixed value can be adjusted from its input entity at runtime without reconfiguring the element.
+    A field left not set creates no input entity.
 
-    Every field you configure creates an input entity in Home Assistant.
-    For fields set to "Constant", you can adjust the value from that entity at runtime without reconfiguring the element.
+See [Forecasts and sensors](forecasts-and-sensors.md#fixed-values-vs-sensors) for when to use a fixed value, a helper, or a forecast sensor.
 
 !!! note "Network entry"
 

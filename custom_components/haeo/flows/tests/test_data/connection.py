@@ -13,8 +13,7 @@ from custom_components.haeo.core.schema.elements.connection import (
     SECTION_PRICING,
 )
 
-# Test data for connection flow - single-step with choose selector
-# config: Contains all field values in choose selector format
+# Each config is both what the connection form submits and what its subentry stores
 VALID_DATA = [
     {
         "description": "Basic connection configuration (no optional fields)",

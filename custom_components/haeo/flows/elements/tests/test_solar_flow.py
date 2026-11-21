@@ -1,6 +1,5 @@
 """Tests for solar element config flow."""
 
-from collections.abc import Mapping
 from types import MappingProxyType
 from unittest.mock import Mock
 
@@ -12,7 +11,13 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import (
+    SchemaValue,
+    as_connection_target,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
+)
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.solar import (
     CONF_CURTAILMENT,
@@ -22,105 +27,67 @@ from custom_components.haeo.core.schema.elements.solar import (
     SECTION_FORECAST,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.elements import get_input_fields
-from custom_components.haeo.flows.conftest import create_flow
+from custom_components.haeo.flows.conftest import create_flow, section_suggested_values
 
 
-def _wrap_input(flat: Mapping[str, object]) -> dict[str, object]:
-    """Wrap flat solar input values into sectioned config."""
-    forecast = {
-        CONF_FORECAST: flat[CONF_FORECAST],
-    }
-    curtailment = {key: flat[key] for key in (CONF_CURTAILMENT,) if key in flat}
+def _solar_input(forecast: SchemaValue) -> dict[str, object]:
+    """Build the solar form's submitted values."""
     return {
-        CONF_NAME: flat[CONF_NAME],
-        CONF_CONNECTION: flat[CONF_CONNECTION],
-        SECTION_FORECAST: forecast,
-        SECTION_CURTAILMENT: curtailment,
+        CONF_NAME: "Test Solar",
+        CONF_CONNECTION: "TestNode",
+        SECTION_FORECAST: {CONF_FORECAST: forecast},
+        SECTION_CURTAILMENT: {CONF_CURTAILMENT: as_constant_value(value=True)},
     }
-
-
-def _wrap_config(flat: Mapping[str, object]) -> dict[str, object]:
-    """Wrap flat solar config values into sectioned config with element type."""
-    # Already-sectioned data has CONF_CONNECTION as a ConnectionTarget dict
-    if isinstance(flat.get(CONF_CONNECTION), dict):
-        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
-    config = _wrap_input(flat)
-    connection = config[CONF_CONNECTION]
-    assert isinstance(connection, str)
-    config[CONF_CONNECTION] = as_connection_target(connection)
-    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
 @pytest.mark.parametrize(
-    ("config_values", "expected_forecast", "add_node"),
+    ("forecast", "expected_forecast", "add_node"),
     [
         pytest.param(
-            {
-                CONF_NAME: "Test Solar",
-                CONF_CONNECTION: "TestNode",
-                CONF_FORECAST: as_entity_value(["sensor.solar_forecast"]),
-            },
-            ["sensor.solar_forecast"],
+            {CONF_FORECAST: as_entity_value(["sensor.forecast"])},
+            as_entity_value(["sensor.forecast"]),
             True,
             id="entity_values",
         ),
+        pytest.param({CONF_FORECAST: as_constant_value(100.0)}, as_constant_value(100.0), True, id="constant_values"),
+        pytest.param({}, as_none_value(), True, id="missing_field"),
         pytest.param(
-            {
-                CONF_NAME: "Test Solar",
-                CONF_CONNECTION: "TestNode",
-                CONF_FORECAST: as_constant_value(100.0),
-            },
-            100.0,
-            True,
-            id="constant_values",
-        ),
-        pytest.param(
-            {
-                CONF_NAME: "Test Solar",
-                CONF_CONNECTION: as_connection_target("TestNode"),
-                SECTION_FORECAST: {},
-                SECTION_CURTAILMENT: {},
-            },
-            None,
-            True,
-            id="missing_field",
-        ),
-        pytest.param(
-            {
-                CONF_NAME: "Test Solar",
-                CONF_CONNECTION: "DeletedNode",
-                CONF_FORECAST: as_entity_value(["sensor.forecast"]),
-            },
-            ["sensor.forecast"],
+            {CONF_FORECAST: as_entity_value(["sensor.forecast"])},
+            as_entity_value(["sensor.forecast"]),
             False,
             id="deleted_connection",
         ),
     ],
 )
-async def test_reconfigure_defaults_handle_schema_values(
+async def test_reconfigure_form_opens_with_the_stored_values(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    config_values: dict[str, object],
-    expected_forecast: object,
+    forecast: dict[str, SchemaValue],
+    expected_forecast: SchemaValue,
     add_node: bool,
 ) -> None:
-    """Reconfigure defaults reflect schema values and missing fields."""
+    """Reopening a solar shows its stored forecast, or none when it stored none, ignoring unknown subentries."""
     if add_node:
         add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    unknown_data = MappingProxyType({CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"})
     unknown_subentry = ConfigSubentry(
-        data=unknown_data,
+        data=MappingProxyType({CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"}),
         subentry_type="unknown_type",
         title="Unknown",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, unknown_subentry)
 
-    existing_config = _wrap_config(config_values)
     existing_subentry = ConfigSubentry(
-        data=MappingProxyType(existing_config),
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_NAME: "Test Solar",
+                CONF_CONNECTION: as_connection_target("TestNode"),
+                SECTION_FORECAST: forecast,
+                SECTION_CURTAILMENT: {},
+            }
+        ),
         subentry_type=ELEMENT_TYPE,
         title="Test Solar",
         unique_id=None,
@@ -131,100 +98,43 @@ async def test_reconfigure_defaults_handle_schema_values(
     flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    participants = flow._get_participant_names()
-    assert "Unknown" not in participants
+    assert "Unknown" not in flow._get_participant_names()
 
     result = await flow.async_step_reconfigure(user_input=None)
+
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
-
-    input_fields = get_input_fields(ELEMENT_TYPE)
-    defaults = flow._build_defaults("Test Solar", input_fields, dict(existing_subentry.data))
-    assert defaults.get(SECTION_FORECAST, {}).get(CONF_FORECAST) == expected_forecast
+    assert section_suggested_values(result, SECTION_FORECAST)[CONF_FORECAST] == expected_forecast
 
 
-async def test_user_step_with_entity_creates_entry(
+@pytest.mark.parametrize(
+    "forecast",
+    [
+        pytest.param(as_entity_value(["sensor.forecast1", "sensor.forecast2"]), id="entity"),
+        pytest.param(as_constant_value(5.0), id="constant"),
+    ],
+)
+async def test_user_step_stores_submitted_values(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
+    forecast: SchemaValue,
 ) -> None:
-    """Submitting with entity selection should create entry with entity ID."""
+    """A new solar stores its forecast as submitted, and a missing forecast is reported on its section."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.async_create_entry = Mock(
-        return_value={
-            "type": FlowResultType.CREATE_ENTRY,
-            "title": "Test Solar",
-            "data": {},
-        }
+        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Solar", "data": {}}
     )
 
     assert flow._get_subentry() is None
 
-    invalid_input = _wrap_input(
-        {
-            CONF_NAME: "Test Solar",
-            CONF_CONNECTION: "TestNode",
-            CONF_FORECAST: [],
-            CONF_CURTAILMENT: True,
-        }
-    )
-    invalid_result = await flow.async_step_user(user_input=invalid_input)
+    invalid_result = await flow.async_step_user(user_input=_solar_input(as_none_value()))
     assert invalid_result.get("type") == FlowResultType.FORM
-    assert CONF_FORECAST in invalid_result.get("errors", {})
+    assert invalid_result.get("errors") == {SECTION_FORECAST: "required"}
 
-    # Submit with entity selection using choose selector format
-    # curtailment is force_required, so must be included
-    user_input = _wrap_input(
-        {
-            CONF_NAME: "Test Solar",
-            CONF_CONNECTION: "TestNode",
-            CONF_FORECAST: ["sensor.solar_forecast"],
-            CONF_CURTAILMENT: True,
-        }
-    )
-    result = await flow.async_step_user(user_input=user_input)
+    result = await flow.async_step_user(user_input=_solar_input(forecast))
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
-
-    # Verify the config contains the entity schema value
-    create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.solar_forecast"])
-
-
-async def test_user_step_with_constant_creates_entry(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Submitting with constant value should create entry with value."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.async_create_entry = Mock(
-        return_value={
-            "type": FlowResultType.CREATE_ENTRY,
-            "title": "Test Solar",
-            "data": {},
-        }
-    )
-
-    # Submit with constant value using choose selector format
-    # curtailment is force_required, so must be included
-    user_input = _wrap_input(
-        {
-            CONF_NAME: "Test Solar",
-            CONF_CONNECTION: "TestNode",
-            CONF_FORECAST: 5.0,
-            CONF_CURTAILMENT: True,
-        }
-    )
-    result = await flow.async_step_user(user_input=user_input)
-
-    assert result.get("type") == FlowResultType.CREATE_ENTRY
-
-    # Verify the config contains the constant schema value
-    create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_FORECAST][CONF_FORECAST] == as_constant_value(5.0)
-
-
-# --- Tests for _is_valid_choose_value ---
+    data = flow.async_create_entry.call_args.kwargs["data"]
+    assert data[SECTION_FORECAST] == {CONF_FORECAST: forecast}
+    assert data[SECTION_CURTAILMENT] == {CONF_CURTAILMENT: as_constant_value(value=True)}

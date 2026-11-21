@@ -57,6 +57,8 @@ class SolarAdapter:
     can_source: bool = True
     can_sink: bool = False
     switchboard: bool = False
+    dc: bool = True
+    dc_bus: bool = False
     device_names: frozenset[SolarDeviceName] = SOLAR_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_GENERATION})
 

@@ -34,6 +34,8 @@ class JunctionAdapter:
     can_source: bool = False
     can_sink: bool = False
     switchboard: bool = True
+    dc: bool = False
+    dc_bus: bool = False
     device_names: frozenset[JunctionDeviceName] = JUNCTION_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
 

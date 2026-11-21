@@ -10,7 +10,7 @@ Surfaced rules follow a pattern where one side is always a wildcard:
 - source_is_wildcard=False: ``{element_name} → *``
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from types import MappingProxyType
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -18,31 +18,23 @@ from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CONF_PRICE, CONF_RULES, PolicyRuleConfig
-from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
+from custom_components.haeo.core.schema.entity_value import EntityValue, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
 from custom_components.haeo.core.schema.none_value import NoneValue, as_none_value
 from custom_components.haeo.core.schema.surfaced_policy import find_surfaced_rule, resolve_surfaced_endpoints
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, localize_input_field
 from custom_components.haeo.flows.element_flow import build_inclusion_map
-from custom_components.haeo.flows.field_schema import (
-    CHOICE_CONSTANT,
-    CHOICE_ENTITY,
-    CHOICE_NONE,
-    NormalizingChooseSelector,
-    build_choose_selector,
-    get_choose_default,
-    get_preferred_choice,
-)
+from custom_components.haeo.flows.field_schema import SelectorContext, build_input_selector, get_input_default
+from custom_components.haeo.flows.input_selector import InputKind, InputSelector
 
 POLICIES_TITLE = "Policies"
 
-# Surfaced fields can be a constant, an entity, or none.
-SURFACED_CHOICES = frozenset({CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE})
+# Surfaced fields can be an entity, a constant, or none.
+SURFACED_KINDS: tuple[InputKind, ...] = ("entity", "constant", "none")
 
 
 def find_policy_subentry(hub_entry: ConfigEntry) -> ConfigSubentry | None:
@@ -143,19 +135,6 @@ def _save_policy_rules(
         hass.config_entries.async_add_subentry(hub_entry, new_subentry)
 
 
-def _negate_form_value(value: object) -> object:
-    """Negate a numeric form value, leaving entity selections untouched.
-
-    Only constant (numeric) values flip sign; entity references cannot be
-    negated and pass through unchanged.
-    """
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return -value
-    return value
-
-
 def _negate_price(price: EntityValue | ConstantValue | None) -> EntityValue | ConstantValue | None:
     """Negate a stored constant price, leaving entity prices untouched."""
     if price is not None and is_constant_value(price):
@@ -163,38 +142,11 @@ def _negate_price(price: EntityValue | ConstantValue | None) -> EntityValue | Co
     return price
 
 
-def price_to_form_value(price: EntityValue | ConstantValue | None) -> Sequence[str] | float | bool | None:
-    """Convert a stored policy price to a form field value.
-
-    Returns the raw value suitable for use with NormalizingChooseSelector defaults:
-    - EntityValue → list[str] (entity IDs)
-    - ConstantValue → float
-    - None → None (no rule exists)
-    """
-    if price is None:
-        return None
-    if is_entity_value(price):
-        return price["value"]
-    return price["value"]
-
-
 def form_value_to_price(value: object) -> EntityValue | ConstantValue | None:
-    """Convert a form field value back to a policy price.
-
-    Handles the output from NormalizingChooseSelector:
-    - list[str] → EntityValue
-    - float/int → ConstantValue
-    - None/empty string → None (delete rule)
-    """
-    if value is None or value == "":
-        return None
-    if isinstance(value, list):
-        if not value:
-            return None
-        return as_entity_value(value)
-    if isinstance(value, (int, float)):
-        return as_constant_value(float(value))
-    return None  # pragma: no cover
+    """Return the price a submitted field sets, or None when it sets none."""
+    if is_entity_value(value) or is_constant_value(value):
+        return value
+    return None
 
 
 # --- Flow helpers ---
@@ -208,10 +160,10 @@ def build_surfaced_defaults(
 ) -> dict[str, object]:
     """Build default values for surfaced pricing fields.
 
-    For new elements, uses the FieldHint defaults via get_choose_default.
+    For new elements, uses the FieldHint defaults via get_input_default.
     For existing elements, reads the current price from the policy subentry.
-    If an existing element has no matching rule, no default is set so the
-    form shows "none" (the rule was unlinked or never created).
+    If an existing element has no matching rule, the field opens with none
+    (the rule was unlinked or never created).
     """
     defaults: dict[str, object] = {}
     prices = get_surfaced_prices(hub_entry, element_name, surfaced_hints) if element_name is not None else None
@@ -222,16 +174,10 @@ def build_surfaced_defaults(
 
         if prices is not None:
             price = prices[field_name]
-            if is_entity_value(price) or is_constant_value(price):
-                form_value = price_to_form_value(price)
-                if hint.negate:
-                    form_value = _negate_form_value(form_value)
-                defaults[field_name] = form_value
+            defaults[field_name] = _negate_price(price) if hint.negate and is_constant_value(price) else price
             continue
 
-        default = get_choose_default(field_info, None)
-        if default is not None:
-            defaults[field_name] = default
+        defaults[field_name] = get_input_default(field_info, None)
     return defaults
 
 
@@ -252,33 +198,23 @@ def get_surfaced_prices(
 def build_surfaced_schema_entries(
     hass: HomeAssistant,
     surfaced_fields: Mapping[str, AnyInputFieldInfo],
-    entity_metadata: list[EntityMetadata],
-    shown_data: Mapping[str, object] | None,
-) -> dict[str, tuple[vol.Marker, NormalizingChooseSelector]]:
-    """Build vol.Schema entries for surfaced pricing fields.
-
-    Uses the standard build_choose_selector to create selectors from the
-    InputFieldInfo objects. Each selector is first on the choice holding the
-    value the form shows: the stored price when the form opens, or the
-    submitted value when it is shown again with an error.
-    """
-    inclusion_map = build_inclusion_map(dict(surfaced_fields), entity_metadata)
-    entries: dict[str, tuple[vol.Marker, NormalizingChooseSelector]] = {}
+    context: SelectorContext,
+) -> dict[str, tuple[vol.Marker, InputSelector]]:
+    """Build the schema entries of the surfaced pricing fields."""
+    inclusion_map = build_inclusion_map(dict(surfaced_fields), context.entity_metadata)
     currency = currency_symbol(hass.config.currency)
-    for field_name, surfaced_field in surfaced_fields.items():
-        field_info = localize_input_field(surfaced_field, currency)
-        preferred = get_preferred_choice(field_info, shown_data, allowed_choices=SURFACED_CHOICES)
-        entries[field_name] = (
+    return {
+        field_name: (
             vol.Optional(field_name),
-            build_choose_selector(
-                field_info,
-                allowed_choices=SURFACED_CHOICES,
-                include_entities=inclusion_map.get(field_name),
-                multiple=True,
-                preferred_choice=preferred,
+            build_input_selector(
+                localize_input_field(surfaced_field, currency),
+                kinds=SURFACED_KINDS,
+                entities=inclusion_map.get(field_name),
+                context=context,
             ),
         )
-    return entries
+        for field_name, surfaced_field in surfaced_fields.items()
+    }
 
 
 def save_surfaced_rules_from_input(
@@ -297,26 +233,18 @@ def save_surfaced_rules_from_input(
     updates, or deletes the corresponding policy rules.
 
     When apply_defaults is True, fields absent from user_input use the
-    hint's default_value. This handles the case where the frontend does
-    not submit a suggested value for a field (e.g. on initial element
-    creation).
+    hint's default_value, so a new element gets its default rules.
     """
     for field_name, hint in surfaced_hints.items():
+        default = hint.hint.default_value
         if field_name in user_input:
-            raw_value = user_input[field_name]
-        elif apply_defaults:
-            raw_value = None
-        else:
+            price = form_value_to_price(user_input[field_name])
+        elif not apply_defaults:
             continue
-
-        price = form_value_to_price(raw_value)
-
-        # When the frontend submits the field but with a value that doesn't
-        # produce a price (e.g. ChooseSelector couldn't render a negative
-        # suggested value so the field was empty), apply the hint default
-        # for new elements instead of skipping the rule.
-        if price is None and apply_defaults and hint.hint.default_value is not None:
-            price = form_value_to_price(hint.hint.default_value)
+        elif isinstance(default, int | float) and not isinstance(default, bool):
+            price = as_constant_value(float(default))
+        else:
+            price = None
 
         # The form shows the running (positive) value; the policy stores its
         # negative so the optimizer sees the underlying cost.

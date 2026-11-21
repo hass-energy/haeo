@@ -109,9 +109,11 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         common = user_input[HUB_SECTION_COMMON]
         hub_name = common[CONF_NAME]
 
-        # Create the hub entry with initial subentries
+        # Create the hub entry with initial subentries. Its description asks for a page refresh,
+        # as the frontend loads HAEO's input selector only with a page loaded after the hub is set up.
         return self.async_create_entry(
             title=hub_name,
+            description="refresh",
             data={
                 CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
                 HUB_SECTION_COMMON: {

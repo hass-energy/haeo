@@ -31,7 +31,11 @@ STATIC_CARD_STATIC_PATH: Final = "/haeo-static"
 STATIC_CARD_STATIC_DIR: Final = "www"
 
 # Entry bundle filenames under the static directory
-STATIC_CARD_BUNDLES: Final[tuple[str, ...]] = ("haeo-forecast-card.min.js", "haeo-topology-card.min.js")
+STATIC_CARD_BUNDLES: Final[tuple[str, ...]] = (
+    "haeo-forecast-card.min.js",
+    "haeo-topology-card.min.js",
+    "haeo-selectors.min.js",
+)
 
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"

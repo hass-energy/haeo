@@ -421,6 +421,27 @@ def _resolve_numeric(
     return np.array([converted] * count)
 
 
+def load_fused_sensors(
+    sm: StateMachine,
+    entity_ids: Sequence[str],
+    horizon_times: Sequence[float],
+    *,
+    output_type: OutputType,
+    boundaries: bool,
+) -> list[float] | None:
+    """Load sensors for a time series input and combine them on the horizon.
+
+    Forecasts that follow on from each other join, each repeats by time of
+    day past its end, and they add up; the sensors read as their current value
+    give the first value. Returns None when a sensor is missing or has no data.
+    """
+    payloads = load_sensors(sm, entity_ids, output_type=output_type)
+    if payloads is None:
+        return None
+    present_value, forecast_series = split_sensor_payloads(payloads)
+    return fuse_sensor_payloads(present_value, forecast_series, list(horizon_times), boundaries=boundaries)
+
+
 def _resolve_entities(
     entity_ids: Sequence[str],
     hint: FieldHint,
@@ -437,11 +458,12 @@ def _resolve_entities(
     """
     raw: list[float]
     if hint.time_series:
-        payloads = load_sensors(sm, entity_ids, output_type=hint.output_type)
-        if payloads is None:
+        fused = load_fused_sensors(
+            sm, entity_ids, forecast_times, output_type=hint.output_type, boundaries=hint.boundaries
+        )
+        if fused is None:
             return None
-        present_value, forecast_series = split_sensor_payloads(payloads)
-        raw = fuse_sensor_payloads(present_value, forecast_series, list(forecast_times), boundaries=hint.boundaries)
+        raw = fused
     else:
         readings = load_readings(sm, entity_ids, output_type=hint.output_type)
         if readings is None:
@@ -468,6 +490,7 @@ __all__ = [
     "load_element_config",
     "load_element_config_from_values",
     "load_element_configs",
+    "load_fused_sensors",
     "resolve_constant",
     "resolve_field",
 ]

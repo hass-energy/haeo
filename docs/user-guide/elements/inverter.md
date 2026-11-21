@@ -28,7 +28,7 @@ Used to create sensor entity IDs and identify the inverter in connections.
 The AC side node where the inverter connects.
 This is typically your home's main electrical bus, such as the Switchboard junction.
 
-Other elements (batteries, solar panels) connect to the inverter's DC bus by specifying the inverter name as their connection target.
+Other elements (batteries, solar panels) connect to the inverter's DC bus by choosing the inverter as their connection target, where it shows as a DC bus.
 
 ## Max power DC to AC
 
@@ -38,7 +38,7 @@ Leave empty for unlimited power.
 Enter the inverter's rated AC power.
 The limit applies on the AC side, so a 5 kW limit means at most 5 kW reaches the AC network, and the DC bus supplies that plus the conversion loss.
 
-Use a sensor to model time-varying power limits, or an input number helper for a constant value.
+Use a sensor to model time-varying power limits, or enter a fixed value for a constant limit.
 
 ## Max power AC to DC
 
@@ -48,7 +48,7 @@ Leave empty for unlimited power.
 Enter the inverter's rated AC power for charging from the AC side.
 The limit applies on the AC side, so a 5 kW limit means at most 5 kW is drawn from the AC network, and the DC bus receives that less the conversion loss.
 
-Use a sensor to model time-varying power limits, or an input number helper for a constant value.
+Use a sensor to model time-varying power limits, or enter a fixed value for a constant limit.
 
 ## Efficiency DC to AC
 
@@ -112,7 +112,7 @@ Their IDs combine the inverter's name with the entity's name, so an inverter nam
 | `number.{name}_dc_to_ac_efficiency` | %    | Efficiency DC to AC (if configured)    |
 | `number.{name}_ac_to_dc_efficiency` | %    | Efficiency AC to DC (if configured)    |
 
-A field set to "Constant" can be adjusted from its input entity at runtime.
+A field set to a fixed value can be adjusted from its input entity at runtime.
 A field linked to sensors shows the values HAEO reads from them.
 
 Input entities include a `forecast` attribute showing values for each optimization period.

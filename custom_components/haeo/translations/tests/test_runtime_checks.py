@@ -12,6 +12,7 @@ import pytest
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.flows.input_selector import INPUT_STRINGS, InputSelector
 from custom_components.haeo.repairs import async_create_fix_flow
 from custom_components.haeo.translations.tests import runtime_checks
 from custom_components.haeo.translations.tests.runtime_checks import (
@@ -78,6 +79,35 @@ def test_choose_selector_paths_include_serialized_nested_selectors() -> None:
         ("selector", "outer", "choices", "pick"),
         ("selector", "nested", "options", "low"),
     }
+
+
+@pytest.mark.parametrize(
+    ("add_all", "problems"),
+    [
+        pytest.param("Add all {count}", [], id="element_placeholder"),
+        pytest.param(
+            "Add all {total}",
+            ["selector.input.options.add_all uses placeholder {total}, which is not supplied"],
+            id="unknown_placeholder",
+        ),
+    ],
+)
+def test_input_selector_strings_take_the_element_placeholders(
+    monkeypatch: pytest.MonkeyPatch, add_all: str, problems: list[str]
+) -> None:
+    """An input selector's strings may use the placeholders its element fills in, and no others."""
+    options = dict.fromkeys(INPUT_STRINGS, "Text") | {"add_all": add_all}
+    translations = {
+        "config": {"step": {"user": {"data": {"power": "Power"}}}},
+        "selector": {"input": {"options": options}},
+    }
+    monkeypatch.setattr(runtime_checks, "load_translations", lambda: translations)
+    selector = InputSelector({"kinds": ["entity"], "value_type": "number", "domains": ["sensor"], "forecasts": {}})
+    checker = TranslationChecker()
+
+    checker.check_schema(("config", "step", "user"), vol.Schema({vol.Required("power"): selector}), {})
+
+    assert checker.problems == problems
 
 
 @pytest.mark.usefixtures("fake_translations")

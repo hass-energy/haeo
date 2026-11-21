@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigSubentry, SubentryFlowResult
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.selector import ChooseSelectorConfig, Selector
+from homeassistant.helpers.selector import ChooseSelector
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 import voluptuous as vol
@@ -34,15 +34,17 @@ from custom_components.haeo.core.schema.elements.policy import (
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_ELEMENT_TYPE
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value
+from custom_components.haeo.core.schema.none_value import as_none_value
 from custom_components.haeo.flows.elements.policy import (
     ACTION_DELETE,
     ACTION_EDIT,
     CHOICE_ELEMENTS,
+    CHOICE_NONE,
     CONF_ACTION,
     CONF_RULE,
     PolicySubentryFlowHandler,
 )
-from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY, CHOICE_NONE
+from custom_components.haeo.flows.input_selector import InputSelector
 from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE, find_policy_subentry
 
 
@@ -118,24 +120,19 @@ def _get_suggested_value(result: SubentryFlowResult, field_name: str) -> object:
     return None
 
 
-def _get_selector(result: SubentryFlowResult, field_name: str) -> Selector[ChooseSelectorConfig] | None:
-    """Extract selector instance for a field from a flow result's data_schema."""
+def _get_selector(result: SubentryFlowResult, field_name: str) -> object:
+    """Extract the selector for a field from a flow result's data_schema."""
     data_schema = result.get("data_schema")
     assert data_schema is not None
-    for key, selector in data_schema.schema.items():
-        if getattr(key, "schema", None) == field_name:
-            return selector
-    return None
+    return next(selector for key, selector in data_schema.schema.items() if getattr(key, "schema", None) == field_name)
 
 
-def _get_entity_include_entities(selector: Selector[ChooseSelectorConfig]) -> list[str] | None:
-    """Extract include_entities from the entity branch of a choose selector."""
-    entity_choice = selector.config["choices"][CHOICE_ENTITY]
-    entity_selector = entity_choice["selector"]
-    assert isinstance(entity_selector, dict)
-    entity_config = entity_selector["entity"]
-    included = entity_config.get("include_entities")
-    return list(included) if included is not None else None
+def _first_endpoint_choice(result: SubentryFlowResult, field_name: str) -> str:
+    """Return the first choice of an endpoint selector in a shown rule form."""
+    selector = _get_selector(result, field_name)
+    assert isinstance(selector, ChooseSelector)
+    choices: dict[str, object] = selector.config["choices"]
+    return next(iter(choices))
 
 
 async def test_build_price_selector_includes_compatible_price_entities(
@@ -157,9 +154,8 @@ async def test_build_price_selector_includes_compatible_price_entities(
     hass.states.async_set("sensor.power_only", "5", {"unit_of_measurement": "kW"})
 
     flow = _create_flow(hass, hub_entry)
-    include_entities = _get_entity_include_entities(flow._build_price_selector(None))
+    include_entities = flow._build_price_selector().config.get("entities", [])
 
-    assert include_entities is not None
     assert "sensor.import_price" in include_entities
     assert "sensor.export_price" in include_entities
     assert "sensor.wholesale_price" in include_entities
@@ -199,7 +195,7 @@ async def test_user_step_creates_entry_when_none_exists(
             CONF_ENABLED: True,
             CONF_SOURCE: ["Solar"],
             CONF_TARGET: ["Grid"],
-            CONF_PRICE: 0.02,
+            CONF_PRICE: as_constant_value(0.02),
         }
     )
 
@@ -240,7 +236,7 @@ async def test_user_step_appends_to_existing_subentry(
             CONF_ENABLED: True,
             CONF_SOURCE: ["Grid"],
             CONF_TARGET: ["Battery"],
-            CONF_PRICE: 0.05,
+            CONF_PRICE: as_constant_value(0.05),
         }
     )
 
@@ -262,7 +258,12 @@ async def test_user_step_saves_a_new_rule_into_the_existing_subentry(
     hass.config_entries.async_add_subentry(hub_entry, existing)
 
     result = await _create_flow(hass, hub_entry).async_step_user(
-        user_input={CONF_RULE_NAME: "Grid Charge", CONF_ENABLED: True, CONF_SOURCE: ["Grid"], CONF_PRICE: 0.05}
+        user_input={
+            CONF_RULE_NAME: "Grid Charge",
+            CONF_ENABLED: True,
+            CONF_SOURCE: ["Grid"],
+            CONF_PRICE: as_constant_value(0.05),
+        }
     )
 
     assert result.get("type") == FlowResultType.ABORT
@@ -287,7 +288,7 @@ async def test_user_step_any_defaults(
             CONF_ENABLED: True,
             CONF_SOURCE: "",
             CONF_TARGET: "",
-            CONF_PRICE: 0.05,
+            CONF_PRICE: as_constant_value(0.05),
         }
     )
 
@@ -504,7 +505,7 @@ async def test_edit_rule_updates_and_saves(
             CONF_ENABLED: True,
             CONF_SOURCE: ["Solar"],
             CONF_TARGET: ["Grid"],
-            CONF_PRICE: 0.03,
+            CONF_PRICE: as_constant_value(0.03),
         }
     )
 
@@ -550,7 +551,7 @@ async def test_edit_rule_preserves_source_target_when_omitted_from_submission(
         user_input={
             CONF_RULE_NAME: "Solar Export Updated",
             CONF_ENABLED: True,
-            CONF_PRICE: 0.03,
+            CONF_PRICE: as_constant_value(0.03),
         }
     )
 
@@ -611,7 +612,7 @@ async def test_edit_rule_updates_only_selected_rule_without_losing_others(
         user_input={
             CONF_RULE_NAME: "Rule B Updated",
             CONF_ENABLED: True,
-            CONF_PRICE: 0.07,
+            CONF_PRICE: as_constant_value(0.07),
         }
     )
 
@@ -713,7 +714,7 @@ async def test_edit_rule_saved_values_restore_when_reopened(
             CONF_ENABLED: True,
             CONF_SOURCE: ["Solar"],
             CONF_TARGET: ["Battery"],
-            CONF_PRICE: 0.06,
+            CONF_PRICE: as_constant_value(0.06),
         }
     )
 
@@ -739,7 +740,7 @@ async def test_edit_rule_saved_values_restore_when_reopened(
     assert _get_suggested_value(reopen_result, CONF_RULE_NAME) == "Solar Export Updated"
     assert _get_suggested_value(reopen_result, CONF_SOURCE) == ["Solar"]
     assert _get_suggested_value(reopen_result, CONF_TARGET) == ["Battery"]
-    assert _get_suggested_value(reopen_result, CONF_PRICE) == 0.06
+    assert _get_suggested_value(reopen_result, CONF_PRICE) == as_constant_value(0.06)
 
 
 async def test_edit_rule_rejects_duplicate_name_preserves_omitted_source_target_defaults(
@@ -782,7 +783,7 @@ async def test_edit_rule_rejects_duplicate_name_preserves_omitted_source_target_
         user_input={
             CONF_RULE_NAME: "Grid Charge",
             CONF_ENABLED: True,
-            CONF_PRICE: 0.03,
+            CONF_PRICE: as_constant_value(0.03),
         }
     )
 
@@ -803,33 +804,25 @@ def test_endpoint_selector_normalizes_wildcard_and_node_lists(
     assert sel({"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Solar"]}) == ["Solar"]
 
 
-def test_parse_rule_input_empty_string_price_is_rejected() -> None:
-    """Empty price is rejected because policy price is required."""
+@pytest.mark.parametrize(
+    "price",
+    [
+        pytest.param(as_constant_value(0.02), id="constant"),
+        pytest.param(as_entity_value(["sensor.a", "sensor.b"]), id="entity"),
+    ],
+)
+def test_parse_rule_input_stores_the_submitted_price(price: EntityValue | ConstantValue) -> None:
+    """The submitted price is stored as the rule's price unchanged."""
     flow = PolicySubentryFlowHandler()
-    errors: dict[str, str] = {}
-    valid = flow._validate_rule(
-        {
-            CONF_RULE_NAME: "Free flow",
-            CONF_ENABLED: True,
-            CONF_PRICE: "",
-        },
-        errors,
-    )
-    assert not valid
-    assert errors == {CONF_PRICE: "required"}
+    rule = flow._parse_rule_input({CONF_RULE_NAME: "Tracked", CONF_ENABLED: True, CONF_PRICE: price})
+    assert rule["price"] == price
 
 
-def test_parse_rule_input_list_price_becomes_entity_value() -> None:
-    """Entity list price input maps to schema entity value."""
+def test_parse_rule_input_rejects_input_without_a_price() -> None:
+    """Parsing input that validation would reject for its missing price raises."""
     flow = PolicySubentryFlowHandler()
-    rule = flow._parse_rule_input(
-        {
-            CONF_RULE_NAME: "Tracked",
-            CONF_ENABLED: True,
-            CONF_PRICE: ["sensor.a", "sensor.b"],
-        }
-    )
-    assert rule.get("price") == as_entity_value(["sensor.a", "sensor.b"])
+    with pytest.raises(TypeError):
+        flow._parse_rule_input({CONF_RULE_NAME: "Tracked", CONF_ENABLED: True, CONF_PRICE: as_none_value()})
 
 
 async def test_edit_rule_index_out_of_range_uses_empty_defaults(
@@ -1090,7 +1083,7 @@ async def test_edit_rule_valid_input_without_subentry_returns_form(
         user_input={
             CONF_RULE_NAME: "Renamed",
             CONF_ENABLED: True,
-            CONF_PRICE: 0.01,
+            CONF_PRICE: as_constant_value(0.01),
         }
     )
 
@@ -1112,7 +1105,7 @@ async def test_edit_rule_valid_input_with_invalid_index_returns_form(
         user_input={
             CONF_RULE_NAME: "Renamed",
             CONF_ENABLED: True,
-            CONF_PRICE: 0.02,
+            CONF_PRICE: as_constant_value(0.02),
         }
     )
 
@@ -1155,12 +1148,8 @@ async def test_edit_rule_shows_previous_values_for_source_target(
     assert result.get("type") == FlowResultType.FORM
     assert _get_suggested_value(result, CONF_SOURCE) == ["Solar"]
     assert _get_suggested_value(result, CONF_TARGET) == ["Grid"]
-    source_selector = _get_selector(result, CONF_SOURCE)
-    target_selector = _get_selector(result, CONF_TARGET)
-    assert source_selector is not None
-    assert target_selector is not None
-    assert next(iter(source_selector.config["choices"].keys())) == CHOICE_ELEMENTS
-    assert next(iter(target_selector.config["choices"].keys())) == CHOICE_ELEMENTS
+    assert _first_endpoint_choice(result, CONF_SOURCE) == CHOICE_ELEMENTS
+    assert _first_endpoint_choice(result, CONF_TARGET) == CHOICE_ELEMENTS
 
 
 async def test_edit_rule_ui_restore_contract_for_elements_endpoints(
@@ -1189,12 +1178,8 @@ async def test_edit_rule_ui_restore_contract_for_elements_endpoints(
     await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
     result = await flow.async_step_edit_rule(user_input=None)
 
-    source_selector = _get_selector(result, CONF_SOURCE)
-    target_selector = _get_selector(result, CONF_TARGET)
-    assert source_selector is not None
-    assert target_selector is not None
-    assert next(iter(source_selector.config["choices"].keys())) == CHOICE_ELEMENTS
-    assert next(iter(target_selector.config["choices"].keys())) == CHOICE_ELEMENTS
+    assert _first_endpoint_choice(result, CONF_SOURCE) == CHOICE_ELEMENTS
+    assert _first_endpoint_choice(result, CONF_TARGET) == CHOICE_ELEMENTS
     assert _get_suggested_value(result, CONF_SOURCE) == ["Solar"]
     assert _get_suggested_value(result, CONF_TARGET) == ["Grid"]
 
@@ -1227,12 +1212,8 @@ async def test_edit_rule_shows_any_for_missing_source_target(
     assert _get_suggested_value(result, CONF_SOURCE) == ""
     assert _get_suggested_value(result, CONF_TARGET) == ""
 
-    source_selector = _get_selector(result, CONF_SOURCE)
-    target_selector = _get_selector(result, CONF_TARGET)
-    assert source_selector is not None
-    assert target_selector is not None
-    assert next(iter(source_selector.config["choices"].keys())) == CHOICE_NONE
-    assert next(iter(target_selector.config["choices"].keys())) == CHOICE_NONE
+    assert _first_endpoint_choice(result, CONF_SOURCE) == CHOICE_NONE
+    assert _first_endpoint_choice(result, CONF_TARGET) == CHOICE_NONE
 
 
 async def test_edit_rule_shows_previous_constant_price(
@@ -1262,7 +1243,7 @@ async def test_edit_rule_shows_previous_constant_price(
 
     result = await flow.async_step_edit_rule(user_input=None)
 
-    assert _get_suggested_value(result, CONF_PRICE) == 0.02
+    assert _get_suggested_value(result, CONF_PRICE) == as_constant_value(0.02)
 
 
 async def test_edit_rule_shows_previous_entity_price(
@@ -1290,7 +1271,7 @@ async def test_edit_rule_shows_previous_entity_price(
 
     result = await flow.async_step_edit_rule(user_input=None)
 
-    assert _get_suggested_value(result, CONF_PRICE) == ["sensor.price"]
+    assert _get_suggested_value(result, CONF_PRICE) == as_entity_value(["sensor.price"])
 
 
 # --- Issue 4: Enabled/disabled toggle per rule ---
@@ -1312,7 +1293,7 @@ async def test_user_step_stores_enabled_false(
             CONF_RULE_NAME: "Disabled Rule",
             CONF_SOURCE: ["Solar"],
             CONF_TARGET: ["Grid"],
-            CONF_PRICE: 0.02,
+            CONF_PRICE: as_constant_value(0.02),
         }
     )
 
@@ -1336,7 +1317,7 @@ async def test_user_step_stores_enabled_true_by_default(
             CONF_RULE_NAME: "Active Rule",
             CONF_SOURCE: ["Solar"],
             CONF_TARGET: ["Grid"],
-            CONF_PRICE: 0.02,
+            CONF_PRICE: as_constant_value(0.02),
         }
     )
 
@@ -1412,22 +1393,24 @@ def test_rule_to_defaults_shows_enabled_as_a_bool(
 def test_parse_rule_input_stores_enabled() -> None:
     """Enabled field is always stored in the rule."""
     flow = PolicySubentryFlowHandler()
-    rule = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: True, CONF_PRICE: 0.05})
+    rule = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: True, CONF_PRICE: as_constant_value(0.05)})
     assert rule["enabled"] == as_constant_value(value=True)
 
-    rule_disabled = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: False, CONF_PRICE: 0.01})
+    rule_disabled = flow._parse_rule_input(
+        {CONF_RULE_NAME: "Test", CONF_ENABLED: False, CONF_PRICE: as_constant_value(0.01)}
+    )
     assert rule_disabled["enabled"] == as_constant_value(value=False)
 
 
 @pytest.mark.parametrize(
     "price_input",
     [
-        None,
-        [],
+        pytest.param(None, id="missing"),
+        pytest.param(as_none_value(), id="none"),
     ],
 )
-def test_validate_rule_requires_non_empty_price(price_input: object) -> None:
-    """Rule validation rejects missing or empty list price input."""
+def test_validate_rule_requires_a_price(price_input: object) -> None:
+    """Rule validation rejects a missing price or one set to none."""
     flow = PolicySubentryFlowHandler()
     errors: dict[str, str] = {}
     valid = flow._validate_rule(
@@ -1442,20 +1425,13 @@ def test_validate_rule_requires_non_empty_price(price_input: object) -> None:
     assert errors == {CONF_PRICE: "required"}
 
 
-# --- Tests for the first price choice following the value the form shows ---
+# --- Tests for the price a shown rule form holds ---
 
-# Each price choice, as stored and as submitted
-_PRICES: dict[str, tuple[EntityValue | ConstantValue, object]] = {
-    CHOICE_ENTITY: (as_entity_value(["sensor.price"]), ["sensor.price"]),
-    CHOICE_CONSTANT: (as_constant_value(0.02), 0.02),
+# Each kind of price, as stored and as submitted
+_PRICES: dict[str, EntityValue | ConstantValue] = {
+    "entity": as_entity_value(["sensor.price"]),
+    "constant": as_constant_value(0.02),
 }
-
-
-def _price_first_choice(result: SubentryFlowResult) -> str:
-    """Return the first choice of the price selector in a shown rule form."""
-    selector = _get_selector(result, CONF_PRICE)
-    assert selector is not None
-    return next(iter(selector.config["choices"]))
 
 
 async def _edit_rule_flow(
@@ -1477,63 +1453,46 @@ async def _edit_rule_flow(
     return flow
 
 
-async def test_new_rule_form_opens_on_constant_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """A new rule's price opens on the constant choice."""
+async def test_rule_price_offers_entities_and_a_constant(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """A rule's price is an entity or a constant; it cannot be left without a value."""
     result = await _create_flow(hass, hub_entry).async_step_user(user_input=None)
 
-    assert _price_first_choice(result) == CHOICE_CONSTANT
+    selector = _get_selector(result, CONF_PRICE)
+    assert isinstance(selector, InputSelector)
+    assert selector.config["kinds"] == ["entity", "constant"]
 
 
-@pytest.mark.parametrize("choice", list(_PRICES))
-async def test_reshown_new_rule_form_keeps_the_submitted_price_choice(
+@pytest.mark.parametrize("kind", list(_PRICES))
+async def test_reshown_new_rule_form_keeps_the_submitted_price(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    choice: str,
+    kind: str,
 ) -> None:
-    """A new rule form re-shown with an error shows the submitted price in the choice that holds it."""
-    _, submitted = _PRICES[choice]
-
+    """A new rule form re-shown with an error shows the submitted price."""
     result = await _create_flow(hass, hub_entry).async_step_user(
-        user_input={CONF_RULE_NAME: "", CONF_ENABLED: True, CONF_PRICE: submitted}
+        user_input={CONF_RULE_NAME: "", CONF_ENABLED: True, CONF_PRICE: _PRICES[kind]}
     )
 
     assert result.get("errors") == {CONF_RULE_NAME: "missing_name"}
-    assert _price_first_choice(result) == choice
+    assert _get_suggested_value(result, CONF_PRICE) == _PRICES[kind]
 
 
-@pytest.mark.parametrize("choice", list(_PRICES))
-async def test_edit_rule_form_opens_on_the_stored_price_choice(
+@pytest.mark.parametrize(("stored_kind", "submitted_kind"), [("entity", "constant"), ("constant", "entity")])
+async def test_reshown_edit_rule_form_keeps_the_submitted_price(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    choice: str,
+    stored_kind: str,
+    submitted_kind: str,
 ) -> None:
-    """Editing a rule shows its stored price in the choice that holds it."""
-    stored, _ = _PRICES[choice]
-    flow = await _edit_rule_flow(hass, hub_entry, stored)
+    """An edit rule form re-shown with an error shows the submitted price, not the stored one."""
+    flow = await _edit_rule_flow(hass, hub_entry, _PRICES[stored_kind])
 
-    result = await flow.async_step_edit_rule(user_input=None)
-
-    assert _price_first_choice(result) == choice
-
-
-@pytest.mark.parametrize(
-    ("stored_choice", "submitted_choice"), [(CHOICE_ENTITY, CHOICE_CONSTANT), (CHOICE_CONSTANT, CHOICE_ENTITY)]
-)
-async def test_reshown_edit_rule_form_keeps_the_submitted_price_choice(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-    stored_choice: str,
-    submitted_choice: str,
-) -> None:
-    """An edit rule form re-shown with an error shows the submitted price in the choice that holds it."""
-    stored, _ = _PRICES[stored_choice]
-    _, submitted = _PRICES[submitted_choice]
-    flow = await _edit_rule_flow(hass, hub_entry, stored)
-
-    result = await flow.async_step_edit_rule(user_input={CONF_RULE_NAME: "Grid Charge", CONF_PRICE: submitted})
+    result = await flow.async_step_edit_rule(
+        user_input={CONF_RULE_NAME: "Grid Charge", CONF_PRICE: _PRICES[submitted_kind]}
+    )
 
     assert result.get("errors") == {CONF_RULE_NAME: "name_exists"}
-    assert _price_first_choice(result) == submitted_choice
+    assert _get_suggested_value(result, CONF_PRICE) == _PRICES[submitted_kind]
 
 
 @pytest.mark.parametrize(

@@ -12,10 +12,11 @@ const workspaceRoot = resolve(rootDir, "..", "..");
 const outDir = resolve(workspaceRoot, "custom_components", "haeo", "www");
 const forecastOutFile = resolve(outDir, "haeo-forecast-card.min.js");
 const topologyCardOutFile = resolve(outDir, "haeo-topology-card.min.js");
+const selectorsOutFile = resolve(outDir, "haeo-selectors.min.js");
 const topologyOutFile = resolve(rootDir, "dist", "render-topology-svg.mjs");
 const watch = process.argv.includes("--watch");
 
-const CARD_FILE_PREFIXES = ["haeo-forecast-card", "haeo-topology-card"];
+const CARD_FILE_PREFIXES = ["haeo-forecast-card", "haeo-topology-card", "haeo-selectors"];
 
 async function cleanCardOutputDir() {
   await mkdir(outDir, { recursive: true });
@@ -27,7 +28,7 @@ async function cleanCardOutputDir() {
   );
 }
 
-const builtFiles = [forecastOutFile, topologyCardOutFile, topologyOutFile];
+const builtFiles = [forecastOutFile, topologyCardOutFile, selectorsOutFile, topologyOutFile];
 
 if (watch) {
   await cleanCardOutputDir();

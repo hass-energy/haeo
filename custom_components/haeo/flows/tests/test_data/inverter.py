@@ -1,4 +1,4 @@
-"""Test inverter config flow data for choose selector approach."""
+"""Test data and validation for inverter flow configuration."""
 
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value
@@ -12,8 +12,7 @@ from custom_components.haeo.core.schema.elements.inverter import (
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 
-# Test data for inverter flow - single-step with choose selector
-# config: Contains all field values in choose selector format
+# Each config is both what the inverter form submits and what its subentry stores
 VALID_DATA = [
     {
         "description": "Basic inverter with all constant values",

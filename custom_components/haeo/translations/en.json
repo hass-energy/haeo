@@ -61,7 +61,8 @@
       "already_configured": "HAEO already configured",
       "already_in_progress": "Setup of this system is already in progress",
       "reconfigure_successful": "Settings saved"
-    }
+    },
+    "create_entry": { "refresh": "Refresh this page before adding elements, so their settings appear." }
   },
   "options": {
     "step": {
@@ -838,9 +839,24 @@
   },
   "selector": {
     "buffer_kind": { "options": { "headroom": "Headroom: keep empty space", "reserve": "Reserve: keep energy" } },
+    "connection": { "options": { "ac_bus": "{name}, AC", "bus": "{name}", "dc_bus": "{name}, DC" } },
     "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
-    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
+    "input": {
+      "options": {
+        "add_all": "Add all {count}",
+        "current_value": "Current value {value}",
+        "enter_value": "{label}: enter a value",
+        "fixed": "Fixed value",
+        "fixed_value": "Fixed value {value}",
+        "forecast": "Forecast",
+        "off": "Off",
+        "on": "On",
+        "preview": "Combined: now {now}, then {min} to {max} over the next {hours} hours",
+        "remove": "Remove {name}",
+        "search": "{label}: search entities or enter a value"
+      }
+    },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
   },
   "services": {

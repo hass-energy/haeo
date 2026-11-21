@@ -39,6 +39,7 @@ from custom_components.haeo.elements.input_fields import (
     localize_input_fields,
     reads_calendar,
 )
+from custom_components.haeo.flows.field_schema import entity_domains
 from custom_components.haeo.flows.on_off_states import (
     CONF_OFF_STATES,
     CONF_ON_STATES,
@@ -69,25 +70,16 @@ def filter_compatible_entities(
 
 def build_inclusion_map(
     input_fields: Mapping[str, AnyInputFieldInfo],
-    entity_metadata: list[EntityMetadata],
+    entity_metadata: Sequence[EntityMetadata],
 ) -> dict[str, list[str]]:
-    """Build field name → compatible entity IDs mapping from input fields.
+    """Return the entities offered by each field that narrows its domains, keyed by field name.
 
-    This dynamically generates the inclusion map by looking up each field's
-    output_type and computing which entities are compatible: those whose unit,
-    converted to base units, is the field's unit. A field feeding
-    calendar inputs includes only calendars, and a field that can read a
-    calendar as a forecast also includes every calendar. A meter field only
-    includes entities the recorder keeps a running total for, as it reads
-    that total.
-
-    Args:
-        input_fields: Mapping of InputFieldInfo from element's schema.
-        entity_metadata: List of entity metadata from extract_entity_metadata.
-
-    Returns:
-        Dict mapping field names to lists of entity IDs to include.
-
+    A field with a unit offers only the entities whose unit, converted to base
+    units, is the field's unit. A field feeding calendar inputs offers only
+    calendars, and a field that can read a calendar as a forecast also offers
+    every calendar. A meter field only offers entities the recorder keeps a
+    running total for, as it reads that total. A field none of these apply to
+    is left out and offers every entity in its domains.
     """
     result: dict[str, list[str]] = {}
 
@@ -98,7 +90,9 @@ def build_inclusion_map(
         if reads_calendar(field_info):
             result[field_info.field_name] = calendars
         elif unit_spec is not None:
-            compatible = filter_compatible_entities(entity_metadata, unit_spec)
+            domains = tuple(f"{domain}." for domain in entity_domains(field_info))
+            in_domains = [v for v in entity_metadata if v.entity_id.startswith(domains)]
+            compatible = filter_compatible_entities(in_domains, unit_spec)
             included = [eid for eid in compatible if eid in totals] if field_info.meter is not None else compatible
             result[field_info.field_name] = (
                 [*included, *calendars] if accepts_calendar_forecast(field_info) else included
@@ -171,6 +165,10 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             subentry.title for subentry in self._get_entry().subentries.values() if subentry.subentry_id != current_id
         }
 
+    def _advanced_mode(self) -> bool:
+        """Return whether the hub exposes raw model elements, such as junctions and nodes, to configure."""
+        return bool(self._get_entry().data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False))
+
     def _get_participant_names(self) -> list[str]:
         """Return element names available as connection endpoints.
 
@@ -178,10 +176,9 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         advanced mode setting.
         """
         hub_entry = self._get_entry()
-        advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
         connectable = {
             ConnectivityLevel.ALWAYS,
-            ConnectivityLevel.ADVANCED if advanced_mode else ConnectivityLevel.ALWAYS,
+            ConnectivityLevel.ADVANCED if self._advanced_mode() else ConnectivityLevel.ALWAYS,
         }
         current_id = self._get_current_subentry_id()
         return [
