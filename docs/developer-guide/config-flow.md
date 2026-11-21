@@ -172,6 +172,13 @@ An existing element's field opens with what it stores, and `{"type": "none"}` wh
 The element's labels live in `en.json` under `selector.input.options`.
 It reads them with `hass.localize` and fills their placeholders itself, and `InputSelector.translation_strings()` lists each label with those placeholders so the translation tests check them.
 
+### Connection selector
+
+An element's connection field is a `ConnectionSelector` (selector type `haeo_connection`), defined in [`flows/connection_selector.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/connection_selector.py) and rendered by `ha-selector-haeo_connection` from the same bundle.
+It shows each element the new one can connect to as a bus, with the elements already connected to it, and the new element on the chosen bus.
+A target that cannot be the switchboard, such as an inverter, is a DC bus, and the others are AC buses.
+A new element connects by default to the first bus of its kind: a DC bus when its adapter's `dc` attribute says its equipment is DC, such as a battery or solar panels, and an AC bus otherwise.
+
 ### UI sections
 
 Config flows group related fields using `data_entry_flow.section` so advanced settings can be collapsed by default.

@@ -126,7 +126,10 @@ After creating your hub, add elements to represent your devices through the Home
 Most elements are configured in a single step where you enter:
 
 1. **Element name**: A unique, descriptive name for the element
-2. **Connection target**: Which element this connects to (for elements that require connections)
+2. **Connection target**: Which element this connects to (for elements that require connections).
+    Each element it can connect to is shown as a bus, marked AC or DC, with the elements already on it.
+    The switchboard is an AC bus, for the grid and household loads, and an inverter is a DC bus, for the batteries and solar panels behind it.
+    HAEO picks a DC bus for a battery or solar panels and an AC bus for other elements, which you can change by clicking another bus.
 3. **Input fields**: The value for each field, as described below
 
 #### Input fields

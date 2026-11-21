@@ -784,6 +784,21 @@ class HAPage:
             if ctx:
                 self._capture("filled")
 
+    def select_connection(self, field_label: str, target: str) -> None:
+        """Choose the bus a HAEO connection field connects to."""
+        field = self.page.locator("ha-selector-haeo_connection").filter(has_text=field_label)
+        bus = field.get_by_role("radio", name=re.compile(rf"^{re.escape(target)},"))
+        bus.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        ctx = ScreenshotContext.current()
+        with ctx.scope(f"connection_{field_label}") if ctx else nullcontext():
+            self._scroll_into_view(bus)
+            if ctx:
+                self._capture_with_indicator("bus", bus)
+            bus.click(timeout=DEFAULT_TIMEOUT)
+            if ctx:
+                self._capture("selected")
+
     # endregion
 
     # region: ChooseSelector (policy endpoints)

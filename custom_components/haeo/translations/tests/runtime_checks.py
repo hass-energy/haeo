@@ -20,6 +20,7 @@ from functools import cache
 import json
 from pathlib import Path
 import string
+from typing import Protocol, runtime_checkable
 
 from homeassistant.components.repairs import RepairsFlow
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
@@ -34,7 +35,6 @@ import pytest
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.flows.input_selector import InputSelector
 
 TRANSLATIONS_PATH = Path(__file__).parent.parent / "en.json"
 
@@ -108,8 +108,8 @@ class TranslationChecker:
         """
         for path, validator in form_labels(schema).items():
             self.require((*step, *path), placeholders)
-            if isinstance(validator, InputSelector):
-                # The input element fills in its strings' placeholders itself
+            if isinstance(validator, SelectorWithOwnStrings):
+                # HAEO's selector elements fill in their strings' placeholders themselves
                 for selector_path, supplied in validator.translation_strings():
                     self.require(selector_path, dict.fromkeys(supplied, ""))
             elif isinstance(validator, Selector):
@@ -151,6 +151,13 @@ def form_labels(schema: vol.Schema) -> dict[TranslationPath, object]:
         else:
             labels[("data", name)] = validator
     return labels
+
+
+@runtime_checkable
+class SelectorWithOwnStrings(Protocol):
+    """A HAEO selector whose element shows strings of its own, listing each with the placeholders it fills in."""
+
+    translation_strings: Callable[[], Iterator[tuple[TranslationPath, tuple[str, ...]]]]
 
 
 def selector_translation_paths(selector: Selector[Mapping[str, object]]) -> Iterator[TranslationPath]:

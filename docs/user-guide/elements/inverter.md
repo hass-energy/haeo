@@ -28,7 +28,7 @@ Used to create sensor entity IDs and identify the inverter in connections.
 The AC side node where the inverter connects.
 This is typically your home's main electrical bus, such as the Switchboard junction.
 
-Other elements (batteries, solar panels) connect to the inverter's DC bus by specifying the inverter name as their connection target.
+Other elements (batteries, solar panels) connect to the inverter's DC bus by choosing the inverter as their connection target, where it shows as a DC bus.
 
 ## Max power DC to AC
 

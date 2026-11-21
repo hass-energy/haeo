@@ -324,7 +324,7 @@ def add_inverter(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     _fill_element_fields(
         page,
@@ -363,7 +363,7 @@ def add_battery(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     # Build fields dict in section order: storage → limits → power_limits
     fields: dict[str, FieldInput] = {
@@ -409,7 +409,7 @@ def add_solar(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     _fill_element_fields(
         page,
@@ -444,7 +444,7 @@ def add_grid(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     # Build fields dict in section order: pricing → power_limits
     fields: dict[str, FieldInput] = {
@@ -486,7 +486,7 @@ def add_load(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     _fill_element_fields(
         page,
@@ -617,7 +617,7 @@ def add_ev(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     # Vehicle and charging sections are expanded by default
     fields: dict[str, FieldInput] = {

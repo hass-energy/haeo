@@ -6,14 +6,7 @@
  * export script for scenario test visualizations.
  */
 
-import {
-  computeLayout,
-  NODE_STYLES,
-  type LayoutEdge,
-  type LayoutGroup,
-  type LayoutNode,
-  type LayoutResult,
-} from "./layout";
+import { computeLayout, type LayoutEdge, type LayoutGroup, type LayoutNode, type LayoutResult } from "./layout";
 import {
   GROUP_RX,
   NODE_RX,
@@ -31,6 +24,7 @@ import {
   vlanColor,
 } from "./shared";
 import type { TopologyData, TopologyNode, TopologySegment } from "./types";
+import { NODE_STYLES } from "../element-styles";
 
 // ---------------------------------------------------------------------------
 // SVG string helpers

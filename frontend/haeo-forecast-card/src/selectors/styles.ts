@@ -66,4 +66,23 @@ export const SELECTOR_STYLES = `
 .option input[type="checkbox"] { margin: 0; accent-color: var(--primary-color); pointer-events: none; }
 .option-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .count { color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
+.buses { display: flex; flex-wrap: wrap; gap: 8px; }
+.bus {
+  flex: 1 1 200px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  padding: 10px 12px; border-radius: 12px; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  border: 1px solid var(--divider-color); background: var(--card-background-color);
+}
+.bus:hover { border-color: var(--secondary-text-color); }
+.bus.selected { border: 2px solid var(--primary-color); padding: 9px 11px; }
+.bus-head { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.bus-head .icon { color: var(--secondary-text-color); }
+.bus.selected .bus-head .icon { color: var(--primary-color); }
+.bus-elements { display: flex; flex-wrap: wrap; gap: 4px; min-height: 24px; }
+.bus-element {
+  display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 12px;
+  font-size: 0.8rem; background: var(--secondary-background-color); color: var(--secondary-text-color);
+}
+.bus-element.ghost {
+  background: none; border: 1px dashed var(--primary-color); color: var(--primary-color);
+}
 `;

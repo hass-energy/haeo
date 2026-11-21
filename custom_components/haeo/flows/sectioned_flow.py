@@ -58,7 +58,7 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
     def _top_level_entries(self, subentry_data: Mapping[str, object] | None) -> FieldEntries:
         """Return the form fields shown above the sections."""
         _ = subentry_data
-        return build_common_fields(include_connection=False)
+        return build_common_fields()
 
     def _top_level_defaults(self, subentry_data: Mapping[str, object] | None) -> dict[str, object]:
         """Return the defaults of the top-level fields other than the name."""
