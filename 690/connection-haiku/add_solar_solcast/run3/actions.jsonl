@@ -1,0 +1,14 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.7, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.3, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "click", "args": ["f2e617"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 8.9, "command": "type", "args": ["f2e487", "solcast"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "click", "args": ["f2e729"], "error": null, "visible_errors": 0}
+{"t": 11.6, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 12.0, "command": "type", "args": ["f2e487", "solcast day 3"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "click", "args": ["f2e744"], "error": null, "visible_errors": 0}
+{"t": 15.5, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 18.2, "command": "click", "args": ["f2e785"], "error": null, "visible_errors": 0}
+{"t": 20.2, "command": "done", "args": ["Added a Solar element named 'Solar' to the Home hub. Connection is 'Inverter, DC' (the default, which fits panels feeding the inverter). Forecast uses the three Solcast PV Forecast sensors: sensor.solcast_pv_forecast_forecast_today, _tomorrow and _forecast_day_3. Curtailment was left at its default of a fixed 'On'. The success dialog confirmed creation; the Solar device now appears under Home, and entity count went from 56 to 60."], "error": null, "visible_errors": 0}

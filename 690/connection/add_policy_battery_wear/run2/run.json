@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.10405020000000002,
+  "turns": 12,
+  "report": "I added a policy named \"Battery wear\" to the Home hub. It charges 1 cent ($0.01) for every kWh that leaves the battery. HAEO showed \"Created configuration for Policies\", and a new \"Policies\" device now appears under Home. I did not open the policy again to check the saved values.\n\nThe policy is enabled, with these settings:\n- **Source:** the Battery element.\n- **Target:** Any, so the cost applies wherever the discharged energy goes.\n- **Price:** a fixed value of 0.01 $/kWh.\n\nPoints where I was unsure:\n- **Policy as the route:** I assumed a Policy was the right element for this. Nothing else in the \"Add\" list looked closer, and the form's description matched (\"control how power flows between elements\").\n- **Target \"Any\":** I left it on Any without testing it. I assumed it also covers energy going back into the battery's own inverter or other elements.\n- **Name:** The name \"Battery wear\" was my own choice, since you didn't give one.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear' (enabled): source = Battery element, target = Any, price = fixed 0.01 $/kWh. It saved and a Policies device now appears under Home.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.5
+}

@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.008087770000000001,
+  "turns": 14,
+  "report": "The policy is created and listed under the HAEO hub as \"Policies\", but I did not open its entities to confirm the stored values.\n\nI added a Policy named \"Battery wear cost\" (enabled) with Source = Battery, Target = Any, and Price = fixed 0.01 $/kWh. Source set to Battery means every kWh leaving the battery is charged 1 cent, and Target = Any means it applies wherever that energy goes.\n\nPoints where I hesitated or was unsure:\n\n1. **Source direction.** I took \"Source = Battery\" to mean energy flowing out of the battery, which is the discharge direction the task asks for. The dialog gave no help text saying so, so I inferred it from the field names.\n2. **Target \"Any\".** I left it as the default, which was already highlighted. I checked this in the screenshot but did not verify it in the saved policy.\n3. **Units.** The price field offers \"$/kWh\" as the unit once a value is entered. I assumed the currency is dollars, which matches the task's \"$0.01\", and the field did not ask for a unit separately.\n4. **Source picker.** The Source dropdown first looked empty. The option list only showed up after I clicked the Elements toggle, and I had to pick Battery from a popup. I was not sure at first whether my click had registered.\n5. **Price field.** The field first offered sensor suggestions. I typed 0.01 and picked the \"Fixed value 0.01 $/kWh\" option rather than using a sensor. The task called for a constant, so I did not look for other options.\n6. **Unverified side effects.** After saving, the Battery device went from 19 to 20 entities and Policies showed 2 entities. I did not check what the new entities are or confirm that the stored cost is 0.01.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 24.8
+}

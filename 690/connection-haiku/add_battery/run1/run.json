@@ -1,0 +1,85 @@
+{
+  "task": "add_battery",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.02480626,
+  "turns": 20,
+  "report": "The Sigenergy battery is now added to the Home hub as \"Battery\", and it appears in the hub's device list with 21 entities.\n\nSettings entered:\n- **Connection:** Inverter (DC), the default. The battery sits behind the inverter.\n- **Capacity:** Sigen Plant Rated Energy Capacity (32.24 kWh).\n- **State of charge:** Sigen Plant Battery State of Charge.\n- **Min charge level:** fixed 5%, so the battery is never discharged below 5%.\n- **Max charge power:** Sigen Plant ESS Rated Charging Power (16.8 kW).\n- **Max discharge power:** Sigen Plant ESS Rated Discharging Power (19.2 kW).\n\nI left the battery name, the salvage/charge/discharge cost fields, the max charge level, and the efficiency and advanced sections at their defaults. I did not reopen the saved battery to check each value after submitting. The success dialog confirmed it was created.\n\nWhere I hesitated or made mistakes:\n- **Wrong dialog opened first:** I clicked the \"Buffer\" button (f2e129) instead of \"Battery\" (f2e117) because I used a ref from the wrong row. I closed the Buffer dialog with Close, without submitting, so no buffer was created.\n- **Connection choice:** I kept \"Inverter, DC\" because you said the battery is connected through the inverter. The Sigenergy battery is usually DC-coupled, but I did not verify that against your hardware.\n- **Min charge level units:** The field offered \"5 %\" and I chose that. It did not show a separate unit hint, so I relied on the picker label.\n- **Max charge level left blank:** The task didn't mention an upper limit, so I left it unset. I'm not sure whether HAEO needs it, and it may default to 100%.\n- **Battery name:** I kept the default \"Battery\" rather than something like \"Sigenergy Battery\". This is a cosmetic choice you may want to change.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added the Sigenergy battery to the Home hub as 'Battery' (Inverter/DC connection). Capacity = Sigen Plant Rated Energy Capacity (32.24 kWh), state of charge = Sigen Plant Battery State of Charge, min charge level = fixed 5%, max charge power = Sigen Plant ESS Rated Charging Power (16.8 kW), max discharge power = Sigen Plant ESS Rated Discharging Power (19.2 kW). Battery now appears under Home with 21 entities.",
+  "actions": 16,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 28.8
+}

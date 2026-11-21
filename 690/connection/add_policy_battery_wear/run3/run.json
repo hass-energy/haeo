@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0929794,
+  "turns": 14,
+  "report": "I added a policy called \"Battery wear\" in HAEO. It charges $0.01 for every kWh the Battery discharges, whatever the energy goes to. Source is Battery, Target is Any, the price is a fixed 0.01 $/kWh, and the policy is enabled. I reopened it from the Policies list and the saved values matched.\n\nPoints where I hesitated:\n- **Choosing a Policy:** I picked \"Policy\" over \"Buffer\" or editing the Battery itself, because it was the only element with a source, a target and a price. I couldn't confirm that from any help text.\n- **Price unit:** the price field showed \"0.01 $/kWh\" as a fixed-value option, so I took that as the unit.\n- **Target setting:** the Any/Elements toggle doesn't show which option is selected. I concluded Target was \"Any\" because the saved policy listed no target elements. The Source toggle reordered itself on reopening, which made it harder to read.\n- **Closing the edit dialog:** I closed it with the X after checking, without submitting. The policy was unchanged.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Created policy 'Battery wear': source = Battery, target = Any, price 0.01 $/kWh, enabled. Reopened it and confirmed it saved.",
+  "actions": 12,
+  "looks": 3,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.6
+}

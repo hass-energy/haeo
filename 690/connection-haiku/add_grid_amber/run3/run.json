@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.01480805,
+  "turns": 15,
+  "report": "I added the grid connection to HAEO's Home hub as \"Grid\", and HAEO confirmed \"Created configuration for Grid.\" The Grid device now appears under Home with 12 entities.\n\nThe settings:\n- **Connection:** Switchboard (AC), the default. I left it as is because a grid connection is AC.\n- **Import price:** Amber Express - Home General Price (`sensor.amber_express_home_general_price`).\n- **Export price:** Amber Express - Home Feed In Price (`sensor.amber_express_home_feed_in_price`).\n- **Import limit:** 55 kW. I removed the 100 kW default and entered 55.\n- **Export limit:** 30 kW. I removed the 100 kW default and entered 30.\n\nI did not reopen the Grid device afterwards to confirm the saved values. I only checked them on the form before submitting.\n\nPoints where I hesitated or was unsure:\n- **Units of the power limits:** The limit fields showed \"100 kW\" by default and offered \"55 kW\" and \"30 kW\" once I typed the numbers, so I took them to be kilowatts as you stated. I did not check whether HAEO stores them as kW internally.\n- **Connection choice:** I kept Switchboard without much thought. It is the usual place for a grid, but I did not confirm this against HAEO's own guidance, since I have no documentation.\n- **Grid name:** I kept the default name \"Grid\" rather than choosing something more specific to Amber.\n- **Feed-in price sign:** I assumed the Amber feed-in sensor is the price you are paid per kWh exported, as HAEO expects. Its value (0.0798 $/kWh) looked like a positive earning, so I did not change anything.\n- **Missing sensor-as-limit option:** The power limit fields also accept sensors. I used fixed values because you gave me numbers, and I did not look for a sensor that reports the limit.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added the grid connection 'Grid' to the Home hub. It connects to the Switchboard (AC), with import price from Amber Express - Home General Price, export price from Amber Express - Home Feed In Price, import limit 55 kW and export limit 30 kW. HAEO reported 'Created configuration for Grid' and the Grid device now appears under Home with 12 entities.",
+  "actions": 14,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.0
+}

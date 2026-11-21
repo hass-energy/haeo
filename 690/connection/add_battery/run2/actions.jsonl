@@ -1,0 +1,19 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 7.2, "command": "click", "args": ["f2e624"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 9.4, "command": "click", "args": ["f2e639"], "error": null, "visible_errors": 0}
+{"t": 9.8, "command": "click", "args": ["f2e539"], "error": null, "visible_errors": 0}
+{"t": 11.4, "command": "type", "args": ["f2e539", "rated charging"], "error": null, "visible_errors": 0}
+{"t": 13.1, "command": "click", "args": ["f2e746"], "error": null, "visible_errors": 0}
+{"t": 13.5, "command": "click", "args": ["f2e547"], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "type", "args": ["f2e547", "rated discharging"], "error": null, "visible_errors": 0}
+{"t": 15.4, "command": "click", "args": ["f2e969"], "error": null, "visible_errors": 0}
+{"t": 15.8, "command": "type", "args": ["f2e513", "5"], "error": null, "visible_errors": 0}
+{"t": 17.4, "command": "click", "args": ["f2e1089"], "error": null, "visible_errors": 0}
+{"t": 17.6, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 20.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 21.2, "command": "click", "args": ["f2e620"], "error": null, "visible_errors": 0}
+{"t": 23.4, "command": "click", "args": ["f2e1108"], "error": null, "visible_errors": 0}
+{"t": 23.5, "command": "done", "args": ["Added Battery to Home, connected to Inverter, capacity=Sigen rated energy capacity, SoC=Sigen battery SoC, max charge/discharge = ESS rated charging/discharging power sensors, min charge level 5%."], "error": null, "visible_errors": 0}

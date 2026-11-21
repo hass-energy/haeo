@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.008658349999999999,
+  "turns": 10,
+  "report": "The \"Pool pump\" load is added to the Home hub. The success dialog said \"Created configuration for Pool pump\", and it now appears in the hub's device list as a Load with 12 entities.\n\nI set it up as a constant 0.8 kW load on the Switchboard (AC) connection, with shedding left off and no consumption cost.\n\nPoints where I hesitated or was unsure:\n\n1. **Connection choice:** The form defaulted to \"Switchboard, AC\", and I kept it. A pool pump is an AC house load, so this seemed right, but I didn't check how the other loads are wired.\n2. **Forecast field:** No sensor for the pump's power showed up in the picker, so I typed 0.8 and picked the \"Fixed value 0.8 kW\" option. The form shows kW, which matches your figure, but I didn't confirm the unit it stores.\n3. **Shedding:** I expanded this section and left \"Allow shedding\" at its default of Off. You said the pump runs all the time, so I judged that not shedding was correct, but I didn't ask you about it.\n4. **Consumption cost:** I left this empty because the form doesn't require it. I didn't check whether an empty value could affect the optimiser.\n5. **Entity count:** The hub went from 72 entities to 12 for the new load, but I didn't open the new entities to confirm their values.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.9
+}

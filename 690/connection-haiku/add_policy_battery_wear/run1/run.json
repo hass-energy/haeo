@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.017760370000000004,
+  "turns": 15,
+  "report": "Battery wear is now priced at $0.01/kWh for every kWh discharged from the battery. I set the Battery element's Discharge cost to 0.01 $/kWh and saved it. After saving, HAEO showed a new \"Battery discharge cost\" policy. Its source is Battery, its target is Any, and its price is 0.01 $/kWh. That covers discharge wherever it goes. I reopened the Battery form to confirm the value persisted, and I opened the policy to check its fields, then closed it without changes.\n\nPoints where I hesitated or was unsure:\n\n- **Where the setting lives:** The task said \"wherever that energy goes\", so I looked for a per-destination setting. I didn't find one. I used the Battery's Discharge cost field, and HAEO turned it into a policy with target Any. I think that is the intended path, but I did not confirm it against documentation.\n- **Possible double counting:** The Battery form still shows the 0.01 discharge cost, and the policy also has 0.01. I believe the form field is just the entry point for that one policy, since the Policies list has only one entry. I couldn't check the code, so I can't rule out that the optimizer applies 0.01 twice, which would make it 0.02/kWh.\n- **Unexpected new element:** I did not create a Policies element directly. It appeared as a side effect of saving the battery. I should have expected it, and I only noticed it afterwards.\n- **Units:** The field's options show \"$/kWh\", which matches the 1 cent per kWh you asked for. I did not check whether the value is interpreted as dollars or cents.\n- **Pre-existing configuration:** The Battery already had other settings, including a Sigen-based capacity and state-of-charge sensors and a salvage value. I left them unchanged.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Set the Battery element's Discharge cost to 0.01 $/kWh and saved it. HAEO now shows a 'Battery discharge cost' policy (source: Battery, target: Any, price 0.01 $/kWh), so every kWh discharged from the battery is charged 1 cent wherever it goes. I verified the setting persisted after reopening the Battery form and checked the policy's fields.",
+  "actions": 17,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 36.4
+}

@@ -1,0 +1,11 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "type", "args": ["f2e445", "Household"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e489"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e589"], "error": null, "visible_errors": 0}
+{"t": 10.1, "command": "click", "args": ["f2e489"], "error": null, "visible_errors": 0}
+{"t": 11.9, "command": "type", "args": ["f2e489", "sensor.sigen_plant_consumed_power"], "error": null, "visible_errors": 0}
+{"t": 13.6, "command": "click", "args": ["f2e721"], "error": null, "visible_errors": 0}
+{"t": 15.0, "command": "click", "args": ["f2e498"], "error": null, "visible_errors": 0}
+{"t": 16.6, "command": "click", "args": ["f2e747"], "error": null, "visible_errors": 0}
+{"t": 18.4, "command": "done", "args": ["Added a load named Household, connected to the Switchboard. Its Forecast field has both Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. HAEO confirmed the configuration was created, and Household now shows in the hub's device list."], "error": null, "visible_errors": 0}

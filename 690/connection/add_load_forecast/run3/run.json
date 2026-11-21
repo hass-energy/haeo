@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.14122740000000003,
+  "turns": 10,
+  "report": "I added a Load called \"Household\" to the Home hub. It uses both Sigenergy sensors: Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (the current reading). The success dialog said \"Created configuration for Household\", and the hub now lists Household with 12 entities.\n\nPoints where I hesitated or made a judgement call:\n- **Connection:** I left it on Switchboard (AC), which was already selected. I assumed that's right for whole-home consumption, but I didn't check how your Switchboard is wired.\n- **Name:** I changed the default \"Load\" to \"Household\". The name was my choice, since you didn't give one.\n- **Current sensor in the Forecast field:** The form had no separate field for the current consumed power sensor. The Forecast picker accepts several entities, so I added both there. I'm not certain HAEO treats a non-forecast sensor correctly in that field. I didn't open the Load afterwards to check how it was stored.\n- **Shedding:** I didn't open the optional Shedding section and left it at its defaults.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named Household on the Switchboard, with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. The Home hub now lists it with 12 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.7
+}

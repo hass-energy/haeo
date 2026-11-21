@@ -1,0 +1,42 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": false,
+  "cost_usd": 0.01062272,
+  "turns": 11,
+  "report": "I created the household Load on Home using the Sigen consumed power forecast, but I did not add the current consumed power sensor, so the task is only partly done.\n\n**What I set up**\n- Element: Load, named \"Load\", on the Switchboard (AC) connection, which was the default.\n- Forecast: `sensor.sigen_plant_consumed_power_forecast`.\n- Shedding: left at its default (\"Off\"), and consumption cost left empty.\n\n**What I did not do**\n- `sensor.sigen_plant_consumed_power` (the current reading) is not in the Load. The Load form has only Forecast and Shedding fields, and neither takes a current-power sensor. Putting the current sensor into the Forecast list would probably count the same consumption twice, so I didn't. You need to decide where it should go.\n\n**Where I hesitated or made mistakes**\n- I was unsure where the current sensor belongs. The form gave no place for it, and I chose not to guess in a way that could double-count.\n- I opened the Consumption cost dropdown by mistake while looking at the form. I closed it with Escape without selecting anything, and the field stayed empty.\n- I submitted without checking the Load's entities or the optimizer's results after creation, so I have not confirmed how HAEO uses the forecast once it is in place.",
+  "driver_error": null,
+  "problems": [
+    "$.forecast.forecast.value: expected the items ['sensor.sigen_plant_consumed_power_forecast', 'sensor.sigen_plant_consumed_power'] in any order, found ['sensor.sigen_plant_consumed_power_forecast']"
+  ],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Created a Load element on Home (Switchboard connection, no shedding, no consumption cost) with forecast sensor sensor.sigen_plant_consumed_power_forecast. The Load form has no field for a current power sensor, so sensor.sigen_plant_consumed_power was NOT added. Adding it to the Forecast list would likely double-count it, so I left it out. Needs your decision on where the current sensor should go.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.1
+}

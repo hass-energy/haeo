@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.01191641,
+  "turns": 12,
+  "report": "I added a Load called \"Household\" to the Home hub, and HAEO created it successfully. The Load device now shows up under Home with 12 entities.\n\n**What I set:**\n- **Name:** Household\n- **Connection:** Switchboard, AC (the default). The household draws from the AC side, so I left it.\n- **Forecast:** `sensor.sigen_plant_consumed_power_forecast` (Sigen Plant Consumed Power Forecast).\n- **Forecast (second entry):** `sensor.sigen_plant_consumed_power` (Sigen Plant Consumed Power), which is your current consumed power sensor.\n- **Shedding:** left at its default (\"Allow shedding\" pre-filled as Off). I did not set a consumption cost.\n\n**Where I hesitated or was unsure:**\n- **Current power sensor placement.** The Load form has no separate \"current power\" field. The only sensor field is the multi-select Forecast list, so I added the current sensor there alongside the forecast. I don't know for certain how HAEO combines or prioritises the two entries, so it's worth checking that the current reading isn't double-counted against the forecast.\n- **Shedding default.** \"Allow shedding\" is marked required, and I accepted its pre-filled \"Off\" value without knowing exactly what it controls.\n- **Connection choice.** I kept Switchboard, AC as the default. I believe that is right for a household load, but I did not confirm it against the Sigenergy wiring.\n- **Verification.** I confirmed the success message and the new device, but I did not reopen the Household load to check the saved forecast entries.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.1
+}

@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.009952560000000001,
+  "turns": 8,
+  "report": "The Solar element is set up under Home, with all 32 Forecast.Solar energy production sensors as its forecast.\n\n**What I set:**\n- **Solar name:** left as the default \"Solar\".\n- **Connection:** Inverter (DC). The panels feed the inverter, so this is the closest match to your setup.\n- **Forecast:** I typed \"energy_production\" into the picker, which narrowed it to exactly 32 sensors. That is 8 days (today, tomorrow, day after tomorrow, and 3 to 7 days from now) for each of east, north, south and west. I used \"Select all\" on that filtered list, then checked the chips: 8 per direction.\n- **Curtailment:** left at its default, since you didn't mention any limit.\n\nThe success dialog said \"Created configuration for Solar\", and the Hubs list now shows a Solar device under Home with 4 entities. I did not open the saved configuration afterwards to confirm the 32 sensors persisted.\n\n**Points where I hesitated or might have gone wrong:**\n- **Connection choice:** I picked Inverter (DC) from the default and did not weigh it against Switchboard (AC). That is right if your inverter is hybrid or DC-coupled. If the panels feed an AC switchboard instead, this should change.\n- **South sensors named differently:** the south sensors are labelled \"South solar prediction forecast\", while the others say \"solar production forecast\". I assumed they come from the same Forecast.Solar integration because their entity IDs follow the same `energy_production_*_south` pattern. Worth a quick check.\n- **Look-alike sensors excluded:** the picker also offered Solcast forecasts and Sigen plant sensors. I left them out, because they are not the Forecast.Solar sensors you asked for.\n- **\"Select all\" scope:** I used it only after filtering. Unfiltered, it would have selected all 41 entries, including the Sigen and Solcast ones, so I checked the filter count first.\n- **Curtailment:** I did not look into its options or decide whether it should be set.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.5
+}

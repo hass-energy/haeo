@@ -1,0 +1,12 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.3, "command": "click", "args": ["f2e147"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "click", "args": ["f2e469"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 7.2, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "type", "args": ["f2e563", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "click", "args": ["f2e609"], "error": null, "visible_errors": 0}
+{"t": 11.6, "command": "type", "args": ["f2e609", "0.8"], "error": null, "visible_errors": 0}
+{"t": 12.9, "command": "click", "args": ["f2e829"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e618"], "error": null, "visible_errors": 0}
+{"t": 15.5, "command": "click", "args": ["f2e848"], "error": null, "visible_errors": 0}
+{"t": 17.2, "command": "done", "args": ["Added a load named 'Pool pump' to the Home hub via the Load button. Connection: Switchboard (AC), the default. Forecast: fixed value 0.8 kW. Shedding left at default. HAEO confirmed 'Created configuration for Pool pump', and a Pool pump Load device with 12 entities now appears under Home."], "error": null, "visible_errors": 0}

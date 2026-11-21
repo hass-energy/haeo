@@ -1,0 +1,82 @@
+{
+  "runs": 24,
+  "passed": 24,
+  "success_rate": 1.0,
+  "actions": 9.0,
+  "cost_usd": 2.71,
+  "tasks": {
+    "add_battery": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 15,
+      "actions_when_passed": 15,
+      "errors_shown": 0,
+      "seconds": 23.3,
+      "cost_usd": 0.33
+    },
+    "add_grid_amber": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 14,
+      "actions_when_passed": 14,
+      "errors_shown": 0,
+      "seconds": 23.2,
+      "cost_usd": 0.48
+    },
+    "add_load_constant": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 6,
+      "actions_when_passed": 6,
+      "errors_shown": 0,
+      "seconds": 12.3,
+      "cost_usd": 0.22
+    },
+    "add_load_forecast": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 8,
+      "actions_when_passed": 8,
+      "errors_shown": 0,
+      "seconds": 17.5,
+      "cost_usd": 0.37
+    },
+    "add_policy_battery_wear": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 10,
+      "actions_when_passed": 10,
+      "errors_shown": 0,
+      "seconds": 18.3,
+      "cost_usd": 0.31
+    },
+    "add_solar_forecast_solar": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 6,
+      "actions_when_passed": 6,
+      "errors_shown": 0,
+      "seconds": 15.9,
+      "cost_usd": 0.32
+    },
+    "add_solar_solcast": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 9,
+      "actions_when_passed": 9,
+      "errors_shown": 0,
+      "seconds": 17.6,
+      "cost_usd": 0.42
+    },
+    "edit_battery_min_charge": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 7,
+      "actions_when_passed": 7,
+      "errors_shown": 0,
+      "seconds": 13.9,
+      "cost_usd": 0.26
+    }
+  },
+  "model": "sonnet"
+}

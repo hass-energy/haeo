@@ -1,0 +1,16 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.4, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 5.4, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 6.7, "command": "click", "args": ["f2e515"], "error": null, "visible_errors": 0}
+{"t": 7.8, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "click", "args": ["f2e532"], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "click", "args": ["f2e499"], "error": null, "visible_errors": 0}
+{"t": 11.9, "command": "click", "args": ["f2e567"], "error": null, "visible_errors": 0}
+{"t": 13.5, "command": "type", "args": ["f2e570", "55"], "error": null, "visible_errors": 0}
+{"t": 14.7, "command": "click", "args": ["f2e795"], "error": null, "visible_errors": 0}
+{"t": 16.0, "command": "click", "args": ["f2e583"], "error": null, "visible_errors": 0}
+{"t": 17.3, "command": "type", "args": ["f2e586", "30"], "error": null, "visible_errors": 0}
+{"t": 18.5, "command": "click", "args": ["f2e1015"], "error": null, "visible_errors": 0}
+{"t": 20.2, "command": "click", "args": ["f2e504"], "error": null, "visible_errors": 0}
+{"t": 21.5, "command": "click", "args": ["f2e1034"], "error": null, "visible_errors": 0}
+{"t": 23.6, "command": "done", "args": ["Added the grid connection 'Grid' to the Home HAEO hub. It connects to the Switchboard (AC). Import price is sensor.amber_express_home_general_price, export price is sensor.amber_express_home_feed_in_price. Import limit is 55 kW and export limit is 30 kW (I replaced the 100 kW defaults). The configuration was created successfully and the Grid device now appears under Home with 12 entities."], "error": null, "visible_errors": 0}

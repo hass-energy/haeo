@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.00916158,
+  "turns": 15,
+  "report": "I added an enabled policy named \"Battery wear\" to the Home HAEO hub. Its source is the Battery element, its target is Any, and its price is a fixed 0.01 $/kWh. HAEO confirmed \"Created configuration for Policies,\" and a Policies device with 2 entities now appears. I did not reopen the policy to check its saved values.\n\nPoints where I hesitated or may have made a mistake:\n\n1. **Choice of mechanism.** I used a Policy rather than a battery-level setting, because you asked for the cost to apply \"wherever that energy goes\" and a Policy with Target = Any covers every destination. I did not open the Battery element's configuration to see whether it already has a discharge or wear-cost field. If it does, the battery could now be charged twice.\n2. **Unit.** The price picker shows \"$/kWh\", and I assumed a policy price is per kWh. The form has no help text to confirm this.\n3. **Direction.** The form has no help text explaining what Source and Target mean. I read \"Source = Battery, Target = Any\" as \"energy leaving the battery, to anywhere\" and did not verify that against the HAEO docs or a test run.\n4. **Source list.** The source picker offered only Battery, Grid and Solar. I picked Battery, which is what the task needed, but I did not check why the other elements were missing.\n5. **Verification.** I confirmed creation from the success message and the new Policies device, not by inspecting the saved policy's fields or checking how the optimizer prices the battery afterward.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Created an enabled HAEO policy named 'Battery wear': Source = Elements \u2192 Battery, Target = Any, Price = fixed 0.01 $/kWh. HAEO now lists a Policies device with 2 entities. Battery discharge to any destination is priced at $0.01/kWh.",
+  "actions": 10,
+  "looks": 6,
+  "screenshots": 2,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 24.9
+}

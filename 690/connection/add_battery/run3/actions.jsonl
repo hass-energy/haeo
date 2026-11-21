@@ -1,0 +1,19 @@
+{"t": 2.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.5, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 6.8, "command": "type", "args": ["f2e487", "rated", "energy"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "click", "args": ["f2e624"], "error": null, "visible_errors": 0}
+{"t": 10.1, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "type", "args": ["f2e495", "state", "of", "charge"], "error": null, "visible_errors": 0}
+{"t": 12.1, "command": "click", "args": ["f2e639"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e539"], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "type", "args": ["f2e539", "charging"], "error": null, "visible_errors": 0}
+{"t": 14.7, "command": "click", "args": ["f2e746"], "error": null, "visible_errors": 0}
+{"t": 15.1, "command": "click", "args": ["f2e547"], "error": null, "visible_errors": 0}
+{"t": 15.4, "command": "type", "args": ["f2e547", "discharging"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "click", "args": ["f2e969"], "error": null, "visible_errors": 0}
+{"t": 17.4, "command": "type", "args": ["f2e513", "5"], "error": null, "visible_errors": 0}
+{"t": 19.3, "command": "click", "args": ["f2e1089"], "error": null, "visible_errors": 0}
+{"t": 21.0, "command": "click", "args": ["f2e620"], "error": null, "visible_errors": 0}
+{"t": 23.2, "command": "click", "args": ["f2e1108"], "error": null, "visible_errors": 0}
+{"t": 23.3, "command": "done", "args": ["Added Battery (DC, via Inverter) with capacity=Sigen Plant Rated Energy Capacity, SoC=Sigen Plant Battery State of Charge, max charge=ESS Rated Charging Power, max discharge=ESS Rated Discharging Power, min charge level 5%."], "error": null, "visible_errors": 0}

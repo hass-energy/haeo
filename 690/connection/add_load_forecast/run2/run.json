@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.11337980000000002,
+  "turns": 11,
+  "report": "I added a load called \"Household\" to HAEO and connected it to the Switchboard. Its Forecast field holds both Sigen sensors: Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. HAEO showed \"Created configuration for Household\", and Household now appears in the Home hub's device list. I didn't check that HAEO actually uses the two sensors.\n\nPoints where I hesitated or was unsure:\n- **Current sensor:** The form had one multi-select \"Forecast\" field and no separate field for current power. I put both sensors in it. I'm not certain HAEO treats the current-power sensor the way you intended.\n- **Connection:** I left the default, Switchboard (AC), because household consumption sits on the AC side. The form didn't say which option was right.\n- **Name:** I changed the default \"Load\" to \"Household\". The name was my choice.\n- **Sensor selection:** My first attempt to pick the current sensor, a search that only filtered the output, didn't select it. I added it with a second attempt and confirmed both sensors appeared as selected before submitting.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a load named Household, connected to the Switchboard. Its Forecast field has both Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. HAEO confirmed the configuration was created, and Household now shows in the hub's device list.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.4
+}

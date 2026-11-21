@@ -1,0 +1,8 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.7, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.5, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 7.0, "command": "type", "args": ["f2e487", "solcast"], "error": null, "visible_errors": 0}
+{"t": 8.4, "command": "click", "args": ["f2e707"], "error": null, "visible_errors": 0}
+{"t": 10.1, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 11.8, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 13.0, "command": "click", "args": ["f2e762"], "error": null, "visible_errors": 0}

@@ -1,0 +1,7 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.8, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.6, "command": "type", "args": ["f2e487", "solcast"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "click", "args": ["f2e500"], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e551"], "error": null, "visible_errors": 0}
+{"t": 11.4, "command": "done", "args": ["Added a Solar element to the Home hub: connection Inverter (DC), forecast set to the three Solcast PV sensors (Forecast Today, Tomorrow, Day 3). Creation succeeded and a Solar device with 4 entities now appears under Home."], "error": null, "visible_errors": 0}

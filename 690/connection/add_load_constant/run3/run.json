@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0897282,
+  "turns": 8,
+  "report": "I added \"Pool pump\" to the Home hub as a Load with a fixed power of 0.8 kW. It now shows in the hub's device list with 12 entities, and HAEO confirmed \"Created configuration for Pool pump.\"\n\nI left the connection on Switchboard (AC), which was already selected, since a pool pump runs off the house's AC supply. I didn't open Shedding, so I don't know what it does.\n\nPoints where I hesitated:\n- **Connection:** I wasn't certain Switchboard was right, because the form didn't say which option suits a household appliance. I judged it from the AC/DC labels.\n- **Forecast field:** It asked for a \"forecast\", so I wasn't sure a plain number was allowed. Typing 0.8 offered a \"Fixed value 0.8 kW\" option, and I picked that.\n- **Check:** I only checked the device list on the integration page, not the entity values.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Pool pump' connected to Switchboard (AC) with a fixed 0.8 kW forecast. It now appears in the Home hub with 12 entities.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.3
+}

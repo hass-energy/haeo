@@ -1,0 +1,19 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 6.7, "command": "type", "args": ["f2e487", "Battery wear"], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "click", "args": ["f2e512"], "error": null, "visible_errors": 0}
+{"t": 8.4, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e548"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "click", "args": ["f2e563"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 14.3, "command": "click", "args": ["f2e534"], "error": null, "visible_errors": 0}
+{"t": 14.7, "command": "type", "args": ["f2e534", "0.01"], "error": null, "visible_errors": 0}
+{"t": 14.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 16.1, "command": "click", "args": ["f2e606"], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 17.8, "command": "click", "args": ["f2e537"], "error": null, "visible_errors": 0}
+{"t": 17.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.1, "command": "click", "args": ["f2e625"], "error": null, "visible_errors": 0}
+{"t": 19.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 24.9, "command": "done", "args": ["Created an enabled HAEO policy named 'Battery wear': Source = Elements \u2192 Battery, Target = Any, Price = fixed 0.01 $/kWh. HAEO now lists a Policies device with 2 entities. Battery discharge to any destination is priced at $0.01/kWh."], "error": null, "visible_errors": 0}

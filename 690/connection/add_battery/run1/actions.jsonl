@@ -1,0 +1,16 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "type", "args": ["f2e487", "rated", "energy", "capacity"], "error": null, "visible_errors": 0}
+{"t": 7.4, "command": "click", "args": ["f2e624"], "error": null, "visible_errors": 0}
+{"t": 7.8, "command": "type", "args": ["f2e495", "state", "of", "charge"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "click", "args": ["f2e639"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "type", "args": ["f2e539", "rated", "charging", "power"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e656"], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "type", "args": ["f2e547", "rated", "discharging", "power"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "click", "args": ["f2e676"], "error": null, "visible_errors": 0}
+{"t": 13.6, "command": "type", "args": ["f2e513", "5"], "error": null, "visible_errors": 0}
+{"t": 15.3, "command": "click", "args": ["f2e691"], "error": null, "visible_errors": 0}
+{"t": 17.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.0, "command": "click", "args": ["f2e620"], "error": null, "visible_errors": 0}
+{"t": 21.1, "command": "click", "args": ["f2e710"], "error": null, "visible_errors": 0}
+{"t": 21.2, "command": "done", "args": ["Added Battery (DC, connected to Inverter) using capacity, SoC, rated charging/discharging power sensors, min charge level 5%."], "error": null, "visible_errors": 0}

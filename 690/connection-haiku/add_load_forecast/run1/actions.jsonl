@@ -1,0 +1,10 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.3, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "click", "args": ["f2e489"], "error": null, "visible_errors": 0}
+{"t": 7.9, "command": "click", "args": ["f2e589"], "error": null, "visible_errors": 0}
+{"t": 9.8, "command": "click", "args": ["f2e493"], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "click", "args": ["f2e745"], "error": null, "visible_errors": 0}
+{"t": 17.9, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 21.2, "command": "click", "args": ["f2e498"], "error": null, "visible_errors": 0}
+{"t": 23.1, "command": "click", "args": ["f2e766"], "error": null, "visible_errors": 0}
+{"t": 26.1, "command": "done", "args": ["Created a Load element on Home (Switchboard connection, no shedding, no consumption cost) with forecast sensor sensor.sigen_plant_consumed_power_forecast. The Load form has no field for a current power sensor, so sensor.sigen_plant_consumed_power was NOT added. Adding it to the Forecast list would likely double-count it, so I left it out. Needs your decision on where the current sensor should go."], "error": null, "visible_errors": 0}

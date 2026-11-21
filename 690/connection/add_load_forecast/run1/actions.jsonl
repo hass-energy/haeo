@@ -1,0 +1,10 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.0, "command": "click", "args": ["f2e489"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e589"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e489"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "type", "args": ["f2e489", "sigen_plant_consumed_power"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "click", "args": ["f2e721"], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "click", "args": ["f2e498"], "error": null, "visible_errors": 0}
+{"t": 15.5, "command": "click", "args": ["f2e747"], "error": null, "visible_errors": 0}
+{"t": 17.5, "command": "done", "args": ["Added a Load element named 'Load' connected to the Switchboard, with both Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power selected in the Forecast field. The hub now shows 7 devices."], "error": null, "visible_errors": 0}
