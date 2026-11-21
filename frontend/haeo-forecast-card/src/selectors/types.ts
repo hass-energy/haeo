@@ -46,8 +46,8 @@ export interface ConnectedElement {
 export interface ConnectionTarget {
   name: string;
   element_type: string;
-  /** Whether the target offers a DC bus, as an inverter does, rather than an AC one. */
-  dc: boolean;
+  /** The kind of bus the target is, when HAEO knows it: an inverter's DC bus, or the AC switchboard. */
+  bus: "ac" | "dc" | null;
   elements: ConnectedElement[];
 }
 

@@ -43,6 +43,7 @@ class ConnectionAdapter:
     can_sink: bool = False
     switchboard: bool = False
     dc: bool = False
+    dc_bus: bool = False
     device_names: frozenset[ConnectionDeviceName] = CONNECTION_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
 

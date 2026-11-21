@@ -84,6 +84,7 @@ class BatteryAdapter:
     can_sink: bool = True
     switchboard: bool = False
     dc: bool = True
+    dc_bus: bool = False
     device_names: frozenset[BatteryDeviceName] = BATTERY_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_STORAGE})
 

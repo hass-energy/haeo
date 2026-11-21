@@ -176,8 +176,9 @@ It reads them with `hass.localize` and fills their placeholders itself, and `Inp
 
 An element's connection field is a `ConnectionSelector` (selector type `haeo_connection`), defined in [`flows/connection_selector.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/connection_selector.py) and rendered by `ha-selector-haeo_connection` from the same bundle.
 It shows each element the new one can connect to as a bus, with the elements already connected to it, and the new element on the chosen bus.
-A target that cannot be the switchboard, such as an inverter, is a DC bus, and the others are AC buses.
-A new element connects by default to the first bus of its kind: a DC bus when its adapter's `dc` attribute says its equipment is DC, such as a battery or solar panels, and an AC bus otherwise.
+A bus is marked with its kind only when HAEO knows it: a target whose adapter has `dc_bus` set, such as an inverter, is a DC bus, and outside advanced mode the only element that can be the switchboard is the hub's own, the home's AC bus.
+In advanced mode, junctions and nodes are the user's own and may be either, so they are shown by their element's icon.
+A new element connects by default to a bus of its kind (DC when its adapter's `dc` attribute says its equipment is DC, such as a battery or solar panels, and AC otherwise), then to a bus of unknown kind, and only then to one of the other kind.
 
 ### UI sections
 

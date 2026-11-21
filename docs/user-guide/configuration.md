@@ -127,9 +127,10 @@ Most elements are configured in a single step where you enter:
 
 1. **Element name**: A unique, descriptive name for the element
 2. **Connection target**: Which element this connects to (for elements that require connections).
-    Each element it can connect to is shown as a bus, marked AC or DC, with the elements already on it.
-    The switchboard is an AC bus, for the grid and household loads, and an inverter is a DC bus, for the batteries and solar panels behind it.
-    HAEO picks a DC bus for a battery or solar panels and an AC bus for other elements, which you can change by clicking another bus.
+    Each element it can connect to is shown as a bus with the elements already on it.
+    An inverter is marked as a DC bus, for the batteries and solar panels behind it, and the Switchboard as the home's AC bus.
+    In advanced mode, junctions and nodes you create yourself show their own icon instead, as HAEO can't tell whether they are AC or DC.
+    HAEO picks a DC bus for a battery or solar panels and an AC bus for other elements, preferring a bus of unknown kind to one of the other kind, and you can change it by clicking another bus.
 3. **Input fields**: The value for each field, as described below
 
 #### Input fields

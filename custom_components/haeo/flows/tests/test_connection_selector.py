@@ -9,7 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 import voluptuous as vol
 
 from conftest import add_participant
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, HUB_SECTION_ADVANCED
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
@@ -25,8 +25,9 @@ from custom_components.haeo.flows.connection_selector import (
 CONFIG: ConnectionSelectorConfig = {
     "element_type": "solar",
     "targets": [
-        {"name": "Switchboard", "element_type": "junction", "dc": False, "elements": []},
-        {"name": "Inverter", "element_type": "inverter", "dc": True, "elements": []},
+        {"name": "Switchboard", "element_type": "junction", "bus": "ac", "elements": []},
+        {"name": "Inverter", "element_type": "inverter", "bus": "dc", "elements": []},
+        {"name": "Spare", "element_type": "node", "bus": None, "elements": []},
     ],
 }
 
@@ -41,7 +42,7 @@ def test_selector_accepts_only_a_target_it_offers() -> None:
 
 
 def test_selector_config_needs_each_target_s_bus_and_elements() -> None:
-    """A target without its bus kind is rejected."""
+    """A target without its bus kind, which may be unknown, is rejected."""
     with pytest.raises(vol.Invalid):
         ConnectionSelector({"element_type": "solar", "targets": [{"name": "Switchboard", "element_type": "junction"}]})
 
@@ -68,6 +69,12 @@ def _flow(hass: HomeAssistant, hub_entry: MockConfigEntry, element_type: Element
     return flow
 
 
+def _set_advanced_mode(hass: HomeAssistant, hub_entry: MockConfigEntry, *, advanced: bool) -> None:
+    data = dict(hub_entry.data)
+    data[HUB_SECTION_ADVANCED] = {**data.get(HUB_SECTION_ADVANCED, {}), CONF_ADVANCED_MODE: advanced}
+    hass.config_entries.async_update_entry(hub_entry, data=data)
+
+
 @pytest.fixture
 def network(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Add a switchboard, an inverter on it, and a grid and battery on each."""
@@ -78,36 +85,70 @@ def network(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
 
 
 @pytest.mark.usefixtures("network")
-def test_targets_show_each_bus_kind_and_what_is_connected(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """A switchboard is an AC bus and an inverter a DC bus, each listing the elements connected to it."""
+def test_targets_list_what_is_connected_to_each(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Each target lists the elements connected to it."""
     targets = {target["name"]: target for target in _flow(hass, hub_entry, ElementType.SOLAR)._connection_targets(None)}
 
-    assert targets["Switchboard"] == {
-        "name": "Switchboard",
-        "element_type": "junction",
-        "dc": False,
-        "elements": [{"name": "Inverter", "element_type": "inverter"}, {"name": "Grid", "element_type": "grid"}],
-    }
-    assert targets["Inverter"]["dc"] is True
+    assert targets["Switchboard"]["elements"] == [
+        {"name": "Inverter", "element_type": "inverter"},
+        {"name": "Grid", "element_type": "grid"},
+    ]
     assert targets["Inverter"]["elements"] == [{"name": "Battery", "element_type": "battery"}]
 
 
 @pytest.mark.usefixtures("network")
 @pytest.mark.parametrize(
+    ("advanced", "switchboard_bus"),
+    [
+        pytest.param(False, "ac", id="switchboard_is_the_ac_bus"),
+        pytest.param(True, None, id="advanced_junction_unknown"),
+    ],
+)
+def test_targets_mark_a_bus_kind_only_when_known(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, *, advanced: bool, switchboard_bus: str | None
+) -> None:
+    """An inverter is a DC bus, and a junction is the AC switchboard only outside advanced mode.
+
+    In advanced mode users make their own junctions and nodes, which may be either.
+    """
+    _set_advanced_mode(hass, hub_entry, advanced=advanced)
+    targets = {target["name"]: target for target in _flow(hass, hub_entry, ElementType.SOLAR)._connection_targets(None)}
+
+    assert targets["Inverter"]["bus"] == "dc"
+    assert targets["Switchboard"]["bus"] == switchboard_bus
+
+
+@pytest.mark.usefixtures("network")
+@pytest.mark.parametrize("advanced", [False, True])
+@pytest.mark.parametrize(
     ("element_type", "expected"),
     [(ElementType.SOLAR, "Inverter"), (ElementType.BATTERY, "Inverter"), (ElementType.LOAD, "Switchboard")],
 )
 def test_a_new_element_connects_to_a_bus_of_its_kind(
-    hass: HomeAssistant, hub_entry: MockConfigEntry, element_type: ElementType, expected: str
+    hass: HomeAssistant, hub_entry: MockConfigEntry, element_type: ElementType, expected: str, *, advanced: bool
 ) -> None:
-    """DC equipment such as a battery suggests the inverter's DC bus, and AC equipment the switchboard."""
+    """DC equipment suggests the inverter's DC bus, and AC equipment an AC bus or one of unknown kind."""
+    _set_advanced_mode(hass, hub_entry, advanced=advanced)
+
     assert _flow(hass, hub_entry, element_type)._current_connection(None) == expected
+
+
+def test_ac_equipment_prefers_a_bus_of_unknown_kind_over_a_dc_one(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """In advanced mode a load suggests the user's own node before an inverter's DC bus, whatever their order."""
+    _set_advanced_mode(hass, hub_entry, advanced=True)
+    add_participant(hass, hub_entry, "Inverter", ElementType.INVERTER)
+    add_participant(hass, hub_entry, "House bus", ElementType.NODE)
+
+    assert _flow(hass, hub_entry, ElementType.LOAD)._current_connection(None) == "House bus"
 
 
 def test_dc_equipment_falls_back_to_an_ac_bus_without_an_inverter(
     hass: HomeAssistant, hub_entry: MockConfigEntry
 ) -> None:
-    """Without a DC bus, DC equipment suggests the first element it can connect to."""
+    """Without a DC bus or one of unknown kind, DC equipment suggests the AC switchboard."""
+    _set_advanced_mode(hass, hub_entry, advanced=False)
     add_participant(hass, hub_entry, "Switchboard", ElementType.JUNCTION)
 
     assert _flow(hass, hub_entry, ElementType.SOLAR)._current_connection(None) == "Switchboard"
@@ -121,4 +162,4 @@ def test_a_stored_connection_to_a_deleted_element_is_still_offered(
     stored = {CONF_CONNECTION: as_connection_target("Old inverter")}
     targets = _flow(hass, hub_entry, ElementType.SOLAR)._connection_targets(stored)
 
-    assert targets[-1] == {"name": "Old inverter", "element_type": "", "dc": False, "elements": []}
+    assert targets[-1] == {"name": "Old inverter", "element_type": "", "bus": None, "elements": []}

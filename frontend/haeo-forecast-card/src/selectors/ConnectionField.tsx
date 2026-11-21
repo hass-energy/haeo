@@ -8,14 +8,21 @@ import type { ConnectionSelectorConfig } from "./types";
 
 let idCounter = 0;
 
+const BUS_LABELS = {
+  ac: "connection.options.ac_bus",
+  dc: "connection.options.dc_bus",
+  unknown: "connection.options.bus",
+} as const;
+
 function elementIcon(elementType: string): string {
   return (NODE_STYLES[elementType] ?? NODE_STYLES["unknown"])?.icon ?? "";
 }
 
 /**
- * Where an element connects: each element it can connect to is shown as a bus,
- * AC or DC, with the elements already on it, and the new element appears on
- * the chosen one. Seeing where similar equipment sits shows where this one goes.
+ * Where an element connects: each element it can connect to is shown as a bus
+ * with the elements already on it, and the new element appears on the chosen
+ * one. A bus is marked AC or DC when HAEO knows its kind, and otherwise shows
+ * its element's icon. Seeing where similar equipment sits shows where this one goes.
  */
 export function ConnectionField(props: FieldContext<ConnectionSelectorConfig, string>): JSX.Element {
   const { config, value, label, helper, required, disabled, t, onChange } = props;
@@ -56,17 +63,21 @@ export function ConnectionField(props: FieldContext<ConnectionSelectorConfig, st
               role="radio"
               class={`bus${checked ? " selected" : ""}`}
               aria-checked={checked}
-              aria-label={t(target.dc ? "connection.options.dc_bus" : "connection.options.ac_bus", {
-                name: target.name,
-              })}
+              aria-label={t(BUS_LABELS[target.bus ?? "unknown"], { name: target.name })}
               tabIndex={checked || (selectedIndex === -1 && index === 0) ? 0 : -1}
               disabled={disabled}
               onClick={() => onChange(target.name)}
             >
               <span class="bus-head">
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d={target.dc ? mdiCurrentDc : mdiCurrentAc} />
-                </svg>
+                {target.bus === null ? (
+                  <span class="bus-icon" aria-hidden="true">
+                    {elementIcon(target.element_type)}
+                  </span>
+                ) : (
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d={target.bus === "dc" ? mdiCurrentDc : mdiCurrentAc} />
+                  </svg>
+                )}
                 <span class="bus-name">{target.name}</span>
               </span>
               <span class="bus-elements">

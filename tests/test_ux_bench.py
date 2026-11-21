@@ -65,6 +65,14 @@ def test_task_is_consistent(task: Task) -> None:
         assert task["expect"].get("title") in participants
 
 
+@pytest.mark.parametrize("task", ALL_TASKS, ids=lambda task: task["id"])
+def test_task_runs_in_its_mode(task: Task) -> None:
+    """A task marked advanced runs on a hub in advanced mode, and any other outside it."""
+    advanced = hub_config(task)["advanced"]
+    assert isinstance(advanced, dict)
+    assert advanced["advanced_mode"] is task.get("advanced", False)
+
+
 def test_world_has_every_entity_the_tasks_expect() -> None:
     """Every entity a task expects the agent to pick exists in the world."""
     entity_ids = {str(state["entity_id"]) for state in world_states()}

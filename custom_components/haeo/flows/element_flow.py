@@ -165,6 +165,10 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             subentry.title for subentry in self._get_entry().subentries.values() if subentry.subentry_id != current_id
         }
 
+    def _advanced_mode(self) -> bool:
+        """Return whether the hub exposes raw model elements, such as junctions and nodes, to configure."""
+        return bool(self._get_entry().data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False))
+
     def _get_participant_names(self) -> list[str]:
         """Return element names available as connection endpoints.
 
@@ -172,10 +176,9 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         advanced mode setting.
         """
         hub_entry = self._get_entry()
-        advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
         connectable = {
             ConnectivityLevel.ALWAYS,
-            ConnectivityLevel.ADVANCED if advanced_mode else ConnectivityLevel.ALWAYS,
+            ConnectivityLevel.ADVANCED if self._advanced_mode() else ConnectivityLevel.ALWAYS,
         }
         current_id = self._get_current_subentry_id()
         return [

@@ -15,6 +15,7 @@ const t = (key: string, values: Record<string, string> = {}): string =>
   ({
     "connection.options.ac_bus": `${values["name"] ?? ""}, AC`,
     "connection.options.dc_bus": `${values["name"] ?? ""}, DC`,
+    "connection.options.bus": values["name"] ?? "",
   })[key] ?? key;
 
 const config: ConnectionSelectorConfig = {
@@ -23,13 +24,14 @@ const config: ConnectionSelectorConfig = {
     {
       name: "Switchboard",
       element_type: "junction",
-      dc: false,
+      bus: "ac",
       elements: [
         { name: "Grid", element_type: "grid" },
         { name: "Inverter", element_type: "inverter" },
       ],
     },
-    { name: "Inverter", element_type: "inverter", dc: true, elements: [{ name: "Battery", element_type: "battery" }] },
+    { name: "Inverter", element_type: "inverter", bus: "dc", elements: [{ name: "Battery", element_type: "battery" }] },
+    { name: "DC bus", element_type: "node", bus: null, elements: [] },
   ],
 };
 
@@ -68,8 +70,10 @@ function show(overrides: Partial<FieldContext<ConnectionSelectorConfig, string>>
 }
 
 function bus(name: string): HTMLElement {
-  const element = container.querySelector<HTMLElement>(`[role=radio][aria-label^="${name},"]`);
-  if (element === null) {
+  const element = Array.from(container.querySelectorAll<HTMLElement>("[role=radio]")).find(
+    (radio) => radio.querySelector(".bus-name")?.textContent === name
+  );
+  if (element === undefined) {
     throw new Error(`No bus ${name}`);
   }
   return element;
@@ -81,6 +85,14 @@ describe("ConnectionField", () => {
     expect(bus("Switchboard").getAttribute("aria-label")).toBe("Switchboard, AC");
     expect(bus("Inverter").getAttribute("aria-label")).toBe("Inverter, DC");
     expect(bus("Switchboard").querySelector(".bus-elements")?.textContent).toBe("🏭Grid🔄Inverter");
+  });
+
+  it("shows a bus of unknown kind by its element's icon, with no AC or DC mark", () => {
+    show();
+    const unknown = bus("DC bus");
+    expect(unknown.getAttribute("aria-label")).toBe("DC bus");
+    expect(unknown.querySelector(".bus-icon")?.textContent).toBe("⚡");
+    expect(unknown.querySelector("svg")).toBeNull();
   });
 
   it("marks the chosen bus and shows the new element on it", () => {
@@ -96,10 +108,10 @@ describe("ConnectionField", () => {
     expect(onChange).toHaveBeenCalledWith("Switchboard");
   });
 
-  it("moves between buses with the arrow keys", () => {
-    const onChange = show();
+  it("moves between buses with the arrow keys, wrapping at the ends", () => {
+    const onChange = show({ value: "DC bus" });
     act(() => {
-      bus("Inverter").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+      bus("DC bus").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
     });
     expect(onChange).toHaveBeenCalledWith("Switchboard");
   });

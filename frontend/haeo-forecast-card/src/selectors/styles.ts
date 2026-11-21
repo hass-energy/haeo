@@ -76,6 +76,7 @@ export const SELECTOR_STYLES = `
 .bus.selected { border: 2px solid var(--primary-color); padding: 9px 11px; }
 .bus-head { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 .bus-head .icon { color: var(--secondary-text-color); }
+.bus-icon { width: 20px; text-align: center; }
 .bus.selected .bus-head .icon { color: var(--primary-color); }
 .bus-elements { display: flex; flex-wrap: wrap; gap: 4px; min-height: 24px; }
 .bus-element {

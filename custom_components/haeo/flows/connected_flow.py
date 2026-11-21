@@ -12,7 +12,12 @@ from custom_components.haeo.core.schema import (
     normalize_connection_target,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.flows.connection_selector import ConnectedElement, ConnectionSelector, ConnectionTarget
+from custom_components.haeo.flows.connection_selector import (
+    BusKind,
+    ConnectedElement,
+    ConnectionSelector,
+    ConnectionTarget,
+)
 from custom_components.haeo.flows.field_schema import as_str
 from custom_components.haeo.flows.sectioned_flow import FieldEntries, SectionedElementSubentryFlow
 from custom_components.haeo.flows.sections import build_common_fields
@@ -29,7 +34,6 @@ class ConnectedElementSubentryFlow(SectionedElementSubentryFlow):
     def _connection_targets(self, subentry_data: Mapping[str, object] | None) -> list[ConnectionTarget]:
         """Return the elements this one can connect to, each with the elements already connected to it.
 
-        An element with no switchboard role, such as an inverter, offers a DC bus.
         A stored connection to an element that no longer exists is offered too, so
         the form shows it and validation reports it.
         """
@@ -46,28 +50,46 @@ class ConnectedElementSubentryFlow(SectionedElementSubentryFlow):
         stored = connection_target_name(subentry_data.get(CONF_CONNECTION)) if subentry_data else None
         if stored is not None and stored not in names:
             names = [*names, stored]
-        targets: list[ConnectionTarget] = []
-        for name in names:
-            element_type = types.get(name, "")
-            dc = is_element_type(element_type) and not ELEMENT_TYPES[element_type].switchboard
-            targets.append({"name": name, "element_type": element_type, "dc": dc, "elements": connected.get(name, [])})
-        return targets
+        return [
+            {
+                "name": name,
+                "element_type": types.get(name, ""),
+                "bus": self._bus_kind(types.get(name, "")),
+                "elements": connected.get(name, []),
+            }
+            for name in names
+        ]
+
+    def _bus_kind(self, element_type: str) -> BusKind | None:
+        """Return the kind of bus an element offers, or None when HAEO cannot know it.
+
+        An inverter offers a DC bus. Outside advanced mode the only element that can
+        be the switchboard is the hub's own, which is the home's AC bus; in advanced
+        mode junctions and nodes are the user's own and may be either.
+        """
+        if not is_element_type(element_type):
+            return None
+        adapter = ELEMENT_TYPES[element_type]
+        if adapter.dc_bus:
+            return "dc"
+        if adapter.switchboard and not self._advanced_mode():
+            return "ac"
+        return None
 
     def _current_connection(self, subentry_data: Mapping[str, object] | None) -> str:
         """Return the element the form connects to.
 
-        That is the stored one, or for a new element the first bus of its kind:
-        a DC bus for DC equipment such as a battery, and an AC bus otherwise.
+        That is the stored one, or for a new element a bus of its kind (DC for DC
+        equipment such as a battery, AC otherwise), then a bus of unknown kind, and
+        only then a bus of the other kind.
         """
         stored = connection_target_name(subentry_data.get(CONF_CONNECTION)) if subentry_data else None
         if stored is not None:
             return stored
+        wanted: BusKind = "dc" if ELEMENT_TYPES[self.element_type].dc else "ac"
         targets = self._connection_targets(None)
-        dc = ELEMENT_TYPES[self.element_type].dc
-        suggested = next((target for target in targets if target["dc"] == dc), None)
-        if suggested is not None:
-            return suggested["name"]
-        return targets[0]["name"] if targets else ""
+        ranked = sorted(targets, key=lambda target: 0 if target["bus"] == wanted else 1 if target["bus"] is None else 2)
+        return ranked[0]["name"] if ranked else ""
 
     def _top_level_entries(self, subentry_data: Mapping[str, object] | None) -> FieldEntries:
         """Return the name and connection fields."""

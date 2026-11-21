@@ -69,6 +69,7 @@ class PolicyAdapter:
     can_sink: bool = False
     switchboard: bool = False
     dc: bool = False
+    dc_bus: bool = False
     device_names: frozenset[PolicyDeviceName] = POLICY_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset()
 
