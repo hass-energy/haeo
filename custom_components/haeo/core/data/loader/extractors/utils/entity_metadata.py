@@ -14,6 +14,8 @@ class EntityMetadata:
     state_class: str | None = None
     forecast: bool = False
     """Whether the entity's state is in a forecast format."""
+    preview: tuple[float, ...] = ()
+    """The forecast's shape from now, when it has one to show."""
 
     @property
     def keeps_running_total(self) -> bool:

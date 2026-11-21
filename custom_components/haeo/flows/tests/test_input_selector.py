@@ -12,7 +12,7 @@ NUMBER_CONFIG: InputSelectorConfig = {
     "kinds": ["entity", "constant", "none"],
     "value_type": "number",
     "domains": ["sensor"],
-    "forecasts": [],
+    "forecasts": {},
     "entities": ["sensor.a", "sensor.b", "sensor.charger"],
     "min": 0.0,
     "max": 100.0,
@@ -115,7 +115,7 @@ def test_call_rejects_values_the_config_does_not_offer(overrides: dict[str, obje
 
 def test_number_without_limits_accepts_any_number() -> None:
     """A number field without limits takes any number."""
-    selector = InputSelector({"kinds": ["constant"], "value_type": "number", "domains": [], "forecasts": []})
+    selector = InputSelector({"kinds": ["constant"], "value_type": "number", "domains": [], "forecasts": {}})
 
     assert selector({"type": "constant", "value": -1e6}) == as_constant_value(-1e6)
 

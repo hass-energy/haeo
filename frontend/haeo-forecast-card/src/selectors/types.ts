@@ -14,8 +14,11 @@ export interface InputSelectorConfig {
   value_type: "number" | "boolean";
   /** Domains the field's entities come from. */
   domains: string[];
-  /** The offered entities the field reads as forecasts; it reads the rest as their current value. */
-  forecasts: string[];
+  /**
+   * The offered entities the field reads as forecasts, each with a preview of its values from now,
+   * empty when there is none to show. The field reads the rest as their current value.
+   */
+  forecasts: Record<string, number[]>;
   /** The entities the field offers when it narrows its domains, such as by unit. */
   entities?: string[];
   min?: number;

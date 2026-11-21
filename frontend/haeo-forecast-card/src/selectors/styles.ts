@@ -10,6 +10,12 @@ export const SELECTOR_STYLES = `
 .label { font-size: 0.875rem; color: var(--secondary-text-color); }
 .helper { font-size: 0.75rem; color: var(--secondary-text-color); }
 .icon { width: 18px; height: 18px; fill: currentColor; flex: none; }
+.sparkline { width: 36px; height: 18px; flex: none; overflow: visible; }
+.sparkline-line {
+  fill: none; stroke: var(--primary-color); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.sparkline-area { fill: color-mix(in srgb, var(--primary-color) 18%, transparent); stroke: none; }
 
 .tokens {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px; box-sizing: border-box; min-height: 48px;

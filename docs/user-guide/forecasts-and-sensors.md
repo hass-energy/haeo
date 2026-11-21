@@ -22,7 +22,7 @@ HAEO reads these sensors and extracts either:
 - **Forecast series**: A list of future timestamped predictions (for forecast-capable sensors)
 
 These values are then processed to create a complete time series covering your optimization horizon.
-In the configuration form, a chart icon marks an entity HAEO reads as a forecast, and a gauge one it reads as its present value.
+In the configuration form, an entity HAEO reads as a forecast shows a small line of its values from now, and one it reads as its present value shows a gauge.
 
 ## Single sensor values
 

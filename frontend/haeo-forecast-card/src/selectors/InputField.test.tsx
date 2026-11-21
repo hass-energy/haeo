@@ -47,7 +47,7 @@ const numberConfig: InputSelectorConfig = {
   kinds: ["entity", "constant", "none"],
   value_type: "number",
   domains: ["sensor"],
-  forecasts: [],
+  forecasts: {},
   entities: ["sensor.east", "sensor.west", "sensor.load"],
   unit: "kW",
 };
@@ -204,9 +204,9 @@ describe("InputField", () => {
     expect(container.querySelector(".chip.entity")?.textContent).toBe("East solar3 kW");
   });
 
-  it("marks entities read as forecasts with a chart, and others with a gauge and their current value", () => {
+  it("marks forecasts without a preview with a chart, and others with a gauge and their current value", () => {
     show({
-      config: { ...numberConfig, forecasts: ["sensor.west"] },
+      config: { ...numberConfig, forecasts: { "sensor.west": [] } },
       value: { type: "entity", value: ["sensor.east", "sensor.west"] },
     });
     const [east, west] = Array.from(container.querySelectorAll(".chip.entity"));
@@ -216,8 +216,18 @@ describe("InputField", () => {
     expect(west?.textContent).toBe("West solar");
   });
 
+  it("draws a forecast's preview in place of its chart icon", () => {
+    show({
+      config: { ...numberConfig, forecasts: { "sensor.west": [1, 3, 2] } },
+      value: { type: "entity", value: ["sensor.west"] },
+    });
+    const sparkline = container.querySelector(".chip.entity .sparkline");
+    expect(sparkline?.getAttribute("aria-label")).toBe("Forecast");
+    expect(sparkline?.querySelector("polyline")?.getAttribute("points")).toBe("0.0,16.0 18.0,2.0 36.0,9.0");
+  });
+
   it("lists forecasts and current values together, each marked by how the field reads it", () => {
-    show({ config: { ...numberConfig, forecasts: ["sensor.west"] } });
+    show({ config: { ...numberConfig, forecasts: { "sensor.west": [] } } });
     type("solar");
     const marks = options()
       .slice(1)

@@ -21,7 +21,7 @@ const config: InputSelectorConfig = {
   kinds: ["entity", "constant", "none"],
   value_type: "number",
   domains: ["sensor"],
-  forecasts: [],
+  forecasts: {},
   entities: ["sensor.a", "sensor.b", "sensor.c"],
   min: 0,
   max: 100,
@@ -53,7 +53,7 @@ describe("offeredEntityIds", () => {
       kinds: config.kinds,
       value_type: "number",
       domains: ["sensor", "light"],
-      forecasts: [],
+      forecasts: {},
     };
     expect(offeredEntityIds(hass, byDomain)).toEqual(["sensor.b", "light.d", "sensor.c", "sensor.a"]);
   });

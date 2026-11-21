@@ -7,6 +7,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
+from custom_components.haeo.core.data.util.forecast_preview import PREVIEW_POINTS
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 
 
@@ -243,13 +244,16 @@ async def test_extract_entity_metadata_reports_base_units_without_a_reading(hass
 
 
 async def test_extract_entity_metadata_records_which_entities_carry_a_forecast(hass: HomeAssistant) -> None:
-    """A state in a forecast format is marked as a forecast, and a plain reading is not."""
+    """A state in a forecast format is marked as a forecast with a preview, and a plain reading is neither."""
     hass.states.async_set(
         "sensor.solcast_today",
         "12.5",
         {
             "unit_of_measurement": "kWh",
-            "detailedForecast": [{"period_start": "2025-01-01T00:00:00+00:00", "pv_estimate": 1.0}],
+            "detailedForecast": [
+                {"period_start": "2100-01-01T00:00:00+00:00", "pv_estimate": 1.0},
+                {"period_start": "2100-01-01T00:30:00+00:00", "pv_estimate": 3.0},
+            ],
         },
     )
     hass.states.async_set("sensor.house_power", "1.2", {"unit_of_measurement": "kW"})
@@ -257,4 +261,6 @@ async def test_extract_entity_metadata_records_which_entities_carry_a_forecast(h
     result = {meta.entity_id: meta for meta in extract_entity_metadata(hass, _hub_entry(hass))}
 
     assert result["sensor.solcast_today"].forecast
+    assert len(result["sensor.solcast_today"].preview) == PREVIEW_POINTS
     assert not result["sensor.house_power"].forecast
+    assert result["sensor.house_power"].preview == ()

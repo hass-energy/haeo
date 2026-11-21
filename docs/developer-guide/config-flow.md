@@ -155,7 +155,8 @@ The element reports each value in the form HAEO stores, so the flow saves what i
 
 The selector config lists the kinds a field accepts, whether its fixed value is a number or on/off, the number's limits and unit (taken from the field's number entity), and the entities it offers.
 A field offers the entities in its domains, or only the compatible ones that `build_inclusion_map()` lists for a field with a unit, a calendar, or a meter.
-The config's `forecasts` lists the offered entities a field feeding a time series reads as forecasts, which are those `carries_forecast()` recognizes; it is empty for a scalar field, which reads every entity's current value.
+The config's `forecasts` maps the offered entities a field feeding a time series reads as forecasts, which are those `carries_forecast()` recognizes, to a preview of each from now; it is empty for a scalar field, which reads every entity's current value.
+`extract_entity_metadata()` builds the previews with `forecast_preview()` from the same extraction that finds each entity's unit, so the sparklines show what the loaders read.
 `InputSelector.__call__` validates a submitted value, rejecting entities the field does not offer, and turns an empty entity list into none.
 Whether a required field has a value is checked by the flow instead, so the error can name its section.
 
@@ -163,7 +164,8 @@ Whether a required field has a value is checked by the flow instead, so the erro
 
 The element is a token input with no instructional text.
 Typing filters the offered entities, and a typed number is offered as a fixed value above them, disabled when it is outside the field's range.
-A chosen value becomes a chip: a fixed value with its unit and a number icon, an entity the field reads as a forecast with a chart icon, or an entity it reads as its current value with a gauge icon and that value, so how each value loads is visible without words.
+A chosen value becomes a chip: a fixed value with its unit and a number icon, an entity the field reads as a forecast with a sparkline of it, or an entity it reads as its current value with a gauge icon and that value, so how each value loads is visible without words.
+A forecast with nothing to preview, such as a calendar, shows a chart icon instead.
 The list marks entities the same way, so forecasts and current values appear side by side.
 A select-all row with the match count checks every entity the search shows, and chosen entities keep the order they were picked in.
 Words appear only as accessible labels and the On and Off of an on/off field.

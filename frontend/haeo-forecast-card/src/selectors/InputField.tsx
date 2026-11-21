@@ -11,6 +11,7 @@ import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
 import { describeEntity, filterOptions, offeredEntityIds, readNumber } from "./search";
+import { Sparkline } from "./Sparkline";
 import type { EntityOption } from "./search";
 import type { InputSelectorConfig, InputValue, SelectorHass, Translate } from "./types";
 
@@ -67,9 +68,9 @@ function entityValue(entityIds: string[]): InputValue {
  *
  * The field is a token input. Typing filters the entities the field offers, and a
  * typed number is offered as a fixed value above them. A chosen value becomes a
- * chip: a fixed value shows its unit, an entity read as a forecast a chart, and an
- * entity read as its current value a gauge and that value, so how each loads is
- * visible without words.
+ * chip: a fixed value shows its unit, an entity read as a forecast a sparkline of
+ * it, and an entity read as its current value a gauge and that value, so how each
+ * loads is visible without words.
  */
 export function InputField(props: InputFieldProps): JSX.Element {
   const { config, value, hass, label, helper, required, disabled, t, onChange } = props;
@@ -86,7 +87,6 @@ export function InputField(props: InputFieldProps): JSX.Element {
   const allowsConstant = config.kinds.includes("constant");
   const empty: InputValue = config.kinds.includes("none") ? { type: "none" } : entityValue([]);
   const selected = selectedEntities(value);
-  const forecasts = useMemo(() => new Set(config.forecasts), [config]);
 
   // Sorting is the slow part, and Home Assistant replaces hass on every state change, so the
   // order is kept until the field's config changes; current states are read fresh below.
@@ -126,14 +126,20 @@ export function InputField(props: InputFieldProps): JSX.Element {
     return config.unit !== undefined && config.unit !== "" ? `${constant} ${config.unit}` : String(constant);
   };
 
-  // How the field reads an entity: its forecast, or its current value, which is then shown
-  const entityKindIcon = (entity: EntityOption): JSX.Element =>
-    forecasts.has(entity.entityId) ? (
-      <Icon path={mdiChartLine} label={t("input.options.forecast")} />
+  // How the field reads an entity: its forecast, drawn when there is a preview, or its current value, which is shown
+  const preview = (entity: EntityOption): number[] | undefined => config.forecasts[entity.entityId];
+  const entityKindIcon = (entity: EntityOption): JSX.Element => {
+    const values = preview(entity);
+    if (values === undefined) {
+      return <Icon path={mdiGauge} label={t("input.options.current_value")} />;
+    }
+    return values.length > 1 ? (
+      <Sparkline values={values} label={t("input.options.forecast")} />
     ) : (
-      <Icon path={mdiGauge} label={t("input.options.current_value")} />
+      <Icon path={mdiChartLine} label={t("input.options.forecast")} />
     );
-  const entityState = (entity: EntityOption): string => (forecasts.has(entity.entityId) ? "" : entity.current);
+  };
+  const entityState = (entity: EntityOption): string => (preview(entity) === undefined ? entity.current : "");
 
   const constantIcon = (constant: number | boolean): string => {
     if (typeof constant === "boolean") {

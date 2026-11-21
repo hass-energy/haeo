@@ -98,9 +98,9 @@ def input_kinds(field_schema: FieldSchemaInfo, field_info: AnyInputFieldInfo) ->
     return offered
 
 
-def forecast_entities(entity_metadata: Iterable[EntityMetadata]) -> frozenset[str]:
-    """Return the entities that carry a forecast."""
-    return frozenset(metadata.entity_id for metadata in entity_metadata if metadata.forecast)
+def forecast_entities(entity_metadata: Iterable[EntityMetadata]) -> dict[str, tuple[float, ...]]:
+    """Return the entities that carry a forecast, with each one's preview."""
+    return {metadata.entity_id: metadata.preview for metadata in entity_metadata if metadata.forecast}
 
 
 def reads_forecasts(field_info: AnyInputFieldInfo) -> bool:
@@ -117,13 +117,13 @@ def build_input_selector(
     *,
     kinds: Collection[InputKind],
     entities: Sequence[str] | None,
-    forecasts: Collection[str],
+    forecasts: Mapping[str, Sequence[float]],
 ) -> InputSelector:
     """Build the input selector for a field.
 
     The field offers the entities in its domains, narrowed to ``entities`` when
     given. When the field reads forecasts, the config lists the offered entities
-    that are in ``forecasts``. A number
+    that are in ``forecasts``, with their previews. A number
     field's constant takes the limits, step and unit of the field's number
     entity, so the form and the entity accept the same values.
     """
@@ -139,7 +139,7 @@ def build_input_selector(
         "kinds": list(kinds),
         "value_type": "number" if is_number_field_info(field_info) else "boolean",
         "domains": domains,
-        "forecasts": sorted(offered_forecasts),
+        "forecasts": {entity_id: list(forecasts[entity_id]) for entity_id in sorted(offered_forecasts)},
     }
     if entities is not None:
         config["entities"] = list(entities)
@@ -166,7 +166,7 @@ def build_input_field_entries(
     *,
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: Mapping[str, list[str]],
-    forecasts: Collection[str],
+    forecasts: Mapping[str, Sequence[float]],
 ) -> dict[str, tuple[vol.Marker, InputSelector]]:
     """Build the schema entry of each input field."""
     entries: dict[str, tuple[vol.Marker, InputSelector]] = {}
@@ -234,7 +234,7 @@ def build_sectioned_input_schema(
     field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
     inclusion_map: Mapping[str, Mapping[str, list[str]]],
     *,
-    forecasts: Collection[str],
+    forecasts: Mapping[str, Sequence[float]],
     extra_field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]] | None = None,
     top_level_entries: Mapping[str, tuple[vol.Marker, Any]] | None = None,
 ) -> vol.Schema:

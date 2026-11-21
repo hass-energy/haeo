@@ -48,15 +48,16 @@ class InputSelectorConfig(TypedDict):
     """What the input element offers.
 
     A field offers the entities in its domains, or only those in ``entities``
-    when it filters them further, such as by unit. ``forecasts`` lists the
-    offered entities the field reads as forecasts; it reads the rest as their
-    current value.
+    when it filters them further, such as by unit. ``forecasts`` maps the
+    offered entities the field reads as forecasts to a preview of their values
+    from now, which is empty when there is none to show; the field reads the
+    rest as their current value.
     """
 
     kinds: list[InputKind]
     value_type: Literal["number", "boolean"]
     domains: list[str]
-    forecasts: list[str]
+    forecasts: dict[str, list[float]]
     entities: NotRequired[list[str]]
     min: NotRequired[float]
     max: NotRequired[float]
@@ -74,7 +75,7 @@ class InputSelector(Selector[InputSelectorConfig]):
             vol.Required("kinds"): [vol.In([VALUE_TYPE_ENTITY, VALUE_TYPE_CONSTANT, VALUE_TYPE_NONE])],
             vol.Required("value_type"): vol.In(["number", "boolean"]),
             vol.Required("domains"): [str],
-            vol.Required("forecasts"): [str],
+            vol.Required("forecasts"): {str: [vol.Coerce(float)]},
             vol.Optional("entities"): [str],
             vol.Optional("min"): vol.Coerce(float),
             vol.Optional("max"): vol.Coerce(float),

@@ -155,13 +155,13 @@ def test_input_kinds(value_type: object, force_required: bool | None, expected: 
 
 def test_build_input_selector_takes_number_limits_from_the_entity_description() -> None:
     """A number field's constant takes the limits, step and unit of its number entity."""
-    selector = build_input_selector(POWER, kinds=["entity", "constant"], entities=["sensor.power"], forecasts=())
+    selector = build_input_selector(POWER, kinds=["entity", "constant"], entities=["sensor.power"], forecasts={})
 
     assert selector.config == {
         "kinds": ["entity", "constant"],
         "value_type": "number",
         "domains": BASE_DOMAINS,
-        "forecasts": [],
+        "forecasts": {},
         "entities": ["sensor.power"],
         "min": 0.0,
         "max": 100.0,
@@ -176,17 +176,22 @@ def test_build_input_selector_takes_number_limits_from_the_entity_description() 
 )
 def test_build_input_selector_without_limits(field: AnyInputFieldInfo, value_type: str) -> None:
     """A field whose entity states no limits, or a switch field, offers an unbounded constant and its domains."""
-    selector = build_input_selector(field, kinds=["constant"], entities=None, forecasts=())
+    selector = build_input_selector(field, kinds=["constant"], entities=None, forecasts={})
 
     assert selector.config == {
         "kinds": ["constant"],
         "value_type": value_type,
         "domains": entity_domains(field),
-        "forecasts": [],
+        "forecasts": {},
     }
 
 
-FORECASTS = ("sensor.power_forecast", "sensor.other_forecast", "calendar.trips", "weather.home")
+FORECASTS = {
+    "sensor.power_forecast": (1.0, 2.0),
+    "sensor.other_forecast": (3.0, 4.0),
+    "calendar.trips": (),
+    "weather.home": (5.0, 6.0),
+}
 
 
 @pytest.mark.parametrize(
@@ -195,36 +200,36 @@ FORECASTS = ("sensor.power_forecast", "sensor.other_forecast", "calendar.trips",
         pytest.param(
             replace(POWER, time_series=True),
             ["sensor.power", "sensor.power_forecast"],
-            ["sensor.power_forecast"],
+            {"sensor.power_forecast": [1.0, 2.0]},
             id="offered_forecasts",
         ),
         pytest.param(
             replace(PRICE, time_series=True),
             None,
-            ["calendar.trips", "sensor.other_forecast", "sensor.power_forecast"],
+            {"calendar.trips": [], "sensor.other_forecast": [3.0, 4.0], "sensor.power_forecast": [1.0, 2.0]},
             id="forecasts_in_domains",
         ),
-        pytest.param(_calendar_field(), ["calendar.trips"], ["calendar.trips"], id="calendar_input"),
-        pytest.param(POWER, ["sensor.power", "sensor.power_forecast"], [], id="scalar_reads_current_values"),
+        pytest.param(_calendar_field(), ["calendar.trips"], {"calendar.trips": []}, id="calendar_input"),
+        pytest.param(POWER, ["sensor.power", "sensor.power_forecast"], {}, id="scalar_reads_current_values"),
     ],
 )
 def test_build_input_selector_lists_the_entities_it_reads_as_forecasts(
-    field: AnyInputFieldInfo, entities: list[str] | None, expected: list[str]
+    field: AnyInputFieldInfo, entities: list[str] | None, expected: dict[str, list[float]]
 ) -> None:
-    """A field feeding a time series lists the forecasts it offers, and a scalar field reads every entity's state."""
+    """A field feeding a time series lists the forecasts it offers with their previews, and a scalar field none."""
     selector = build_input_selector(field, kinds=["entity"], entities=entities, forecasts=FORECASTS)
 
     assert selector.config["forecasts"] == expected
 
 
 def test_forecast_entities_are_the_ones_carrying_a_forecast() -> None:
-    """Only entities whose metadata says they carry a forecast are listed."""
+    """Only entities whose metadata says they carry a forecast are listed, with their previews."""
     metadata = [
         EntityMetadata(entity_id="sensor.power", unit_of_measurement="kW"),
-        EntityMetadata(entity_id="sensor.power_forecast", unit_of_measurement="kW", forecast=True),
+        EntityMetadata(entity_id="sensor.power_forecast", unit_of_measurement="kW", forecast=True, preview=(1.0, 2.0)),
     ]
 
-    assert forecast_entities(metadata) == {"sensor.power_forecast"}
+    assert forecast_entities(metadata) == {"sensor.power_forecast": (1.0, 2.0)}
 
 
 @pytest.mark.parametrize(
@@ -242,21 +247,21 @@ def test_build_input_field_entries_markers(
     field = replace(POWER, force_required=force_required)
 
     entries = build_input_field_entries(
-        {"power": field}, field_schema={"power": schema_info}, inclusion_map={"power": ["sensor.power"]}, forecasts=()
+        {"power": field}, field_schema={"power": schema_info}, inclusion_map={"power": ["sensor.power"]}, forecasts={}
     )
 
     key, selector = entries["power"]
     assert type(key) is marker
     assert key.schema == "power"
     assert selector == build_input_selector(
-        field, kinds=input_kinds(schema_info, field), entities=["sensor.power"], forecasts=()
+        field, kinds=input_kinds(schema_info, field), entities=["sensor.power"], forecasts={}
     )
 
 
 def test_build_input_field_entries_requires_schema_metadata() -> None:
     """A field the element's schema does not describe is a coding error."""
     with pytest.raises(RuntimeError, match="Missing schema metadata"):
-        build_input_field_entries({"power": POWER}, field_schema={}, inclusion_map={"power": []}, forecasts=())
+        build_input_field_entries({"power": POWER}, field_schema={}, inclusion_map={"power": []}, forecasts={})
 
 
 def test_build_section_schema_includes_sections() -> None:
@@ -283,7 +288,7 @@ def test_build_sectioned_input_schema_validates_submissions() -> None:
         INPUT_FIELDS,
         FIELD_SCHEMA,
         {"limits": {"power": ["sensor.power"], "price": []}, "options": {"enabled": []}},
-        forecasts=(),
+        forecasts={},
         extra_field_entries={"options": {"label": (vol.Optional("label"), str)}},
         top_level_entries={"name": (vol.Required("name"), str)},
     )
@@ -438,7 +443,7 @@ def test_selectors_are_input_selectors() -> None:
         {"window_calendar": _calendar_field()},
         field_schema={"window_calendar": FieldSchemaInfo(value_type=EntityValue, is_optional=False)},
         inclusion_map={"window_calendar": ["calendar.pool_pump"]},
-        forecasts=(),
+        forecasts={},
     )
 
     _marker, selector = entries["window_calendar"]
