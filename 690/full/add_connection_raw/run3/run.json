@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0909563,
+  "turns": 8,
+  "report": "I added a connection called \"Inverter to Switchboard\" in HAEO, with Inverter as the source, Switchboard as the target and Max power fixed at 10 kW. It now shows up in the Home device list, with 1 device and 2 entities.\n\nI left Price and Connection efficiency empty because you didn't give values for them.\n\nPoints where I hesitated or slipped:\n- **Endpoints:** The form already showed Inverter as source and Switchboard as target. I assumed those defaults were real selections and didn't re-pick them. The saved connection appears in the device list, but I didn't open it again to check the endpoints or the limit.\n- **Max power field:** Typing \"10\" showed a \"Fixed value 10 kW\" option, and I clicked it to confirm. I assumed the field's kW unit matched your 10 kW rating.\n- **Connection name:** The name was my choice, since you didn't specify one.\n- **Update:** You pinged me for a status update while I was finishing. I carried on without replying separately.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with Max power fixed at 10 kW; it now appears in the HAEO device list.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.3
+}

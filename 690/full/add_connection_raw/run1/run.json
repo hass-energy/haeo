@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.0900466,
+  "turns": 9,
+  "report": "I added a connection named \"Inverter to Switchboard\" in HAEO. Its source is Inverter, its target is Switchboard, and its max power is 10 kW. After I submitted the form, HAEO showed \"Created configuration for Inverter to Switchboard.\" The new connection also appears in the Home hub's device list with 2 entities. I didn't open it again to check that the 10 kW limit was saved.\n\nPoints where I hesitated or was unsure:\n- **Endpoint defaults:** The Source and Target dropdowns were already set to Inverter and Switchboard, so I left them as they were. I only confirmed this from the page text. I didn't change them or look at the screenshot I took.\n- **Max power field:** Typing \"10\" in the Max power box brought up a \"Fixed value 10 kW\" option, and I picked it. The field's unit wasn't labelled until that point, so I relied on the option showing kW.\n- **Other settings:** I left Price empty and didn't open the Connection efficiency section, since you didn't ask for either.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with max power 10 kW; success confirmed.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 14.8
+}

@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.11023400000000001,
+  "turns": 11,
+  "report": "I added a Solar element named \"Solar\" to Home. It connects to the Inverter, and its forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. HAEO showed \"Created configuration for Solar\". The Home hub now lists a Solar device with 4 entities.\n\nThe forecast chart in the dialog showed a combined 0 kW now, rising to 23.2 kW over the next 72 hours. I didn't open the new element again after saving.\n\nPoints where I hesitated or made a mistake:\n- **Connection:** the form had Inverter selected by default and I left it. I took that to be right, since your panels feed the inverter.\n- **Forecast picker:** after I picked the first sensor, clicking the field again didn't open the list. I typed \"Solcast\" to bring up the other two, then used \"Add all 2\".\n- **Curtailment:** I didn't open that section and left it at its defaults.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar to Home, connected to Inverter, with Solcast Today, Tomorrow and Day 3 forecast sensors.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.2
+}

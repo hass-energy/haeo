@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.12990150000000003,
+  "turns": 10,
+  "report": "I added a Load to HAEO's \"Home\" setup. It's connected to the Switchboard and uses both Sigenergy sensors:\n- `sensor.sigen_plant_consumed_power_forecast` (the consumed power forecast)\n- `sensor.sigen_plant_consumed_power` (the current consumed power, 0.501 kW when I added it)\n\nThe Load now shows as a new device with 12 entities. HAEO's preview combined the two sensors as \"now 0.501 kW, then 0 to 1.66 kW over the next 168 hours\". I didn't open the new device or check its entities' values.\n\nPoints where I hesitated or was unsure:\n- **Current-power sensor in the Forecast field:** There was no separate field for it. I added it to the same multi-select Forecast field as the forecast sensor. I assumed that is how HAEO combines the two.\n- **Connection and name:** I kept the default connection (Switchboard, AC) and the default name \"Load\". I assumed the Switchboard is the right place for household consumption.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Load' connected to the Switchboard, with forecast sensors sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power. The new Load device shows 12 entities.",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.6
+}

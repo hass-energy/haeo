@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1375385,
+  "turns": 10,
+  "report": "I added a Load named \"Household consumption\" to the Home hub, connected to the Switchboard. It uses both Sigen sensors: `sensor.sigen_plant_consumed_power_forecast` and the current `sensor.sigen_plant_consumed_power`. The new load appears as a device with 12 entities, and the hub now shows 7 devices.\n\nThe load form has a single \"Forecast\" field that took both sensors. I added the forecast sensor first, then the current one. The preview showed \"now 0.501 kW\", which matches the current sensor's reading. I didn't open the load again afterwards to check the saved settings.\n\nPoints where I hesitated or made a choice:\n- **Single field for both sensors:** I wasn't sure the one Forecast field was the right place for the current-power sensor. The form has no separate field for it, and the preview combined the two, so I used it.\n- **Connection:** I left the default, Switchboard. I assumed household consumption belongs on the AC side.\n- **Name:** I changed the default \"Load\" to \"Household consumption\" because it describes the load better. You didn't ask for a specific name.\n- **Shedding:** I didn't open the optional \"Shedding\" section.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household consumption",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Household consumption' on the Switchboard, with forecast sources sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power. It now shows as a new device with 12 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.1
+}

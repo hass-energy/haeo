@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 4,
+  "success": true,
+  "cost_usd": 0.1309232,
+  "turns": 10,
+  "report": "I added a load called \"Load\" to HAEO. It uses both Sigenergy sensors: Sigen Plant Consumed Power Forecast and the current Sigen Plant Consumed Power. HAEO now lists it as a new device with 12 entities.\n\nI didn't open the new load afterwards to check the saved settings. The only checks were the \"Created configuration for Load\" message and the device appearing on the integration page.\n\nI connected it to the Switchboard, which was already selected by default. I kept it because a household load sits on the AC side.\n\nThe form's Forecast field accepts several sensors, so I added both there. Its preview showed \"now 0.501 kW\", which matches the current sensor, and the forecast ranging up to 1.66 kW over the next 168 hours.\n\nPoints where I hesitated:\n- **Connection:** I accepted the Switchboard default without comparing it to the Inverter option.\n- **Name:** I kept the default name \"Load\" rather than something like \"House\".\n- **Combining two sensors:** The form has no separate field for a current-power sensor, so I used the one Forecast field for both. The preview suggests HAEO combines them, but I don't know exactly how.\n- **Optional settings:** I left the \"Shedding\" section collapsed and unchanged.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Load' connected to Switchboard, using Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (current) as forecast sources. It now shows as a new device with 12 entities.",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.6
+}

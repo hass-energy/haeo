@@ -1,0 +1,396 @@
+{
+  "before": {
+    "01M7YSBFQENQAPXMEE43108A5F": {
+      "type": "grid",
+      "title": "Grid",
+      "data": {
+        "name": "Grid",
+        "element_type": "grid",
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        },
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "constant",
+            "value": 55.0
+          },
+          "max_power_target_source": {
+            "type": "constant",
+            "value": 30.0
+          }
+        },
+        "pricing": {
+          "price_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.home_general_price",
+              "sensor.home_general_forecast"
+            ]
+          },
+          "price_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.home_feed_in_price",
+              "sensor.home_feed_in_forecast"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YSBFQEET1G1MH1F5XA81KQ": {
+      "type": "inverter",
+      "title": "Inverter",
+      "data": {
+        "name": "Inverter",
+        "element_type": "inverter",
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        },
+        "efficiency": {},
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_max_active_power"
+            ]
+          },
+          "max_power_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_max_active_power"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YSBFQEC04R3019FFBV25K5": {
+      "type": "junction",
+      "title": "Switchboard",
+      "data": {
+        "name": "Switchboard",
+        "element_type": "junction"
+      }
+    },
+    "01M7YSBFQESRZ3ZKN9DA0EP699": {
+      "type": "battery",
+      "title": "Battery",
+      "data": {
+        "element_type": "battery",
+        "name": "Battery",
+        "connection": {
+          "type": "connection_target",
+          "value": "Inverter"
+        },
+        "efficiency": {
+          "efficiency_source_target": {
+            "type": "constant",
+            "value": 99.0
+          },
+          "efficiency_target_source": {
+            "type": "constant",
+            "value": 99.0
+          }
+        },
+        "limits": {
+          "max_charge_percentage": {
+            "type": "constant",
+            "value": 100.0
+          },
+          "min_charge_percentage": {
+            "type": "constant",
+            "value": 10.0
+          }
+        },
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_ess_rated_discharging_power"
+            ]
+          },
+          "max_power_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_ess_rated_charging_power"
+            ]
+          }
+        },
+        "pricing": {
+          "price_source_target": {
+            "type": "constant",
+            "value": 0.02
+          },
+          "price_target_source": {
+            "type": "constant",
+            "value": 0.001
+          },
+          "salvage_value": {
+            "type": "constant",
+            "value": 0.0
+          }
+        },
+        "storage": {
+          "capacity": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_rated_energy_capacity"
+            ]
+          },
+          "initial_charge_percentage": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_battery_state_of_charge"
+            ]
+          }
+        },
+        "advanced": {
+          "charge_limit_cost": {
+            "type": "constant",
+            "value": 100.0
+          }
+        }
+      }
+    },
+    "01M7YSBFQEGS251WXMA480PE7X": {
+      "type": "load",
+      "title": "Constant Load",
+      "data": {
+        "name": "Constant Load",
+        "element_type": "load",
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        },
+        "curtailment": {},
+        "forecast": {
+          "forecast": {
+            "type": "constant",
+            "value": 1.0
+          }
+        },
+        "pricing": {}
+      }
+    },
+    "01M7YSBFQXAQ2TDAV8NVTP9HF7": {
+      "type": "network",
+      "title": "System",
+      "data": {
+        "name": "System",
+        "element_type": "network"
+      }
+    }
+  },
+  "after": {
+    "01M7YSBFQENQAPXMEE43108A5F": {
+      "type": "grid",
+      "title": "Grid",
+      "data": {
+        "name": "Grid",
+        "element_type": "grid",
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        },
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "constant",
+            "value": 55.0
+          },
+          "max_power_target_source": {
+            "type": "constant",
+            "value": 30.0
+          }
+        },
+        "pricing": {
+          "price_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.home_general_price",
+              "sensor.home_general_forecast"
+            ]
+          },
+          "price_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.home_feed_in_price",
+              "sensor.home_feed_in_forecast"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YSBFQEET1G1MH1F5XA81KQ": {
+      "type": "inverter",
+      "title": "Inverter",
+      "data": {
+        "name": "Inverter",
+        "element_type": "inverter",
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        },
+        "efficiency": {},
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_max_active_power"
+            ]
+          },
+          "max_power_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_max_active_power"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YSBFQEC04R3019FFBV25K5": {
+      "type": "junction",
+      "title": "Switchboard",
+      "data": {
+        "name": "Switchboard",
+        "element_type": "junction"
+      }
+    },
+    "01M7YSBFQESRZ3ZKN9DA0EP699": {
+      "type": "battery",
+      "title": "Battery",
+      "data": {
+        "element_type": "battery",
+        "name": "Battery",
+        "connection": {
+          "type": "connection_target",
+          "value": "Inverter"
+        },
+        "efficiency": {
+          "efficiency_source_target": {
+            "type": "constant",
+            "value": 99.0
+          },
+          "efficiency_target_source": {
+            "type": "constant",
+            "value": 99.0
+          }
+        },
+        "limits": {
+          "max_charge_percentage": {
+            "type": "constant",
+            "value": 100.0
+          },
+          "min_charge_percentage": {
+            "type": "constant",
+            "value": 10.0
+          }
+        },
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_ess_rated_discharging_power"
+            ]
+          },
+          "max_power_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_ess_rated_charging_power"
+            ]
+          }
+        },
+        "pricing": {
+          "price_source_target": {
+            "type": "constant",
+            "value": 0.02
+          },
+          "price_target_source": {
+            "type": "constant",
+            "value": 0.001
+          },
+          "salvage_value": {
+            "type": "constant",
+            "value": 0.0
+          }
+        },
+        "storage": {
+          "capacity": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_rated_energy_capacity"
+            ]
+          },
+          "initial_charge_percentage": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_battery_state_of_charge"
+            ]
+          }
+        },
+        "advanced": {
+          "charge_limit_cost": {
+            "type": "constant",
+            "value": 100.0
+          }
+        }
+      }
+    },
+    "01M7YSBFQEGS251WXMA480PE7X": {
+      "type": "load",
+      "title": "Constant Load",
+      "data": {
+        "name": "Constant Load",
+        "element_type": "load",
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        },
+        "curtailment": {},
+        "forecast": {
+          "forecast": {
+            "type": "constant",
+            "value": 1.0
+          }
+        },
+        "pricing": {}
+      }
+    },
+    "01M7YSBFQXAQ2TDAV8NVTP9HF7": {
+      "type": "network",
+      "title": "System",
+      "data": {
+        "name": "System",
+        "element_type": "network"
+      }
+    },
+    "01M7YSBT2BXZHACEAC13CPMTTY": {
+      "type": "solar",
+      "title": "Solar",
+      "data": {
+        "element_type": "solar",
+        "name": "Solar",
+        "forecast": {
+          "forecast": {
+            "type": "entity",
+            "value": [
+              "sensor.solcast_pv_forecast_forecast_day_3",
+              "sensor.solcast_pv_forecast_forecast_today",
+              "sensor.solcast_pv_forecast_forecast_tomorrow"
+            ]
+          }
+        },
+        "curtailment": {
+          "curtailment": {
+            "type": "constant",
+            "value": true
+          }
+        },
+        "connection": {
+          "type": "connection_target",
+          "value": "Inverter"
+        }
+      }
+    }
+  }
+}

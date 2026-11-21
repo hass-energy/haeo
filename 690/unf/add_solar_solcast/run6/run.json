@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 6,
+  "success": true,
+  "cost_usd": 0.1130404,
+  "turns": 11,
+  "report": "I added a Solar element to the \"Home\" hub and connected it to the Inverter. Its forecast uses all three Solcast sensors: Today, Tomorrow and Day 3. After I submitted it, Solar appeared in the hub list as its own device with 4 entities.\n\nI didn't open the new Solar entry again to check the saved settings. I also didn't touch the optional Curtailment section.\n\nPoints where I hesitated or made a mistake:\n- **Connection:** \"Inverter\" was already selected by default, and it matched your setup, so I left it. I didn't try \"Switchboard\".\n- **Forecast picker:** After I picked the first sensor (Today), the dropdown closed. My next click reopened nothing, so I typed \"Solcast\" to bring the list back. Then I used \"Add all 2\" to add Tomorrow and Day 3.\n- **Name:** I kept the default name \"Solar\".",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element named 'Solar', connected to Inverter (DC), forecast set to Solcast PV Forecast Today, Tomorrow and Day 3 sensors. It now shows in the hub with 4 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.8
+}

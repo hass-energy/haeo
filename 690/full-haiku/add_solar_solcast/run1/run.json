@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.00565357,
+  "turns": 8,
+  "report": "The Solar element is added to Home and uses the three Solcast PV forecast sensors.\n\n- **Connection:** Inverter, DC (the default). Your panels feed the inverter, so this is the right choice.\n- **Forecast:** `sensor.solcast_pv_forecast_forecast_today`, `sensor.solcast_pv_forecast_forecast_tomorrow` and `sensor.solcast_pv_forecast_forecast_day_3`, added with \"Add all 3\".\n- **Name:** Solar (default).\n- **Curtailment:** left at its defaults.\n\nThe success dialog reported \"Created configuration for Solar\", and the Home hub now lists a Solar device with 4 entities. The forecast preview showed a combined range of 0 to 23.2 kW over 72 hours.\n\nPoints where I hesitated or may have made a mistake:\n- I accepted the default name \"Solar\" without thinking about whether you'd want a different label.\n- I left the Curtailment section untouched. I didn't open it, so I don't know whether your inverter needs any curtailment setting. You may want to check it.\n- I didn't open the Solar device after saving to confirm the stored forecast sensors, so I'm relying on the picker and preview rather than a saved-config check.\n- The Solcast sensor names and the \"Add all 3\" option were clear enough that I didn't need to pick them one by one. That shortcut could have included a wrong sensor if more Solcast sensors had been present, but only three appeared.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 14.5
+}

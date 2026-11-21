@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.14817080000000002,
+  "turns": 12,
+  "report": "I added a load named \"Household Load\" to the Home hub. It uses two sensors:\n- `sensor.sigen_plant_consumed_power_forecast` is the Sigenergy consumed power forecast.\n- `sensor.sigen_plant_consumed_power` is the current consumed power sensor.\n\nThe Switchboard is its connection, which was already selected by default. After I submitted, HAEO confirmed the configuration and the load appeared as a new device with 12 entities. I didn't open the load's entities to check their values.\n\nPoints where I hesitated or made a judgement call:\n- **Current sensor in the Forecast field:** The only place to enter the current consumed power sensor was the field labelled \"Forecast\". I wasn't sure it would accept a live sensor there, but it did. The preview then showed \"now 0.501 kW\", so I assumed that was the intended way to use it.\n- **Connection:** I kept the Switchboard connection because it fits a whole-house load. I didn't compare it against the Inverter option.\n- **Name:** I changed the default name \"Load\" to \"Household Load\" to make it clearer. That was my choice, not something you asked for.\n- **Shedding:** I left the \"Shedding\" section collapsed and unchanged.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Household Load' on the Switchboard, with forecast sensors sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power. It now appears as a device with 12 entities.",
+  "actions": 8,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.2
+}

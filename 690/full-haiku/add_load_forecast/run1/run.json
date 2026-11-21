@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.008825259999999998,
+  "turns": 9,
+  "report": "I added a Household load to the Home hub and it saved as \"Created configuration for Household.\" The new Household device now appears under Home with 12 entities.\n\n- **Load name:** I renamed the default \"Load\" to \"Household\" so it's clear what the element represents.\n- **Connection:** I kept the default, Switchboard (AC). Household consumption sits on the AC side, so this seemed right.\n- **Forecast:** I selected `sensor.sigen_plant_consumed_power_forecast` as the forecast.\n- **Current consumed power:** The form has no separate \"current\" field. I added `sensor.sigen_plant_consumed_power` to the same Forecast list. The combined preview changed from \"now 0.4 kW\" to \"now 0.501 kW, then 0 kW to 1.66 kW\", so the current reading covers the present and the Sigen forecast covers the future.\n- **Not checked:** I didn't open the saved Household configuration afterwards to confirm both sensors were stored, and I didn't check whether HAEO sums the two sources or uses the current value only for \"now\".\n\nPoints where I hesitated or was unsure:\n1. The form only offers a single \"Forecast\" field, so I had to decide that putting the current sensor there was the intended way to use it. I chose it because the preview's \"now\" value changed to match the current reading.\n2. I wasn't sure whether the two sensors would be double-counted. The preview suggests they are not, but I couldn't confirm the optimizer's behaviour.\n3. I left the Shedding section alone because it is not part of this request and I don't know what it controls.\n4. I chose the name \"Household\" myself. You may prefer a different name.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.2
+}

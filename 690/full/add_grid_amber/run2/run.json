@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1418108,
+  "turns": 14,
+  "report": "I added the Grid to HAEO and the setup finished with \"Created configuration for Grid.\"\n\n- **Connection:** Switchboard (AC). It was already selected, and I left it.\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Import limit:** 55 kW.\n- **Export limit:** 30 kW.\n\nI didn't reopen the Grid afterwards to check the saved values. I only saw the limits and prices in the form before submitting.\n\nPoints where I hesitated or slipped:\n- **Connection:** I wasn't sure Switchboard was right for a grid. I kept it because it was the default and the grid should sit on the AC side.\n- **Price pickers:** Both pickers listed the same two Amber entities. I chose by name, General for import and Feed In for export.\n- **Limit defaults:** The limits started at 100 kW. I removed those values and typed 55 and 30. Removing the import value opened a long entity list, which I ignored.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid on Switchboard (AC): import price Amber Express General Price, export price Amber Express Feed In Price, import limit 55 kW, export limit 30 kW.",
+  "actions": 14,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 25.6
+}

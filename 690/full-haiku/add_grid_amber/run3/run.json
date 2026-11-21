@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.01547799,
+  "turns": 16,
+  "report": "The grid connection is added to HAEO and the Home hub now lists a Grid device with 12 entities, up from 60 total HAEO entities.\n\n**What I set up**\n- **Name:** Grid (the default).\n- **Connection:** Switchboard (AC). This was preselected, and it's where a grid connection normally sits.\n- **Import price:** Amber Express - Home General Price (`sensor.amber_express_home_general_price`), which is what you pay.\n- **Export price:** Amber Express - Home Feed In Price (`sensor.amber_express_home_feed_in_price`), which is what you're paid for export.\n- **Import limit:** fixed 55 kW.\n- **Export limit:** fixed 30 kW.\n\nI didn't reopen the saved Grid configuration to read back the values. I confirmed the result from the success dialog and the device list only.\n\n**Where I hesitated or was unsure**\n- **Connection choice:** I kept the preselected Switchboard without checking the help text. I assumed the grid belongs on the AC side, next to the Switchboard, and not on the Inverter DC side.\n- **Price sensors:** The picker offered two Amber sensors, and the Feed In sensor showed a lower current value than the General sensor. I matched them to the import and export roles by name, not by checking Amber's tariff terms.\n- **Power limits:** Both limits defaulted to 100 kW. I removed each default and typed the value, then picked the \"Fixed value\" option. I chose a fixed value over a sensor because you gave me constant numbers. I did not check whether a sensor-based limit would have been a better fit.\n- **Unlabelled picker options:** The limit pickers listed many unrelated sensors, including a Sigen \"Max Active Power\" of 30 kW. I did not use any of them, but I noticed the overlap with your 30 kW export figure. I left it alone because you gave a figure directly.\n- **Not verified:** I did not reopen the Grid configuration to confirm the saved values. I also didn't check the energy-model results.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 14,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.7
+}

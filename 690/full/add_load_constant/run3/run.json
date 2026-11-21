@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0661433,
+  "turns": 8,
+  "report": "I added \"Pool pump\" to the Home hub as a Load with a fixed 0.8 kW forecast, connected to the Switchboard. HAEO showed \"Created configuration for Pool pump\", and the name now appears in the hub's list.\n\nPoints where I hesitated or made assumptions:\n- **Connection:** I kept the default, Switchboard (AC), without checking it against your wiring. I assumed a pool pump is an ordinary mains load, like the existing \"Load\". If it hangs off the inverter instead, the connection needs changing.\n- **Forecast field:** It asks for a forecast, and I typed 0.8 so it offered \"Fixed value 0.8 kW\", which I picked. That fits \"runs all the time\", but I didn't confirm that a fixed value is treated as constant over time.\n- **Shedding:** I didn't open or change the optional \"Shedding\" section, so it keeps its defaults.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' connected to the Switchboard (AC) with a fixed forecast of 0.8 kW. It now appears under the Home hub.",
+  "actions": 6,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.0
+}

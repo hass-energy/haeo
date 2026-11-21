@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0938467,
+  "turns": 9,
+  "report": "I added a Solar element to the Home hub and connected it to the Inverter. Its forecast uses all three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. After I submitted, Solar showed up in the hub's device list with 4 entities, and the integration's totals rose to 7 devices and 61 entities. I did not open the Solar element again to check its saved settings.\n\n**Hesitations and mistakes:** none. The Connection field already had Inverter selected, so I left it. I also left the Curtailment section closed and untouched, since you didn't mention it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element connected to Inverter, using the three Solcast PV Forecast sensors (Today, Tomorrow, Day 3) as forecast. It now appears in the hub with 4 entities.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.9
+}

@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.1354318,
+  "turns": 11,
+  "report": "I added a Load named \"Load\" to the Home hub. It now appears in the hub's list of parts. I didn't open it afterwards to re-check its settings.\n\n- **Connection:** Switchboard (AC). It was already selected, and a household load fits there.\n- **Forecast field:** I picked both `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power`, the current reading. The field took both sensors. The preview chart showed \"now 0.501 kW\", so the current reading was being used.\n\nWhere I hesitated or was unsure:\n- I kept the default name \"Load\" rather than renaming it.\n- I wasn't sure whether the Forecast field would accept two sensors. It did, but I don't know how HAEO combines them. The chart labelled them \"Combined\".\n- I left the \"Shedding\" section alone because you didn't ask for it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Load' connected to Switchboard, with both Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (current) selected as forecast sources. It now appears under the Home hub.",
+  "actions": 7,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.4
+}

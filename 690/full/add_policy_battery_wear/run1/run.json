@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1048633,
+  "turns": 12,
+  "report": "I added a policy called \"Battery wear\" that charges 0.01 $/kWh on all energy leaving the Battery. HAEO confirmed it with \"Created configuration for Policies\", and a new \"Policies\" device now shows up under Home. I didn't open the policy again to re-read its saved settings, and I didn't run the optimizer to see the cost take effect.\n\nThe policy is enabled. Its source is the Battery, its target is \"Any\", and its price is a fixed 0.01 $/kWh. Because the target is \"Any\", the cost applies wherever the discharged energy goes.\n\nPoints where I hesitated or was unsure:\n- **Target setting:** I didn't touch the Target toggle and assumed the default \"Any\" was already selected. The form showed no highlighted state, so I couldn't confirm it.\n- **Price entry:** The Price field offered \"Fixed value 0.01 $/kWh\" as an option in a dropdown, and I picked it. I assumed that unit matches the \"1 cent per kWh\" you asked for.\n- **Policy element choice:** I used the \"Policy\" element because it was the only one that looked like it could put a price on energy flows. I didn't check the other element types, such as Buffer.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear': source = Battery, target = Any (default), price = fixed 0.01 $/kWh, enabled. It was created and a Policies device now appears.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.3
+}

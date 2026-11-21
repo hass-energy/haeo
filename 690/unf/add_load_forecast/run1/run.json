@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1307823,
+  "turns": 10,
+  "report": "I added a Load to the Home hub, using both Sigen sensors. It now shows under Home with 1 device and 12 entities. I didn't open the new device's entities or check any of their values.\n\n- **Sensors:** I picked `sensor.sigen_plant_consumed_power_forecast` (the forecast) and `sensor.sigen_plant_consumed_power` (the current reading). The Forecast field accepted both together.\n- **Connection:** the Load is connected to the Switchboard. That was already selected by default, and I left it. It seemed right for whole-house consumption.\n- **Name:** I kept the default name \"Load\".\n\nWhere I hesitated or was unsure:\n- **One field for both sensors:** the Forecast field is the only place to enter sensors, and it's labelled for forecasts. I wasn't sure it would accept the current-power sensor as well. It did, and the preview showed a combined \"now 0.501 kW, then \u2026\" line.\n- **Switchboard vs Inverter:** I wasn't certain Switchboard was better than Inverter. I assumed it was because household consumption sits on the AC side.\n- **Name left as default:** I didn't give the Load a more descriptive name, such as \"Household\".\n- **Shedding section:** I didn't open it, so I don't know what it does or whether the defaults suit you.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Load' connected to the Switchboard, using both Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (current) sensors. It now appears under Home with 12 entities.",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.1
+}

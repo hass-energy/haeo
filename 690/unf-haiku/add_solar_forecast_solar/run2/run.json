@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.00972909,
+  "turns": 8,
+  "report": "I added the solar element \"Solar\" to the Home hub with all 32 Forecast.Solar sensors. HAEO created it and it now appears in the hub's device list.\n\n- **Connection:** Inverter (DC), the default. I read \"feeds into your inverter\" as DC-coupled panels behind the inverter. If your panels actually feed the AC side (Switchboard), this is the setting to change.\n- **Sensors:** The picker listed 38 entities, but only 32 are Forecast.Solar. Those are `energy_production_*` for today, tomorrow and days 2\u20137 in each of East, North, South and West. I filtered the list to `energy_production` and used \"Add all 32\". I did not use \"Add all 38\", which would also have added six Sigen sensors.\n- **Curtailment:** Left at its default because I had no information about it.\n- **Name:** Left as \"Solar\".\n\nI did not open the Solar device afterwards to confirm all 32 sensors were saved. The preview chart showed the combined forecast (0 kW now, up to 17.9 kW), and the success dialog confirmed creation.\n\nPoints where I hesitated or was unsure:\n- The Connection choice was an inference from your description, not something the form made obvious. I'm least sure of this one.\n- The South sensors are labelled \"solar prediction forecast\" while the others say \"solar production forecast\". I treated them as the same Forecast.Solar sensors because they share the `energy_production_*_south` naming.\n- I did not check the sensor count on the saved element. The 32 I added came from the \"Add all 32\" count and the visible list.\n- I used \"Add all 32\" on a filtered list rather than clicking sensors one at a time. That was faster, and I checked the result before submitting.\n- The HAEO page shows 4 entities under the new Solar device. I did not look into what those four are.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.4
+}

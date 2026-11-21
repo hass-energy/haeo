@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.010074880000000003,
+  "turns": 13,
+  "report": "I added a Load element called \"Household\" to the Home hub, using the Sigen consumed power forecast and the current consumed power sensor. HAEO confirmed \"Created configuration for Household\", and it now appears as a Load device with 12 entities.\n\nPoints where I hesitated or was unsure:\n\n1. **Name:** The form defaulted to \"Load\". I renamed it \"Household\" to match what it represents. This is a label only, so you can change it later.\n2. **Connection:** I left the default, Switchboard (AC). I believe household consumption sits on the AC side with the switchboard, but I didn't verify that against your wiring.\n3. **Current sensor in the Forecast field:** The form had no separate slot for a current sensor. I added `sensor.sigen_plant_consumed_power` to the same Forecast list as `sensor.sigen_plant_consumed_power_forecast`. The combined preview showed \"now 0.501 kW\", so the current reading seems to set the present value and the forecast covers the future. I inferred this from the preview, not from documentation, so it's the choice I'm least sure of.\n4. **Shedding:** I left this section at its defaults. I didn't read what it does, and you didn't ask for it.\n5. **Verification:** I confirmed the creation message and the new device, but I didn't check the Household entities' values or run an optimization.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Household' to the Home hub. Connection: Switchboard, AC (default). Forecast field: Sigen Plant Consumed Power Forecast plus the current Sigen Plant Consumed Power sensor, so the current reading sets the 'now' value and the forecast covers the future. The combined preview showed now 0.501 kW. Submitted and confirmed with 'Created configuration for Household'. Household now appears as a Load device with 12 entities.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.9
+}

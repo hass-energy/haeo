@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.009406840000000001,
+  "turns": 10,
+  "report": "I added a household load to the Home hub. It's named \"Household\", uses the Switchboard (AC) connection, and has both your Sigen consumed power sensors as its forecast input. The success dialog confirmed creation, and \"Household\" now appears under the Home hub.\n\n**Points where I hesitated or was unsure:**\n\n1. **Element type.** The integration page offers a \"Load\" element, and I used it for household consumption. I didn't find a more specific option, so this was my judgement call.\n2. **Name.** The form defaulted to \"Load\". I renamed it to \"Household\" so it's distinguishable from the other elements.\n3. **Connection.** Switchboard (AC) was pre-selected. A household load sits on the AC side, so I kept it, but I didn't change or check the alternatives.\n4. **Where the current sensor goes.** The form has only one \"Forecast\" field, and it accepts several sensors. I didn't see a separate \"current power\" field, so I added `sensor.sigen_plant_consumed_power` alongside the forecast. Once I did, the preview switched \"now\" to 0.501 kW and kept the forecast for later intervals. I read that as the current reading replacing the forecast's present value, not being summed with it, but I inferred that from the preview only. The help text didn't say it explicitly.\n5. **Shedding.** I left the Shedding section at its defaults without reading what it does. I didn't judge whether household load should be sheddable.\n6. **Verification.** I confirmed the entry was created and that the Household device shows 12 entities. I did not check the individual entity values or how the optimiser uses this load.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Household' to the Home HAEO hub. Connection: Switchboard (AC), which was already selected by default. Forecast: sensor.sigen_plant_consumed_power_forecast plus sensor.sigen_plant_consumed_power as the current value. The combined preview shows 'now 0.501 kW, then 0 kW to 1.66 kW', so the current reading replaces the forecast for the present moment and is not added to it. Shedding left at default. Household now appears under the Home hub with 12 entities.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.3
+}

@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 6,
+  "success": true,
+  "cost_usd": 0.009603979999999998,
+  "turns": 8,
+  "report": "I added the solar element to the Home hub as \"Solar\", using all 32 Forecast.Solar energy production sensors. HAEO confirmed \"Created configuration for Solar\", and a Solar device with 4 entities now appears under the hub.\n\nSettings:\n- **Name:** Solar (default).\n- **Connection:** Inverter, DC (default), since the panels feed the inverter.\n- **Forecast:** East, North, South and West, each with today, tomorrow, day after tomorrow and days 3 to 7 ahead. I filtered the picker to `energy_production` and used \"Add all 32\". The unfiltered \"Add all 38\" would also have pulled in Sigen plant sensors.\n- **Curtailment:** left at its default.\n\nPoints where I hesitated or was unsure:\n- **Connection choice:** I read \"feeds into your inverter\" as DC-coupled to the inverter, not AC at the switchboard. If the panels actually feed a separate AC inverter, this should be Switchboard instead.\n- **Sensor scope:** I took \"every day it covers\" to mean all 8 sensors per direction, which made 32 in total. I did not check whether the \"today\" sensors are partial-day totals that HAEO handles differently. The combined preview on the form showed 0 kW now and up to 17.9 kW over 168 hours, which looked plausible, but I did not verify the numbers against your inverter.\n- **Naming:** The South sensors are labelled \"solar prediction forecast\" while the others say \"solar production forecast\". I added them all anyway, since the request was for all of them.\n- **Curtailment:** I didn't touch it because you didn't mention it, though it may matter if your inverter limits export.\n- **Verification:** I confirmed creation through the success dialog and the device entity count. I did not open the new Solar element to check its saved forecast list.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.6
+}

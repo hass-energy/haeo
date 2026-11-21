@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.06613680000000001,
+  "turns": 8,
+  "report": "\"Pool pump\" is now a load in your Home hub. It's set to a fixed 0.8 kW and connected to the Switchboard (AC), and it shows in the hub's device list. HAEO confirmed with \"Created configuration for Pool pump.\"\n\nPoints where I hesitated or assumed something:\n- **Connection:** I kept the pre-selected Switchboard (AC) connection without checking it against your wiring. I assumed a pool pump is an AC load.\n- **Shedding:** I left the \"Shedding\" section untouched, since the pump runs all the time. I didn't open it to check what it does.\n- **Fixed value entry:** The forecast box offered a \"Fixed value 0.8 kW\" option when I typed 0.8. I assumed that was the right way to enter a constant, and it was the only fixed-value option offered.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' on the Switchboard (AC) with a fixed 0.8 kW forecast. It now appears under the Home hub.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.3
+}

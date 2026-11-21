@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.01704702,
+  "turns": 14,
+  "report": "I set the Battery element's Discharge cost to a fixed 0.01 $/kWh and saved it. Reopening the Battery element showed the value persisted.\n\n**What I did:** Home \u2192 Battery \u2192 Pricing \u2192 Discharge cost \u2192 typed `0.01`, picked \"Fixed value 0.01 $/kWh\", and submitted. I chose the Battery's own Discharge cost because it is a per-battery setting, so it should cover energy discharged to the load, to the grid, or anywhere else. I did not verify that HAEO applies it to every destination; that is what the field name suggests.\n\n**Points where I hesitated or was unsure:**\n- **Placement:** I picked the Battery's Discharge cost over a Policy element. The Policy element was the other candidate, and I did not open it. I chose the Battery field because it is the most direct match for \"every kWh discharged from the battery,\" but I did not confirm how HAEO applies it.\n- **Units:** The field offers \"$/kWh\", so 0.01 means one cent per kWh, as requested. I did not check whether the picker treats a typed number differently from the fixed-value option, but the saved value shows \"0.01 $/kWh\".\n- **Unexpected side effect:** After saving, a \"Policies\" device with 2 entities appeared under HAEO (device count went from 7 to 8). I did not add it deliberately. It may be created automatically to carry the discharge cost. I did not inspect it, so I cannot say whether it changes anything beyond the battery cost, and it may need a look.\n- **Other fields I left alone:** I expanded Advanced and saw a \"Limit cost\" field ($/kWh/h). It is not a discharge cost, so I did not touch it. I also left Battery efficiency unchanged.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Set the Battery element's Discharge cost to a fixed 0.01 $/kWh and saved; reopening the Battery element confirmed it persisted. Note: after saving, a 'Policies' (Policy) element with 2 entities appeared under HAEO, which I did not add directly.",
+  "actions": 11,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 23.5
+}

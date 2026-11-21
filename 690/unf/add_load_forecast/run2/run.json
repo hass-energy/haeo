@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1305596,
+  "turns": 10,
+  "report": "I added the household load to HAEO. A Load element now appears under Home, with 12 entities. It's named \"Load\" (the default name, which I didn't change) and connected to the Switchboard. I didn't open it again afterwards to check its settings.\n\nIn its Forecast field I picked two sensors:\n- Sigen Plant Consumed Power Forecast\n- Sigen Plant Consumed Power, the current reading\n\nThe field accepted both. The preview then showed \"now 0.501 kW, then 0 kW to 1.66 kW over the next 168 hours\".\n\nWhere I hesitated or was unsure:\n- **Current sensor:** There was no separate field for the current consumed power sensor. I assumed the Forecast field was meant to hold both sensors, and I added the current one there. The preview's \"now\" value changed from 0.4 kW to 0.501 kW when I added it, which suggests it took effect.\n- **Connection:** I left Switchboard selected, as it was by default. I didn't check whether it was the right place for the household load, though it seems sensible for whole-home consumption.\n- **Shedding:** I didn't open the Shedding section and left it at its defaults.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Load' connected to Switchboard, using both Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (current) as forecast sources. It now appears under Home with 12 entities.",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.7
+}

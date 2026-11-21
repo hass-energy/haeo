@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 5,
+  "success": true,
+  "cost_usd": 0.13983869999999998,
+  "turns": 11,
+  "report": "I added a load named \"Load\" to HAEO and connected it to the Switchboard. After I submitted it, the Load device showed up under the Home hub with 12 entities.\n\nIn the single Forecast field I picked both Sigen sensors:\n- **Sigen Plant Consumed Power Forecast:** the consumed power forecast.\n- **Sigen Plant Consumed Power:** the current consumed power sensor, which read 0.501 kW.\n\nThe field accepts several sensors, and its preview showed the combined result as \"now 0.501 kW, then 0 kW to 1.66 kW over the next 168 hours.\" I didn't open the new load afterwards to check the saved settings.\n\nPoints where I hesitated or was unsure:\n- **Connection:** I kept the default Switchboard connection without checking it, because a household load normally hangs off the AC side. I didn't choose Inverter.\n- **Name:** I kept the default name \"Load\" rather than something like \"Household\".\n- **One field for both sensors:** There was no separate field for the current sensor, so I assumed putting both in Forecast was the intended way. The preview updating with both is my only evidence.\n- **Shedding:** I left the Shedding section collapsed and unchanged.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Load' connected to Switchboard, with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. The Load device now appears with 12 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.3
+}

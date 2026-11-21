@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 6,
+  "success": true,
+  "cost_usd": 0.1046606,
+  "turns": 10,
+  "report": "I added a Load named \"Household\" to the Home hub. It connects to the Switchboard and uses two Sigenergy sensors:\n- `sensor.sigen_plant_consumed_power_forecast`, the consumed power forecast.\n- `sensor.sigen_plant_consumed_power`, the current consumed power.\n\nHAEO showed \"Created configuration for Household\", and the load now appears under the hub with 12 entities. I didn't check any of those entities' values.\n\nPoints where I hesitated or guessed:\n- **Connection:** The form had Switchboard selected by default. I kept it because household consumption is a normal AC load, but I didn't check that against your wiring.\n- **Name:** I changed the default \"Load\" to \"Household\". You didn't give a name, so this was my choice.\n- **Single field:** The form had only one \"Forecast\" field, so I put the current sensor in it next to the forecast sensor. I assumed that's how HAEO wants both used. The form's preview showed a combined result starting at 0.501 kW now, which suggests it worked.\n- **Shedding:** I left the optional \"Shedding\" section collapsed and didn't look at it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named Household, connected to the Switchboard. Its forecast field has both sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power. The Household load now appears under the Home hub with 12 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.9
+}

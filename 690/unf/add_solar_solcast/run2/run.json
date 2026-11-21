@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1149344,
+  "turns": 12,
+  "report": "I added a Solar element named \"Solar\" to the Home hub. The integration page now lists it as a device with 4 entities. I didn't open the new element again to check its saved settings.\n\n- **Connection:** Inverter, which was already selected by default.\n- **Forecast:** the three Solcast sensors, `sensor.solcast_pv_forecast_forecast_today`, `\u2026_tomorrow` and `\u2026_day_3`. The form's combined preview showed 0 kW now, rising to 23.2 kW over the next 72 hours.\n- **Curtailment:** I left this section collapsed and unchanged.\n\nPoints where I hesitated or made a mistake:\n- After picking the Today sensor, the dropdown didn't reopen when I clicked the field again. I typed \"solcast\" to search and used \"Add all 2\" to add the other two.\n- I didn't set Curtailment because the task didn't mention it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element, connected to Inverter, forecast = Solcast Today, Tomorrow, Day 3 sensors. Solar device now listed with 4 entities.",
+  "actions": 8,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.8
+}

@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 6,
+  "success": true,
+  "cost_usd": 0.0068388400000000005,
+  "turns": 10,
+  "report": "I added the household load as \"Household\" under the Switchboard connection, with both consumed-power sensors as its forecast input. HAEO confirmed \"Created configuration for Household\", and the hub now lists a Household device with 12 entities.\n\nWhere I hesitated or was unsure:\n\n- **Name:** The default was \"Load\", which would be ambiguous next to the other elements. I renamed it to \"Household\". Rename it if you prefer something else.\n- **Connection:** I kept the default, Switchboard (AC). I assumed the household draws from the AC side, which matches the usual setup, but I did not check your wiring.\n- **Current sensor:** The Forecast field only offers one input type, so I added the current sensor \"Sigen Plant Consumed Power\" alongside the forecast sensor \"Sigen Plant Consumed Power Forecast\" rather than in a separate field. The combined preview then showed \"now 0.501 kW, then 0 kW to 1.66 kW over 168 hours\", which suggests the current value is used for the present interval. I did not verify how HAEO uses it internally.\n- **Shedding:** I left that section collapsed at its defaults, since you didn't ask for it.\n- **Verification:** I confirmed the load was created but did not open its entities to check their values.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.3
+}

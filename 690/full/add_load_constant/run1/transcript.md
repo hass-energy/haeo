@@ -1,0 +1,140 @@
+# Transcript
+
+```
+$ ./browse look
+```
+
+```
+Page: /config/integrations/integration/haeo
+- generic [ref=f2e4]:
+  - complementary [ref=f2e5]:
+    - generic [ref=f2e7]:
+      - generic [ref=f2e8]:
+        - generic "Sidebar toggle" [ref=f2e10]:
+          - button "Sidebar toggle" [ref=f2e11] [cursor=pointer]
+        - generic [ref=f2e14]: Home Assistant
+      - generic [ref=f2e15]:
+        - generic [ref=f2e17]:
+          - generic:
+            - listitem [ref=f2e19] [cursor=pointer]:
+... (350 more lines in actions.jsonl)
+```
+
+```
+$ ./browse click f2e108
+```
+
+```
+Clicked f2e108.
+
+Page: /config/integrations/integration/haeo
+- alertdialog "Load configuration" [ref=f2e461]:
+  - generic [ref=f2e462]:
+    - banner [ref=f2e464]:
+      - generic [ref=f2e465]:
+        - generic "Close" [ref=f2e468]:
+          - button "Close" [ref=f2e469] [cursor=pointer]
+        - generic "Load configuration" [ref=f2e474]
+    - generic [ref=f2e477]:
+      - generic [ref=f2e478]:
+... (47 more lines in actions.jsonl)
+```
+
+Name defaults to "Load"; switchboard AC is sensible for a pool pump.
+
+```
+$ ./browse type f2e490 "Pool pump"; ./browse type f2e534 "0.8"
+```
+
+```
+Typed into f2e490.
+
+Page: /config/integrations/integration/haeo
+- alertdialog "Load configuration" [ref=f2e461]:
+  - generic [ref=f2e462]:
+    - banner [ref=f2e464]:
+      - generic [ref=f2e465]:
+        - generic "Close" [ref=f2e468]:
+          - button "Close" [ref=f2e469] [cursor=pointer]
+        - generic "Load configuration" [ref=f2e474]
+    - generic [ref=f2e477]:
+      - generic [ref=f2e478]:
+... (113 more lines in actions.jsonl)
+```
+
+```
+$ ./browse click f2e548
+```
+
+```
+Clicked f2e548.
+
+Page: /config/integrations/integration/haeo
+- alertdialog "Load configuration" [ref=f2e461]:
+  - generic [ref=f2e462]:
+    - banner [ref=f2e464]:
+      - generic [ref=f2e465]:
+        - generic "Close" [ref=f2e468]:
+          - button "Close" [ref=f2e469] [cursor=pointer]
+        - generic "Load configuration" [ref=f2e474]
+    - generic [ref=f2e477]:
+      - generic [ref=f2e478]:
+... (55 more lines in actions.jsonl)
+```
+
+```
+$ ./browse click f2e543
+```
+
+```
+Clicked f2e543.
+
+Page: /config/integrations/integration/haeo
+- alertdialog "Success" [ref=f2e563]:
+  - generic [ref=f2e462]:
+    - banner [ref=f2e464]:
+      - generic [ref=f2e465]:
+        - generic "Close" [ref=f2e468]:
+          - button "Close" [ref=f2e469] [cursor=pointer]
+        - generic "Success" [ref=f2e564]
+    - generic [ref=f2e565]:
+      - paragraph [ref=f2e567]: Created configuration for Pool pump.
+... (1 more lines in actions.jsonl)
+```
+
+```
+$ ./browse click f2e570
+```
+
+```
+$ ./browse done "Added a Load element named Pool pump, connected to the Switchboard (AC), with a fixed forecast value of 0.8 kW."
+```
+
+```
+Clicked f2e570.
+
+Page: /config/integrations/integration/haeo
+- generic [ref=f2e4]:
+  - complementary [ref=f2e5]:
+    - generic [ref=f2e7]:
+      - generic [ref=f2e8]:
+        - generic "Sidebar toggle" [ref=f2e10]:
+          - button "Sidebar toggle" [ref=f2e11] [cursor=pointer]
+        - generic [ref=f2e14]: Home Assistant
+      - generic [ref=f2e15]:
+        - generic [ref=f2e17]:
+... (390 more lines in actions.jsonl)
+```
+
+```
+Recorded. You can stop now.
+```
+
+I added "Pool pump" to HAEO as its own Load. It is connected to the Switchboard (AC) and has a fixed forecast of 0.8 kW. After I submitted, HAEO said it had created the configuration. "Pool pump" now appears in the Home hub's list as a Load with 12 entities.
+
+I left the other Load settings alone, including Shedding, which I never opened.
+
+Points where I hesitated:
+- **Connection:** the form already had Switchboard (AC) selected. I kept it because the pump is a normal household load, not something wired to the inverter's DC side. I didn't check how your pump is actually wired.
+- **Constant power:** the Forecast field takes a sensor or a typed value. I typed "0.8" and picked the "Fixed value 0.8 kW" option. I assumed that is how a constant 0.8 kW load is meant to be entered.
+

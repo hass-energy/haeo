@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.09153869,
+  "turns": 27,
+  "report": "The battery now costs $0.01 per kWh discharged, with no destination limit.\n\n- **Where it's set:** Battery element \u2192 Pricing \u2192 Discharge cost = fixed value 0.01 $/kWh.\n- **What HAEO did with it:** It created a policy named \"Battery discharge cost\" that is enabled, with Source = the Battery element, Target = Any, and Price = 0.01 $/kWh. That matches \"wherever that energy goes.\"\n- **Check:** Removing the battery's Discharge cost also deleted the policy, and re-adding it recreated it. So the two are one setting, and there is only one 0.01 charge in play.\n\nI did not run the optimizer, so I could not see the resulting plan.\n\nPoints where I hesitated, was unsure, or made a mistake:\n\n1. **Unexpected policy:** I expected to set one field. Submitting the battery's Discharge cost also created a separate Policies element, which I had not asked for. I inspected it before deciding anything.\n2. **Possible double count:** The battery field and the policy both showed 0.01. Two active 0.01 charges would have made the cost 0.02/kWh. I removed the battery value to test whether the policy was a separate entry; that deleted the policy too, so they are one setting. I then restored the battery value to 0.01 and re-checked that exactly one policy exists at 0.01.\n3. **Test churn:** The removal and re-add were extra saves on the live config. The end state is correct, but the history shows several edits.\n4. **Units:** The field's unit is $/kWh, and the 0.01 value shows as \"$/kWh.\" I did not confirm the cost is applied per kWh discharged, as opposed to per kWh of stored energy.\n5. **Other battery costs left alone:** The battery also has a \"Limit cost\" field ($/kWh/h), a Charge cost, and a Salvage value. I didn't change any of them, since the request was only about discharge.\n6. **Dialog friction:** Pressing Escape did not close the HAEO dialog, and one click timed out because of stale element references. I recovered by clicking the Close button and re-reading the page. No changes resulted from these failures.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 35,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 3,
+  "errors_shown": 0,
+  "seconds": 79.5
+}

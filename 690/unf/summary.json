@@ -1,0 +1,37 @@
+{
+  "runs": 18,
+  "passed": 18,
+  "success_rate": 1.0,
+  "actions": 7.0,
+  "cost_usd": 2.0,
+  "tasks": {
+    "add_load_forecast": {
+      "runs": 6,
+      "passed": 6,
+      "actions": 7.0,
+      "actions_when_passed": 7.0,
+      "errors_shown": 0.0,
+      "seconds": 19.0,
+      "cost_usd": 0.77
+    },
+    "add_solar_forecast_solar": {
+      "runs": 6,
+      "passed": 6,
+      "actions": 6.0,
+      "actions_when_passed": 6.0,
+      "errors_shown": 0.0,
+      "seconds": 18.4,
+      "cost_usd": 0.62
+    },
+    "add_solar_solcast": {
+      "runs": 6,
+      "passed": 6,
+      "actions": 8.0,
+      "actions_when_passed": 8.0,
+      "errors_shown": 0.0,
+      "seconds": 18.5,
+      "cost_usd": 0.61
+    }
+  },
+  "model": "sonnet"
+}

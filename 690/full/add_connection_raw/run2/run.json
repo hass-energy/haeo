@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.09302500000000001,
+  "turns": 9,
+  "report": "I added a connection called \"Inverter to Switchboard\" to the Home hub. It goes from the Inverter to the Switchboard, with Max power set to a fixed 10 kW. HAEO showed \"Created configuration for Inverter to Switchboard\", and the connection now appears in the Home hub's device list with 2 entities.\n\nI didn't reopen the connection after saving to check the stored limit. The 10 kW chip was showing in the Max power field when I submitted.\n\nPoints where I hesitated or slipped:\n- **Endpoints:** The form already showed Inverter as source and Switchboard as target, so I left them as they were. I assumed those were real selections and not just placeholders. The form had no other direction options to compare against.\n- **Name:** The name field was prefilled with \"Connection\". I replaced it with \"Inverter to Switchboard\", which was my own choice of name.\n- **Max power:** Typing \"10\" didn't set the value by itself. I had to click the \"Fixed value 10 kW\" option before it became a chip. I only noticed this from the page after the click.\n- **Other fields:** I left Price and the collapsed \"Connection efficiency\" section untouched, since you only asked for the limit.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with a fixed Max power of 10 kW. It now appears under Home.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.1
+}
