@@ -1,0 +1,21 @@
+{
+  "expect": {
+    "data": {
+      "kind": "reserve",
+      "participants": {
+        "generation": { "$set": ["Solar"] },
+        "loads": { "$set": ["Load"] },
+        "storage": { "$set": ["Battery"] }
+      },
+      "requirement": {
+        "window": { "type": "constant", "value": 12.0 }
+      }
+    },
+    "element_type": "buffer",
+    "kind": "add"
+  },
+  "goal": "You want HAEO to keep enough energy in your battery to run the house through a power cut of up to 12 hours. Your solar keeps producing during a power cut, so it can help. Set this up in HAEO.",
+  "id": "add_buffer_reserve",
+  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar", "Load"],
+  "scenario": "scenario6"
+}

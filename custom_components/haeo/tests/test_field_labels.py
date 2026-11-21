@@ -11,6 +11,8 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.connection import CONF_MAX_POWER, CONF_SEGMENT_TYPE, CONF_SEGMENTS
+from custom_components.haeo.core.schema.elements.connection import CONF_PRICE as CONF_SEGMENT_PRICE
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_ENERGY_PER_DISTANCE,
     CONF_TRIP_DUE,
@@ -24,7 +26,7 @@ from custom_components.haeo.field_labels import input_field_label
 
 @pytest.fixture
 def entry(hass: HomeAssistant) -> MockConfigEntry:
-    """Return a hub entry with an EV and a policy holding two rules."""
+    """Return a hub entry with an EV, a policy holding two rules, and a connection with two segments."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="hub")
     entry.add_to_hass(hass)
     for element_type, name, data in (
@@ -36,6 +38,16 @@ def entry(hass: HomeAssistant) -> MockConfigEntry:
                 CONF_RULES: [
                     {CONF_RULE_NAME: "Solar export", CONF_ENABLED: True, CONF_PRICE: as_constant_value(0.02)},
                     {CONF_RULE_NAME: "Battery export", CONF_ENABLED: True, CONF_PRICE: as_constant_value(0.05)},
+                ]
+            },
+        ),
+        (
+            ElementType.CONNECTION,
+            "Link",
+            {
+                CONF_SEGMENTS: [
+                    {CONF_SEGMENT_TYPE: "pricing", CONF_SEGMENT_PRICE: as_constant_value(0.1)},
+                    {CONF_SEGMENT_TYPE: "power_limit", CONF_MAX_POWER: as_constant_value(5.0)},
                 ]
             },
         ),
@@ -58,7 +70,8 @@ def entry(hass: HomeAssistant) -> MockConfigEntry:
     [
         pytest.param("Atto 2", (SECTION_VEHICLE, CONF_ENERGY_PER_DISTANCE), "Energy per distance", id="section_field"),
         pytest.param("Atto 2", (SECTION_TRIP, CONF_TRIP_DUE), "Trip calendar", id="field_fed_by_another"),
-        pytest.param("Policies", (CONF_RULES, "1", CONF_PRICE), "Price (Battery export)", id="list_item_field"),
+        pytest.param("Policies", (CONF_RULES, "1", CONF_PRICE), "Battery export price", id="named_list_item_field"),
+        pytest.param("Link", (CONF_SEGMENTS, "1", CONF_MAX_POWER), "Segment 2 max power", id="list_item_field"),
     ],
 )
 def test_input_field_label_names_the_form_field(

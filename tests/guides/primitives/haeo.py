@@ -141,6 +141,12 @@ def _subentry(element_type: str) -> JsonObjectType:
     return _json_dict(subentries[element_type])
 
 
+def _selector_options(selector: str) -> JsonObjectType:
+    """Get the labels of one of HAEO's selector elements."""
+    selectors = _json_dict(_load_translations()["selector"])
+    return _json_dict(_json_dict(selectors[selector])["options"])
+
+
 def _step_user(element_type: str) -> JsonObjectType:
     """Get the step user translations for an element type."""
     step = _json_dict(_subentry(element_type)["step"])
@@ -688,13 +694,10 @@ def add_policies(
 ) -> None:
     """Add a policy rule via the Policies subentry flow.
 
-    Works for both the first rule (creates subentry) and subsequent
-    rules (appends to existing subentry).
-
-    Source and target use a ChooseSelector with Any/Nodes choices.
-    When nodes are specified, the nested dropdown multi-select is used.
-    Pass a string for a single node, a list for multiple nodes, or None for "Any".
-    Price is an input field set to a fixed number.
+    Adding a policy opens the rules editor with every stored rule and a new one
+    at the end, which this fills in: its name, the elements on each end (any
+    element when None), and a fixed price. Pass a string for one element or a
+    list for several.
     """
     et = "policy"
     _LOGGER.info("Adding policy rule: %s", name)
@@ -702,19 +705,13 @@ def add_policies(
     page.click_button(_button_label(et), first=True)
     page.wait_for_dialog(_dialog_title(et))
 
-    step_data = _json_dict(_step_user(et)["data"])
-    page.fill_textbox(_json_str(step_data["name"]), name)
-
-    if source is not None:
-        nodes = [source] if isinstance(source, str) else source
-        page.choose_select_option(_json_str(step_data["source"]), "Elements")
-        page.choose_dropdown_multi(_json_str(step_data["source"]), nodes)
-    if target is not None:
-        nodes = [target] if isinstance(target, str) else target
-        page.choose_select_option(_json_str(step_data["target"]), "Elements")
-        page.choose_dropdown_multi(_json_str(step_data["target"]), nodes)
-    if price is not None:
-        page.input_constant(_json_str(step_data["price"]), str(price))
+    page.fill_new_policy_rule(
+        name=name,
+        sources=[] if source is None else [source] if isinstance(source, str) else source,
+        targets=[] if target is None else [target] if isinstance(target, str) else target,
+        price=None if price is None else str(price),
+        labels={key: _json_str(label) for key, label in _selector_options("policy_rules").items()},
+    )
 
     with page.expect_config_reload():
         page.submit()

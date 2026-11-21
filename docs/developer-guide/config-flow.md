@@ -199,6 +199,13 @@ The selector validates the endpoints and each segment's value, and the flow save
 
 The segments are a list field: `ListFieldHints` on the schema names `segment_type` as the list's `kind_key`, and `kind_fields` gives each kind's one field, so each segment gets an input entity for its own field only.
 
+### Policy rules selector
+
+The policy element's rules are one field, a `PolicyRulesSelector` (selector type `haeo_policy_rules`) in [`flows/policy_rules_selector.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/policy_rules_selector.py), rendered by `ha-selector-haeo_policy_rules`.
+Adding a policy and reconfiguring the policies open the same form listing every rule as a card, adding with a new rule at the end.
+Its config lists the elements each end can name (by whether they source or sink power), the price input's config, and the patterns elements' own price fields stand for, so a card for such a rule shows the element that owns it.
+The selector validates endpoints and prices, and the flow checks names and duplicate patterns across rules.
+
 ### UI sections
 
 Config flows group related fields using `data_entry_flow.section` so advanced settings can be collapsed by default.

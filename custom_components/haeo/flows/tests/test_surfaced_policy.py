@@ -50,15 +50,7 @@ from custom_components.haeo.core.schema.elements.load import (
 )
 from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.load import SURFACED_PRICE_HINTS as LOAD_SURFACED_PRICE_HINTS
-from custom_components.haeo.core.schema.elements.policy import (
-    CONF_ENABLED,
-    CONF_PRICE,
-    CONF_RULE_NAME,
-    CONF_RULES,
-    CONF_SOURCE,
-    CONF_TARGET,
-    PolicyRuleConfig,
-)
+from custom_components.haeo.core.schema.elements.policy import CONF_RULES, PolicyRuleConfig
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.entity_value import EntityValue
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
@@ -840,61 +832,6 @@ async def test_load_flow_excludes_surfaced_fields_from_config(
 
 
 # --- Policy flow duplicate prevention tests ---
-
-
-async def test_policy_flow_blocks_duplicate_rule(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Policy flow prevents creating rules with the same source/target as an existing rule."""
-    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, "MyBattery", str(BATTERY_ELEMENT_TYPE))
-
-    # Add an existing rule with * → MyBattery
-    _add_policy_subentry(
-        hass,
-        hub_entry,
-        [{"name": "existing", "target": ["MyBattery"], "price": as_constant_value(0.1)}],
-    )
-
-    flow = create_flow(hass, hub_entry, POLICY_ELEMENT_TYPE)
-
-    # Try to create a rule with the same pattern
-    result = await flow.async_step_user(
-        user_input={
-            CONF_RULE_NAME: "duplicate",
-            CONF_ENABLED: True,
-            CONF_SOURCE: "",
-            CONF_TARGET: ["MyBattery"],
-            CONF_PRICE: as_constant_value(0.2),
-        }
-    )
-    assert result.get("type") == FlowResultType.FORM
-    errors = result.get("errors", {})
-    assert errors.get("base") == "duplicate_rule"
-
-
-async def test_policy_flow_allows_unique_pattern(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Policy flow allows rules with a unique source/target pattern."""
-    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, "MyBattery", str(BATTERY_ELEMENT_TYPE))
-
-    flow = create_flow(hass, hub_entry, POLICY_ELEMENT_TYPE)
-    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Policies", "data": {}})
-
-    result = await flow.async_step_user(
-        user_input={
-            CONF_RULE_NAME: "normal rule",
-            CONF_ENABLED: True,
-            CONF_SOURCE: ["main_bus"],
-            CONF_TARGET: ["MyBattery"],
-            CONF_PRICE: as_constant_value(0.1),
-        }
-    )
-    assert result.get("type") == FlowResultType.CREATE_ENTRY
 
 
 def test_build_surfaced_schema_entries_includes_compatible_price_entities(

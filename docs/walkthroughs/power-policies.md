@@ -25,8 +25,10 @@ run_guide("sigenergy-system")
 
 ## Adding policies
 
-Each policy controls one direction of power flow between elements.
-Click **Policies** to add each rule — subsequent rules are appended to the same subentry.
+Each rule prices one direction of power flow, from its **From** elements to its **To** elements.
+Click **Policy** to add a rule: the form lists every rule as a card, with a new one at the end.
+Name the new rule, add elements to each end with its **+**, and set its price.
+An end with no elements reads **Any** and applies to every element.
 
 ### Step 1: Solar export pricing
 
@@ -103,6 +105,8 @@ add_policies(
 
 Validate that all policies were saved correctly, then open the reconfigure view to see them.
 The first two rules were created automatically: the battery added charge and discharge cost rules.
+Their cards are marked with the battery, as they are the prices on the battery's own form.
+Each card has a switch to turn its rule off and a **×** to remove it.
 The load leaves its consumption cost unset by default, so no consumption cost rule is created.
 
 ```guide

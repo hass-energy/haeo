@@ -61,7 +61,6 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.elements.field_hints import build_list_input_fields
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, get_element_flow_classes
-from custom_components.haeo.flows.elements.policy import ACTION_EDIT, CONF_ACTION, CONF_RULE
 from custom_components.haeo.flows.hub import HubConfigFlow
 from custom_components.haeo.translations.tests.flow_messages import flow_messages
 from custom_components.haeo.translations.tests.runtime_checks import TranslationPath, form_labels, translation
@@ -352,11 +351,6 @@ async def _reconfigure_form(hass: HomeAssistant, hub_entry: MockConfigEntry, pre
     return await flow.async_step_reconfigure(None)
 
 
-async def _edit_rule_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath) -> FlowResult:
-    flow = await _reconfigure_flow(hass, hub_entry, prefix)
-    return await flow.async_step_reconfigure({CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
-
-
 type FormRenderer = Callable[[HomeAssistant, MockConfigEntry, TranslationPath], Awaitable[FlowResult]]
 
 # How to reach each step, by step id
@@ -365,7 +359,6 @@ STEP_RENDERERS: dict[str, FormRenderer] = {
     "user": _first_form,
     "states": _states_form,
     "reconfigure": _reconfigure_form,
-    "edit_rule": _edit_rule_form,
 }
 
 

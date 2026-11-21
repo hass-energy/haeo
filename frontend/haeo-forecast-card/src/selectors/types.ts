@@ -101,3 +101,28 @@ export interface ConnectionPath {
   target: string;
   segments: PathSegment[];
 }
+
+/** A rule pattern an element's own price field stands for: the element on one side, any on the other. */
+export interface SurfacedRule {
+  owner: string;
+  owner_type: string;
+  source: string[] | null;
+  target: string[] | null;
+}
+
+/** The `haeo_policy_rules` selector config the integration sends. */
+export interface PolicyRulesConfig {
+  sources: ConnectedElement[];
+  targets: ConnectedElement[];
+  price: InputSelectorConfig;
+  surfaced: SurfacedRule[];
+}
+
+/** One policy rule; an end naming no elements means any element. */
+export interface PolicyRule {
+  name: string;
+  enabled: boolean;
+  source: string[];
+  target: string[];
+  price: InputValue;
+}

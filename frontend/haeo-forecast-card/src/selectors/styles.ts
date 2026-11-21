@@ -157,4 +157,36 @@ export const SELECTOR_STYLES = `
 .visually-hidden {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
+
+.rule {
+  display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 10px; margin-bottom: 8px; border-radius: 12px;
+  border: 1px solid var(--divider-color); background: var(--card-background-color);
+}
+.rule-head { display: flex; align-items: center; gap: 8px; }
+.rule-name {
+  flex: 1; min-width: 0; height: 32px; padding: 0 8px; border: none; border-radius: 4px; font: inherit; font-weight: 500;
+  background: none; color: var(--primary-text-color);
+}
+.rule-name:hover, .rule-name:focus { background: var(--input-fill-color, var(--secondary-background-color)); outline: none; }
+.rule-switch {
+  position: relative; flex: none; width: 36px; height: 20px; padding: 0; border: none; border-radius: 10px; cursor: pointer;
+  background: var(--divider-color);
+}
+.rule-switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--card-background-color); transition: left 0.15s;
+}
+.rule-switch.on { background: var(--primary-color); }
+.rule-switch.on::after { left: 18px; }
+.rule-owner { gap: 4px; }
+.rule-ends { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rule-end { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.rule-end-label { font-size: 0.75rem; color: var(--secondary-text-color); margin-right: 2px; }
+.rule-any { font-style: italic; }
+.rule-arrow .icon { color: var(--secondary-text-color); }
+.rule-add-end {
+  width: 36px; height: 28px; padding: 0 6px; appearance: none; text-align: center; border-radius: 14px; border: 1px dashed var(--divider-color); background: none;
+  font: inherit; color: var(--secondary-text-color); cursor: pointer;
+}
+.rule-add { align-self: flex-start; }
 `;

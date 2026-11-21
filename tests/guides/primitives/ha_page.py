@@ -784,6 +784,47 @@ class HAPage:
             if ctx:
                 self._capture("filled")
 
+    def fill_new_policy_rule(
+        self,
+        *,
+        name: str,
+        sources: list[str],
+        targets: list[str],
+        price: str | None,
+        labels: dict[str, str],
+    ) -> None:
+        """Fill in the last rule of the policy rules editor, the one adding a policy opens.
+
+        ``labels`` holds the editor's accessible labels by translation key, with
+        ``{end}`` left in ``add_endpoint`` for the end's own label.
+        """
+        card = self.page.locator("ha-selector-haeo_policy_rules .rule").last
+        card.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        ctx = ScreenshotContext.current()
+        with ctx.scope(f"rule_{name}") if ctx else nullcontext():
+            self._scroll_into_view(card)
+            textbox = card.get_by_role("textbox", name=labels["rule_name"])
+            if ctx:
+                self._capture_with_indicator("name", textbox)
+            textbox.fill(name)
+            for end, names in ((labels["from"], sources), (labels["to"], targets)):
+                add = card.get_by_role("combobox", name=labels["add_endpoint"].replace("{end}", end))
+                for element in names:
+                    if ctx:
+                        self._capture_with_indicator(f"add_{end}_{element}", add)
+                    add.select_option(value=element, timeout=DEFAULT_TIMEOUT)
+            if price is not None:
+                search = card.get_by_role("combobox", name=re.compile(rf"{re.escape(labels['price'])}: "))
+                if ctx:
+                    self._capture_with_indicator("price", search)
+                search.fill(price)
+                card.get_by_role("listbox").get_by_role("option").first.wait_for(
+                    state="visible", timeout=DEFAULT_TIMEOUT
+                )
+                search.press("Enter")
+            if ctx:
+                self._capture("filled")
+
     def select_connection(self, field_label: str, target: str) -> None:
         """Choose the bus a HAEO connection field connects to."""
         field = self.page.locator("ha-selector-haeo_connection").filter(has_text=field_label)

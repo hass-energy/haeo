@@ -488,41 +488,24 @@
       "initiate_flow": { "user": "Policy", "reconfigure": "Policies" },
       "step": {
         "user": {
-          "title": "Add policy",
-          "description": "Create a policy rule to control how power flows between elements",
-          "data": {
-            "enabled": "Enabled",
-            "name": "Policy name",
-            "price": "Price",
-            "source": "Source",
-            "target": "Target"
-          }
+          "title": "Policies",
+          "description": "Each rule charges a price on power flowing from its source elements to its target elements. A rule with no elements on a side applies to every element there.",
+          "data": { "rules": "Rules" }
         },
         "reconfigure": {
           "title": "Policies",
-          "description": "Select a policy to edit or delete",
-          "data": { "action": "Action", "rule": "Policy" }
-        },
-        "edit_rule": {
-          "title": "Edit policy",
-          "description": "Modify this policy rule",
-          "data": {
-            "enabled": "Enabled",
-            "name": "Policy name",
-            "price": "Price",
-            "source": "Source",
-            "target": "Target"
-          }
+          "description": "Each rule charges a price on power flowing from its source elements to its target elements. A rule with no elements on a side applies to every element there.",
+          "data": { "rules": "Rules" }
         }
       },
       "error": {
-        "duplicate_rule": "A rule with this source and target already exists",
-        "missing_name": "Policy name is required",
-        "name_exists": "A policy with this name already exists",
-        "required": "Choose an entity or enter a value for the price",
-        "source_target_same": "Source and target cannot be the same element"
+        "duplicate_rule": "Two rules have the same source and target",
+        "missing_name": "Every rule needs a name",
+        "name_exists": "Two rules have the same name",
+        "required": "Choose an entity or enter a value for every rule's price",
+        "source_target_same": "A rule's source and target cannot be the same elements"
       },
-      "abort": { "no_rules": "No policy rules configured", "reconfigure_successful": "Policies updated successfully" }
+      "abort": { "reconfigure_successful": "Policies updated successfully" }
     },
     "solar": {
       "flow_title": "Solar",
@@ -554,12 +537,7 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
-  "common": {
-    "default_hub_name": "Home",
-    "list_item_field": "{field} ({item})",
-    "network_subentry_name": "System",
-    "switchboard_node_name": "Switchboard"
-  },
+  "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
     "battery_section": { "name": "{name}" },
@@ -866,7 +844,19 @@
         "search": "{label}: search entities or enter a value"
       }
     },
-    "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
+    "policy_rules": {
+      "options": {
+        "add_endpoint": "Add an element to {end}",
+        "add_rule": "Add rule",
+        "any": "Any",
+        "enabled": "{rule} on",
+        "from": "From",
+        "price": "Price",
+        "remove_rule": "Remove {rule}",
+        "rule_name": "Rule name",
+        "to": "To"
+      }
+    }
   },
   "services": {
     "optimize": {

@@ -1,31 +1,14 @@
 """Policy element configuration flows.
 
-A single Policies subentry stores multiple policy rules.
-
-Flow design:
-- async_step_user: Adds a new rule. If a Policies subentry already exists,
-  appends to it; otherwise creates one.
-- async_step_reconfigure: Shows existing rules for edit or delete.
-- async_step_edit_rule: Edits a selected rule.
+A single Policies subentry stores every policy rule. Adding a policy and
+reconfiguring the policies open the same form, which lists every rule; adding
+opens it with a new rule at the end.
 """
 
-from collections.abc import Mapping
-from typing import Any  # noqa: TID251  # HA flow signatures upstream; ChooseSelector.__call__ is Any-typed upstream
+from collections.abc import Mapping, Sequence
+from typing import Any  # noqa: TID251  # HA flow signatures upstream
 
 from homeassistant.config_entries import ConfigSubentry, SubentryFlowResult
-from homeassistant.helpers.selector import (
-    BooleanSelector,
-    BooleanSelectorConfig,
-    ChooseSelector,
-    ChooseSelectorChoiceConfig,
-    ChooseSelectorConfig,
-    ConstantSelector,
-    ConstantSelectorConfig,
-    SelectOptionDict,
-    SelectSelector,
-    SelectSelectorConfig,
-    SelectSelectorMode,
-)
 import voluptuous as vol
 
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, ConfiguredRolesAdapter, is_element_type
@@ -35,7 +18,6 @@ from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_ENABLED,
     CONF_PRICE,
-    CONF_RULE_NAME,
     CONF_RULES,
     CONF_SOURCE,
     CONF_TARGET,
@@ -44,52 +26,16 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.core.schema.none_value import as_none_value
+from custom_components.haeo.core.schema.surfaced_policy import get_surfaced_price_hints, resolve_surfaced_endpoints
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_list_input_fields
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, localize_input_field
+from custom_components.haeo.flows.connection_selector import ConnectedElement
 from custom_components.haeo.flows.element_flow import ElementSubentryFlow, build_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import build_input_selector, has_input_value, selector_context
-from custom_components.haeo.flows.input_selector import InputSelector
+from custom_components.haeo.flows.policy_rules_selector import PolicyRulesSelector, PolicyRuleValue, SurfacedRule
 from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE, find_policy_subentry
-
-CONF_ACTION: str = "action"
-CONF_RULE: str = "rule"
-ACTION_EDIT: str = "edit"
-ACTION_DELETE: str = "delete"
-
-# Endpoint choices: any element, or the listed elements
-CHOICE_NONE: str = "none"
-CHOICE_ELEMENTS: str = "elements"
-
-
-class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]  # registering a selector erases its config type parameter
-    """ChooseSelector for policy endpoints that normalizes to list[str] or empty.
-
-    - "none" choice (any element): normalizes to empty string
-    - "elements" choice (specific elements): normalizes to list[str]
-    """
-
-    def __call__(self, data: Any) -> Any:  # matches upstream Selector.__call__(self, data: Any) -> Any signature
-        """Normalize endpoint data before validation."""
-        if isinstance(data, dict) and "active_choice" in data:
-            choice = data.get("active_choice")
-            if choice == CHOICE_NONE:
-                return ""
-            if choice == CHOICE_ELEMENTS:
-                elements = data.get(CHOICE_ELEMENTS, [])
-                if not elements:
-                    msg = "At least one element must be selected"
-                    raise vol.Invalid(msg)
-                return elements
-        return super().__call__(data)  # type: ignore[misc]  # the erased base hides Selector.__call__
-
-
-def _as_str_list(value: object) -> list[str] | None:
-    """Narrow a stored dict value to a non-empty list of strings, if valid."""
-    if isinstance(value, list) and value and all(isinstance(item, str) for item in value):
-        return value
-    return None
 
 
 def _rule_enabled(rule: PolicyRuleConfig) -> bool:
@@ -117,32 +63,31 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
 
     element_type = ELEMENT_TYPE
 
-    def __init__(self) -> None:
-        """Initialize the policy flow handler."""
-        super().__init__()
-        self._rules: list[PolicyRuleConfig] = []
-        self._editing_index: int | None = None
+    def _endpoint_options(self, *, can_source: bool = False, can_sink: bool = False) -> list[ConnectedElement]:
+        """Return the elements a rule's end can name: those that can source power, or sink it.
 
-    def _get_participant_options(
-        self,
-        *,
-        can_source: bool = False,
-        can_sink: bool = False,
-    ) -> list[str]:
-        """Return element names available as policy endpoints.
-
-        An element is offered when it can source power (for source endpoints)
-        or sink it (for target endpoints), as its adapter declares or, for an
-        element choosing its roles in its config, as its config says.
+        Whether an element sources or sinks power is its adapter's to declare or,
+        for an element choosing its roles in its config, its config's.
         """
         current_id = self._get_current_subentry_id()
         return [
-            subentry.title
+            {"name": subentry.title, "element_type": element_type}
             for subentry in self._get_entry().subentries.values()
             if subentry.subentry_id != current_id
             and is_element_type(element_type := subentry.data.get(CONF_ELEMENT_TYPE))
             and _offers_roles(_element_roles(element_type, subentry.data), can_source=can_source, can_sink=can_sink)
         ]
+
+    def _surfaced_rules(self) -> list[SurfacedRule]:
+        """Return the rule patterns elements' own price fields stand for, with the element owning each."""
+        surfaced: list[SurfacedRule] = []
+        for subentry in self._get_entry().subentries.values():
+            for hint in get_surfaced_price_hints(subentry.subentry_type).values():
+                source, target = resolve_surfaced_endpoints(hint, subentry.title)
+                surfaced.append(
+                    {"owner": subentry.title, "owner_type": subentry.subentry_type, "source": source, "target": target}
+                )
+        return surfaced
 
     def _target_subentry(self) -> ConfigSubentry | None:
         """Return the single policy subentry, which every rule is saved to."""
@@ -150,356 +95,135 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
 
     def _get_price_field_info(self) -> AnyInputFieldInfo:
         """Get the InputFieldInfo for the price field from list field hints."""
-        dummy_config: dict[str, object] = {
+        sample: dict[str, object] = {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_RULES: [{"name": "_", CONF_PRICE: {"type": "constant", "value": 0}}],
         }
-        list_fields = get_list_input_fields(dummy_config)
-        section = next(iter(list_fields.values()))
+        section = next(iter(get_list_input_fields(sample).values()))
         return localize_input_field(section[CONF_PRICE], currency_symbol(self.hass.config.currency))
 
-    def _build_price_selector(self) -> InputSelector:
-        """Build the price input, which takes entities or a constant."""
+    def _schema(self) -> vol.Schema:
+        """Build the form: every rule, through the rules element."""
         field_info = self._get_price_field_info()
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
-        inclusion_map = build_inclusion_map({CONF_PRICE: field_info}, entity_metadata)
-        return build_input_selector(
+        price = build_input_selector(
             field_info,
             kinds=("entity", "constant"),
-            entities=inclusion_map.get(CONF_PRICE),
+            entities=build_inclusion_map({CONF_PRICE: field_info}, entity_metadata).get(CONF_PRICE),
             context=selector_context(self._get_entry().entry_id, entity_metadata),
         )
-
-    def _build_endpoint_selector(
-        self,
-        participants: list[str],
-        *,
-        preferred_choice: str = CHOICE_NONE,
-    ) -> _EndpointChooseSelector:
-        """Build a ChooseSelector for endpoint with none (any) and elements (specific) choices."""
-        options = [SelectOptionDict(value=p, label=p) for p in participants]
-        elements_selector = SelectSelector(
-            SelectSelectorConfig(
-                options=options,
-                mode=SelectSelectorMode.DROPDOWN,
-                multiple=True,
-            )
-        )
-        none_selector = ConstantSelector(ConstantSelectorConfig(value=""))
-        choice_map = {
-            CHOICE_NONE: ChooseSelectorChoiceConfig(
-                selector=none_selector.serialize()["selector"],
-            ),
-            CHOICE_ELEMENTS: ChooseSelectorChoiceConfig(
-                selector=elements_selector.serialize()["selector"],
-            ),
-        }
-        choice_order = [CHOICE_NONE, CHOICE_ELEMENTS]
-        if preferred_choice in choice_order:
-            choice_order.remove(preferred_choice)
-            choice_order.insert(0, preferred_choice)
-
-        return _EndpointChooseSelector(
-            ChooseSelectorConfig(
-                choices={k: choice_map[k] for k in choice_order},
-                translation_key="policy_endpoint",
-            )
-        )
-
-    def _get_preferred_endpoint_choice(self, value: object) -> str:
-        """Return endpoint choice key to place first in selector ordering."""
-        if isinstance(value, dict) and value.get("active_choice") == CHOICE_ELEMENTS:
-            return CHOICE_ELEMENTS
-        if isinstance(value, list) and value:
-            return CHOICE_ELEMENTS
-        return CHOICE_NONE
-
-    def _build_rule_schema(
-        self,
-        source_options: list[str],
-        target_options: list[str],
-        *,
-        source_preferred_choice: str = CHOICE_NONE,
-        target_preferred_choice: str = CHOICE_NONE,
-    ) -> vol.Schema:
-        """Build the schema for adding or editing a policy rule."""
-        source_selector = self._build_endpoint_selector(
-            source_options,
-            preferred_choice=source_preferred_choice,
-        )
-        target_selector = self._build_endpoint_selector(
-            target_options,
-            preferred_choice=target_preferred_choice,
-        )
-        price_selector = self._build_price_selector()
-
-        return vol.Schema(
+        selector = PolicyRulesSelector(
             {
-                vol.Required(CONF_RULE_NAME): str,
-                vol.Required(CONF_ENABLED, default=True): BooleanSelector(BooleanSelectorConfig()),
-                vol.Optional(CONF_SOURCE): source_selector,
-                vol.Optional(CONF_TARGET): target_selector,
-                vol.Required(CONF_PRICE): price_selector,
+                "sources": self._endpoint_options(can_source=True),
+                "targets": self._endpoint_options(can_sink=True),
+                "price": price.config,
+                "surfaced": self._surfaced_rules(),
             }
         )
+        return vol.Schema({vol.Required(CONF_RULES): selector})
 
-    def _build_reconfigure_schema(self) -> vol.Schema:
-        """Build the schema for the reconfigure menu."""
-        rule_options: list[SelectOptionDict] = [
-            SelectOptionDict(value=str(i), label=rule["name"]) for i, rule in enumerate(self._rules)
-        ]
-        action_options: list[SelectOptionDict] = [
-            SelectOptionDict(value=ACTION_EDIT, label="Edit"),
-            SelectOptionDict(value=ACTION_DELETE, label="Delete"),
-        ]
-        return vol.Schema(
+    def _stored_rules(self) -> list[PolicyRuleValue]:
+        """Return the stored rules as the rules element shows them."""
+        subentry = self._target_subentry()
+        rules: Sequence[PolicyRuleConfig] = subentry.data.get(CONF_RULES, []) if subentry else []
+        return [
             {
-                vol.Required(CONF_RULE): SelectSelector(
-                    SelectSelectorConfig(
-                        options=rule_options,
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                ),
-                vol.Required(CONF_ACTION): SelectSelector(
-                    SelectSelectorConfig(
-                        options=action_options,
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                ),
+                "name": rule["name"],
+                "enabled": _rule_enabled(rule),
+                "source": list(rule.get(CONF_SOURCE) or []),
+                "target": list(rule.get(CONF_TARGET) or []),
+                "price": rule[CONF_PRICE],
             }
-        )
+            for rule in rules
+        ]
 
-    def _parse_rule_input(self, user_input: Mapping[str, object]) -> PolicyRuleConfig:
-        """Convert form input into a PolicyRuleConfig."""
-        price = user_input[CONF_PRICE]
+    @staticmethod
+    def _new_rule(rules: Sequence[PolicyRuleValue]) -> PolicyRuleValue:
+        """Return a blank rule named apart from the others."""
+        names = {rule["name"] for rule in rules}
+        number = next(n for n in range(len(rules) + 1, len(rules) + len(names) + 2) if f"Rule {n}" not in names)
+        return {"name": f"Rule {number}", "enabled": True, "source": [], "target": [], "price": as_none_value()}
+
+    @staticmethod
+    def _validate(rules: Sequence[PolicyRuleValue], errors: dict[str, str]) -> None:
+        """Add an error for the first problem with the rules."""
+        names = [rule["name"] for rule in rules]
+        patterns = [(sorted(rule["source"]), sorted(rule["target"])) for rule in rules]
+        for index, rule in enumerate(rules):
+            if not rule["name"]:
+                errors[CONF_RULES] = "missing_name"
+            elif names.count(rule["name"]) > 1:
+                errors[CONF_RULES] = "name_exists"
+            elif rule["source"] and sorted(rule["source"]) == sorted(rule["target"]):
+                errors[CONF_RULES] = "source_target_same"
+            elif patterns.index(patterns[index]) != index:
+                errors[CONF_RULES] = "duplicate_rule"
+            elif not has_input_value(rule["price"]):
+                errors[CONF_RULES] = "required"
+            if errors:
+                return
+
+    @staticmethod
+    def _stored_rule(rule: PolicyRuleValue) -> PolicyRuleConfig:
+        """Return a validated rule as the policy stores it; an end naming no element is left out."""
+        price = rule["price"]
         if not (is_entity_value(price) or is_constant_value(price)):
             msg = "A validated rule has a price"
             raise TypeError(msg)
-
-        name = user_input[CONF_RULE_NAME]
-        rule: PolicyRuleConfig = {
-            "name": name if isinstance(name, str) else str(name),
-            "enabled": as_constant_value(bool(user_input[CONF_ENABLED])),
+        stored: PolicyRuleConfig = {
+            "name": rule["name"],
+            "enabled": as_constant_value(rule["enabled"]),
             "price": price,
         }
+        if rule["source"]:
+            stored["source"] = rule["source"]
+        if rule["target"]:
+            stored["target"] = rule["target"]
+        return stored
 
-        source = _as_str_list(user_input.get(CONF_SOURCE))
-        if source:
-            rule["source"] = source
-
-        target = _as_str_list(user_input.get(CONF_TARGET))
-        if target:
-            rule["target"] = target
-
-        return rule
-
-    def _rule_to_defaults(self, rule: PolicyRuleConfig) -> dict[str, object]:
-        """Convert a stored rule back to form defaults."""
-        defaults: dict[str, object] = {
-            CONF_RULE_NAME: rule["name"],
-            CONF_ENABLED: _rule_enabled(rule),
-        }
-
-        source = rule.get(CONF_SOURCE)
-        defaults[CONF_SOURCE] = source if source else ""
-
-        target = rule.get(CONF_TARGET)
-        defaults[CONF_TARGET] = target if target else ""
-
-        if CONF_PRICE in rule:
-            defaults[CONF_PRICE] = rule[CONF_PRICE]
-        return defaults
-
-    def _rule_to_edit_input(self, rule: PolicyRuleConfig) -> dict[str, object]:
-        """Convert a stored rule into parse-ready form input values."""
-        input_values: dict[str, object] = {
-            CONF_RULE_NAME: rule["name"],
-            CONF_ENABLED: _rule_enabled(rule),
-            CONF_SOURCE: rule.get(CONF_SOURCE, ""),
-            CONF_TARGET: rule.get(CONF_TARGET, ""),
-        }
-
-        input_values[CONF_PRICE] = rule[CONF_PRICE]
-        return input_values
-
-    def _validate_rule(
-        self,
-        user_input: Mapping[str, object],
-        errors: dict[str, str],
-        *,
-        exclude_index: int | None = None,
-    ) -> bool:
-        """Validate a rule's fields. Returns True if valid."""
-        name = user_input.get(CONF_RULE_NAME)
-        if not name:
-            errors[CONF_RULE_NAME] = "missing_name"
-            return False
-
-        existing_names = {rule["name"] for i, rule in enumerate(self._rules) if i != exclude_index}
-        if name in existing_names:
-            errors[CONF_RULE_NAME] = "name_exists"
-            return False
-
-        source = user_input.get(CONF_SOURCE) or []
-        target = user_input.get(CONF_TARGET) or []
-        if source and target and source == target:
-            errors["base"] = "source_target_same"
-            return False
-
-        # Block duplicate source/target patterns
-        source_list = sorted(source) if isinstance(source, list) and source else None
-        target_list = sorted(target) if isinstance(target, list) and target else None
-        for i, rule in enumerate(self._rules):
-            if i == exclude_index:
-                continue
-            rule_source = rule.get(CONF_SOURCE)
-            rule_target = rule.get(CONF_TARGET)
-            existing_source = sorted(rule_source) if rule_source else None
-            existing_target = sorted(rule_target) if rule_target else None
-            if source_list == existing_source and target_list == existing_target:
-                errors["base"] = "duplicate_rule"
-                return False
-
-        if not has_input_value(user_input.get(CONF_PRICE)):
-            errors[CONF_PRICE] = "required"
-            return False
-
-        return True
-
-    def _build_entry_data(self) -> dict[str, object]:
-        """Build the subentry data dict from accumulated rules."""
-        return {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-            CONF_NAME: POLICIES_TITLE,
-            CONF_RULES: list(self._rules),
-        }
-
-    # --- Flow steps ---
-
-    async def async_step_user(
-        self,
-        user_input: dict[str, Any] | None = None,
-    ) -> SubentryFlowResult:
-        """Handle adding a new policy rule.
-
-        If a Policies subentry already exists, appends the rule to it.
-        Otherwise creates a new Policies subentry.
-        """
-        errors: dict[str, str] = {}
-        source_options = self._get_participant_options(can_source=True)
-        target_options = self._get_participant_options(can_sink=True)
-
-        if user_input is not None:
-            existing = self._target_subentry()
-            if existing is not None and not self._rules:
-                self._rules = list(existing.data.get(CONF_RULES, []))
-
-            if self._validate_rule(user_input, errors):
-                rule = self._parse_rule_input(user_input)
-                self._rules.append(rule)
-
-                return await self._async_save_entry(POLICIES_TITLE, self._build_entry_data())
-
-        source_preferred_choice = CHOICE_NONE
-        target_preferred_choice = CHOICE_NONE
-        if user_input is not None:
-            source_preferred_choice = self._get_preferred_endpoint_choice(user_input.get(CONF_SOURCE))
-            target_preferred_choice = self._get_preferred_endpoint_choice(user_input.get(CONF_TARGET))
-
-        schema = self._build_rule_schema(
-            source_options,
-            target_options,
-            source_preferred_choice=source_preferred_choice,
-            target_preferred_choice=target_preferred_choice,
-        )
-        # The price opens not set, as the form cannot start a required input without a value
-        shown = user_input if user_input is not None else {CONF_PRICE: as_none_value()}
-        schema = self.add_suggested_values_to_schema(schema, shown)
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=schema,
-            errors=errors,
+    async def _async_save_rules(
+        self, user_input: dict[str, Any] | None, errors: dict[str, str]
+    ) -> SubentryFlowResult | None:
+        """Save the submitted rules, or add an error and return None when they cannot be saved."""
+        if user_input is None:
+            return None
+        rules: list[PolicyRuleValue] = user_input[CONF_RULES]
+        self._validate(rules, errors)
+        if errors:
+            return None
+        return await self._async_save_entry(
+            POLICIES_TITLE,
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_NAME: POLICIES_TITLE,
+                CONF_RULES: [self._stored_rule(rule) for rule in rules],
+            },
         )
 
-    async def async_step_reconfigure(
-        self,
-        user_input: dict[str, Any] | None = None,
-    ) -> SubentryFlowResult:
-        """Handle the reconfigure menu for managing existing rules."""
-        subentry = self._get_subentry()
-        if subentry is not None and not self._rules:
-            self._rules = list(subentry.data.get(CONF_RULES, []))
-
-        if not self._rules:
-            return self.async_abort(reason="no_rules")
-
+    def _rules_form(self, user_input: dict[str, Any] | None, *, add_rule: bool) -> vol.Schema:
+        """Return the form opening on the submitted rules, or the stored ones with a new rule at the end when adding."""
         if user_input is not None:
-            rule_index = int(user_input[CONF_RULE])
-            action = user_input[CONF_ACTION]
-
-            if action == ACTION_DELETE:
-                if 0 <= rule_index < len(self._rules):
-                    self._rules.pop(rule_index)
-                if subentry is not None:
-                    return await self._async_save_entry(POLICIES_TITLE, self._build_entry_data())
-
-            if action == ACTION_EDIT and 0 <= rule_index < len(self._rules):
-                self._editing_index = rule_index
-                return await self.async_step_edit_rule()
-
-        schema = self._build_reconfigure_schema()
-        return self.async_show_form(
-            step_id="reconfigure",
-            data_schema=schema,
-        )
-
-    async def async_step_edit_rule(
-        self,
-        user_input: dict[str, Any] | None = None,
-    ) -> SubentryFlowResult:
-        """Handle editing an existing policy rule."""
-        errors: dict[str, str] = {}
-        source_options = self._get_participant_options(can_source=True)
-        target_options = self._get_participant_options(can_sink=True)
-        idx = self._editing_index
-        existing_rule_input: dict[str, object] = {}
-        if idx is not None and 0 <= idx < len(self._rules):
-            existing_rule_input = self._rule_to_edit_input(self._rules[idx])
-
-        merged_input = {**existing_rule_input, **user_input} if user_input is not None else None
-
-        if merged_input is not None and self._validate_rule(
-            merged_input,
-            errors,
-            exclude_index=idx,
-        ):
-            rule = self._parse_rule_input(merged_input)
-            if idx is not None and 0 <= idx < len(self._rules):
-                self._rules[idx] = rule
-            self._editing_index = None
-
-            if self._get_subentry() is not None:
-                return await self._async_save_entry(POLICIES_TITLE, self._build_entry_data())
-
-        if merged_input is not None:
-            defaults = merged_input
-        elif idx is not None and 0 <= idx < len(self._rules):
-            defaults = self._rule_to_defaults(self._rules[idx])
+            shown: list[PolicyRuleValue] = user_input[CONF_RULES]
         else:
-            defaults = {}
-        source_preferred_choice = self._get_preferred_endpoint_choice(defaults.get(CONF_SOURCE))
-        target_preferred_choice = self._get_preferred_endpoint_choice(defaults.get(CONF_TARGET))
-        schema = self._build_rule_schema(
-            source_options,
-            target_options,
-            source_preferred_choice=source_preferred_choice,
-            target_preferred_choice=target_preferred_choice,
-        )
-        schema = self.add_suggested_values_to_schema(schema, defaults)
+            shown = self._stored_rules()
+            if add_rule:
+                shown = [*shown, self._new_rule(shown)]
+        return self.add_suggested_values_to_schema(self._schema(), {CONF_RULES: shown})
 
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Show every rule with a new one at the end, creating the Policies subentry for the first."""
+        errors: dict[str, str] = {}
+        if (saved := await self._async_save_rules(user_input, errors)) is not None:
+            return saved
         return self.async_show_form(
-            step_id="edit_rule",
-            data_schema=schema,
-            errors=errors,
+            step_id="user", data_schema=self._rules_form(user_input, add_rule=True), errors=errors
+        )
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Show every rule to edit, turn on or off, or remove."""
+        errors: dict[str, str] = {}
+        if (saved := await self._async_save_rules(user_input, errors)) is not None:
+            return saved
+        return self.async_show_form(
+            step_id="reconfigure", data_schema=self._rules_form(user_input, add_rule=False), errors=errors
         )
