@@ -1,0 +1,13 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 7.7, "command": "click", "args": ["f2e675"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "type", "args": ["f2e485", "solcast_pv_forecast_forecast_tomorrow"], "error": null, "visible_errors": 0}
+{"t": 10.6, "command": "click", "args": ["f2e828"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "type", "args": ["f2e485", "solcast_pv_forecast_forecast_day_3"], "error": null, "visible_errors": 0}
+{"t": 13.7, "command": "click", "args": ["f2e847"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "click", "args": ["f2e872"], "error": null, "visible_errors": 0}
+{"t": 16.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 18.4, "command": "click", "args": ["f2e878"], "error": null, "visible_errors": 0}
+{"t": 19.9, "command": "done", "args": ["Added Solar to HAEO, connected to the Inverter (DC). Its forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. I reopened the saved config and all three are listed."], "error": null, "visible_errors": 0}

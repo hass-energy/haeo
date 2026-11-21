@@ -1,0 +1,8 @@
+{"t": 4.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "type", "args": ["f2e485", "energy_production_"], "error": null, "visible_errors": 0}
+{"t": 14.0, "command": "click", "args": ["f2e817"], "error": null, "visible_errors": 0}
+{"t": 15.8, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 16.9, "command": "click", "args": ["f2e1142"], "error": null, "visible_errors": 0}
+{"t": 19.1, "command": "done", "args": ["Added a Solar element named 'Solar' to the Home HAEO hub. Connection: Inverter (DC), the default, since the panels feed the inverter. Forecast: all 32 Forecast.Solar energy_production sensors (today, tomorrow and days 2 to 7 for East, North, South and West), selected via the 'Select all' option after filtering on 'energy_production_'. The Curtailment section was left at its default. The success dialog reported 'Created configuration for Solar', and the Home hub now lists a Solar device with 4 entities."], "error": null, "visible_errors": 0}

@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.00518853,
+  "turns": 8,
+  "report": "The Solar element is added to your Home hub and saved as \"Solar\". The Solar device now shows under Home with 4 entities.\n\n- **Name:** Solar (the default).\n- **Connection:** Inverter, DC. I chose this because the panels feed the inverter directly.\n- **Forecast:** All three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. I used the picker's \"Select all 3\" option.\n- **Curtailment:** Left at its defaults.\n\nI did not reopen the Solar configuration after saving to check the stored values.\n\nPoints where I hesitated or was unsure:\n- **Connection choice:** I picked Inverter (DC) over Switchboard (AC). That follows from the panels feeding the inverter, but I'm inferring the wiring from your description rather than checking your hardware.\n- **Curtailment:** I didn't open this section. It's optional, but if your inverter limits solar export, it may need configuring.\n- **Solcast sensors:** I took \"Select all 3\" as covering today, tomorrow and day 3. The three selected entries matched the names you gave, so I believe it's correct.\n- **Verification:** I confirmed the save from the success message and the new device count, not by reopening the saved form.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Solar element to the Home hub with connection set to Inverter (DC), since the panels feed the inverter. Forecast uses all three Solcast sensors (Forecast Today, Forecast Tomorrow, Forecast Day 3) via 'Select all 3'. Curtailment left at default. The Solar device now appears under Home with 4 entities.",
+  "actions": 5,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.2
+}

@@ -1,0 +1,7 @@
+{"t": 6.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 8.1, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "type", "args": ["f2e485", "solcast"], "error": null, "visible_errors": 0}
+{"t": 11.0, "command": "click", "args": ["f2e498"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 13.6, "command": "click", "args": ["f2e561"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "done", "args": ["Added a Solar element to the Home hub with connection set to Inverter (DC), since the panels feed the inverter. Forecast uses all three Solcast sensors (Forecast Today, Forecast Tomorrow, Forecast Day 3) via 'Select all 3'. Curtailment left at default. The Solar device now appears under Home with 4 entities."], "error": null, "visible_errors": 0}

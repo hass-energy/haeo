@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.12978299999999998,
+  "turns": 12,
+  "report": "Solar is now in HAEO, connected to the Inverter. Its forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. I reopened the saved Solar entry afterwards and all three were listed.\n\nPoints where I hesitated or slipped:\n- The Connection field already had Inverter selected, so I left it. I took that as correct because your panels feed the inverter.\n- The forecast picker also offered many other forecast sensors (East, North, South and West production forecasts). I ignored those and picked only the sensors named \"Solcast PV Forecast\".\n- I clicked Submit without first checking that Day 3 had been added. I only confirmed it afterwards by reopening the saved entry.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar to HAEO, connected to the Inverter (DC). Its forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. I reopened the saved config and all three are listed.",
+  "actions": 10,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.9
+}

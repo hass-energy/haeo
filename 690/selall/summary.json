@@ -1,0 +1,28 @@
+{
+  "runs": 6,
+  "passed": 6,
+  "success_rate": 1.0,
+  "actions": 11.0,
+  "cost_usd": 0.81,
+  "tasks": {
+    "add_solar_forecast_solar": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 17,
+      "actions_when_passed": 17,
+      "errors_shown": 0,
+      "seconds": 26.9,
+      "cost_usd": 0.41
+    },
+    "add_solar_solcast": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 10,
+      "actions_when_passed": 10,
+      "errors_shown": 0,
+      "seconds": 19.9,
+      "cost_usd": 0.4
+    }
+  },
+  "model": "sonnet"
+}

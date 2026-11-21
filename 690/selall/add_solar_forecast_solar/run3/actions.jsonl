@@ -1,0 +1,20 @@
+{"t": 3.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.6, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 8.4, "command": "click", "args": ["f2e498"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "type", "args": ["f2e485", "east"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e828"], "error": null, "visible_errors": 0}
+{"t": 16.2, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 16.5, "command": "type", "args": ["f2e485", "north"], "error": null, "visible_errors": 0}
+{"t": 18.3, "command": "click", "args": ["f2e963"], "error": null, "visible_errors": 0}
+{"t": 18.7, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 19.0, "command": "type", "args": ["f2e485", "south"], "error": null, "visible_errors": 0}
+{"t": 20.8, "command": "click", "args": ["f2e1108"], "error": null, "visible_errors": 0}
+{"t": 21.2, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 21.6, "command": "type", "args": ["f2e485", "west"], "error": null, "visible_errors": 0}
+{"t": 23.4, "command": "click", "args": ["f2e1253"], "error": null, "visible_errors": 0}
+{"t": 23.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 25.2, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 26.8, "command": "click", "args": ["f2e1404"], "error": null, "visible_errors": 0}
+{"t": 26.9, "command": "done", "args": ["Added Solar (connected to Inverter, DC) with all 32 Forecast.Solar sensors (east, north, south, west \u00d7 8 days each)."], "error": null, "visible_errors": 0}

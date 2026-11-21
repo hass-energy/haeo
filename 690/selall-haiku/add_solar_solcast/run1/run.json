@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.009545660000000001,
+  "turns": 10,
+  "report": "I added the rooftop solar to HAEO under the Home hub and pointed it at your three Solcast sensors. The integration now lists a new Solar device with 4 entities.\n\nWhat I set:\n- **Name:** Solar (the default)\n- **Connection:** Inverter, DC. The panels feed the inverter, so I chose the inverter option rather than Switchboard.\n- **Forecast:** `sensor.solcast_pv_forecast_forecast_today`, `sensor.solcast_pv_forecast_forecast_tomorrow` and `sensor.solcast_pv_forecast_forecast_day_3`, added with the \"Select all 3\" option after filtering on \"solcast\".\n- **Curtailment:** left at its default, since I had no reason to change it.\n\nI did not reopen the Solar device afterwards to confirm the saved forecast sensors, so that check is still open.\n\nPoints where I hesitated or was unsure:\n- The Forecast field lists many sensors, including other solar forecasts (East, North, South, West) and Sigen sensors. I deliberately filtered to Solcast so only your Solcast sensors were chosen.\n- I chose \"Inverter, DC\" over \"Switchboard, AC\". The dialog's wording was the only guide, and I reasoned from your description that panels on the inverter are DC-coupled.\n- I did not expand the Curtailment section, so I did not look at its options or whether it needs anything. I assumed it is optional.\n- My first click on the Solar button opened the dialog without a visible change, so I took a screenshot to confirm it had opened before continuing.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 6,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.4
+}
