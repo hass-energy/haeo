@@ -7,14 +7,20 @@ from zoneinfo import ZoneInfo
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import Unauthorized
+import numpy as np
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.core.adapters.network_builder import build_network
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.websocket import INPUT_PREVIEW, ws_input_preview
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
+from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
+from custom_components.haeo.core.schema.elements.grid import GridConfigData
+from custom_components.haeo.websocket import BUFFER_PREVIEW, INPUT_PREVIEW, ws_buffer_preview, ws_input_preview
 
 TIMES = (1_000_000.0, 1_001_800.0, 1_003_600.0)
 DAY = 86_400
@@ -109,3 +115,98 @@ async def test_preview_marks_each_local_midnight_within_the_horizon(hass: HomeAs
         "2026-01-02T00:00:00+11:00",
         "2026-01-03T00:00:00+11:00",
     ]
+
+
+def _loaded_hub() -> dict[str, ElementConfigData]:
+    """Return a battery at half charge and a grid on one bus, loaded for the two intervals."""
+    bus = as_connection_target("Bus")
+    battery = BatteryConfigData(
+        element_type=ElementType.BATTERY,
+        name="Battery",
+        connection=bus,
+        storage={"capacity": np.full(3, 10.0), "initial_charge_percentage": 0.5},
+        limits={},
+        power_limits={},
+        pricing={"salvage_value": 0.0},
+        efficiency={},
+        advanced={"charge_limit_cost": 100.0},
+    )
+    grid = GridConfigData(
+        element_type=ElementType.GRID,
+        name="Grid",
+        connection=bus,
+        pricing={"price_source_target": np.full(2, 0.3), "price_target_source": np.full(2, 0.1)},
+        power_limits={},
+    )
+    return {
+        "Bus": {"element_type": ElementType.NODE, "name": "Bus", "role": {"is_source": False, "is_sink": False}},
+        "Battery": battery,
+        "Grid": grid,
+    }
+
+
+BUFFER_FORM: dict[str, object] = {
+    "name": "Outage",
+    "kind": "reserve",
+    "participants": {"storage": ["Battery"]},
+    "requirement": {"window": as_constant_value(1.0)},
+    "pricing": {"shortfall_cost": as_constant_value(10.0)},
+}
+
+
+@pytest.fixture
+def planned_hub(hub: MockConfigEntry) -> MockConfigEntry:
+    """Give the hub a coordinator holding its loaded elements and the plan it solved from them."""
+    configs = _loaded_hub()
+    network = build_network("hub", configs, [1800.0, 1800.0])
+    network.optimize()
+    hub.runtime_data.horizon_manager.periods_seconds = [1800.0, 1800.0]
+    hub.runtime_data.coordinator = Mock(loaded_configs=Mock(return_value=configs), network=network)
+    return hub
+
+
+async def _buffer_preview(hass: HomeAssistant, buffer: dict[str, object], entry_id: str = "hub") -> Mock:
+    """Run the buffer preview command as an admin and return the connection it answered on."""
+    connection = Mock(user=Mock(is_admin=True))
+    ws_buffer_preview(hass, connection, {"id": 1, "type": BUFFER_PREVIEW, "entry_id": entry_id, "buffer": buffer})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    return connection
+
+
+@pytest.mark.usefixtures("planned_hub")
+async def test_buffer_preview_plans_with_the_buffer_beside_the_plan_now(hass: HomeAssistant) -> None:
+    """The preview has the buffer's line and its batteries' charge with the buffer and in the hub's plan now."""
+    connection = await _buffer_preview(hass, BUFFER_FORM)
+
+    result = connection.send_result.call_args.args[1]
+    assert result["times"] == list(TIMES)
+    assert result["kind"] == "reserve"
+    assert result["storage"] == ["Battery"]
+    assert len(result["buffer"]) == len(result["plan"]) == len(result["current"]) == len(TIMES)
+    assert result["days"] == []
+
+
+@pytest.mark.parametrize(
+    ("entry_id", "buffer", "error"),
+    [
+        pytest.param("missing", BUFFER_FORM, "not_found", id="no_hub"),
+        pytest.param("hub", {**BUFFER_FORM, "participants": {"storage": []}}, "invalid_format", id="no_battery"),
+    ],
+)
+@pytest.mark.usefixtures("planned_hub")
+async def test_buffer_preview_reports_what_it_cannot_plan(
+    hass: HomeAssistant, entry_id: str, buffer: dict[str, object], error: str
+) -> None:
+    """A missing hub, or a buffer without what it needs to be planned, is an error."""
+    connection = await _buffer_preview(hass, buffer, entry_id)
+
+    connection.send_result.assert_not_called()
+    assert connection.send_error.call_args.args[:2] == (1, error)
+
+
+def test_buffer_preview_is_for_admins(hass: HomeAssistant) -> None:
+    """Only an admin may preview a buffer, as only an admin can configure one."""
+    connection = Mock(user=Mock(is_admin=False))
+
+    with pytest.raises(Unauthorized):
+        ws_buffer_preview(hass, connection, {"id": 1, "type": BUFFER_PREVIEW})

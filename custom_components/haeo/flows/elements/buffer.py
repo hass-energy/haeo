@@ -25,8 +25,12 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_REQUIREMENT,
     BufferRole,
 )
+from custom_components.haeo.flows.buffer_preview_selector import BufferPreviewSelector
 from custom_components.haeo.flows.field_schema import SectionDefinition, SelectorContext, as_mapping
 from custom_components.haeo.flows.sectioned_flow import FieldEntries, SectionedElementSubentryFlow
+
+# The form field previewing the buffer, which holds no value
+CONF_PREVIEW = "preview"
 
 
 class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
@@ -78,6 +82,16 @@ class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
         return {
             **super()._section_defaults(subentry_data),
             SECTION_PARTICIPANTS: {field: participants.get(field, []) for field in BUFFER_ROLES},
+        }
+
+    def _trailing_entries(self, subentry_data: Mapping[str, object] | None, context: SelectorContext) -> FieldEntries:
+        """Return a preview of what the buffer would do, below the fields it is planned from."""
+        replaces = str(subentry_data.get(CONF_NAME)) if subentry_data else None
+        return {
+            CONF_PREVIEW: (
+                vol.Optional(CONF_PREVIEW),
+                BufferPreviewSelector({"entry_id": context.entry_id, "replaces": replaces}),
+            )
         }
 
     def _validate_fields(self, user_input: Mapping[str, object], errors: dict[str, str]) -> None:

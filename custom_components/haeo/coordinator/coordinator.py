@@ -753,6 +753,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             if store.time_series and store.available
         )
 
+    def loaded_configs(self) -> dict[str, ElementConfigData]:
+        """Return every element's config with the values its input stores hold now."""
+        return self._load_from_input_stores()
+
     def _load_from_input_stores(self) -> dict[str, ElementConfigData]:
         """Assemble every element's config from the resolved values of its input stores."""
         forecast_times = self._runtime_data.horizon_manager.get_forecast_timestamps()

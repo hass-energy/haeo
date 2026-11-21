@@ -189,7 +189,7 @@
         "user": {
           "title": "Buffer configuration",
           "description": "Keep energy in your batteries for an outage (a reserve), or empty space for incoming generation (headroom).",
-          "data": { "kind": "Kind", "name": "Buffer name" },
+          "data": { "kind": "Kind", "name": "Buffer name", "preview": "What it would do" },
           "data_description": {
             "kind": "A reserve keeps the batteries charged enough. Headroom keeps them empty enough."
           },
@@ -813,6 +813,7 @@
   },
   "selector": {
     "buffer_kind": { "options": { "headroom": "Headroom: keep empty space", "reserve": "Reserve: keep energy" } },
+    "buffer_preview": { "options": { "buffer": "Buffer", "now": "Plan now", "with_buffer": "With this buffer" } },
     "connection": { "options": { "ac_bus": "{name}, AC", "bus": "{name}", "dc_bus": "{name}, DC" } },
     "connection_path": {
       "options": {

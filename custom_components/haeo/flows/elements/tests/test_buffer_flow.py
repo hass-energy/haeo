@@ -31,7 +31,9 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_PRICING,
     SECTION_REQUIREMENT,
 )
+from custom_components.haeo.flows.buffer_preview_selector import BufferPreviewSelector
 from custom_components.haeo.flows.conftest import create_flow, section_suggested_values
+from custom_components.haeo.flows.elements.buffer import CONF_PREVIEW
 from custom_components.haeo.flows.input_selector import InputSelector
 
 
@@ -238,3 +240,24 @@ async def test_reconfigure_keeps_kind_and_participants(hass: HomeAssistant, hub_
     assert data[CONF_KIND] == KIND_HEADROOM
     assert data[SECTION_PARTICIPANTS] == {CONF_LOADS: ["House"], CONF_GENERATION: ["Solar"], CONF_STORAGE: ["Battery"]}
     assert data[SECTION_REQUIREMENT] == {CONF_WINDOW: as_constant_value(12.0), CONF_LEVEL: as_constant_value(20.0)}
+
+
+async def test_preview_follows_the_fields_it_plans_from_and_is_not_stored(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """The preview is the form's last field, plans in place of the buffer being reconfigured, and holds no config."""
+    _add_elements(hass, hub_entry)
+    subentry = _add_buffer(hass, hub_entry, {**_user_input(storage=["Battery"]), CONF_NAME: "Outage"})
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT})
+
+    form = await flow.async_step_reconfigure(user_input=None)
+    await flow.async_step_reconfigure(user_input={**_user_input(storage=["Battery"]), CONF_PREVIEW: None})
+
+    fields = list(form["data_schema"].schema.items())
+    assert str(fields[-1][0]) == CONF_PREVIEW
+    assert isinstance(fields[-1][1], BufferPreviewSelector)
+    assert fields[-1][1].config == {"entry_id": hub_entry.entry_id, "replaces": "Outage"}
+    assert CONF_PREVIEW not in flow.async_update_and_abort.call_args.kwargs["data"]

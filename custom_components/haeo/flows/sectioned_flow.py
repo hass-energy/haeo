@@ -62,6 +62,11 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
         _ = (subentry_data, context)
         return build_common_fields()
 
+    def _trailing_entries(self, subentry_data: Mapping[str, object] | None, context: SelectorContext) -> FieldEntries:
+        """Return the form fields shown below the sections."""
+        _ = (subentry_data, context)
+        return {}
+
     def _top_level_defaults(self, subentry_data: Mapping[str, object] | None) -> dict[str, object]:
         """Return the defaults of the top-level fields other than the name."""
         _ = subentry_data
@@ -165,9 +170,9 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
         entity_metadata: list[EntityMetadata],
         subentry_data: Mapping[str, object] | None,
     ) -> vol.Schema:
-        """Build the form schema: top-level fields, then the sectioned inputs."""
+        """Build the form schema: top-level fields, the sectioned inputs, then the trailing fields."""
         context = selector_context(self._get_entry().entry_id, entity_metadata)
-        return build_sectioned_input_schema(
+        schema = build_sectioned_input_schema(
             self.sections,
             input_fields,
             get_input_field_schema_info(self.element_type, input_fields),
@@ -176,6 +181,7 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
             top_level_entries=self._top_level_entries(subentry_data, context),
             extra_field_entries=self._section_entries(subentry_data, context),
         )
+        return schema.extend(dict(self._trailing_entries(subentry_data, context).values()))
 
     def _build_defaults(
         self,

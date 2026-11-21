@@ -189,4 +189,16 @@ export const SELECTOR_STYLES = `
   font: inherit; color: var(--secondary-text-color); cursor: pointer;
 }
 .rule-add { align-self: flex-start; }
+
+.buffer-preview svg { display: block; width: 100%; height: 110px; overflow: visible; }
+.buffer-zone { fill: color-mix(in srgb, var(--warning-color, #ff9800) 10%, transparent); stroke: none; }
+.buffer-line { fill: none; stroke: var(--warning-color, #ff9800); stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.buffer-now { fill: none; stroke: var(--secondary-text-color); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.buffer-plan { fill: none; stroke: var(--primary-color); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.buffer-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--secondary-text-color); }
+.buffer-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.swatch { display: inline-block; width: 14px; height: 0; border-top: 2px solid; }
+.swatch.buffer-plan { border-color: var(--primary-color); }
+.swatch.buffer-now { border-color: var(--secondary-text-color); border-top-width: 1px; }
+.swatch.buffer-line { border-top-style: dashed; border-color: var(--warning-color, #ff9800); }
 `;
