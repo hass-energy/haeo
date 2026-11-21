@@ -217,6 +217,34 @@ describe("InputField", () => {
     expect(readout?.getAttribute("aria-label")).toBe("Current value 0.501000 kW");
   });
 
+  it("shows an entity with no reading without a unit", () => {
+    const unavailable: SelectorHass = {
+      ...hass,
+      states: {
+        "sensor.east": { entity_id: "sensor.east", state: "unavailable", attributes: { unit_of_measurement: "kW" } },
+      },
+    };
+    show({ hass: unavailable, value: { type: "entity", value: ["sensor.east"] } });
+    const readout = container.querySelector(".chip.entity .readout");
+    expect(readout?.textContent).toBe("–");
+    expect(readout?.getAttribute("aria-label")).toBe("Current value –");
+  });
+
+  it("reads an on/off state in the user's words, seen and heard", () => {
+    const switched: SelectorHass = {
+      ...hass,
+      states: { "switch.pump": { entity_id: "switch.pump", state: "on", attributes: {} } },
+    };
+    show({
+      config: { ...numberConfig, value_type: "boolean", entities: ["switch.pump"] },
+      hass: switched,
+      value: { type: "entity", value: ["switch.pump"] },
+    });
+    const readout = container.querySelector(".chip.entity .readout");
+    expect(readout?.textContent).toBe("On");
+    expect(readout?.getAttribute("aria-label")).toBe("Current value On");
+  });
+
   it("leads forecasts with a chart when there is no preview, and others with their current value", () => {
     show({
       config: { ...numberConfig, forecasts: { "sensor.west": [] } },

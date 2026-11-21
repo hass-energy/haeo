@@ -31,7 +31,7 @@ export const SELECTOR_STYLES = `
   vector-effect: non-scaling-stroke;
 }
 .sparkline-area { fill: color-mix(in srgb, var(--primary-color) 18%, transparent); stroke: none; }
-.check-space { visibility: hidden; }
+.check-space { width: 13px; flex: none; }
 
 .tokens {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px; box-sizing: border-box; min-height: 48px;

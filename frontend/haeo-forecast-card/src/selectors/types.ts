@@ -35,6 +35,8 @@ export interface EntityStateLike {
 
 export interface SelectorHass {
   states: Record<string, EntityStateLike | undefined>;
+  /** The user's language, which numbers are formatted in. */
+  language?: string;
   localize: (key: string, values?: Record<string, string>) => string;
 }
 

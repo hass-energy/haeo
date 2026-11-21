@@ -3,11 +3,15 @@ import type { JSX } from "preact";
 
 import { Sparkline } from "./Sparkline";
 
-const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 });
+/** Below this size a number reads in exponent form, which stays short. */
+const SMALLEST_PLAIN = 0.001;
 
-/** A number short enough for a readout, such as 0.501, 12.3 or 1.23K. */
-export function shortNumber(value: number): string {
-  return compact.format(value);
+/** A number short enough for a readout, such as 0.501, 12.3, 1.23K or 1.2e-4, in the given language. */
+export function shortNumber(value: number, language?: string): string {
+  if (value !== 0 && Math.abs(value) < SMALLEST_PLAIN) {
+    return value.toExponential(1);
+  }
+  return new Intl.NumberFormat(language, { notation: "compact", maximumSignificantDigits: 3 }).format(value);
 }
 
 /** What an input shows of a value in the readout beside it. */
@@ -18,7 +22,6 @@ export type ReadoutContent =
 /**
  * The same-sized box at the start of every chip and choice, showing the value an
  * input reads: a forecast's sparkline, or a current or fixed value and its unit.
- * Lining them up makes them read as the same thing, a plot or a number.
  */
 export function Readout({ content, label }: { content: ReadoutContent; label?: string | undefined }): JSX.Element {
   const labelled: JSX.HTMLAttributes<HTMLSpanElement> =

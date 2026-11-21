@@ -59,7 +59,7 @@ function entityValue(entityIds: string[]): InputValue {
  * typed number is offered as a fixed value above them. A chosen value becomes a
  * chip. Every chip and choice starts with the same-sized readout of the value it
  * gives: a forecast's sparkline, an entity's current value, or the fixed value,
- * tinted. How each loads is visible without words, and the readouts line up.
+ * tinted.
  */
 export function InputField(props: InputFieldProps): JSX.Element {
   const { config, value, hass, label, helper, required, disabled, t, onChange } = props;
@@ -117,7 +117,7 @@ export function InputField(props: InputFieldProps): JSX.Element {
 
   const constantReadout = (constant: number | boolean): ReadoutContent => ({
     kind: "value",
-    text: typeof constant === "boolean" ? constantText(constant) : shortNumber(constant),
+    text: typeof constant === "boolean" ? constantText(constant) : shortNumber(constant, hass?.language),
     unit: typeof constant === "boolean" ? "" : (config.unit ?? ""),
     fixed: true,
   });
@@ -131,7 +131,7 @@ export function InputField(props: InputFieldProps): JSX.Element {
       return t(`input.options.${state}`);
     }
     const number = Number(state);
-    return state.trim() !== "" && Number.isFinite(number) ? shortNumber(number) : state;
+    return state.trim() !== "" && Number.isFinite(number) ? shortNumber(number, hass?.language) : state;
   };
 
   // How the field reads an entity: its forecast, drawn from the preview, or its current value
@@ -140,10 +140,13 @@ export function InputField(props: InputFieldProps): JSX.Element {
     if (values !== undefined) {
       return <Readout content={{ kind: "series", values }} label={t("input.options.forecast")} />;
     }
-    const full = entity.state === "" ? "–" : `${entity.state} ${entity.unit}`.trim();
+    // An entity with no reading shows no unit, and on and off read in the user's words in the label too
+    const unit = entity.state === "" ? "" : entity.unit;
+    const spoken = entity.state === "on" || entity.state === "off" ? stateText(entity.state) : entity.state;
+    const full = entity.state === "" ? "–" : `${spoken} ${unit}`.trim();
     return (
       <Readout
-        content={{ kind: "value", text: stateText(entity.state), unit: entity.unit, fixed: false }}
+        content={{ kind: "value", text: stateText(entity.state), unit, fixed: false }}
         label={t("input.options.current_value", { value: full })}
       />
     );
@@ -318,7 +321,7 @@ export function InputField(props: InputFieldProps): JSX.Element {
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(choice)}
               >
-                <input type="checkbox" class="check-space" tabIndex={-1} aria-hidden="true" readOnly />
+                <span class="check-space" />
                 <Readout content={constantReadout(choice.value)} />
               </li>
             )
