@@ -10,7 +10,7 @@ from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER, ConfigSubentry
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -174,6 +174,7 @@ async def test_submitted_values_are_validated_into_stored_values(
 ) -> None:
     """The form's input selectors turn what the frontend submits into the values the grid stores."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    hass.states.async_set("sensor.export_price", "0.05", {"unit_of_measurement": "$/kWh"})
 
     form = await hass.config_entries.subentries.async_init(
         (hub_entry.entry_id, ELEMENT_TYPE),
@@ -206,6 +207,33 @@ async def test_submitted_values_are_validated_into_stored_values(
         CONF_IMPORT_LIMIT: as_none_value(),
         CONF_EXPORT_LIMIT: as_constant_value(5.0),
     }
+
+
+async def test_submitted_entities_the_field_does_not_offer_are_rejected(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """An entity the price field does not offer, such as one in another unit, fails validation."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    hass.states.async_set("sensor.outdoor_temperature", "21", {"unit_of_measurement": "°C"})
+
+    form = await hass.config_entries.subentries.async_init(
+        (hub_entry.entry_id, ELEMENT_TYPE),
+        context={"source": SOURCE_USER},
+    )
+    with pytest.raises(InvalidData):
+        await hass.config_entries.subentries.async_configure(
+            form["flow_id"],
+            {
+                CONF_NAME: "Test Grid",
+                CONF_CONNECTION: "TestNode",
+                SECTION_PRICING: {
+                    CONF_IMPORT_PRICE: {"type": "entity", "value": ["sensor.outdoor_temperature"]},
+                    CONF_EXPORT_PRICE: {"type": "constant", "value": 0.05},
+                },
+                SECTION_POWER_LIMITS: {},
+            },
+        )
 
 
 async def test_reconfigure_with_constant_updates_entry(

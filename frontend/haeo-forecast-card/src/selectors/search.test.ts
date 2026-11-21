@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { describeEntity, entityOptions, filterOptions, parseConstant } from "./search";
+import { describeEntity, filterOptions, offeredEntityIds, parseConstant } from "./search";
 import type { InputSelectorConfig, SelectorHass } from "./types";
 
 const hass: SelectorHass = {
@@ -13,13 +13,14 @@ const hass: SelectorHass = {
     },
     "sensor.a": { entity_id: "sensor.a", state: "unavailable", attributes: { friendly_name: "Solar power" } },
     "sensor.c": { entity_id: "sensor.c", state: "on", attributes: {} },
+    "light.d": { entity_id: "light.d", state: "on", attributes: { friendly_name: "Desk lamp" } },
   },
 };
 
 const config: InputSelectorConfig = {
   kinds: ["entity", "constant", "none"],
   value_type: "number",
-  multiple: true,
+  domains: ["sensor"],
   entities: ["sensor.a", "sensor.b", "sensor.c"],
   min: 0,
   max: 100,
@@ -41,14 +42,19 @@ describe("describeEntity", () => {
   });
 });
 
-describe("entityOptions", () => {
-  it("lists the offered entities sorted by name", () => {
-    expect(entityOptions(hass, config).map((option) => option.entityId)).toEqual(["sensor.b", "sensor.c", "sensor.a"]);
+describe("offeredEntityIds", () => {
+  it("lists a field's own entities sorted by name", () => {
+    expect(offeredEntityIds(hass, config)).toEqual(["sensor.b", "sensor.c", "sensor.a"]);
+  });
+
+  it("lists every entity in the field's domains when it names none", () => {
+    const byDomain: InputSelectorConfig = { kinds: config.kinds, value_type: "number", domains: ["sensor", "light"] };
+    expect(offeredEntityIds(hass, byDomain)).toEqual(["sensor.b", "light.d", "sensor.c", "sensor.a"]);
   });
 });
 
 describe("filterOptions", () => {
-  const options = entityOptions(hass, config);
+  const options = offeredEntityIds(hass, config).map((entityId) => describeEntity(hass, entityId));
 
   it("keeps options matching every word in the name or entity ID", () => {
     expect(filterOptions(options, "power battery").map((option) => option.entityId)).toEqual(["sensor.b"]);

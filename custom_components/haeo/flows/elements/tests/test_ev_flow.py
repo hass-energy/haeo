@@ -179,17 +179,16 @@ async def test_plugged_in_entity_picker_offers_binary_sensors(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """The plugged-in picker offers binary sensors and input booleans alongside numeric entities, and nothing else."""
+    """The plugged-in picker offers the binary sensor and input boolean domains alongside the numeric ones."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-    for entity_id in ("binary_sensor.ev_plugged_in", "input_boolean.ev_plugged_in", "sensor.ev_plugged_in"):
-        hass.states.async_set(entity_id, "on")
-    hass.states.async_set("light.garage", "on")
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     result = await flow.async_step_user(user_input=None)
 
-    offered = section_selectors(result, SECTION_CHARGING)[CONF_CONNECTED].config["entities"]
-    assert set(offered) == {"binary_sensor.ev_plugged_in", "input_boolean.ev_plugged_in", "sensor.ev_plugged_in"}
+    config = section_selectors(result, SECTION_CHARGING)[CONF_CONNECTED].config
+    assert "entities" not in config
+    assert {"binary_sensor", "input_boolean", "sensor"} <= set(config["domains"])
+    assert "light" not in config["domains"]
 
 
 CHARGER = "sensor.charger_status"

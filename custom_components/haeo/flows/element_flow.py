@@ -72,28 +72,26 @@ def build_inclusion_map(
     input_fields: Mapping[str, AnyInputFieldInfo],
     entity_metadata: list[EntityMetadata],
 ) -> dict[str, list[str]]:
-    """Return the entities each field offers, keyed by field name.
+    """Return the entities offered by each field that narrows its domains, keyed by field name.
 
-    A field offers the entities in its domains (see ``entity_domains``). A field
-    with a unit offers only those whose unit, converted to base units, is the
-    field's unit. A field feeding calendar inputs offers only calendars, and a
-    field that can read a calendar as a forecast also offers every calendar. A
-    meter field only offers entities the recorder keeps a running total for, as
-    it reads that total.
+    A field with a unit offers only the entities whose unit, converted to base
+    units, is the field's unit. A field feeding calendar inputs offers only
+    calendars, and a field that can read a calendar as a forecast also offers
+    every calendar. A meter field only offers entities the recorder keeps a
+    running total for, as it reads that total. A field none of these apply to
+    is left out and offers every entity in its domains.
     """
     result: dict[str, list[str]] = {}
 
     calendars = [v.entity_id for v in entity_metadata if v.entity_id.startswith(f"{CALENDAR_DOMAIN}.")]
     totals = {v.entity_id for v in entity_metadata if v.keeps_running_total}
     for field_info in input_fields.values():
-        domains = tuple(f"{domain}." for domain in entity_domains(field_info))
-        in_domains = [v for v in entity_metadata if v.entity_id.startswith(domains)]
         unit_spec = field_unit_spec(field_info.output_type)
         if reads_calendar(field_info):
             result[field_info.field_name] = calendars
-        elif unit_spec is None:
-            result[field_info.field_name] = [v.entity_id for v in in_domains]
-        else:
+        elif unit_spec is not None:
+            domains = tuple(f"{domain}." for domain in entity_domains(field_info))
+            in_domains = [v for v in entity_metadata if v.entity_id.startswith(domains)]
             compatible = filter_compatible_entities(in_domains, unit_spec)
             included = [eid for eid in compatible if eid in totals] if field_info.meter is not None else compatible
             result[field_info.field_name] = (

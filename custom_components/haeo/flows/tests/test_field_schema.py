@@ -158,7 +158,7 @@ def test_build_input_selector_takes_number_limits_from_the_entity_description() 
     assert selector.config == {
         "kinds": ["entity", "constant"],
         "value_type": "number",
-        "multiple": True,
+        "domains": BASE_DOMAINS,
         "entities": ["sensor.power"],
         "min": 0.0,
         "max": 100.0,
@@ -172,10 +172,10 @@ def test_build_input_selector_takes_number_limits_from_the_entity_description() 
     [pytest.param(PRICE, "number", id="number_without_limits"), pytest.param(ENABLED, "boolean", id="switch")],
 )
 def test_build_input_selector_without_limits(field: AnyInputFieldInfo, value_type: str) -> None:
-    """A field whose entity states no limits, or a switch field, offers an unbounded constant."""
-    selector = build_input_selector(field, kinds=["constant"], entities=[], multiple=False)
+    """A field whose entity states no limits, or a switch field, offers an unbounded constant and its domains."""
+    selector = build_input_selector(field, kinds=["constant"], entities=None)
 
-    assert selector.config == {"kinds": ["constant"], "value_type": value_type, "multiple": False, "entities": []}
+    assert selector.config == {"kinds": ["constant"], "value_type": value_type, "domains": entity_domains(field)}
 
 
 @pytest.mark.parametrize(
@@ -390,4 +390,4 @@ def test_selectors_are_input_selectors() -> None:
     _marker, selector = entries["window_calendar"]
     assert isinstance(selector, InputSelector)
     assert selector.config["kinds"] == ["entity"]
-    assert selector.config["entities"] == ["calendar.pool_pump"]
+    assert selector.config.get("entities") == ["calendar.pool_pump"]

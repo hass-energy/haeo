@@ -163,7 +163,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         field_info = self._get_price_field_info()
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         inclusion_map = build_inclusion_map({CONF_PRICE: field_info}, entity_metadata)
-        return build_input_selector(field_info, kinds=("entity", "constant"), entities=inclusion_map[CONF_PRICE])
+        return build_input_selector(field_info, kinds=("entity", "constant"), entities=inclusion_map.get(CONF_PRICE))
 
     def _build_endpoint_selector(
         self,

@@ -11,15 +11,17 @@ from custom_components.haeo.flows.input_selector import INPUT_SELECTOR_TYPE, Inp
 NUMBER_CONFIG: InputSelectorConfig = {
     "kinds": ["entity", "constant", "none"],
     "value_type": "number",
-    "multiple": True,
-    "entities": ["sensor.power"],
+    "domains": ["sensor"],
+    "entities": ["sensor.a", "sensor.b", "sensor.charger"],
     "min": 0.0,
     "max": 100.0,
 }
 
 
 def _selector(**overrides: object) -> InputSelector:
-    return InputSelector({**NUMBER_CONFIG, **overrides})
+    """Build a selector from the number config, leaving out keys overridden with None."""
+    config = {**NUMBER_CONFIG, **overrides}
+    return InputSelector({key: value for key, value in config.items() if value is not None})
 
 
 @pytest.mark.parametrize(
@@ -28,11 +30,11 @@ def _selector(**overrides: object) -> InputSelector:
         pytest.param({**NUMBER_CONFIG, "kinds": ["connection_target"]}, id="unknown_kind"),
         pytest.param({**NUMBER_CONFIG, "value_type": "text"}, id="unknown_value_type"),
         pytest.param({**NUMBER_CONFIG, "min": "low"}, id="non_numeric_limit"),
-        pytest.param({key: value for key, value in NUMBER_CONFIG.items() if key != "entities"}, id="missing_entities"),
+        pytest.param({key: value for key, value in NUMBER_CONFIG.items() if key != "domains"}, id="missing_domains"),
     ],
 )
 def test_config_schema_rejects_invalid_configs(config: dict[str, object]) -> None:
-    """A selector config offers only known kinds and value types, with numeric limits and its entity list."""
+    """A selector config offers only known kinds and value types, with numeric limits and its domains."""
     with pytest.raises(vol.Invalid):
         InputSelector(config)
 
@@ -55,10 +57,10 @@ def test_config_schema_coerces_limits_to_floats() -> None:
         ),
         pytest.param({}, {"type": "entity", "value": "sensor.a"}, as_entity_value(["sensor.a"]), id="entity_string"),
         pytest.param(
-            {"multiple": False},
-            {"type": "entity", "value": ["sensor.a"]},
-            as_entity_value(["sensor.a"]),
-            id="single_entity",
+            {"entities": None},
+            {"type": "entity", "value": ["sensor.anything"]},
+            as_entity_value(["sensor.anything"]),
+            id="any_entity_in_the_domains",
         ),
         pytest.param({}, {"type": "entity", "value": []}, as_none_value(), id="empty_entity_list"),
         pytest.param({}, {"type": "constant", "value": 10}, as_constant_value(10.0), id="number"),
@@ -92,9 +94,8 @@ def test_call_returns_the_stored_value(
         pytest.param({"kinds": ["entity", "none"]}, {"type": "constant", "value": 1.0}, id="constant_not_offered"),
         pytest.param({}, {"type": "connection_target", "value": "battery"}, id="unknown_kind"),
         pytest.param({}, {"value": 1.0}, id="no_kind"),
-        pytest.param(
-            {"multiple": False}, {"type": "entity", "value": ["sensor.a", "sensor.b"]}, id="too_many_entities"
-        ),
+        pytest.param({}, {"type": "entity", "value": ["sensor.a", "sensor.other"]}, id="entity_not_listed"),
+        pytest.param({"entities": None}, {"type": "entity", "value": ["light.lamp"]}, id="entity_outside_domains"),
         pytest.param({}, {"type": "entity", "value": ["not an entity"]}, id="invalid_entity_id"),
         pytest.param({}, {"type": "constant", "value": -1.0}, id="below_min"),
         pytest.param({}, {"type": "constant", "value": 100.5}, id="above_max"),
@@ -106,14 +107,14 @@ def test_call_returns_the_stored_value(
     ],
 )
 def test_call_rejects_values_the_config_does_not_offer(overrides: dict[str, object], data: object) -> None:
-    """A value of a kind the field does not offer, out of range, or not a mapping is rejected."""
+    """A value of a kind or entity the field does not offer, out of range, or not a mapping is rejected."""
     with pytest.raises(vol.Invalid):
         _selector(**overrides)(data)
 
 
 def test_number_without_limits_accepts_any_number() -> None:
     """A number field without limits takes any number."""
-    selector = InputSelector({"kinds": ["constant"], "value_type": "number", "multiple": True, "entities": []})
+    selector = InputSelector({"kinds": ["constant"], "value_type": "number", "domains": []})
 
     assert selector({"type": "constant", "value": -1e6}) == as_constant_value(-1e6)
 

@@ -101,20 +101,21 @@ def build_input_selector(
     field_info: AnyInputFieldInfo,
     *,
     kinds: Collection[InputKind],
-    entities: Sequence[str],
-    multiple: bool = True,
+    entities: Sequence[str] | None,
 ) -> InputSelector:
     """Build the input selector for a field.
 
-    A number field's constant takes the limits, step and unit of the field's
-    number entity, so the form and the entity accept the same values.
+    The field offers the entities in its domains, narrowed to ``entities`` when
+    given. A number field's constant takes the limits, step and unit of the
+    field's number entity, so the form and the entity accept the same values.
     """
     config: InputSelectorConfig = {
         "kinds": list(kinds),
         "value_type": "number" if is_number_field_info(field_info) else "boolean",
-        "multiple": multiple,
-        "entities": list(entities),
+        "domains": entity_domains(field_info),
     }
+    if entities is not None:
+        config["entities"] = list(entities)
     if is_number_field_info(field_info):
         description = field_info.entity_description
         if description.native_min_value is not None:
@@ -152,7 +153,7 @@ def build_input_field_entries(
             build_input_selector(
                 field_info,
                 kinds=input_kinds(schema_info, field_info),
-                entities=inclusion_map[field_info.field_name],
+                entities=inclusion_map.get(field_info.field_name),
             ),
         )
     return entries

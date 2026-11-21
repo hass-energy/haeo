@@ -154,8 +154,8 @@ The element reports each value in the form HAEO stores, so the flow saves what i
 | Nothing       | `{"type": "none"}`                   |
 
 The selector config lists the kinds a field accepts, whether its fixed value is a number or on/off, the number's limits and unit (taken from the field's number entity), and the entities it offers.
-The offered entities come from `build_inclusion_map()`, which keeps those in the field's domains whose unit fits the field.
-`InputSelector.__call__` validates a submitted value and turns an empty entity list into none.
+A field offers the entities in its domains, or only the compatible ones that `build_inclusion_map()` lists for a field with a unit, a calendar, or a meter.
+`InputSelector.__call__` validates a submitted value, rejecting entities the field does not offer, and turns an empty entity list into none.
 Whether a required field has a value is checked by the flow instead, so the error can name its section.
 
 ### How the field behaves

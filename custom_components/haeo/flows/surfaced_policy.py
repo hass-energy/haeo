@@ -210,7 +210,7 @@ def build_surfaced_schema_entries(
             build_input_selector(
                 localize_input_field(surfaced_field, currency),
                 kinds=SURFACED_KINDS,
-                entities=inclusion_map[field_name],
+                entities=inclusion_map.get(field_name),
             ),
         )
         for field_name, surfaced_field in surfaced_fields.items()

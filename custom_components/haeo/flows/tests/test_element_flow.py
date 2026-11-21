@@ -90,21 +90,8 @@ async def test_build_inclusion_map_includes_compatible_units(
     assert inclusion_map["field"] == ["sensor.compatible"]
 
 
-@pytest.mark.parametrize(
-    ("output_type", "expected"),
-    [
-        pytest.param(
-            OutputType.STATUS,
-            ["sensor.mode", "sensor.power", "binary_sensor.plugged_in", "number.power_limit", "switch.charger"],
-            id="no_unit",
-        ),
-        pytest.param(OutputType.POWER, ["sensor.power", "number.power_limit"], id="unit"),
-    ],
-)
-def test_build_inclusion_map_offers_only_entities_in_the_field_domains(
-    output_type: OutputType, expected: list[str]
-) -> None:
-    """A field offers only entities in its domains, and a field without a unit offers all of them."""
+def test_build_inclusion_map_offers_only_entities_in_the_field_domains() -> None:
+    """A field with a unit offers only compatible entities in its domains; one without a unit is left out."""
     entity_metadata = [
         EntityMetadata(entity_id="sensor.mode", unit_of_measurement=None),
         EntityMetadata(entity_id="sensor.power", unit_of_measurement="kW"),
@@ -115,7 +102,11 @@ def test_build_inclusion_map_offers_only_entities_in_the_field_domains(
         EntityMetadata(entity_id="light.porch", unit_of_measurement=None),
     ]
 
-    assert build_inclusion_map({"field": _field("field", output_type)}, entity_metadata)["field"] == expected
+    inclusion_map = build_inclusion_map(
+        {"power": _field("power", OutputType.POWER), "status": _field("status", OutputType.STATUS)}, entity_metadata
+    )
+
+    assert inclusion_map == {"power": ["sensor.power", "number.power_limit"]}
 
 
 @pytest.mark.parametrize(

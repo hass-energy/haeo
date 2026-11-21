@@ -12,10 +12,10 @@ export interface InputSelectorConfig {
   kinds: InputKind[];
   /** Whether the constant is a number or an on/off value. */
   value_type: "number" | "boolean";
-  /** Whether the field takes several entities. */
-  multiple: boolean;
-  /** Entities the field offers, already filtered to compatible units. */
-  entities: string[];
+  /** Domains the field's entities come from. */
+  domains: string[];
+  /** The entities the field offers when it narrows its domains, such as by unit. */
+  entities?: string[];
   min?: number;
   max?: number;
   step?: number;

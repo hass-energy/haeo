@@ -921,7 +921,7 @@ def test_build_surfaced_schema_entries_includes_compatible_price_entities(
         extract_entity_metadata(hass, hub_entry),
     )[CONF_CONSUMPTION_COST]
 
-    include_entities = selector.config["entities"]
+    include_entities = selector.config.get("entities", [])
 
     assert "sensor.import_price" in include_entities
     assert "sensor.export_price" in include_entities

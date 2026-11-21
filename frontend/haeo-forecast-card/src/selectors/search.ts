@@ -27,11 +27,15 @@ export function describeEntity(hass: SelectorHass | null, entityId: string): Ent
   return { entityId, name: friendlyName(entityId, state), current: currentState(state) };
 }
 
-/** Every entity the field offers, sorted by name so the order never shifts while picking. */
-export function entityOptions(hass: SelectorHass | null, config: InputSelectorConfig): EntityOption[] {
-  return config.entities
+/** The IDs of every entity the field offers, sorted by name so the order never shifts while picking. */
+export function offeredEntityIds(hass: SelectorHass | null, config: InputSelectorConfig): string[] {
+  const ids =
+    config.entities ??
+    Object.keys(hass?.states ?? {}).filter((entityId) => config.domains.includes(entityId.split(".")[0] ?? ""));
+  return ids
     .map((entityId) => describeEntity(hass, entityId))
-    .sort((a, b) => a.name.localeCompare(b.name) || a.entityId.localeCompare(b.entityId));
+    .sort((a, b) => a.name.localeCompare(b.name) || a.entityId.localeCompare(b.entityId))
+    .map((option) => option.entityId);
 }
 
 /** Keep the options whose name or entity ID contains every word of the query. */

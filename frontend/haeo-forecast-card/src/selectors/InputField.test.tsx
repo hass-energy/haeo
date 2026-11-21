@@ -46,7 +46,7 @@ const hass: SelectorHass = {
 const numberConfig: InputSelectorConfig = {
   kinds: ["entity", "constant", "none"],
   value_type: "number",
-  multiple: true,
+  domains: ["sensor"],
   entities: ["sensor.east", "sensor.west", "sensor.load"],
   unit: "kW",
 };
@@ -152,18 +152,13 @@ describe("InputField", () => {
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.west", "sensor.east", "sensor.load"] });
   });
 
-  it("keeps the states an entity value lists when its entities change", () => {
+  it("drops the on and off words of entities that are replaced", () => {
     const onChange = show({
       value: { type: "entity", value: ["sensor.west"], on_states: ["Charging"], off_states: ["Idle"] },
     });
     search("east");
     clickOption("East solar");
-    expect(onChange).toHaveBeenCalledWith({
-      type: "entity",
-      value: ["sensor.west", "sensor.east"],
-      on_states: ["Charging"],
-      off_states: ["Idle"],
-    });
+    expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.west", "sensor.east"] });
   });
 
   it("marks chosen entities and unchooses one on a second click", () => {
@@ -172,16 +167,6 @@ describe("InputField", () => {
     expect(options()[0]?.getAttribute("aria-selected")).toBe("true");
     clickOption("East solar");
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.west"] });
-  });
-
-  it("replaces the entity of a single-entity field", () => {
-    const onChange = show({
-      config: { ...numberConfig, multiple: false },
-      value: { type: "entity", value: ["sensor.west"] },
-    });
-    search("east");
-    clickOption("East solar");
-    expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.east"] });
   });
 
   it.each<[InputSelectorConfig["kinds"], InputValue]>([
@@ -199,6 +184,19 @@ describe("InputField", () => {
     const clear = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Clear");
     act(() => clear?.click());
     expect(onChange).toHaveBeenCalledWith({ type: "none" });
+  });
+
+  it("keeps a fixed number while its box is emptied for editing", () => {
+    const onChange = show({ value: { type: "constant", value: 3 } });
+    const input = container.querySelector<HTMLInputElement>("input[type=number]");
+    act(() => {
+      if (input !== null) {
+        input.value = "";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(container.querySelector("input[type=number]")).not.toBeNull();
   });
 
   it("edits a fixed number in place", () => {

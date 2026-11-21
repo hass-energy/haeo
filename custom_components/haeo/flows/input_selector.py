@@ -52,12 +52,16 @@ type InputKind = Literal["entity", "constant", "none"]
 
 
 class InputSelectorConfig(TypedDict):
-    """What the input element offers."""
+    """What the input element offers.
+
+    A field offers the entities in its domains, or only those in ``entities``
+    when it filters them further, such as by unit.
+    """
 
     kinds: list[InputKind]
     value_type: Literal["number", "boolean"]
-    multiple: bool
-    entities: list[str]
+    domains: list[str]
+    entities: NotRequired[list[str]]
     min: NotRequired[float]
     max: NotRequired[float]
     step: NotRequired[float]
@@ -73,8 +77,8 @@ class InputSelector(Selector[InputSelectorConfig]):
         {
             vol.Required("kinds"): [vol.In([VALUE_TYPE_ENTITY, VALUE_TYPE_CONSTANT, VALUE_TYPE_NONE])],
             vol.Required("value_type"): vol.In(["number", "boolean"]),
-            vol.Required("multiple"): bool,
-            vol.Required("entities"): [str],
+            vol.Required("domains"): [str],
+            vol.Optional("entities"): [str],
             vol.Optional("min"): vol.Coerce(float),
             vol.Optional("max"): vol.Coerce(float),
             vol.Optional("step"): vol.Coerce(float),
@@ -100,9 +104,8 @@ class InputSelector(Selector[InputSelectorConfig]):
                 entity_ids = cv.entity_ids(value) if isinstance(value, str | list) else []
                 if not entity_ids:
                     return as_none_value()
-                if not self.config["multiple"] and len(entity_ids) > 1:
-                    msg = "Only one entity is allowed"
-                    raise vol.Invalid(msg)
+                for entity_id in entity_ids:
+                    self._check_offered(entity_id)
                 return as_entity_value(
                     entity_ids,
                     on_states=self._states(data.get("on_states")),
@@ -113,6 +116,14 @@ class InputSelector(Selector[InputSelectorConfig]):
             case _:
                 msg = "Unsupported input value"
                 raise vol.Invalid(msg)
+
+    def _check_offered(self, entity_id: str) -> None:
+        """Reject an entity the field does not offer."""
+        if entity_id.split(".", 1)[0] not in self.config["domains"]:
+            msg = f"Entity {entity_id} is not in the domains {self.config['domains']}"
+            raise vol.Invalid(msg)
+        if "entities" in self.config:
+            vol.In(self.config["entities"])(entity_id)
 
     @staticmethod
     def _states(value: object) -> list[str]:

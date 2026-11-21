@@ -1,7 +1,7 @@
 import { useMemo, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
-import { describeEntity, entityOptions, filterOptions, parseConstant } from "./search";
+import { describeEntity, filterOptions, offeredEntityIds, parseConstant } from "./search";
 import type { EntityOption } from "./search";
 import type { InputSelectorConfig, InputValue, SelectorHass, Translate } from "./types";
 
@@ -32,9 +32,14 @@ function selectedEntities(value: InputValue | undefined): string[] {
   return value?.type === "entity" ? value.value : [];
 }
 
-/** An entity value listing the given entities, keeping any other details of the current value. */
-function withEntities(value: InputValue | undefined, entityIds: string[]): InputValue {
-  return value?.type === "entity" ? { ...value, value: entityIds } : { type: "entity", value: entityIds };
+/**
+ * An entity value listing the given entities.
+ *
+ * The words that mean on and off belong to the entities they were read from,
+ * so they are dropped when the entities change and the flow asks for them again.
+ */
+function entityValue(entityIds: string[]): InputValue {
+  return { type: "entity", value: entityIds };
 }
 
 function emptyValue(config: InputSelectorConfig): InputValue {
@@ -56,7 +61,10 @@ export function InputField(props: InputFieldProps): JSX.Element {
   const allowsConstant = config.kinds.includes("constant");
   const allowsNone = config.kinds.includes("none");
   const selected = selectedEntities(value);
-  const options = useMemo(() => entityOptions(hass, config), [hass, config]);
+  // Sorting is the slow part, and Home Assistant replaces hass on every state change, so the
+  // order is kept until the field's config changes; current states are read fresh below.
+  const hasHass = hass !== null;
+  const offeredIds = useMemo(() => offeredEntityIds(hass, config), [config, hasHass]);
 
   const choices = useMemo((): Choice[] => {
     const result: Choice[] = [];
@@ -69,9 +77,10 @@ export function InputField(props: InputFieldProps): JSX.Element {
       result.push({ kind: "constant", value: true, text: t("input.options.fixed_on") });
       result.push({ kind: "constant", value: false, text: t("input.options.fixed_off") });
     }
+    const options = offeredIds.map((entityId) => describeEntity(hass, entityId));
     const matches = filterOptions(options, query);
     const unselected = matches.filter((option) => !selected.includes(option.entityId));
-    if (config.multiple && query.trim() !== "" && unselected.length > 1) {
+    if (query.trim() !== "" && unselected.length > 1) {
       result.push({
         kind: "add_all",
         entityIds: unselected.map((option) => option.entityId),
@@ -82,7 +91,7 @@ export function InputField(props: InputFieldProps): JSX.Element {
       result.push({ kind: "entity", option, selected: selected.includes(option.entityId) });
     }
     return result;
-  }, [query, config, options, selected, allowsConstant, t]);
+  }, [query, config, offeredIds, hass, value, allowsConstant, t]);
 
   const choose = (choice: Choice): void => {
     switch (choice.kind) {
@@ -92,18 +101,12 @@ export function InputField(props: InputFieldProps): JSX.Element {
         setOpen(false);
         return;
       case "add_all":
-        onChange(withEntities(value, [...selected, ...choice.entityIds]));
+        onChange(entityValue([...selected, ...choice.entityIds]));
         return;
       case "entity": {
         const id = choice.option.entityId;
-        if (!config.multiple) {
-          onChange(withEntities(value, [id]));
-          setQuery("");
-          setOpen(false);
-          return;
-        }
         const next = choice.selected ? selected.filter((entityId) => entityId !== id) : [...selected, id];
-        onChange(next.length === 0 ? emptyValue(config) : withEntities(value, next));
+        onChange(next.length === 0 ? emptyValue(config) : entityValue(next));
         return;
       }
     }
@@ -111,7 +114,7 @@ export function InputField(props: InputFieldProps): JSX.Element {
 
   const removeEntity = (entityId: string): void => {
     const next = selected.filter((id) => id !== entityId);
-    onChange(next.length === 0 ? emptyValue(config) : withEntities(value, next));
+    onChange(next.length === 0 ? emptyValue(config) : entityValue(next));
   };
 
   const onKeyDown = (event: KeyboardEvent): void => {
@@ -180,13 +183,11 @@ export function InputField(props: InputFieldProps): JSX.Element {
             {...(config.max !== undefined ? { max: config.max } : {})}
             step={config.step ?? "any"}
             onInput={(event) => {
+              // A box being edited can read empty (cleared, or a lone "-"), which keeps the last number;
+              // Clear empties the field
               const text = event.currentTarget.value;
-              if (text === "") {
-                onChange(emptyValue(config));
-                return;
-              }
               const number = Number(text);
-              if (Number.isFinite(number)) {
+              if (text !== "" && Number.isFinite(number)) {
                 onChange({ type: "constant", value: number });
               }
             }}
@@ -252,11 +253,11 @@ export function InputField(props: InputFieldProps): JSX.Element {
           {open && query.trim() === "" && (
             <div class="hint">
               {allowsConstant && config.value_type === "number" && <div>{t("input.options.hint_value")}</div>}
-              {config.multiple && <div>{t("input.options.hint_add_all")}</div>}
+              <div>{t("input.options.hint_add_all")}</div>
             </div>
           )}
           {open && (
-            <ul class="options" id={ids.list} role="listbox" aria-multiselectable={config.multiple}>
+            <ul class="options" id={ids.list} role="listbox" aria-multiselectable={true}>
               {choices.length === 0 && <li class="no-matches">{t("input.options.no_matches")}</li>}
               {choices.map((choice, index) => (
                 <li
