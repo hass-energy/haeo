@@ -61,7 +61,8 @@
       "already_configured": "HAEO already configured",
       "already_in_progress": "Setup of this system is already in progress",
       "reconfigure_successful": "Settings saved"
-    }
+    },
+    "create_entry": { "refresh": "Refresh this page before adding elements, so their settings appear." }
   },
   "options": {
     "step": {
@@ -840,7 +841,26 @@
     "buffer_kind": { "options": { "headroom": "Headroom: keep empty space", "reserve": "Reserve: keep energy" } },
     "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
-    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
+    "input": {
+      "options": {
+        "add_all": "Add all {count} matches",
+        "clear": "Clear",
+        "fixed_off": "Off (fixed value)",
+        "fixed_on": "On (fixed value)",
+        "fixed_value": "Fixed value",
+        "hint_add_all": "Type to filter the list, then add every match at once.",
+        "hint_value": "Type a number to use it as a fixed value.",
+        "no_matches": "No matching entities",
+        "not_set": "Not set",
+        "off": "Off",
+        "on": "On",
+        "remove": "Remove {name}",
+        "search": "Search entities",
+        "search_or_value": "Search entities or type a value",
+        "selected": "{label} entities",
+        "use_value": "Use {value} as a fixed value"
+      }
+    },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
   },
   "services": {

@@ -732,7 +732,76 @@ class HAPage:
 
     # endregion
 
-    # region: ChooseSelector
+    # region: Input selector
+
+    def _input_field(self, field_label: str) -> Locator:
+        """Locate a HAEO input field by its label.
+
+        The label must start a word with matching case, so "Charge efficiency"
+        does not also match "Discharge efficiency".
+        """
+        label = re.compile(rf"\b{re.escape(field_label)}")
+        return self.page.locator("ha-selector-haeo_input").filter(has_text=label)
+
+    def input_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
+        """Add an entity to a HAEO input field by searching for it and picking it from the list."""
+        field = self._input_field(field_label)
+        field.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        search = field.get_by_role("combobox")
+        option = field.get_by_role("option").filter(has_text=entity_name).first
+
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"entity_{field_label}"):
+                self._scroll_and_capture(search)
+                self._capture_with_indicator("search_box", search)
+                search.fill(search_term)
+                option.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
+                self._capture("search_results")
+                self._scroll_into_view(option)
+                self._capture_with_indicator("select", option)
+                option.click(timeout=DEFAULT_TIMEOUT)
+                search.blur()
+                self._capture("selected")
+        else:
+            self._scroll_into_view(search)
+            search.fill(search_term)
+            option.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
+            self._scroll_into_view(option)
+            option.click(timeout=DEFAULT_TIMEOUT)
+            search.blur()
+
+    def input_constant(self, field_label: str, value: str) -> None:
+        """Set a HAEO input field to a fixed number.
+
+        A field already holding a fixed number is edited in place; otherwise the
+        number is typed into the search and taken as a fixed value.
+        """
+        field = self._input_field(field_label)
+        field.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        fixed = field.get_by_role("spinbutton")
+        target = fixed if fixed.count() else field.get_by_role("combobox")
+        use_value = field.get_by_role("option").first
+
+        ctx = ScreenshotContext.current()
+        if ctx:
+            with ctx.scope(f"constant_{field_label}"):
+                self._scroll_and_capture(target)
+                self._capture_with_indicator("field", target)
+                target.fill(value)
+                if not fixed.count():
+                    use_value.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                    self._capture_with_indicator("use_value", use_value)
+                    use_value.click(timeout=DEFAULT_TIMEOUT)
+                self._capture("filled")
+        else:
+            target.fill(value)
+            if not fixed.count():
+                use_value.click(timeout=DEFAULT_TIMEOUT)
+
+    # endregion
+
+    # region: ChooseSelector (policy endpoints)
 
     def _choose_field(self, field_label: str) -> Locator:
         """Locate a ChooseSelector field by its label.
@@ -763,122 +832,6 @@ class HAPage:
                 self._capture("selected")
         else:
             button.click(timeout=DEFAULT_TIMEOUT)
-
-    def choose_entity(
-        self,
-        field_label: str,
-        search_term: str,
-        entity_name: str,
-    ) -> None:
-        """Select an entity within a ChooseSelector field.
-
-        Assumes the "Entity" choice is already active (the default for entity-mode fields).
-        The nested entity picker uses the same combo-box-item -> dialog -> search pattern.
-        """
-        choose = self._choose_field(field_label)
-        choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-        picker = choose.locator("ha-combo-box-item").first
-        picker.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-        ctx = ScreenshotContext.current()
-        if ctx:
-            with ctx.scope(f"entity_{field_label}"):
-                self._scroll_and_capture(picker)
-                self._capture_with_indicator("picker", picker)
-
-                picker.click()
-
-                dialog = self.page.get_by_role("dialog", name="Select option")
-                dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-                search_input = dialog.get_by_role("textbox", name="Search")
-                search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-                self._capture_with_indicator("search_box", search_input)
-
-                search_input.fill(search_term)
-
-                result_item = dialog.locator(f":text('{entity_name}')").first
-                result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
-                self._capture("search_results")
-                self._scroll_into_view(result_item)
-                self._capture_with_indicator("select", result_item)
-
-                result_item.click(timeout=DEFAULT_TIMEOUT)
-                dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
-                self._capture("selected")
-        else:
-            self._select_entity_no_capture(picker, search_term, entity_name)
-
-    def choose_add_entity(
-        self,
-        field_label: str,
-        search_term: str,
-        entity_name: str,
-    ) -> None:
-        """Add another entity to a multi-select ChooseSelector field."""
-        choose = self._choose_field(field_label)
-        add_btn = choose.get_by_role("button", name="Add entity")
-        add_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-        ctx = ScreenshotContext.current()
-        if ctx:
-            with ctx.scope(f"add_entity_{field_label}"):
-                self._scroll_and_capture(add_btn)
-                self._capture_with_indicator("add_button", add_btn)
-
-                add_btn.click(timeout=DEFAULT_TIMEOUT)
-
-                dialog = self.page.get_by_role("dialog", name="Select option")
-                dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-                search_input = dialog.get_by_role("textbox", name="Search")
-                search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-                self._capture_with_indicator("search_box", search_input)
-
-                search_input.fill(search_term)
-
-                result_item = dialog.locator(f":text('{entity_name}')").first
-                result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
-                self._capture("search_results")
-                self._scroll_into_view(result_item)
-                self._capture_with_indicator("select", result_item)
-
-                result_item.click(timeout=DEFAULT_TIMEOUT)
-                dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
-                self._capture("selected")
-        else:
-            add_btn.click(timeout=DEFAULT_TIMEOUT)
-            dialog = self.page.get_by_role("dialog", name="Select option")
-            dialog.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-            self._select_entity_no_capture(
-                dialog.get_by_role("textbox", name="Search"),
-                search_term,
-                entity_name,
-                already_in_dialog=True,
-            )
-
-    def choose_constant(self, field_label: str, value: str) -> None:
-        """Fill a constant value within a ChooseSelector field.
-
-        Assumes the "Constant" choice is already active. The nested NumberSelector
-        renders as a spinbutton.
-        """
-        choose = self._choose_field(field_label)
-        choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-        spinbutton = choose.get_by_role("spinbutton")
-        spinbutton.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-        ctx = ScreenshotContext.current()
-        if ctx:
-            with ctx.scope(f"constant_{field_label}"):
-                self._scroll_and_capture(spinbutton)
-                self._capture_with_indicator("field", spinbutton)
-                spinbutton.clear()
-                spinbutton.fill(value)
-                self._capture("filled")
-        else:
-            spinbutton.clear()
-            spinbutton.fill(value)
 
     def choose_dropdown_multi(self, field_label: str, options: list[str]) -> None:
         """Select multiple options from a SelectSelector nested inside a ChooseSelector.

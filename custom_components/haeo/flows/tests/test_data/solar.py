@@ -10,8 +10,7 @@ from custom_components.haeo.core.schema.elements.solar import (
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 
-# Test data for solar flow - single-step with choose selector
-# config: Contains all field values in choose selector format
+# Each config is both what the solar form submits and what its subentry stores
 # Note: curtailment has force_required=True, so it must be included
 VALID_DATA = [
     {

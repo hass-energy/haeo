@@ -6,12 +6,12 @@ Use it to understand where the data comes from, what prompts an optimization, an
 ## How HAEO receives data
 
 HAEO uses an intermediate input entity layer to receive data from external sensors.
-Each configuration field you set, whether to a constant or to sensors, creates a corresponding input entity (Number or Switch) in Home Assistant.
+Each configuration field you set, whether to a fixed value or to sensors, creates a corresponding input entity (Number or Switch) in Home Assistant.
 These input entities load values from external sensors you select, transform them as needed, and make them available with a `forecast` attribute containing time-series data.
 
 Input entities operate in one of two modes:
 
-- **Editable**: Constant value you configure directly (e.g., battery capacity)
+- **Editable**: Fixed value you configure directly (e.g., battery capacity)
 - **Driven**: Value loaded from an external sensor or forecast (e.g., electricity prices)
 
 You can find input entities in Home Assistant's entity list with the `config` entity category.

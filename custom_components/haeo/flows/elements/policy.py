@@ -42,20 +42,15 @@ from custom_components.haeo.core.schema.elements.policy import (
     ELEMENT_TYPE,
     PolicyRuleConfig,
 )
-from custom_components.haeo.core.schema.entity_value import as_entity_value, is_entity_value
+from custom_components.haeo.core.schema.entity_value import is_entity_value
+from custom_components.haeo.core.schema.none_value import as_none_value
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_list_input_fields
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, localize_input_field
 from custom_components.haeo.flows.element_flow import ElementSubentryFlow, build_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
-from custom_components.haeo.flows.field_schema import (
-    CHOICE_CONSTANT,
-    CHOICE_ENTITY,
-    CHOICE_NONE,
-    NormalizingChooseSelector,
-    build_choose_selector,
-    get_preferred_choice,
-)
+from custom_components.haeo.flows.field_schema import build_input_selector, has_input_value
+from custom_components.haeo.flows.input_selector import InputSelector
 from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE, find_policy_subentry
 
 CONF_ACTION: str = "action"
@@ -63,6 +58,8 @@ CONF_RULE: str = "rule"
 ACTION_EDIT: str = "edit"
 ACTION_DELETE: str = "delete"
 
+# Endpoint choices: any element, or the listed elements
+CHOICE_NONE: str = "none"
 CHOICE_ELEMENTS: str = "elements"
 
 
@@ -161,19 +158,12 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         section = next(iter(list_fields.values()))
         return localize_input_field(section[CONF_PRICE], currency_symbol(self.hass.config.currency))
 
-    def _build_price_selector(self, shown_data: Mapping[str, object] | None) -> NormalizingChooseSelector:
-        """Build a ChooseSelector for the price field (entity/constant), first on the choice holding the shown price."""
+    def _build_price_selector(self) -> InputSelector:
+        """Build the price input, which takes entities or a constant."""
         field_info = self._get_price_field_info()
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         inclusion_map = build_inclusion_map({CONF_PRICE: field_info}, entity_metadata)
-        allowed_choices = {CHOICE_ENTITY, CHOICE_CONSTANT}
-        return build_choose_selector(
-            field_info,
-            allowed_choices=allowed_choices,
-            include_entities=inclusion_map.get(CONF_PRICE),
-            multiple=True,
-            preferred_choice=get_preferred_choice(field_info, shown_data, allowed_choices=allowed_choices),
-        )
+        return build_input_selector(field_info, kinds=("entity", "constant"), entities=inclusion_map[CONF_PRICE])
 
     def _build_endpoint_selector(
         self,
@@ -226,9 +216,8 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         *,
         source_preferred_choice: str = CHOICE_NONE,
         target_preferred_choice: str = CHOICE_NONE,
-        shown_data: Mapping[str, object] | None,
     ) -> vol.Schema:
-        """Build the schema for adding or editing a policy rule showing the given values."""
+        """Build the schema for adding or editing a policy rule."""
         source_selector = self._build_endpoint_selector(
             source_options,
             preferred_choice=source_preferred_choice,
@@ -237,7 +226,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
             target_options,
             preferred_choice=target_preferred_choice,
         )
-        price_selector = self._build_price_selector(shown_data)
+        price_selector = self._build_price_selector()
 
         return vol.Schema(
             {
@@ -278,17 +267,15 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
     def _parse_rule_input(self, user_input: Mapping[str, object]) -> PolicyRuleConfig:
         """Convert form input into a PolicyRuleConfig."""
         price = user_input[CONF_PRICE]
-        price_value = (
-            as_entity_value(price)  # type: ignore[arg-type]  # ChooseSelector list values are entity IDs
-            if isinstance(price, list)
-            else as_constant_value(float(price))  # type: ignore[arg-type]  # ChooseSelector constant values are numeric
-        )
+        if not (is_entity_value(price) or is_constant_value(price)):
+            msg = "A validated rule has a price"
+            raise TypeError(msg)
 
         name = user_input[CONF_RULE_NAME]
         rule: PolicyRuleConfig = {
             "name": name if isinstance(name, str) else str(name),
             "enabled": as_constant_value(bool(user_input[CONF_ENABLED])),
-            "price": price_value,
+            "price": price,
         }
 
         source = _as_str_list(user_input.get(CONF_SOURCE))
@@ -315,9 +302,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         defaults[CONF_TARGET] = target if target else ""
 
         if CONF_PRICE in rule:
-            price = rule[CONF_PRICE]
-            if is_constant_value(price) or is_entity_value(price):
-                defaults[CONF_PRICE] = price["value"]
+            defaults[CONF_PRICE] = rule[CONF_PRICE]
         return defaults
 
     def _rule_to_edit_input(self, rule: PolicyRuleConfig) -> dict[str, object]:
@@ -329,10 +314,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
             CONF_TARGET: rule.get(CONF_TARGET, ""),
         }
 
-        price = rule[CONF_PRICE]
-        if is_constant_value(price) or is_entity_value(price):
-            input_values[CONF_PRICE] = price["value"]
-
+        input_values[CONF_PRICE] = rule[CONF_PRICE]
         return input_values
 
     def _validate_rule(
@@ -373,14 +355,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
                 errors["base"] = "duplicate_rule"
                 return False
 
-        price = user_input.get(CONF_PRICE)
-        if isinstance(price, str) and price == "":
-            errors[CONF_PRICE] = "required"
-            return False
-        if price is None:
-            errors[CONF_PRICE] = "required"
-            return False
-        if isinstance(price, list) and not price:
+        if not has_input_value(user_input.get(CONF_PRICE)):
             errors[CONF_PRICE] = "required"
             return False
 
@@ -431,10 +406,10 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
             target_options,
             source_preferred_choice=source_preferred_choice,
             target_preferred_choice=target_preferred_choice,
-            shown_data=user_input,
         )
-        if user_input is not None:
-            schema = self.add_suggested_values_to_schema(schema, user_input)
+        # The price opens not set, as the form cannot start a required input without a value
+        shown = user_input if user_input is not None else {CONF_PRICE: as_none_value()}
+        schema = self.add_suggested_values_to_schema(schema, shown)
 
         return self.async_show_form(
             step_id="user",
@@ -515,7 +490,6 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
             target_options,
             source_preferred_choice=source_preferred_choice,
             target_preferred_choice=target_preferred_choice,
-            shown_data=defaults,
         )
         schema = self.add_suggested_values_to_schema(schema, defaults)
 

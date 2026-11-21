@@ -127,26 +127,36 @@ Most elements are configured in a single step where you enter:
 
 1. **Element name**: A unique, descriptive name for the element
 2. **Connection target**: Which element this connects to (for elements that require connections)
-3. **Input fields**: For each field, choose how to provide the value
+3. **Input fields**: The value for each field, as described below
 
-#### Input field options
+#### Input fields
 
-Each input field provides a dropdown with these choices:
+Each input field is a single control that shows its current value:
 
-| Choice       | Use When                                         |
-| ------------ | ------------------------------------------------ |
-| **Entity**   | Value should come from a Home Assistant sensor   |
-| **Constant** | Value is fixed (enter it directly in the form)   |
-| **None**     | Don't use this constraint (optional fields only) |
+- **Not set** when an optional field has no value
+- A fixed value with its unit, which you can edit in place
+- The chosen entities, each with its current value and a **×** button to remove it
+- An **On**/**Off** switch for an on/off field set to a fixed value
 
-- Select **Entity** to link the field to one or more sensors (for example, a price forecast sensor)
-- Select **Constant** to enter a fixed value directly (for example, a battery capacity of 10 kWh)
-- Select **None** for optional fields you don't need (for example, no export limit)
+To set a field, use its **Search entities or type a value** box:
 
-!!! tip "Constant values are adjustable"
+- **Choose an entity**: Type to filter the list, then pick an entity.
+    The list offers only entities whose unit fits the field.
+    Fields that take several entities keep each one you pick, in the order you picked them, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors).
+- **Add several entities at once**: When your search matches more than one entity, pick **Add all N matches**.
+    This suits forecast integrations that create one sensor per day or per array, such as Forecast.Solar or Solcast.
+- **Enter a fixed value**: Type a number, such as `10`, and pick **Use 10 as a fixed value**.
+    For an on/off field, pick **On (fixed value)** or **Off (fixed value)**.
+- **Leave it not set**: Click **Clear** on an optional field you don't need, such as an export limit.
+    HAEO leaves that field out of the optimization.
 
-    Every field you configure creates an input entity in Home Assistant.
-    For fields set to "Constant", you can adjust the value from that entity at runtime without reconfiguring the element.
+!!! tip "Fixed values are adjustable"
+
+    Every field you set creates an input entity in Home Assistant.
+    A field set to a fixed value can be adjusted from its input entity at runtime without reconfiguring the element.
+    A field left not set creates no input entity.
+
+See [Forecasts and sensors](forecasts-and-sensors.md#fixed-values-vs-sensors) for when to use a fixed value, a helper, or a forecast sensor.
 
 !!! note "Network entry"
 

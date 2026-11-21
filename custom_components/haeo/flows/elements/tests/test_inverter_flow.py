@@ -1,20 +1,26 @@
 """Tests for inverter element config flow."""
 
-from collections.abc import Mapping
 from types import MappingProxyType
+from typing import (
+    Any,  # noqa: TID251  # element flows are created from the registry, which a static flow type cannot express
+)
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
-from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import (
+    SchemaValue,
+    as_connection_target,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
+)
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.inverter import (
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -24,368 +30,165 @@ from custom_components.haeo.core.schema.elements.inverter import (
     SECTION_POWER_LIMITS,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.elements import get_input_fields
-from custom_components.haeo.flows.conftest import create_flow
+from custom_components.haeo.flows.conftest import create_flow, section_suggested_values
 
 CONF_MAX_POWER_DC_TO_AC = CONF_MAX_POWER_SOURCE_TARGET
 CONF_MAX_POWER_AC_TO_DC = CONF_MAX_POWER_TARGET_SOURCE
-SECTION_LIMITS = SECTION_POWER_LIMITS
 
 
-def _wrap_input(flat: Mapping[str, object]) -> dict[str, object]:
-    """Wrap flat inverter input values into sectioned config."""
-    if SECTION_LIMITS in flat:
-        return dict(flat)
-    limits = {
-        CONF_MAX_POWER_DC_TO_AC: flat[CONF_MAX_POWER_DC_TO_AC],
-        CONF_MAX_POWER_AC_TO_DC: flat[CONF_MAX_POWER_AC_TO_DC],
-    }
+def _inverter_input(dc_to_ac: SchemaValue, ac_to_dc: SchemaValue) -> dict[str, object]:
+    """Build the inverter form's submitted values."""
     return {
-        CONF_NAME: flat[CONF_NAME],
-        CONF_CONNECTION: flat[CONF_CONNECTION],
-        SECTION_LIMITS: limits,
+        CONF_NAME: "Test Inverter",
+        CONF_CONNECTION: "TestNode",
+        SECTION_POWER_LIMITS: {CONF_MAX_POWER_DC_TO_AC: dc_to_ac, CONF_MAX_POWER_AC_TO_DC: ac_to_dc},
         SECTION_EFFICIENCY: {},
     }
 
 
-def _wrap_config(flat: Mapping[str, object]) -> dict[str, object]:
-    """Wrap flat inverter config values into sectioned config with element type."""
-    if SECTION_LIMITS in flat:
-        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
-    config = _wrap_input(flat)
-    connection = config.get(CONF_CONNECTION)
-    if isinstance(connection, str):
-        config[CONF_CONNECTION] = as_connection_target(connection)
-    return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
+def _add_inverter(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    dc_to_ac: SchemaValue,
+    ac_to_dc: SchemaValue,
+    *,
+    connection: str = "TestNode",
+) -> ConfigSubentry:
+    """Add a stored inverter."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                **_inverter_input(dc_to_ac, ac_to_dc),
+                CONF_CONNECTION: as_connection_target(connection),
+            }
+        ),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Inverter",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    return subentry
+
+
+def _reconfigure_flow(hass: HomeAssistant, hub_entry: MockConfigEntry, subentry: ConfigSubentry) -> Any:
+    """Create a flow reconfiguring the given inverter."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
+    return flow
 
 
 @pytest.mark.parametrize(
-    ("config_values", "expected_defaults", "add_node"),
+    ("dc_to_ac", "ac_to_dc", "add_node"),
     [
         pytest.param(
-            {
-                CONF_NAME: "Test Inverter",
-                CONF_CONNECTION: "TestNode",
-                CONF_MAX_POWER_DC_TO_AC: as_entity_value(["sensor.dc_to_ac_power"]),
-                CONF_MAX_POWER_AC_TO_DC: as_entity_value(["sensor.ac_to_dc_power"]),
-            },
-            {
-                CONF_MAX_POWER_DC_TO_AC: ["sensor.dc_to_ac_power"],
-                CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_to_dc_power"],
-            },
+            as_entity_value(["sensor.dc_to_ac_power"]),
+            as_entity_value(["sensor.ac_to_dc_power"]),
             True,
             id="entity_values",
         ),
+        pytest.param(as_constant_value(10.0), as_constant_value(8.0), True, id="constant_values"),
         pytest.param(
-            {
-                CONF_NAME: "Test Inverter",
-                CONF_CONNECTION: "TestNode",
-                CONF_MAX_POWER_DC_TO_AC: as_constant_value(10.0),
-                CONF_MAX_POWER_AC_TO_DC: as_constant_value(8.0),
-            },
-            {
-                CONF_MAX_POWER_DC_TO_AC: 10.0,
-                CONF_MAX_POWER_AC_TO_DC: 8.0,
-            },
-            True,
-            id="constant_values",
+            as_entity_value(["sensor.dc1", "sensor.dc2"]), as_entity_value(["sensor.ac"]), True, id="entity_list"
         ),
-        pytest.param(
-            {
-                CONF_NAME: "Test Inverter",
-                CONF_CONNECTION: "TestNode",
-                CONF_MAX_POWER_DC_TO_AC: as_entity_value(["sensor.dc1", "sensor.dc2"]),
-                CONF_MAX_POWER_AC_TO_DC: as_entity_value(["sensor.ac"]),
-            },
-            {
-                CONF_MAX_POWER_DC_TO_AC: ["sensor.dc1", "sensor.dc2"],
-                CONF_MAX_POWER_AC_TO_DC: ["sensor.ac"],
-            },
-            True,
-            id="entity_list",
-        ),
-        pytest.param(
-            {
-                CONF_NAME: "Test Inverter",
-                CONF_CONNECTION: "DeletedNode",
-                CONF_MAX_POWER_DC_TO_AC: as_constant_value(10.0),
-                CONF_MAX_POWER_AC_TO_DC: as_constant_value(8.0),
-            },
-            {
-                CONF_MAX_POWER_DC_TO_AC: 10.0,
-                CONF_MAX_POWER_AC_TO_DC: 8.0,
-            },
-            False,
-            id="deleted_connection",
-        ),
+        pytest.param(as_constant_value(10.0), as_constant_value(8.0), False, id="deleted_connection"),
     ],
 )
-async def test_reconfigure_defaults_handle_schema_values(
+async def test_reconfigure_form_opens_with_the_stored_values(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    config_values: dict[str, object],
-    expected_defaults: dict[str, object],
+    dc_to_ac: SchemaValue,
+    ac_to_dc: SchemaValue,
     add_node: bool,
 ) -> None:
-    """Reconfigure defaults reflect schema values and missing participants."""
+    """Reopening an inverter shows its stored values, ignoring subentries of unknown types."""
     if add_node:
         add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
-    unknown_data = MappingProxyType({CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"})
     unknown_subentry = ConfigSubentry(
-        data=unknown_data,
+        data=MappingProxyType({CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"}),
         subentry_type="unknown_type",
         title="Unknown",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(hub_entry, unknown_subentry)
+    flow = _reconfigure_flow(hass, hub_entry, _add_inverter(hass, hub_entry, dc_to_ac, ac_to_dc))
 
-    existing_config = _wrap_config(config_values)
-    existing_subentry = ConfigSubentry(
-        data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
-        title="Test Inverter",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
-    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-
-    participants = flow._get_participant_names()
-    assert "Unknown" not in participants
+    assert "Unknown" not in flow._get_participant_names()
 
     result = await flow.async_step_reconfigure(user_input=None)
+
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
-
-    input_fields = get_input_fields(ELEMENT_TYPE)
-    defaults = flow._build_defaults("Test Inverter", input_fields, dict(existing_subentry.data))
-    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == expected_defaults[CONF_MAX_POWER_DC_TO_AC]
-    assert defaults[SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == expected_defaults[CONF_MAX_POWER_AC_TO_DC]
-
-
-# --- Tests for single-step flow with choose selector ---
+    assert section_suggested_values(result, SECTION_POWER_LIMITS) == {
+        CONF_MAX_POWER_DC_TO_AC: dc_to_ac,
+        CONF_MAX_POWER_AC_TO_DC: ac_to_dc,
+    }
 
 
-async def test_user_step_with_constant_creates_entry(
+@pytest.mark.parametrize(
+    ("dc_to_ac", "ac_to_dc"),
+    [
+        pytest.param(as_constant_value(10.0), as_constant_value(8.0), id="constant"),
+        pytest.param(as_entity_value(["sensor.dc_power"]), as_entity_value(["sensor.ac_power"]), id="entity"),
+    ],
+)
+async def test_user_step_stores_submitted_values(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
+    dc_to_ac: SchemaValue,
+    ac_to_dc: SchemaValue,
 ) -> None:
-    """Submitting with constant values should create entry directly."""
+    """A new inverter stores its power limits as submitted, and a missing limit is reported on its section."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.async_create_entry = Mock(
-        return_value={
-            "type": FlowResultType.CREATE_ENTRY,
-            "title": "Test Inverter",
-            "data": {},
-        }
+        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Inverter", "data": {}}
     )
 
     assert flow._get_current_subentry_id() is None
 
-    invalid_input = _wrap_input(
-        {
-            CONF_NAME: "Test Inverter",
-            CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: [],
-            CONF_MAX_POWER_AC_TO_DC: 8.0,
-        }
-    )
-    invalid_result = await flow.async_step_user(user_input=invalid_input)
+    invalid_result = await flow.async_step_user(user_input=_inverter_input(as_none_value(), ac_to_dc))
     assert invalid_result.get("type") == FlowResultType.FORM
     assert invalid_result.get("step_id") == "user"
     assert invalid_result.get("errors") == {SECTION_POWER_LIMITS: "required"}
 
-    # Submit with constant values using choose selector format
-    user_input = _wrap_input(
-        {
-            CONF_NAME: "Test Inverter",
-            CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: 10.0,
-            CONF_MAX_POWER_AC_TO_DC: 8.0,
-        }
-    )
-    result = await flow.async_step_user(user_input=user_input)
+    result = await flow.async_step_user(user_input=_inverter_input(dc_to_ac, ac_to_dc))
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
-
-    # Verify the config contains the constant values
-    create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == as_constant_value(10.0)
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == as_constant_value(8.0)
-
-
-async def test_user_step_with_entity_creates_entry(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Submitting with entity selections should create entry with entity IDs."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.async_create_entry = Mock(
-        return_value={
-            "type": FlowResultType.CREATE_ENTRY,
-            "title": "Test Inverter",
-            "data": {},
-        }
-    )
-
-    # Submit with entity selections
-    user_input = _wrap_input(
-        {
-            CONF_NAME: "Test Inverter",
-            CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: ["sensor.dc_power"],
-            CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_power"],
-        }
-    )
-    result = await flow.async_step_user(user_input=user_input)
-
-    assert result.get("type") == FlowResultType.CREATE_ENTRY
-
-    # Verify the config contains the entity schema values (single entity)
-    create_kwargs = flow.async_create_entry.call_args.kwargs
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == as_entity_value(["sensor.dc_power"])
-    assert create_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == as_entity_value(["sensor.ac_power"])
-
-
-# --- Tests for reconfigure flow ---
+    assert flow.async_create_entry.call_args.kwargs["data"][SECTION_POWER_LIMITS] == {
+        CONF_MAX_POWER_DC_TO_AC: dc_to_ac,
+        CONF_MAX_POWER_AC_TO_DC: ac_to_dc,
+    }
 
 
 async def test_reconfigure_with_constant_updates_entry(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Reconfigure with constant values should update entry."""
+    """Reconfiguring an inverter from sensors to constants stores the constants."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    # Create existing entry with sensor links
-    existing_config = _wrap_config(
-        {
-            CONF_NAME: "Test Inverter",
-            CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: as_entity_value(["sensor.dc_power"]),
-            CONF_MAX_POWER_AC_TO_DC: as_entity_value(["sensor.ac_power"]),
-        }
+    subentry = _add_inverter(
+        hass, hub_entry, as_entity_value(["sensor.dc_power"]), as_entity_value(["sensor.ac_power"])
     )
-    existing_subentry = ConfigSubentry(
-        data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
-        title="Test Inverter",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+    flow = _reconfigure_flow(hass, hub_entry, subentry)
 
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
-    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
-
-    invalid_input = _wrap_input(
-        {
-            CONF_NAME: "Test Inverter",
-            CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: [],
-            CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_power"],
-        }
+    invalid_result = await flow.async_step_reconfigure(
+        user_input=_inverter_input(as_none_value(), as_entity_value(["sensor.ac_power"]))
     )
-    invalid_result = await flow.async_step_reconfigure(user_input=invalid_input)
     assert invalid_result.get("type") == FlowResultType.FORM
     assert invalid_result.get("step_id") == "user"
     assert invalid_result.get("errors") == {SECTION_POWER_LIMITS: "required"}
 
-    # Change to constant values
-    user_input = _wrap_input(
-        {
-            CONF_NAME: "Test Inverter",
-            CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: 10.0,
-            CONF_MAX_POWER_AC_TO_DC: 8.0,
-        }
+    result = await flow.async_step_reconfigure(
+        user_input=_inverter_input(as_constant_value(10.0), as_constant_value(8.0))
     )
-    result = await flow.async_step_reconfigure(user_input=user_input)
 
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
-
-    # Verify the config contains the constant values
-    update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == as_constant_value(10.0)
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == as_constant_value(8.0)
-
-
-async def test_reconfigure_selecting_entity_stores_entity_id(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Selecting entity in reconfigure stores the entity ID."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    # Create existing entry with constant schema values
-    existing_config = _wrap_config(
-        {
-            CONF_NAME: "Test Inverter",
-            CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: as_constant_value(10.0),
-            CONF_MAX_POWER_AC_TO_DC: as_constant_value(8.0),
-        }
-    )
-    existing_subentry = ConfigSubentry(
-        data=MappingProxyType(existing_config),
-        subentry_type=ELEMENT_TYPE,
-        title="Test Inverter",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
-
-    # Register HAEO number entities in entity registry
-    registry = er.async_get(hass)
-    dc_to_ac_entity = registry.async_get_or_create(
-        domain="number",
-        platform=DOMAIN,
-        unique_id=f"{hub_entry.entry_id}_{existing_subentry.subentry_id}_{CONF_MAX_POWER_DC_TO_AC}",
-        suggested_object_id="test_inverter_max_power_dc_to_ac",
-    )
-    ac_to_dc_entity = registry.async_get_or_create(
-        domain="number",
-        platform=DOMAIN,
-        unique_id=f"{hub_entry.entry_id}_{existing_subentry.subentry_id}_{CONF_MAX_POWER_AC_TO_DC}",
-        suggested_object_id="test_inverter_max_power_ac_to_dc",
-    )
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
-    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
-
-    # User selects entities using choose selector format
-    user_input = _wrap_input(
-        {
-            CONF_NAME: "Test Inverter",
-            CONF_CONNECTION: "TestNode",
-            CONF_MAX_POWER_DC_TO_AC: [dc_to_ac_entity.entity_id],
-            CONF_MAX_POWER_AC_TO_DC: [ac_to_dc_entity.entity_id],
-        }
-    )
-    result = await flow.async_step_reconfigure(user_input=user_input)
-
-    # Should complete
-    assert result.get("type") == FlowResultType.ABORT
-    assert result.get("reason") == "reconfigure_successful"
-
-    # When entity mode is selected, the entity ID is stored
-    update_kwargs = flow.async_update_and_abort.call_args.kwargs
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == as_entity_value(
-        [dc_to_ac_entity.entity_id]
-    )
-    assert update_kwargs["data"][SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == as_entity_value(
-        [ac_to_dc_entity.entity_id]
-    )
-
-
-# --- Tests for _is_valid_choose_value ---
+    assert flow.async_update_and_abort.call_args.kwargs["data"][SECTION_POWER_LIMITS] == {
+        CONF_MAX_POWER_DC_TO_AC: as_constant_value(10.0),
+        CONF_MAX_POWER_AC_TO_DC: as_constant_value(8.0),
+    }

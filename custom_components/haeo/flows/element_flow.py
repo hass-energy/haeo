@@ -39,6 +39,7 @@ from custom_components.haeo.elements.input_fields import (
     localize_input_fields,
     reads_calendar,
 )
+from custom_components.haeo.flows.field_schema import entity_domains
 from custom_components.haeo.flows.on_off_states import (
     CONF_OFF_STATES,
     CONF_ON_STATES,
@@ -71,34 +72,29 @@ def build_inclusion_map(
     input_fields: Mapping[str, AnyInputFieldInfo],
     entity_metadata: list[EntityMetadata],
 ) -> dict[str, list[str]]:
-    """Build field name → compatible entity IDs mapping from input fields.
+    """Return the entities each field offers, keyed by field name.
 
-    This dynamically generates the inclusion map by looking up each field's
-    output_type and computing which entities are compatible: those whose unit,
-    converted to base units, is the field's unit. A field feeding
-    calendar inputs includes only calendars, and a field that can read a
-    calendar as a forecast also includes every calendar. A meter field only
-    includes entities the recorder keeps a running total for, as it reads
-    that total.
-
-    Args:
-        input_fields: Mapping of InputFieldInfo from element's schema.
-        entity_metadata: List of entity metadata from extract_entity_metadata.
-
-    Returns:
-        Dict mapping field names to lists of entity IDs to include.
-
+    A field offers the entities in its domains (see ``entity_domains``). A field
+    with a unit offers only those whose unit, converted to base units, is the
+    field's unit. A field feeding calendar inputs offers only calendars, and a
+    field that can read a calendar as a forecast also offers every calendar. A
+    meter field only offers entities the recorder keeps a running total for, as
+    it reads that total.
     """
     result: dict[str, list[str]] = {}
 
     calendars = [v.entity_id for v in entity_metadata if v.entity_id.startswith(f"{CALENDAR_DOMAIN}.")]
     totals = {v.entity_id for v in entity_metadata if v.keeps_running_total}
     for field_info in input_fields.values():
+        domains = tuple(f"{domain}." for domain in entity_domains(field_info))
+        in_domains = [v for v in entity_metadata if v.entity_id.startswith(domains)]
         unit_spec = field_unit_spec(field_info.output_type)
         if reads_calendar(field_info):
             result[field_info.field_name] = calendars
-        elif unit_spec is not None:
-            compatible = filter_compatible_entities(entity_metadata, unit_spec)
+        elif unit_spec is None:
+            result[field_info.field_name] = [v.entity_id for v in in_domains]
+        else:
+            compatible = filter_compatible_entities(in_domains, unit_spec)
             included = [eid for eid in compatible if eid in totals] if field_info.meter is not None else compatible
             result[field_info.field_name] = (
                 [*included, *calendars] if accepts_calendar_forecast(field_info) else included

@@ -13,6 +13,7 @@ from conftest import add_participant
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import (
     VALUE_TYPE_ENTITY,
+    as_connection_target,
     as_constant_value,
     as_entity_value,
     get_schema_value_kinds,
@@ -38,8 +39,7 @@ from custom_components.haeo.core.schema.elements.ev import (
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import is_number_field_info
-from custom_components.haeo.flows.conftest import create_flow
-from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
+from custom_components.haeo.flows.conftest import create_flow, section_selectors, section_suggested_values
 from custom_components.haeo.flows.on_off_states import (
     CONF_OFF_STATES,
     CONF_ON_STATES,
@@ -54,18 +54,18 @@ def _user_input(trip: dict[str, object] | None = None) -> dict[str, object]:
         CONF_NAME: "Test EV",
         CONF_CONNECTION: "TestNode",
         SECTION_VEHICLE: {
-            CONF_CAPACITY: 60.0,
-            CONF_ENERGY_PER_DISTANCE: 0.15,
-            CONF_CURRENT_SOC: ["sensor.ev_soc"],
+            CONF_CAPACITY: as_constant_value(60.0),
+            CONF_ENERGY_PER_DISTANCE: as_constant_value(0.15),
+            CONF_CURRENT_SOC: as_entity_value(["sensor.ev_soc"]),
         },
         SECTION_CHARGING: {
-            CONF_MAX_CHARGE_RATE: 7.4,
-            CONF_CONNECTED: ["binary_sensor.ev_plugged_in"],
+            CONF_MAX_CHARGE_RATE: as_constant_value(7.4),
+            CONF_CONNECTED: as_entity_value(["binary_sensor.ev_plugged_in"]),
         },
         SECTION_TRIP: trip or {},
-        SECTION_PUBLIC_CHARGING: {CONF_PUBLIC_CHARGING_PRICE: 0.6},
+        SECTION_PUBLIC_CHARGING: {CONF_PUBLIC_CHARGING_PRICE: as_constant_value(0.6)},
         SECTION_EFFICIENCY: {},
-        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: 100.0},
+        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
     }
 
 
@@ -73,7 +73,7 @@ async def test_user_step_creates_entry_with_calendar(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Submitting with a trip calendar stores a calendar schema value."""
+    """Submitting with a trip calendar stores the calendar and the other inputs as submitted."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -81,8 +81,8 @@ async def test_user_step_creates_entry_with_calendar(
 
     user_input = _user_input(
         trip={
-            CONF_TRIP_CALENDAR: ["calendar.ev_trips"],
-            CONF_ODOMETER: ["sensor.ev_odometer"],
+            CONF_TRIP_CALENDAR: as_entity_value(["calendar.ev_trips"]),
+            CONF_ODOMETER: as_entity_value(["sensor.ev_odometer"]),
         }
     )
     result = await flow.async_step_user(user_input=user_input)
@@ -90,11 +90,8 @@ async def test_user_step_creates_entry_with_calendar(
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     data = flow.async_create_entry.call_args.kwargs["data"]
-    assert data[SECTION_TRIP][CONF_TRIP_CALENDAR] == as_entity_value(["calendar.ev_trips"])
-    assert data[SECTION_CHARGING][CONF_CONNECTED] == as_entity_value(["binary_sensor.ev_plugged_in"])
-    assert data[SECTION_TRIP][CONF_ODOMETER] == as_entity_value(["sensor.ev_odometer"])
-    assert data[SECTION_VEHICLE][CONF_CAPACITY] == as_constant_value(60.0)
-    assert data[SECTION_VEHICLE][CONF_CURRENT_SOC] == as_entity_value(["sensor.ev_soc"])
+    for section in (SECTION_VEHICLE, SECTION_CHARGING, SECTION_TRIP):
+        assert data[section] == user_input[section]
 
 
 async def test_user_step_without_trip_creates_entry(
@@ -114,14 +111,12 @@ async def test_user_step_without_trip_creates_entry(
     assert CONF_TRIP_CALENDAR not in data[SECTION_TRIP]
 
 
-async def test_reconfigure_defaults_surface_calendar_entity(
+async def test_reconfigure_form_shows_the_stored_calendar(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Reconfigure defaults surface the stored calendar entity ID."""
+    """Reopening an EV shows its stored trip calendar."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    from custom_components.haeo.core.schema import as_connection_target  # noqa: PLC0415
 
     existing_config = {
         CONF_ELEMENT_TYPE: ELEMENT_TYPE,
@@ -159,9 +154,7 @@ async def test_reconfigure_defaults_surface_calendar_entity(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = get_input_fields(ELEMENT_TYPE)
-    defaults = flow._build_defaults("Test EV", input_fields, dict(existing_subentry.data))
-    assert defaults[SECTION_TRIP][CONF_TRIP_CALENDAR] == ["calendar.ev_trips"]
+    assert section_suggested_values(result, SECTION_TRIP)[CONF_TRIP_CALENDAR] == as_entity_value(["calendar.ev_trips"])
 
 
 def test_plugged_in_field_requires_a_live_sensor() -> None:
@@ -186,18 +179,17 @@ async def test_plugged_in_entity_picker_offers_binary_sensors(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """The plugged-in picker offers binary sensors and input booleans alongside numeric entities."""
+    """The plugged-in picker offers binary sensors and input booleans alongside numeric entities, and nothing else."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    for entity_id in ("binary_sensor.ev_plugged_in", "input_boolean.ev_plugged_in", "sensor.ev_plugged_in"):
+        hass.states.async_set(entity_id, "on")
+    hass.states.async_set("light.garage", "on")
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     result = await flow.async_step_user(user_input=None)
 
-    sections = {marker.schema: section for marker, section in result["data_schema"].schema.items()}
-    charging_fields = {marker.schema: selector for marker, selector in sections[SECTION_CHARGING].schema.schema.items()}
-    entity_choice = charging_fields[CONF_CONNECTED].config["choices"][CHOICE_ENTITY]
-    domains = entity_choice["selector"]["entity"]["domain"]
-
-    assert {"binary_sensor", "input_boolean"} <= set(domains)
+    offered = section_selectors(result, SECTION_CHARGING)[CONF_CONNECTED].config["entities"]
+    assert set(offered) == {"binary_sensor.ev_plugged_in", "input_boolean.ev_plugged_in", "sensor.ev_plugged_in"}
 
 
 CHARGER = "sensor.charger_status"
@@ -206,7 +198,10 @@ CHARGER = "sensor.charger_status"
 def _charger_input() -> dict[str, object]:
     """Build EV user input whose plugged-in sensor is a charger reporting words."""
     user_input = _user_input()
-    user_input[SECTION_CHARGING] = {CONF_MAX_CHARGE_RATE: 7.4, CONF_CONNECTED: [CHARGER]}
+    user_input[SECTION_CHARGING] = {
+        CONF_MAX_CHARGE_RATE: as_constant_value(7.4),
+        CONF_CONNECTED: as_entity_value([CHARGER]),
+    }
     return user_input
 
 
@@ -270,7 +265,10 @@ async def test_plugged_in_sensor_reading_on_or_off_saves_directly(
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test EV", "data": {}})
     user_input = _user_input()
-    user_input[SECTION_CHARGING] = {CONF_MAX_CHARGE_RATE: 7.4, CONF_CONNECTED: [entity_id]}
+    user_input[SECTION_CHARGING] = {
+        CONF_MAX_CHARGE_RATE: as_constant_value(7.4),
+        CONF_CONNECTED: as_entity_value([entity_id]),
+    }
 
     result = await flow.async_step_user(user_input=user_input)
 
@@ -297,8 +295,6 @@ async def test_reconfigure_suggests_the_stored_states(
     """Reconfiguring an EV suggests the states it stored."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
     hass.states.async_set(CHARGER, "Idle")
-    from custom_components.haeo.core.schema import as_connection_target  # noqa: PLC0415
-
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(
             {

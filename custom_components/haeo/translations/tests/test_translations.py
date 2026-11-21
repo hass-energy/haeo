@@ -47,7 +47,7 @@ from custom_components.haeo.core.const import (
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import ELEMENTS
 from custom_components.haeo.core.model.reactive import OutputMethod
-from custom_components.haeo.core.schema import VALUE_TYPE_ENTITY, get_schema_value_kinds
+from custom_components.haeo.core.schema import VALUE_TYPE_ENTITY, as_entity_value, get_schema_value_kinds
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementType
 from custom_components.haeo.core.schema.field_hints import extract_list_field_hints
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
@@ -324,7 +324,7 @@ async def _states_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: 
     )
     hass.states.async_set("sensor.reports_words", "Idle", {"options": ["Idle", "Charging"]})
     user_input = _valid_config(prefix)
-    user_input[section] = {**user_input.get(section, {}), field_name: ["sensor.reports_words"]}
+    user_input[section] = {**user_input.get(section, {}), field_name: as_entity_value(["sensor.reports_words"])}
     return await _create_flow(hass, hub_entry, prefix, SOURCE_USER).async_step_user(user_input)
 
 

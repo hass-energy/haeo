@@ -125,7 +125,7 @@ Their IDs combine the load's name with the entity's name, so a load named "Pool 
 | `number.{name}_overage_price`               | \$/kWh | Overage price                                                   |
 
 The first four show what HAEO reads from the run window calendar.
-A field set to "Constant" can be adjusted from its input entity at runtime.
+A field set to a fixed value can be adjusted from its input entity at runtime.
 
 ## Sensors created
 

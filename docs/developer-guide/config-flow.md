@@ -137,32 +137,37 @@ An element that applies its own prices, forecasts, limits, or efficiencies on it
 Existing configurations that already connect to a `NEVER` element are reported through the `invalid_connection_endpoints` repair issue.
 `find_invalid_connection_endpoints()` in `validation.py` reads endpoints from the model connections each adapter produces, so it checks every element type the same way.
 
-## ChooseSelector config flow pattern
+## Input selector
 
-Element types use a sectioned configuration flow with Home Assistant's `ChooseSelector`.
-This selector provides a dropdown letting users pick between different input methods for each field.
+Every input field of an element form is an `InputSelector` (selector type `haeo_input`), defined in [`flows/input_selector.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/input_selector.py).
+Home Assistant renders a selector of type `X` as the custom element `ha-selector-X`, so the form shows `ha-selector-haeo_input` from HAEO's selector bundle, which the integration loads into the frontend beside its cards.
+The element's source is in [`frontend/haeo-forecast-card/src/selectors/`](https://github.com/hass-energy/haeo/tree/main/frontend/haeo-forecast-card/src/selectors).
 
-### Input options
+### What the field stores
 
-Each configurable field uses a `ChooseSelector` with these options:
+The element reports each value in the form HAEO stores, so the flow saves what it receives:
 
-| Choice   | Description                              | Storage format                       |
-| -------- | ---------------------------------------- | ------------------------------------ |
-| Entity   | Value comes from Home Assistant sensors  | `{"type": "entity", "value": [...]}` |
-| Constant | User enters a fixed value directly       | `{"type": "constant", "value": ...}` |
-| None     | Field is not used (optional fields only) | `{"type": "none"}`                   |
+| Value         | Storage format                       |
+| ------------- | ------------------------------------ |
+| Entities      | `{"type": "entity", "value": [...]}` |
+| A fixed value | `{"type": "constant", "value": ...}` |
+| Nothing       | `{"type": "none"}`                   |
 
-Required fields offer "Entity" and "Constant" choices.
-Optional fields also include "None" to skip the constraint entirely.
+The selector config lists the kinds a field accepts, whether its fixed value is a number or on/off, the number's limits and unit (taken from the field's number entity), and the entities it offers.
+The offered entities come from `build_inclusion_map()`, which keeps those in the field's domains whose unit fits the field.
+`InputSelector.__call__` validates a submitted value and turns an empty entity list into none.
+Whether a required field has a value is checked by the flow instead, so the error can name its section.
 
-### Sectioned flow
+### How the field behaves
 
-Most elements configure all inputs in a single step:
+The element shows the field's value directly: "Not set", a fixed number editable in place, an on/off switch, or the chosen entities with their current values.
+One search box filters the offered entities and turns a typed number into a fixed value.
+A search matching several entities offers to add them all, and chosen entities keep the order they were picked in.
 
-1. User enters element name and connection target
-2. For each input field, user selects "Entity", "Constant", or "None"
-3. Based on selection, user either picks entities from a dropdown or enters a constant value inline
-4. Submit creates the element with all configuration
+Every input opens with a value, `{"type": "none"}` when nothing is set, as Home Assistant's form cannot start a required field of a selector it does not know without one.
+
+The element's text lives in `en.json` under `selector.input.options`.
+It reads the strings with `hass.localize` and fills their placeholders itself, and `InputSelector.translation_strings()` lists each string with those placeholders so the translation tests check them.
 
 ### UI sections
 
@@ -174,34 +179,27 @@ When using sections, translation strings for labels must live under
 The name and connection fields are top-level form fields, so their labels live under `step.<step_id>.data`.
 
 The Home Assistant frontend only shows errors keyed by `base` or by a top-level form field, not by a field inside a section.
-`validate_sectioned_choose_fields()` therefore keys each error by its section, which shows it above that section.
+`validate_sectioned_input_fields()` therefore keys each error by its section, which shows it above that section.
 An error keyed by a field inside a section would re-show the form with no visible message.
 
 ### Implementation pattern
 
-The ChooseSelector utilities are in [`flows/field_schema.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/field_schema.py):
+The form helpers are in [`flows/field_schema.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/field_schema.py):
 
-- `build_choose_schema_entry()`: Creates the ChooseSelector with entity/constant/none options
-- `build_choose_selector()`: Builds the selector with proper choice ordering
-- `get_preferred_choice()`: Determines which choice comes first from the value the form shows, or the field's defaults when it shows none
-- `get_choose_default()`: Provides default values for the nested selector
-- `convert_choose_data_to_config()`: Converts ChooseSelector output to final config format
-- `preprocess_sectioned_choose_input()`: Normalizes sectioned ChooseSelector input
-- `validate_sectioned_choose_fields()`: Validates sectioned choose fields before conversion
-- `convert_sectioned_choose_data_to_config()`: Converts sectioned ChooseSelector data into sectioned config
+- `build_input_selector()`: Builds a field's selector from its field info, kinds and offered entities
+- `build_sectioned_input_schema()`: Builds the sectioned form with an input selector per field
+- `build_sectioned_input_defaults()`: Gives every input the value it opens with, using `get_input_default()`
+- `validate_sectioned_input_fields()`: Reports a required field submitted without a value, keyed by its section
+- `convert_sectioned_input_to_config()`: Returns the submitted sections as config
 
-The choice ordering in `ChooseSelector` determines the pre-selected option, and Home Assistant applies a field's suggested value to the first choice only.
-Every choose field therefore follows one rule: the first choice is the one holding the value the form shows.
-A form shows the stored values when it opens and the submitted input when it is shown again with an error, and its flow passes those same values to `get_preferred_choice()`.
-That function reads both forms of a value: a stored entity, constant, or none, and a submitted list of entity IDs, number, or nothing.
-Element forms, the pricing fields they surface from policy rules, and the policy rule price all build their selectors this way.
+Element forms, the pricing fields they surface from policy rules, and the policy rule price all build their inputs this way.
 
 ### Entity creation
 
-HAEO creates an input entity (number or switch) for every field configured with "Entity" or "Constant".
-A constant field's entity is editable, so its value can be adjusted at runtime without reconfiguring the element.
+HAEO creates an input entity (number or switch) for every field set to entities or a fixed value.
+A fixed value's entity is editable, so its value can be adjusted at runtime without reconfiguring the element.
 An entity field's entity is driven by its source sensors and shows the value HAEO loaded from them.
-Fields configured with "None" get no input entity.
+Fields left without a value get no input entity.
 
 ## Field schema system
 
@@ -231,7 +229,7 @@ Each element type has two TypedDict definitions in `core/schema/elements/<elemen
 **Data mode** (`*ConfigData`): What the adapters and optimizer use
 
 - Each input field holds its loaded value: a float, a bool, or a NumPy array over the horizon
-- A field configured as "None" takes its field's default, such as 100% efficiency, or is left out when it has none
+- A field left without a value takes its field's default, such as 100% efficiency, or is left out when it has none
 
 `GridConfigSchema` and `GridConfigData` in [`core/schema/elements/grid.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/schema/elements/grid.py) are a small example of the pair.
 `is_element_config_schema()` in [`core/schema/elements/conformance.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/schema/elements/conformance.py) checks that stored data conforms to its element type's schema.
@@ -257,8 +255,8 @@ A new kind of field is usually a new `OutputType` or a new hint attribute rather
 
 The schema system integrates with data loading:
 
-1. The user picks "Entity", "Constant", or "None" for each field, and the config flow stores the schema value (Schema mode)
-2. `validate_sectioned_choose_fields()` checks the input before it is stored
+1. The user sets each field to entities, a fixed value, or nothing, and the config flow stores the schema value (Schema mode)
+2. `validate_sectioned_input_fields()` checks the input before it is stored
 3. At setup, each entity or constant field gets an input store, which resolves its value with `resolve_field` as its field hint directs
 4. The coordinator assembles each element's Data mode config from the stores' resolved values with `load_element_config_from_values`
 5. Adapters receive the Data mode config and create model elements

@@ -36,6 +36,7 @@ from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import ElementOutputName, get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_COMMON, get_element_flow_classes
+from custom_components.haeo.flows.conftest import section_suggested_values
 
 # Policy uses a multi-step menu-driven flow incompatible with the generic single-step tests
 SINGLE_STEP_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(et for et in ELEMENT_TYPES if et != ElementType.POLICY)
@@ -144,6 +145,29 @@ def _prepare_flow_context(
                         grid.ELEMENT_TYPE if "grid" in endpoint.lower() else battery.ELEMENT_TYPE
                     )
                     _add_participant_subentry(hass, hub_entry, endpoint, inferred_type)
+
+
+def _inputs(element_type: ElementType, data: Mapping[str, Any]) -> dict[str, dict[str, object]]:
+    """Return the input values in element data, by section."""
+    return {
+        section_key: {field_name: value for field_name, value in data[section_key].items() if field_name in fields}
+        for section_key, fields in get_input_fields(element_type).items()
+        if data.get(section_key)
+    }
+
+
+def _shown_inputs(
+    form: SubentryFlowResult, element_type: ElementType, data: Mapping[str, Any]
+) -> dict[str, dict[str, object]]:
+    """Return the value a shown form opens each input in element data with, by section."""
+    return {
+        section_key: {
+            field_name: value
+            for field_name, value in section_suggested_values(form, section_key).items()
+            if field_name in values
+        }
+        for section_key, values in _inputs(element_type, data).items()
+    }
 
 
 def _get_element_name(config: Mapping[str, object], element_type: ElementType) -> str:
@@ -367,7 +391,7 @@ async def test_element_flow_user_step_duplicate_name(
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
 ) -> None:
-    """Ensure duplicate names are detected when creating elements."""
+    """A duplicate name re-shows the form with the submitted inputs."""
 
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
 
@@ -381,6 +405,7 @@ async def test_element_flow_user_step_duplicate_name(
     result = await flow.async_step_user(user_input=existing_config)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "name_exists"}
+    assert _shown_inputs(result, element_type, existing_config) == _inputs(element_type, existing_config)
 
 
 @pytest.mark.parametrize("element_type", SINGLE_STEP_ELEMENT_TYPES)
@@ -390,7 +415,7 @@ async def test_element_flow_reconfigure_success(
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
 ) -> None:
-    """Verify reconfigure submissions succeed for unchanged data."""
+    """Reconfiguring opens the form with the stored inputs, and submitting them unchanged succeeds."""
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
 
     _prepare_flow_context(hass, hub_entry, element_type, existing_config)
@@ -407,6 +432,7 @@ async def test_element_flow_reconfigure_success(
     assert result.get("type") == FlowResultType.FORM
     # Some flows reuse "user" step_id for reconfigure, others use "reconfigure"
     assert result.get("step_id") in ("reconfigure", "user")
+    assert _shown_inputs(result, element_type, existing_config) == _inputs(element_type, existing_config)
 
     reconfigure_input = deepcopy(existing_config)
 

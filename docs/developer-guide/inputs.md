@@ -52,7 +52,7 @@ Which config fields become inputs is derived from each element type's schema.
 
 ## Entity creation
 
-Each field takes one of three values in the config flow, through the ChooseSelector pattern documented in [Config flow development](config-flow.md#chooseselector-config-flow-pattern):
+Each field takes one of three values in the config flow, through the input selector documented in [Config flow development](config-flow.md#input-selector):
 
 - **Constant**: The store holds the value in **editable** mode, and the entity can change it.
 - **Entity**: The store loads the selected sensors in **driven** mode, and the entity shows the loaded value read-only.

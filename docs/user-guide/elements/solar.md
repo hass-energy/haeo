@@ -37,6 +37,7 @@ Specify one or more Home Assistant sensors providing solar generation data.
 | **Forecast** | sensor.solar_east_forecast, sensor.solar_west_forecast |
 
 Provide all solar array forecasts to get accurate total generation predictions.
+When your forecast integration creates one sensor per day or per plane, search for them and pick **Add all N matches** to add them at once, as described in [input fields](../configuration.md#input-fields).
 See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
 
 ## Curtailment

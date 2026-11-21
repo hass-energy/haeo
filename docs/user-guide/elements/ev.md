@@ -25,14 +25,14 @@ An EV in HAEO represents:
 ### Configuration process
 
 EV configuration uses a sectioned flow where you enter the name, connection, trip entity selectors, and configure each input field.
-The choices offered depend on the field:
+Each [input field](../configuration.md#input-fields) offers what suits it:
 
-- **Current state of charge** and **plugged in** accept only "Entity", since they must track the live car.
-- **Odometer** accepts "Entity" or "None".
-- **Trip calendar** accepts a calendar entity or "None".
-- The remaining numeric fields accept "Entity" to link to a sensor or "Constant" to enter a fixed value, and optional ones also accept "None".
+- **Current state of charge** and **plugged in** need an entity, since they must track the live car.
+- **Odometer** takes an entity or is left not set.
+- **Trip calendar** takes a calendar entity or is left not set.
+- The remaining numeric fields take an entity or a fixed value, and optional ones can be left not set.
 
-Each field you configure creates an [input entity](#input-entities); those set to "Constant" can be adjusted at runtime without reconfiguring.
+Each field you set creates an [input entity](#input-entities); those set to a fixed value can be adjusted at runtime without reconfiguring.
 
 ## Configuration fields
 

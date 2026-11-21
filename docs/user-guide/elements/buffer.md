@@ -130,7 +130,7 @@ Their IDs combine the buffer's name with the entity's name, so a buffer named "B
 | `number.{name}_level`          | %        | Level (if configured) |
 | `number.{name}_shortfall_cost` | \$/kWh/h | Shortfall cost        |
 
-A field set to "Constant" can be adjusted from its input entity at runtime.
+A field set to a fixed value can be adjusted from its input entity at runtime.
 
 ## Sensors created
 

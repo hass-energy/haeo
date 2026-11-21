@@ -48,7 +48,8 @@ See [Where values are measured](../measurement-points.md) for the convention HAE
     **Segment-based behavior**: Connections compose internal segments for limits, efficiency, and pricing.
     You configure the fields above, and the model applies the corresponding segment behavior automatically.
 
-    **Constants or sensors**: Each optional field accepts a constant value, one or more sensors, or "None".
+    **Fixed values or sensors**: Each optional field takes a fixed value or one or more sensors, or is left not set.
+    See [input fields](../configuration.md#input-fields).
 
 ### Connection endpoint selection
 
@@ -169,7 +170,7 @@ Their IDs combine the connection's name with the entity's name.
 | `number.{name}_efficiency` | %      | Efficiency (if configured)     |
 | `number.{name}_price`      | \$/kWh | Transfer price (if configured) |
 
-A field set to "Constant" can be adjusted from its input entity at runtime.
+A field set to a fixed value can be adjusted from its input entity at runtime.
 A field linked to sensors shows the values HAEO reads from them.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
