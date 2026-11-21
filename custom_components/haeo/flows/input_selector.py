@@ -28,15 +28,15 @@ INPUT_SELECTOR_TYPE = "haeo_input"
 
 # Translation key of the element's labels, under selector.<key>.options
 INPUT_TRANSLATION_KEY = "input"
-# The element's accessible labels, with the placeholders the element fills in
+# The element's text: accessible labels and the words for on and off, with the placeholders it fills in
 INPUT_STRINGS: dict[str, tuple[str, ...]] = {
-    "add_entities": ("label",),
-    "choose_entities": ("label",),
-    "clear": ("label",),
+    "enter_value": ("label",),
+    "fixed_value": ("value",),
+    "off": (),
+    "on": (),
     "remove": ("name",),
     "search": ("label",),
     "select_all": ("count",),
-    "selected": ("label",),
 }
 
 type InputKind = Literal["entity", "constant", "none"]

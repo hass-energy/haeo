@@ -8,11 +8,12 @@ import { HaeoInputSelector } from "./input-selector";
 import type { InputSelectorConfig, InputValue, SelectorHass } from "./types";
 
 const STRINGS: Record<string, string> = {
-  "input.options.add_entities": "Add entities to {label}",
-  "input.options.choose_entities": "Choose entities for {label}",
-  "input.options.clear": "Clear {label}",
+  "input.options.enter_value": "{label}: enter a value",
+  "input.options.fixed_value": "Fixed value {value}",
+  "input.options.off": "Off",
+  "input.options.on": "On",
   "input.options.remove": "Remove {name}",
-  "input.options.search": "Search entities for {label}",
+  "input.options.search": "{label}: search entities or enter a value",
   "input.options.select_all": "Select all {count}",
 };
 
@@ -94,24 +95,27 @@ function byLabel(label: string): HTMLElement {
   return element;
 }
 
-function numberBox(): HTMLInputElement | null {
-  return container.querySelector<HTMLInputElement>("input[type=number]");
+function field(): HTMLInputElement {
+  const input = container.querySelector<HTMLInputElement>("input[role=combobox]");
+  if (input === null) {
+    throw new Error("No input");
+  }
+  return input;
 }
 
-function type(input: HTMLInputElement, text: string): void {
+function type(text: string): void {
+  const input = field();
+  act(() => input.dispatchEvent(new FocusEvent("focus")));
   act(() => {
     input.value = text;
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
 
-function search(text: string): void {
-  const input = container.querySelector<HTMLInputElement>("input[role=combobox]");
-  if (input === null) {
-    throw new Error("No search box");
-  }
-  act(() => input.dispatchEvent(new FocusEvent("focus")));
-  type(input, text);
+function press(key: string): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+  act(() => field().dispatchEvent(event));
+  return event;
 }
 
 function options(): HTMLElement[] {
@@ -126,60 +130,87 @@ function clickOption(text: string): void {
   act(() => option.click());
 }
 
-function pick(text: string): void {
-  act(() => byLabel("Choose entities for Forecast").click());
-  search(text);
-}
-
 describe("InputField", () => {
-  it("shows an unset field as an empty number box, with no text beyond its label", () => {
+  it("shows an unset field as an empty input with no text beyond its label", () => {
     show();
-    expect(numberBox()?.value).toBe("");
-    expect(container.textContent).toBe("ForecastkW");
+    expect(field().value).toBe("");
+    expect(container.textContent).toBe("Forecast");
   });
 
-  it("takes a number typed into the box as a fixed value", () => {
+  it("tells screen readers what the field searches, which sighted users see from its icon", () => {
+    show();
+    expect(field().getAttribute("aria-label")).toBe("Forecast: search entities or enter a value");
+    show({ config: { ...numberConfig, kinds: ["constant", "none"] } });
+    expect(field().getAttribute("aria-label")).toBe("Forecast: enter a value");
+  });
+
+  it("offers a typed number as a fixed value above the entities, and picks it with Enter", () => {
     const onChange = show();
-    const box = numberBox();
-    if (box !== null) {
-      type(box, "0.8");
-    }
+    type("0.8");
+    expect(options()[0]?.getAttribute("aria-label")).toBe("Fixed value 0.8 kW");
+    const enter = press("Enter");
     expect(onChange).toHaveBeenCalledWith({ type: "constant", value: 0.8 });
+    expect(enter.defaultPrevented).toBe(true);
   });
 
-  it("unsets a field whose box is emptied, keeping the box to type into", () => {
-    const onChange = show({ value: { type: "constant", value: 3 } });
-    const box = numberBox();
-    if (box !== null) {
-      type(box, "");
-    }
+  it("keeps the form from seeing the Enter that picks a choice", () => {
+    show();
+    type("0.8");
+    const submitted = vi.fn();
+    container.addEventListener("keydown", submitted);
+    press("Enter");
+    expect(submitted).not.toHaveBeenCalled();
+  });
+
+  it("offers a number outside the field's range without letting it be picked", () => {
+    const onChange = show({ config: { ...numberConfig, min: 0, max: 10 } });
+    type("12");
+    expect(options()[0]?.getAttribute("aria-disabled")).toBe("true");
+    press("Enter");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("shows a fixed value as a chip with its unit, distinct from entity chips", () => {
+    show({ value: { type: "constant", value: 0.8 } });
+    expect(container.querySelector(".chip.constant")?.textContent).toBe("0.8 kW");
+    expect(container.querySelector(".chip.entity")).toBeNull();
+  });
+
+  it("puts a fixed value's chip back into the input to change it", () => {
+    const onChange = show({ value: { type: "constant", value: 0.8 } });
+    act(() => byLabel("Fixed value 0.8 kW").click());
     expect(onChange).toHaveBeenCalledWith({ type: "none" });
-    expect(numberBox()).not.toBeNull();
+    expect(field().value).toBe("0.8");
   });
 
-  it("clears a fixed value with its clear button", () => {
+  it("removes a fixed value with its chip's remove button", () => {
     const onChange = show({ value: { type: "constant", value: 3 } });
-    act(() => byLabel("Clear Forecast").click());
+    act(() => byLabel("Remove 3 kW").click());
     expect(onChange).toHaveBeenCalledWith({ type: "none" });
   });
 
-  it("adds a checked entity after the ones already chosen", () => {
+  it("adds a picked entity as a chip after the ones already chosen", () => {
     const onChange = show({ value: { type: "entity", value: ["sensor.west"] } });
-    act(() => byLabel("Add entities to Forecast").click());
-    search("east");
+    type("east");
     clickOption("East solar");
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.west", "sensor.east"] });
   });
 
-  it("shows chosen entities in place of the number box, each with its current value", () => {
+  it("shows chosen entities as chips with their current values", () => {
     show({ value: { type: "entity", value: ["sensor.east"] } });
-    expect(numberBox()).toBeNull();
-    expect(container.querySelector(".entities")?.textContent).toBe("East solar3 kW");
+    expect(container.querySelector(".chip.entity")?.textContent).toBe("East solar3 kW");
+  });
+
+  it("replaces entities with a picked fixed value", () => {
+    const onChange = show({ value: { type: "entity", value: ["sensor.east"] } });
+    type("2");
+    clickOption("2 kW");
+    expect(onChange).toHaveBeenCalledWith({ type: "constant", value: 2 });
   });
 
   it("checks every match with the select-all row, which shows how many there are", () => {
     const onChange = show();
-    pick("solar");
+    type("solar");
     const all = byLabel("Select all 2");
     expect(all.textContent).toBe("2");
     act(() => all.click());
@@ -188,16 +219,22 @@ describe("InputField", () => {
 
   it("unchecks every match with the select-all row when all are checked", () => {
     const onChange = show({ value: { type: "entity", value: ["sensor.east", "sensor.west", "sensor.load"] } });
-    act(() => byLabel("Add entities to Forecast").click());
-    search("solar");
+    type("solar");
     act(() => byLabel("Select all 2").click());
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.load"] });
   });
 
+  it("clears the search and closes the list after a pick", () => {
+    show();
+    type("east");
+    clickOption("East solar");
+    expect(field().value).toBe("");
+    expect(options()).toHaveLength(0);
+  });
+
   it("marks chosen entities and unchooses one on a second click", () => {
     const onChange = show({ value: { type: "entity", value: ["sensor.east", "sensor.west"] } });
-    act(() => byLabel("Add entities to Forecast").click());
-    search("east");
+    type("east");
     expect(options()[0]?.getAttribute("aria-selected")).toBe("true");
     clickOption("East solar");
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.west"] });
@@ -207,8 +244,7 @@ describe("InputField", () => {
     const onChange = show({
       value: { type: "entity", value: ["sensor.west"], on_states: ["Charging"], off_states: ["Idle"] },
     });
-    act(() => byLabel("Add entities to Forecast").click());
-    search("east");
+    type("east");
     clickOption("East solar");
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.west", "sensor.east"] });
   });
@@ -222,58 +258,42 @@ describe("InputField", () => {
     expect(onChange).toHaveBeenCalledWith(expected);
   });
 
-  it("shows the search in place of a value box for a field taking only entities", () => {
-    show({ config: { ...numberConfig, kinds: ["entity"] }, value: { type: "entity", value: [] } });
-    expect(numberBox()).toBeNull();
-    expect(container.querySelector("input[role=combobox]")).not.toBeNull();
+  it("removes the last chip with Backspace in an empty input", () => {
+    const onChange = show({ value: { type: "entity", value: ["sensor.east", "sensor.west"] } });
+    type("");
+    press("Backspace");
+    expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.east"] });
   });
 
-  it("toggles an on/off field's fixed value with a switch", () => {
-    const booleanConfig: InputSelectorConfig = { ...numberConfig, value_type: "boolean" };
-    const onChange = show({ config: booleanConfig });
-    act(() => container.querySelector<HTMLButtonElement>("[role=switch]")?.click());
-    expect(onChange).toHaveBeenCalledWith({ type: "constant", value: true });
-
-    const toggled = show({ config: booleanConfig, value: { type: "constant", value: true } });
-    act(() => container.querySelector<HTMLButtonElement>("[role=switch]")?.click());
-    expect(toggled).toHaveBeenCalledWith({ type: "constant", value: false });
-  });
-
-  it("picks the first match with Enter without letting the form see the key", () => {
-    const onChange = show();
-    pick("west");
-    const submitted = vi.fn();
-    container.addEventListener("keydown", submitted);
-    act(() => {
-      container
-        .querySelector<HTMLInputElement>("input[role=combobox]")
-        ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    });
-    expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.west"] });
-    expect(submitted).not.toHaveBeenCalled();
+  it("offers on and off as fixed values for an on/off field", () => {
+    const onChange = show({ config: { ...numberConfig, value_type: "boolean" } });
+    type("");
+    expect(
+      options()
+        .slice(0, 2)
+        .map((option) => option.getAttribute("aria-label"))
+    ).toEqual(["Fixed value On", "Fixed value Off"]);
+    clickOption("Off");
+    expect(onChange).toHaveBeenCalledWith({ type: "constant", value: false });
   });
 
   it("closes the list with Escape without letting the dialog see the key", () => {
     show();
-    pick("");
+    type("");
     const closed = vi.fn();
     container.addEventListener("keydown", closed);
-    act(() => {
-      container
-        .querySelector<HTMLInputElement>("input[role=combobox]")
-        ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    });
+    press("Escape");
     expect(options()).toHaveLength(0);
     expect(closed).not.toHaveBeenCalled();
   });
 });
 
 describe("HaeoInputSelector", () => {
-  it("reports a change as a composed value-changed event, with labels from the integration's translations", () => {
+  it("reports a change as a composed value-changed event, with text from the integration's translations", () => {
     customElements.define("test-haeo-input", class extends HaeoInputSelector {});
     const element = document.createElement("test-haeo-input") as HaeoInputSelector;
     const localize = vi.fn((key: string, values?: Record<string, string>) =>
-      key === "component.haeo.selector.input.options.choose_entities" ? `Pick ${values?.["label"] ?? ""}` : ""
+      key === "component.haeo.selector.input.options.fixed_value" ? `Fixed ${values?.["value"] ?? ""}` : ""
     );
     element.hass = { ...hass, localize };
     element.selector = { haeo_input: numberConfig };
@@ -285,15 +305,16 @@ describe("HaeoInputSelector", () => {
       document.body.append(element);
     });
 
-    const pickButton = element.shadowRoot?.querySelector<HTMLButtonElement>("[aria-label='Pick Forecast']");
-    expect(pickButton).not.toBeNull();
-    const box = element.shadowRoot?.querySelector<HTMLInputElement>("input[type=number]");
+    const input = element.shadowRoot?.querySelector<HTMLInputElement>("input[role=combobox]");
+    act(() => input?.dispatchEvent(new FocusEvent("focus")));
     act(() => {
-      if (box !== null && box !== undefined) {
-        box.value = "2";
-        box.dispatchEvent(new Event("input", { bubbles: true }));
+      if (input !== null && input !== undefined) {
+        input.value = "2";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
+    const option = element.shadowRoot?.querySelector<HTMLElement>("[aria-label='Fixed 2 kW']");
+    act(() => option?.click());
 
     const event = changed.mock.calls[0]?.[0] as CustomEvent<{ value: InputValue }>;
     expect(event.detail.value).toEqual({ type: "constant", value: 2 });

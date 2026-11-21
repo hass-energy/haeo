@@ -843,13 +843,13 @@
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
     "input": {
       "options": {
-        "add_entities": "Add entities to {label}",
-        "choose_entities": "Choose entities for {label}",
-        "clear": "Clear {label}",
+        "enter_value": "{label}: enter a value",
+        "fixed_value": "Fixed value {value}",
+        "off": "Off",
+        "on": "On",
         "remove": "Remove {name}",
-        "search": "Search entities for {label}",
-        "select_all": "Select all {count}",
-        "selected": "{label} entities"
+        "search": "{label}: search entities or enter a value",
+        "select_all": "Select all {count}"
       }
     },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }

@@ -160,9 +160,11 @@ Whether a required field has a value is checked by the flow instead, so the erro
 
 ### How the field behaves
 
-The element's controls show what the field takes, with no instructional text: a number box with the field's unit (or a switch) for a fixed value, a button opening a checklist of entities with a select-all row, and the chosen entities with their current values.
-An empty box is a field left unset, and chosen entities keep the order they were picked in.
-Words appear only as accessible labels.
+The element is a token input with no instructional text.
+Typing filters the offered entities, and a typed number is offered as a fixed value above them, disabled when it is outside the field's range.
+A chosen value becomes a chip: a fixed value with its unit and a number icon, or an entity with its current value and a chart icon, so the kind of value is visible without words.
+A select-all row with the match count checks every entity the search shows, and chosen entities keep the order they were picked in.
+Words appear only as accessible labels and the On and Off of an on/off field.
 
 Every input opens with a value, as Home Assistant's form cannot start a required field of a selector it does not know without one.
 An existing element's field opens with what it stores, and `{"type": "none"}` when it stores nothing, so saving its form unchanged changes nothing; a new element's field opens with its default.

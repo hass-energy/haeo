@@ -131,15 +131,18 @@ Most elements are configured in a single step where you enter:
 
 #### Input fields
 
-Each input field takes a fixed value, one or more entities, or nothing:
+Each input field takes a fixed value, one or more entities, or nothing.
+Type into the field and pick from the list below it:
 
-- **Fixed value**: Type a number into the field's box, which shows the field's unit.
-    An on/off field has a switch instead.
-- **Entities**: Click the chart button beside the box to open a list of entities, then check the ones to use.
-    The list offers only entities whose unit fits the field, and its search box narrows it.
+- **Fixed value**: Type a number, and the list's first row offers it with the field's unit.
+    Pick it, or press Enter, and it becomes a chip marked with a number icon.
+    An on/off field offers **On** and **Off** instead.
+    Click a fixed value's chip to change it.
+- **Entities**: Type part of an entity's name to narrow the list, then check the ones to use.
+    The list offers only entities whose unit fits the field.
     The checkbox at the top of the list checks every entity it shows, which suits forecast integrations that create one sensor per day or per array, such as Forecast.Solar or Solcast.
-    The chosen entities replace the box, each with its current value, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors) in the order you chose them.
-- **Nothing**: Leave the box empty, or remove the value or entities with **×**, for an optional field you don't need, such as an export limit.
+    Each entity becomes a chip marked with a chart icon and showing its current value, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors) in the order you chose them.
+- **Nothing**: Remove a field's chips with **×**, or Backspace in the empty field, for an optional field you don't need, such as an export limit.
     HAEO leaves that field out of the optimization.
 
 !!! tip "Fixed values are adjustable"

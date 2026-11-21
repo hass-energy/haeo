@@ -744,45 +744,43 @@ class HAPage:
         return self.page.locator("ha-selector-haeo_input").filter(has_text=label)
 
     def input_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
-        """Add an entity to a HAEO input field: open its entity list, search, and check the entity."""
+        """Add an entity to a HAEO input field: search in the field and pick the entity from its list."""
         field = self._input_field(field_label)
         field.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
         search = field.get_by_role("combobox")
-        # A field holding a number or entities opens its list from a button; one taking only entities shows its search
-        opener = field.get_by_role("button", name=re.compile(r"^(Choose|Add) entities"))
         option = field.get_by_role("option").filter(has_text=entity_name).first
 
         ctx = ScreenshotContext.current()
         with ctx.scope(f"entity_{field_label}") if ctx else nullcontext():
-            if opener.count():
-                self._scroll_into_view(opener)
-                if ctx:
-                    self._capture_with_indicator("open_list", opener)
-                opener.click(timeout=DEFAULT_TIMEOUT)
-            search.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
             self._scroll_into_view(search)
+            if ctx:
+                self._capture_with_indicator("search_box", search)
             search.fill(search_term)
             option.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
             self._scroll_into_view(option)
             if ctx:
                 self._capture_with_indicator("select", option)
             option.click(timeout=DEFAULT_TIMEOUT)
-            search.press("Escape")
             if ctx:
                 self._capture("selected")
 
     def input_constant(self, field_label: str, value: str) -> None:
-        """Type a fixed number into a HAEO input field's number box."""
+        """Set a HAEO input field to a fixed number: type it into the field and confirm it with Enter."""
         field = self._input_field(field_label)
         field.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-        box = field.get_by_role("spinbutton")
+        search = field.get_by_role("combobox")
+        fixed = field.get_by_role("option").first
 
         ctx = ScreenshotContext.current()
         with ctx.scope(f"constant_{field_label}") if ctx else nullcontext():
-            self._scroll_into_view(box)
+            self._scroll_into_view(search)
             if ctx:
-                self._capture_with_indicator("field", box)
-            box.fill(value)
+                self._capture_with_indicator("field", search)
+            search.fill(value)
+            fixed.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            if ctx:
+                self._capture_with_indicator("fixed_value", fixed)
+            search.press("Enter")
             if ctx:
                 self._capture("filled")
 

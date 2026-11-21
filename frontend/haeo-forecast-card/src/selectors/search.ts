@@ -49,3 +49,24 @@ export function filterOptions(options: EntityOption[], query: string): EntityOpt
     return words.every((word) => haystack.includes(word));
   });
 }
+
+/** A number typed into a field, and whether the field accepts it. */
+export interface TypedNumber {
+  value: number;
+  allowed: boolean;
+}
+
+/** Read a typed number for a field taking numbers, or return null when the text is not one. */
+export function readNumber(text: string, config: InputSelectorConfig): TypedNumber | null {
+  const trimmed = text.trim();
+  if (!config.kinds.includes("constant") || config.value_type !== "number" || trimmed === "") {
+    return null;
+  }
+  const value = Number(trimmed);
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  const allowed =
+    (config.min === undefined || value >= config.min) && (config.max === undefined || value <= config.max);
+  return { value, allowed };
+}
