@@ -280,10 +280,10 @@ def main() -> None:
     agent_dir = run_dir / "agent"
     agent_dir.mkdir(parents=True, exist_ok=True)
     states_file = run_dir / "states.json"
-    states_file.write_text(json.dumps(world_states()), encoding="utf-8")
+    states_file.write_text(json.dumps(world_states(task)), encoding="utf-8")
 
     with live_home_assistant(
-        timeout=START_TIMEOUT_SECONDS, environment=world_environment(), states=states_file
+        timeout=START_TIMEOUT_SECONDS, environment=world_environment(task), states=states_file
     ) as hass:
         _LOGGER.info("Home Assistant started, seeding the hub")
         entry = hass.run_coro(setup_haeo_entry(hass.hass, hub_config(task)), timeout=SEED_TIMEOUT_SECONDS)

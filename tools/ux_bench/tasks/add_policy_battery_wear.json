@@ -24,7 +24,7 @@
     "kind": "add"
   },
   "goal": "To account for battery wear, make HAEO treat every kWh discharged from your battery as costing 1 cent ($0.01), wherever that energy goes.",
-  "holdout": true,
   "id": "add_policy_battery_wear",
-  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar", "Load"]
+  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar", "Load"],
+  "scenario": "scenario6"
 }

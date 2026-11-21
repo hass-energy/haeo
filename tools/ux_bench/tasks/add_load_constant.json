@@ -17,7 +17,7 @@
     "title": "Pool pump"
   },
   "goal": "Your pool pump runs all the time and draws about 0.8 kW. Add it to HAEO as its own load called \"Pool pump\".",
-  "holdout": false,
   "id": "add_load_constant",
-  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar", "Load"]
+  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar", "Load"],
+  "scenario": "scenario6"
 }

@@ -51,7 +51,7 @@
     "kind": "add"
   },
   "goal": "Your rooftop solar feeds into your inverter. The panels face four directions (east, north, south and west) and the Forecast.Solar integration gives you an estimated energy production sensor for each direction for every day it covers. Add the solar to HAEO using all of those Forecast.Solar sensors.",
-  "holdout": false,
   "id": "add_solar_forecast_solar",
-  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Load"]
+  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Load"],
+  "scenario": "scenario6"
 }

@@ -34,7 +34,7 @@
     "kind": "add"
   },
   "goal": "Add your grid connection to HAEO. You are with Amber Express: buy at its general price and sell at its feed-in price. Your connection can import up to 55 kW and export up to 30 kW.",
-  "holdout": false,
   "id": "add_grid_amber",
-  "participants": ["Inverter", "Switchboard", "Battery", "Solar", "Load"]
+  "participants": ["Inverter", "Switchboard", "Battery", "Solar", "Load"],
+  "scenario": "scenario6"
 }

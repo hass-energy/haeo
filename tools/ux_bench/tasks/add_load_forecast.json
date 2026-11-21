@@ -18,7 +18,7 @@
     "kind": "add"
   },
   "goal": "Add your household electricity consumption to HAEO. Your Sigenergy system provides a consumed power forecast sensor, and you also want HAEO to use the current consumed power sensor.",
-  "holdout": false,
   "id": "add_load_forecast",
-  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar"]
+  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar"],
+  "scenario": "scenario6"
 }

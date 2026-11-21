@@ -14,7 +14,7 @@ from tools.ux_bench.run import RunResult, rescore, run_one, summarize
 from tools.ux_bench.scoring import Subentries, Subentry, evaluate
 from tools.ux_bench.tasks import TASKS_DIR, Task, hub_config, load_tasks, world_states
 
-ALL_TASKS = load_tasks(include_holdout=True)
+ALL_TASKS = load_tasks()
 
 
 @pytest.mark.parametrize(
@@ -59,7 +59,7 @@ def test_matching_rejects(expected: JsonValueType, actual: JsonValueType) -> Non
 
 @pytest.mark.parametrize("task", ALL_TASKS, ids=lambda task: task["id"])
 def test_task_is_consistent(task: Task) -> None:
-    """Each task names its file, an element type, and elements scenario 6 has."""
+    """Each task names its file, an element type, and elements its scenario has."""
     assert (TASKS_DIR / f"{task['id']}.json").exists()
     assert task["expect"]["element_type"] in set(ElementType)
     participants = hub_config(task)["participants"]
@@ -68,9 +68,10 @@ def test_task_is_consistent(task: Task) -> None:
         assert task["expect"].get("title") in participants
 
 
-def test_world_has_every_entity_the_tasks_expect() -> None:
-    """Every entity a task expects the agent to pick exists in the world."""
-    entity_ids = {str(state["entity_id"]) for state in world_states()}
+@pytest.mark.parametrize("task", ALL_TASKS, ids=lambda task: task["id"])
+def test_world_has_every_entity_the_task_expects(task: Task) -> None:
+    """Every entity a task expects the agent to pick exists in its scenario's world."""
+    entity_ids = {str(state["entity_id"]) for state in world_states(task)}
 
     def expected_entities(value: JsonValueType) -> set[str]:
         if isinstance(value, dict):
@@ -79,8 +80,7 @@ def test_world_has_every_entity_the_tasks_expect() -> None:
             return set().union(*(expected_entities(item) for item in value))
         return {value} if isinstance(value, str) and value.startswith("sensor.") else set()
 
-    for task in ALL_TASKS:
-        assert expected_entities(task["expect"]["data"]) <= entity_ids, task["id"]
+    assert expected_entities(task["expect"]["data"]) <= entity_ids
 
 
 @pytest.mark.parametrize(
@@ -88,7 +88,7 @@ def test_world_has_every_entity_the_tasks_expect() -> None:
     [("add_battery", "Battery"), ("add_grid_amber", "Grid"), ("add_load_forecast", "Load")],
 )
 def test_expectations_match_the_users_own_config(task_id: str, scenario_element: str) -> None:
-    """Tasks modeled on scenario 6's elements expect what its user configured."""
+    """Tasks modeled on their scenario's elements expect what its user configured."""
     task = next(task for task in ALL_TASKS if task["id"] == task_id)
     config = hub_config({**task, "participants": [scenario_element]})["participants"]
     assert isinstance(config, dict)
@@ -108,14 +108,14 @@ def _rule(price: float, source: list[JsonValueType], target: list[JsonValueType]
 
 ADD_TASK: Task = {
     "id": "t",
-    "holdout": False,
+    "scenario": "scenario6",
     "goal": "",
     "participants": [],
     "expect": {"kind": "add", "element_type": "load", "title": "Pump", "data": {"forecast": 1.0}},
 }
 EDIT_TASK: Task = {
     "id": "t",
-    "holdout": False,
+    "scenario": "scenario6",
     "goal": "",
     "participants": [],
     "expect": {"kind": "edit", "element_type": "battery", "title": "Battery", "data": {"min": 20}},
