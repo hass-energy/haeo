@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 
@@ -10,7 +11,7 @@ import pytest
 
 from custom_components.haeo.core.schema.elements import ElementType
 from tools.ux_bench.matching import mismatches
-from tools.ux_bench.run import RunResult, rescore, run_one, summarize
+from tools.ux_bench.run import RunResult, _add_driver_summary, rescore, run_one, summarize, transcript_markdown
 from tools.ux_bench.scoring import Subentries, Subentry, evaluate
 from tools.ux_bench.tasks import TASKS_DIR, Task, hub_config, load_tasks, world_states
 
@@ -232,6 +233,62 @@ def test_run_starts_from_an_empty_directory_and_saves_a_startup_failure(
     assert result.get("problems") == ["The session did not start; see session.log"]
     assert not (run_dir / "result.json").exists()
     assert [saved.get("problems") for saved in rescore(tmp_path)] == [result.get("problems")]
+
+
+STREAM = "\n".join(
+    json.dumps(event)
+    for event in [
+        {"type": "system", "subtype": "init"},
+        {"type": "assistant", "message": {"content": [{"type": "thinking", "thinking": "The picker closes."}]}},
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {"type": "text", "text": "I'll search instead."},
+                    {"type": "tool_use", "input": {"command": "./browse look", "description": "See the form"}},
+                ]
+            },
+        },
+        {"type": "user", "message": {"content": [{"type": "tool_result", "content": "\n".join(map(str, range(20)))}]}},
+        {
+            "type": "result",
+            "subtype": "success",
+            "is_error": False,
+            "result": "Done.",
+            "total_cost_usd": 0.5,
+            "num_turns": 3,
+        },
+    ]
+)
+
+
+def test_driver_summary_reads_the_result_event() -> None:
+    """Cost, turns and the report come from the stream's result event."""
+    result: RunResult = {"task": "t", "repeat": 1, "success": False}
+    _add_driver_summary(result, "not json\n" + STREAM)
+    assert (result.get("cost_usd"), result.get("turns"), result.get("report"), result.get("driver_error")) == (
+        0.5,
+        3,
+        "Done.",
+        None,
+    )
+
+
+def test_driver_summary_reports_a_stream_without_a_result() -> None:
+    """A stream that never finished is an agent error."""
+    result: RunResult = {"task": "t", "repeat": 1, "success": False}
+    _add_driver_summary(result, STREAM.rsplit("\n", 1)[0])
+    assert result.get("driver_error") == "The agent's output had no result; see transcript.jsonl"
+
+
+def test_transcript_keeps_reasoning_commands_and_the_start_of_each_reply() -> None:
+    """The readable transcript shows thinking, text, each command with its stated purpose, and a reply's start."""
+    transcript = transcript_markdown(STREAM)
+    assert "> The picker closes." in transcript
+    assert "I'll search instead." in transcript
+    assert "*See the form*\n```\n$ ./browse look\n```" in transcript
+    assert "11\n... (8 more lines in actions.jsonl)" in transcript
+    assert "12\n" not in transcript
 
 
 def test_summarize_counts_runs() -> None:
