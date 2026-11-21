@@ -213,7 +213,7 @@
             "requirement": {
               "data": { "level": "Level", "window": "Window" },
               "data_description": {
-                "level": "Charge level the buffer is measured from: a reserve keeps the batteries above it, headroom below it. Unset, it is the batteries' min or max charge.",
+                "level": "Leave empty to measure a reserve from the batteries' min charge, or headroom from their max charge. Set a charge level to keep a reserve above it, or headroom below it.",
                 "window": "How far ahead to look: the outage to cover for a reserve, or the generation to make room for with headroom."
               },
               "name": "Requirement"
@@ -817,8 +817,8 @@
       "options": {
         "buffer": "Buffer",
         "now": "Plan now",
-        "summary_headroom": "Keeps up to {held}% of the batteries empty. With it they charge as high as {plan}%, against {now}% in the plan now.",
-        "summary_reserve": "Keeps up to {held}% charge in the batteries. With it they go as low as {plan}%, against {now}% in the plan now.",
+        "summary_headroom": "Making room for the generation over the window takes up to {held}% of the batteries' space. With this buffer they charge as high as {plan}%, against {now}% in the plan now.",
+        "summary_reserve": "Covering the loads over the window takes up to {held}% of the batteries' charge. With this buffer they go as low as {plan}%, against {now}% in the plan now.",
         "with_buffer": "With this buffer"
       }
     },
