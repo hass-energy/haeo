@@ -49,19 +49,3 @@ export function filterOptions(options: EntityOption[], query: string): EntityOpt
     return words.every((word) => haystack.includes(word));
   });
 }
-
-/** Parse a typed number the field accepts, or return null. */
-export function parseConstant(text: string, config: InputSelectorConfig): number | null {
-  const trimmed = text.trim();
-  if (!config.kinds.includes("constant") || config.value_type !== "number" || trimmed === "") {
-    return null;
-  }
-  const value = Number(trimmed);
-  if (!Number.isFinite(value)) {
-    return null;
-  }
-  if ((config.min !== undefined && value < config.min) || (config.max !== undefined && value > config.max)) {
-    return null;
-  }
-  return value;
-}

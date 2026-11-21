@@ -160,14 +160,15 @@ Whether a required field has a value is checked by the flow instead, so the erro
 
 ### How the field behaves
 
-The element shows the field's value directly: "Not set", a fixed number editable in place, an on/off switch, or the chosen entities with their current values.
-One search box filters the offered entities and turns a typed number into a fixed value.
-A search matching several entities offers to add them all, and chosen entities keep the order they were picked in.
+The element's controls show what the field takes, with no instructional text: a number box with the field's unit (or a switch) for a fixed value, a button opening a checklist of entities with a select-all row, and the chosen entities with their current values.
+An empty box is a field left unset, and chosen entities keep the order they were picked in.
+Words appear only as accessible labels.
 
-Every input opens with a value, `{"type": "none"}` when nothing is set, as Home Assistant's form cannot start a required field of a selector it does not know without one.
+Every input opens with a value, as Home Assistant's form cannot start a required field of a selector it does not know without one.
+An existing element's field opens with what it stores, and `{"type": "none"}` when it stores nothing, so saving its form unchanged changes nothing; a new element's field opens with its default.
 
-The element's text lives in `en.json` under `selector.input.options`.
-It reads the strings with `hass.localize` and fills their placeholders itself, and `InputSelector.translation_strings()` lists each string with those placeholders so the translation tests check them.
+The element's labels live in `en.json` under `selector.input.options`.
+It reads them with `hass.localize` and fills their placeholders itself, and `InputSelector.translation_strings()` lists each label with those placeholders so the translation tests check them.
 
 ### UI sections
 

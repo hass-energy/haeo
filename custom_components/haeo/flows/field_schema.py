@@ -232,15 +232,17 @@ def get_input_default(
     field_info: AnyInputFieldInfo,
     current_data: Mapping[str, object] | None = None,
 ) -> SchemaValue:
-    """Return the value a field's form opens with: its stored value, else its default, else none.
+    """Return the value a field's form opens with.
 
+    An existing element's field opens with its stored value, and with none
+    when nothing is stored, so saving the form unchanged changes nothing. A new
+    element's field (no ``current_data``) opens with its default, else none.
     Every input opens with a value, as Home Assistant's form cannot start a
-    required field of a selector it does not know without one. A field whose
-    default is an entity opens without a value, for the user to pick one.
+    required field of a selector it does not know without one.
     """
-    current_value = _get_nested_value(current_data, field_info.field_name) if current_data is not None else None
-    if is_schema_value(current_value):
-        return current_value
+    if current_data is not None:
+        current_value = _get_nested_value(current_data, field_info.field_name)
+        return current_value if is_schema_value(current_value) else as_none_value()
     defaults = field_info.defaults
     if defaults is not None and defaults.mode == "value" and defaults.value is not None:
         return as_constant_value(defaults.value)
@@ -260,8 +262,11 @@ def build_sectioned_input_defaults(
 
     for section_def in sections:
         section_defaults = defaults.setdefault(section_def.key, {})
-        current_section = current_data.get(section_def.key) if current_data else None
+        # An existing element's section opens with what it stores, even when it stores nothing
+        current_section = current_data.get(section_def.key) if current_data is not None else None
         section_data = current_section if isinstance(current_section, Mapping) else None
+        if current_data is not None and section_data is None:
+            section_data = {}
         for field_info in input_fields.get(section_def.key, {}).values():
             if field_info.field_name in exclude_fields:
                 continue

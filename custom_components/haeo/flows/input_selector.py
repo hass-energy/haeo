@@ -26,26 +26,17 @@ from custom_components.haeo.core.schema import (
 
 INPUT_SELECTOR_TYPE = "haeo_input"
 
-# Translation key of the element's own text, under selector.<key>.options
+# Translation key of the element's labels, under selector.<key>.options
 INPUT_TRANSLATION_KEY = "input"
-# Each string the element shows, with the placeholders the element fills in
+# The element's accessible labels, with the placeholders the element fills in
 INPUT_STRINGS: dict[str, tuple[str, ...]] = {
-    "add_all": ("count",),
-    "clear": (),
-    "fixed_off": (),
-    "fixed_on": (),
-    "fixed_value": (),
-    "hint_add_all": (),
-    "hint_value": (),
-    "no_matches": (),
-    "not_set": (),
-    "off": (),
-    "on": (),
+    "add_entities": ("label",),
+    "choose_entities": ("label",),
+    "clear": ("label",),
     "remove": ("name",),
-    "search": (),
-    "search_or_value": (),
+    "search": ("label",),
+    "select_all": ("count",),
     "selected": ("label",),
-    "use_value": ("value",),
 }
 
 type InputKind = Literal["entity", "constant", "none"]
@@ -138,7 +129,7 @@ class InputSelector(Selector[InputSelectorConfig]):
 
     @staticmethod
     def translation_strings() -> Iterator[tuple[tuple[str, ...], tuple[str, ...]]]:
-        """Yield the path of every string the element shows, with the placeholders it fills in."""
+        """Yield the path of every label the element gives its controls, with the placeholders it fills in."""
         for key, placeholders in INPUT_STRINGS.items():
             yield ("selector", INPUT_TRANSLATION_KEY, "options", key), placeholders
 

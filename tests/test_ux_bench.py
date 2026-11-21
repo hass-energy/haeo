@@ -143,6 +143,12 @@ def test_evaluate_add_fails(after: Subentries) -> None:
     assert evaluate(ADD_TASK, BEFORE, after)["success"] is False
 
 
+def test_evaluate_treats_a_stored_none_as_a_missing_field() -> None:
+    """Re-saving a subentry that writes none where a field was missing changes nothing."""
+    after = {**BEFORE, "new": PUMP, "bat": _sub("battery", "Battery", {"min": 5, "salvage": {"type": "none"}})}
+    assert evaluate(ADD_TASK, BEFORE, after)["success"] is True
+
+
 def test_evaluate_edit() -> None:
     """Editing the named subentry passes; also changing another fails."""
     edited = {**BEFORE, "bat": _sub("battery", "Battery", {"min": 20})}

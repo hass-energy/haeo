@@ -1,8 +1,8 @@
-import { useMemo, useState } from "preact/hooks";
+import { mdiChartLine, mdiClose, mdiMagnify, mdiPlus } from "@mdi/js";
+import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
-import { describeEntity, filterOptions, offeredEntityIds, parseConstant } from "./search";
-import type { EntityOption } from "./search";
+import { describeEntity, filterOptions, offeredEntityIds } from "./search";
 import type { InputSelectorConfig, InputValue, SelectorHass, Translate } from "./types";
 
 /** The most matches the list renders; a narrower search shows the rest. */
@@ -20,13 +20,15 @@ export interface InputFieldProps {
   onChange: (value: InputValue) => void;
 }
 
-/** A choice in the search list, either an entity or a fixed value. */
-type Choice =
-  | { kind: "constant"; value: number | boolean; text: string }
-  | { kind: "add_all"; entityIds: string[]; text: string }
-  | { kind: "entity"; option: EntityOption; selected: boolean };
-
 let idCounter = 0;
+
+function Icon({ path }: { path: string }): JSX.Element {
+  return (
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={path} />
+    </svg>
+  );
+}
 
 function selectedEntities(value: InputValue | undefined): string[] {
   return value?.type === "entity" ? value.value : [];
@@ -42,116 +44,126 @@ function entityValue(entityIds: string[]): InputValue {
   return { type: "entity", value: entityIds };
 }
 
-function emptyValue(config: InputSelectorConfig): InputValue {
-  return config.kinds.includes("none") ? { type: "none" } : { type: "entity", value: [] };
-}
-
-/** One HAEO input: a fixed value, one or more entities, or nothing. */
+/**
+ * One HAEO input: a fixed value, one or more entities, or nothing.
+ *
+ * The controls show what the field takes: a number box (or a switch) for a
+ * fixed value, a button opening a checklist of entities, and the chosen
+ * entities with their current values. An empty number box is a field left unset.
+ */
 export function InputField(props: InputFieldProps): JSX.Element {
   const { config, value, hass, label, helper, required, disabled, t, onChange } = props;
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
+  const [picking, setPicking] = useState(false);
   const [ids] = useState(() => {
     idCounter += 1;
     return { label: `haeo-input-label-${idCounter}`, list: `haeo-input-list-${idCounter}` };
   });
+  const root = useRef<HTMLDivElement>(null);
+  const search = useRef<HTMLInputElement>(null);
 
   const allowsEntity = config.kinds.includes("entity");
   const allowsConstant = config.kinds.includes("constant");
   const allowsNone = config.kinds.includes("none");
+  const empty: InputValue = allowsNone ? { type: "none" } : entityValue([]);
   const selected = selectedEntities(value);
+  const showsEntities = selected.length > 0;
+  // A field taking only entities shows its search in place of a value box
+  const searchInline = allowsEntity && !allowsConstant && !showsEntities;
+
   // Sorting is the slow part, and Home Assistant replaces hass on every state change, so the
   // order is kept until the field's config changes; current states are read fresh below.
   const hasHass = hass !== null;
   const offeredIds = useMemo(() => offeredEntityIds(hass, config), [config, hasHass]);
+  const matches = useMemo(
+    () =>
+      filterOptions(
+        offeredIds.map((entityId) => describeEntity(hass, entityId)),
+        query
+      ),
+    [offeredIds, hass, query]
+  );
+  const unselectedMatches = matches.filter((option) => !selected.includes(option.entityId));
 
-  const choices = useMemo((): Choice[] => {
-    const result: Choice[] = [];
-    const constant = parseConstant(query, config);
-    if (constant !== null) {
-      const shown = config.unit !== undefined && config.unit !== "" ? `${constant} ${config.unit}` : String(constant);
-      result.push({ kind: "constant", value: constant, text: t("input.options.use_value", { value: shown }) });
-    }
-    if (allowsConstant && config.value_type === "boolean" && query.trim() === "") {
-      result.push({ kind: "constant", value: true, text: t("input.options.fixed_on") });
-      result.push({ kind: "constant", value: false, text: t("input.options.fixed_off") });
-    }
-    const options = offeredIds.map((entityId) => describeEntity(hass, entityId));
-    const matches = filterOptions(options, query);
-    const unselected = matches.filter((option) => !selected.includes(option.entityId));
-    if (query.trim() !== "" && unselected.length > 1) {
-      result.push({
-        kind: "add_all",
-        entityIds: unselected.map((option) => option.entityId),
-        text: t("input.options.add_all", { count: String(unselected.length) }),
-      });
-    }
-    for (const option of matches.slice(0, MAX_OPTIONS)) {
-      result.push({ kind: "entity", option, selected: selected.includes(option.entityId) });
-    }
-    return result;
-  }, [query, config, offeredIds, hass, value, allowsConstant, t]);
+  const openPicker = (): void => {
+    setPicking(true);
+    requestAnimationFrame(() => search.current?.focus());
+  };
 
-  const choose = (choice: Choice): void => {
-    switch (choice.kind) {
-      case "constant":
-        onChange({ type: "constant", value: choice.value });
-        setQuery("");
-        setOpen(false);
-        return;
-      case "add_all":
-        onChange(entityValue([...selected, ...choice.entityIds]));
-        return;
-      case "entity": {
-        const id = choice.option.entityId;
-        const next = choice.selected ? selected.filter((entityId) => entityId !== id) : [...selected, id];
-        onChange(next.length === 0 ? emptyValue(config) : entityValue(next));
-        return;
-      }
+  const closePicker = (): void => {
+    setPicking(false);
+    setQuery("");
+  };
+
+  const toggle = (entityId: string): void => {
+    const next = selected.includes(entityId) ? selected.filter((id) => id !== entityId) : [...selected, entityId];
+    onChange(next.length === 0 ? empty : entityValue(next));
+  };
+
+  const toggleAll = (): void => {
+    if (unselectedMatches.length > 0) {
+      onChange(entityValue([...selected, ...unselectedMatches.map((option) => option.entityId)]));
+      return;
+    }
+    const shown = new Set(matches.map((option) => option.entityId));
+    const next = selected.filter((id) => !shown.has(id));
+    onChange(next.length === 0 ? empty : entityValue(next));
+  };
+
+  const onFocusOut = (event: FocusEvent): void => {
+    if (!(event.relatedTarget instanceof Node && root.current?.contains(event.relatedTarget) === true)) {
+      closePicker();
     }
   };
 
-  const removeEntity = (entityId: string): void => {
-    const next = selected.filter((id) => id !== entityId);
-    onChange(next.length === 0 ? emptyValue(config) : entityValue(next));
-  };
-
-  const onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setOpen(true);
-      setActive((index) => Math.min(index + 1, Math.max(choices.length - 1, 0)));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActive((index) => Math.max(index - 1, 0));
-    } else if (event.key === "Enter") {
-      const choice = choices[active];
-      if (open && choice !== undefined) {
-        // Picking a choice must not also submit the form around the field
-        event.preventDefault();
-        event.stopPropagation();
-        choose(choice);
-      }
-    } else if (event.key === "Escape" && open) {
+  const onSearchKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === "Escape" && picking) {
       event.preventDefault();
       event.stopPropagation();
-      setOpen(false);
+      closePicker();
+    } else if (event.key === "Enter") {
+      // Choosing must not also submit the form around the field
+      event.preventDefault();
+      event.stopPropagation();
+      const first = matches[0];
+      if (first !== undefined) {
+        toggle(first.entityId);
+      }
     }
   };
 
-  const fixedValueLabel = t("input.options.fixed_value");
+  const allChecked = matches.length > 0 && unselectedMatches.length === 0;
+
+  const searchBox = (
+    <label class={`search${searchInline ? " inline" : ""}`}>
+      <Icon path={mdiMagnify} />
+      <input
+        ref={search}
+        type="text"
+        role="combobox"
+        aria-label={t("input.options.search", { label })}
+        aria-expanded={picking}
+        aria-controls={ids.list}
+        autocomplete="off"
+        disabled={disabled}
+        value={query}
+        onFocus={() => setPicking(true)}
+        onInput={(event) => setQuery(event.currentTarget.value)}
+        onKeyDown={onSearchKeyDown}
+      />
+    </label>
+  );
 
   return (
-    <div class={`field${disabled ? " disabled" : ""}`}>
+    <div class={`field${disabled ? " disabled" : ""}`} ref={root} onFocusOut={onFocusOut}>
       <div class="label" id={ids.label}>
         {label}
         {required ? " *" : ""}
       </div>
 
-      {value?.type === "entity" && value.value.length > 0 && (
+      {showsEntities && (
         <ul class="entities" aria-label={t("input.options.selected", { label })}>
-          {value.value.map((entityId) => {
+          {selected.map((entityId) => {
             const entity = describeEntity(hass, entityId);
             return (
               <li class="entity" key={entityId}>
@@ -162,9 +174,9 @@ export function InputField(props: InputFieldProps): JSX.Element {
                   class="icon-button"
                   disabled={disabled}
                   aria-label={t("input.options.remove", { name: entity.name })}
-                  onClick={() => removeEntity(entityId)}
+                  onClick={() => toggle(entityId)}
                 >
-                  ×
+                  <Icon path={mdiClose} />
                 </button>
               </li>
             );
@@ -172,118 +184,113 @@ export function InputField(props: InputFieldProps): JSX.Element {
         </ul>
       )}
 
-      {allowsConstant && config.value_type === "number" && (value?.type === "constant" || !allowsEntity) && (
-        <div class="constant">
-          <input
-            type="number"
-            aria-label={`${label}: ${fixedValueLabel}`}
-            disabled={disabled}
-            value={value?.type === "constant" ? String(value.value) : ""}
-            {...(config.min !== undefined ? { min: config.min } : {})}
-            {...(config.max !== undefined ? { max: config.max } : {})}
-            step={config.step ?? "any"}
-            onInput={(event) => {
-              // A box being edited can read empty (cleared, or a lone "-"), which keeps the last number;
-              // Clear empties the field
-              const text = event.currentTarget.value;
-              const number = Number(text);
-              if (text !== "" && Number.isFinite(number)) {
-                onChange({ type: "constant", value: number });
-              }
-            }}
-          />
-          {config.unit !== undefined && config.unit !== "" && <span class="unit">{config.unit}</span>}
-        </div>
-      )}
+      <div class="row">
+        {!showsEntities && allowsConstant && config.value_type === "number" && (
+          <label class="number">
+            <input
+              type="number"
+              aria-labelledby={ids.label}
+              disabled={disabled}
+              value={value?.type === "constant" ? String(value.value) : ""}
+              {...(config.min !== undefined ? { min: config.min } : {})}
+              {...(config.max !== undefined ? { max: config.max } : {})}
+              step={config.step ?? "any"}
+              onInput={(event) => {
+                // A box mid-edit can read empty (a lone "-"); the box stays, so the next keystroke lands
+                const text = event.currentTarget.value;
+                const number = Number(text);
+                if (text === "") {
+                  onChange(empty);
+                } else if (Number.isFinite(number)) {
+                  onChange({ type: "constant", value: number });
+                }
+              }}
+            />
+            {config.unit !== undefined && config.unit !== "" && <span class="unit">{config.unit}</span>}
+          </label>
+        )}
 
-      {allowsConstant && config.value_type === "boolean" && value?.type === "constant" && (
-        <div class="constant">
+        {!showsEntities && allowsConstant && config.value_type === "boolean" && (
           <button
             type="button"
             role="switch"
-            class="switch"
-            aria-checked={value.value === true}
-            aria-label={`${label}: ${fixedValueLabel}`}
-            disabled={disabled}
-            onClick={() => onChange({ type: "constant", value: value.value !== true })}
-          >
-            {value.value === true ? t("input.options.on") : t("input.options.off")}
-          </button>
-        </div>
-      )}
-
-      {(value === undefined || value.type === "none" || (value.type === "entity" && value.value.length === 0)) &&
-        allowsEntity && <div class="empty">{t("input.options.not_set")}</div>}
-
-      {allowsNone && value !== undefined && value.type !== "none" && (
-        <button type="button" class="text-button" disabled={disabled} onClick={() => onChange({ type: "none" })}>
-          {t("input.options.clear")}
-        </button>
-      )}
-
-      {allowsEntity && (
-        <div class="search">
-          <input
-            type="text"
-            role="combobox"
+            class={`switch${value?.type === "constant" ? "" : " unset"}`}
+            aria-checked={value?.type === "constant" && value.value === true}
             aria-labelledby={ids.label}
-            aria-expanded={open}
-            aria-controls={ids.list}
-            aria-autocomplete="list"
-            autocomplete="off"
             disabled={disabled}
-            placeholder={
-              allowsConstant && config.value_type === "number"
-                ? t("input.options.search_or_value")
-                : t("input.options.search")
-            }
-            value={query}
-            onFocus={() => setOpen(true)}
-            onBlur={() => {
-              setOpen(false);
-              setQuery("");
-            }}
-            onInput={(event) => {
-              setQuery(event.currentTarget.value);
-              setActive(0);
-              setOpen(true);
-            }}
-            onKeyDown={onKeyDown}
-          />
-          {open && query.trim() === "" && (
-            <div class="hint">
-              {allowsConstant && config.value_type === "number" && <div>{t("input.options.hint_value")}</div>}
-              <div>{t("input.options.hint_add_all")}</div>
-            </div>
-          )}
-          {open && (
-            <ul class="options" id={ids.list} role="listbox" aria-multiselectable={true}>
-              {choices.length === 0 && <li class="no-matches">{t("input.options.no_matches")}</li>}
-              {choices.map((choice, index) => (
+            onClick={() => onChange({ type: "constant", value: !(value?.type === "constant" && value.value === true) })}
+          >
+            <span class="knob" />
+          </button>
+        )}
+
+        {searchInline && searchBox}
+
+        {allowsEntity && !searchInline && (
+          <button
+            type="button"
+            class={`icon-button pick${picking ? " active" : ""}`}
+            disabled={disabled}
+            aria-label={t(showsEntities ? "input.options.add_entities" : "input.options.choose_entities", { label })}
+            aria-expanded={picking}
+            aria-controls={ids.list}
+            onClick={() => (picking ? closePicker() : openPicker())}
+          >
+            <Icon path={showsEntities ? mdiPlus : mdiChartLine} />
+          </button>
+        )}
+
+        {allowsNone && value?.type === "constant" && (
+          <button
+            type="button"
+            class="icon-button"
+            disabled={disabled}
+            aria-label={t("input.options.clear", { label })}
+            onClick={() => onChange({ type: "none" })}
+          >
+            <Icon path={mdiClose} />
+          </button>
+        )}
+      </div>
+
+      {picking && (
+        <div class="picker">
+          {!searchInline && searchBox}
+          <ul class="options" id={ids.list} role="listbox" aria-multiselectable={true}>
+            {matches.length > 1 && (
+              <li
+                role="option"
+                class="option all"
+                aria-selected={allChecked}
+                aria-label={t("input.options.select_all", { count: String(matches.length) })}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={toggleAll}
+              >
+                <input type="checkbox" tabIndex={-1} checked={allChecked} aria-hidden="true" readOnly />
+                <span class="count">{matches.length}</span>
+              </li>
+            )}
+            {matches.slice(0, MAX_OPTIONS).map((option) => {
+              const checked = selected.includes(option.entityId);
+              return (
                 <li
-                  key={choice.kind === "entity" ? choice.option.entityId : `${choice.kind}-${index}`}
+                  key={option.entityId}
                   role="option"
-                  class={`option${index === active ? " active" : ""}${choice.kind === "entity" ? "" : " action"}`}
-                  aria-selected={choice.kind === "entity" ? choice.selected : false}
+                  class="option"
+                  aria-selected={checked}
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => choose(choice)}
+                  onClick={() => toggle(option.entityId)}
                 >
-                  {choice.kind === "entity" ? (
-                    <>
-                      <span class="check">{choice.selected ? "✓" : ""}</span>
-                      <span class="option-text">
-                        <span class="entity-name">{choice.option.name}</span>
-                        <span class="entity-id">{choice.option.entityId}</span>
-                      </span>
-                      <span class="entity-state">{choice.option.current}</span>
-                    </>
-                  ) : (
-                    <span class="option-text">{choice.text}</span>
-                  )}
+                  <input type="checkbox" tabIndex={-1} checked={checked} aria-hidden="true" readOnly />
+                  <span class="option-text">
+                    <span class="entity-name">{option.name}</span>
+                    <span class="entity-id">{option.entityId}</span>
+                  </span>
+                  <span class="entity-state">{option.current}</span>
                 </li>
-              ))}
-            </ul>
-          )}
+              );
+            })}
+          </ul>
         </div>
       )}
 

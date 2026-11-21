@@ -170,6 +170,33 @@ async def test_reconfigure_form_opens_with_the_stored_values(
     assert {key: shown[key] for key in values} == values
 
 
+async def test_reconfigure_form_opens_unset_fields_as_unset(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """A field an existing battery leaves unset opens unset rather than with its default, so saving changes nothing."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    stored = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Battery",
+        CONF_CONNECTION: as_connection_target("TestNode"),
+        SECTION_STORAGE: {
+            CONF_CAPACITY: as_constant_value(10.0),
+            CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
+        },
+        SECTION_PRICING: {},
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(stored), subentry_type=ELEMENT_TYPE, title="Test Battery", unique_id=None
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    result = await flow.async_step_reconfigure(user_input=None)
+
+    assert section_suggested_values(result, SECTION_PRICING)[CONF_SALVAGE_VALUE] == as_none_value()
+    assert section_suggested_values(result, SECTION_LIMITS)[CONF_MIN_CHARGE_PERCENTAGE] == as_none_value()
+
+
 async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure flow completes and updates existing battery."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)

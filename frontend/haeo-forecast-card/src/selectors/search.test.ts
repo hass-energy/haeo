@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { describeEntity, filterOptions, offeredEntityIds, parseConstant } from "./search";
+import { describeEntity, filterOptions, offeredEntityIds } from "./search";
 import type { InputSelectorConfig, SelectorHass } from "./types";
 
 const hass: SelectorHass = {
@@ -63,24 +63,5 @@ describe("filterOptions", () => {
 
   it("keeps everything for an empty query", () => {
     expect(filterOptions(options, "  ")).toHaveLength(3);
-  });
-});
-
-describe("parseConstant", () => {
-  it.each([
-    ["5", 5],
-    [" 0.8 ", 0.8],
-    ["100", 100],
-  ])("reads %j as %d", (text, value) => {
-    expect(parseConstant(text, config)).toBe(value);
-  });
-
-  it.each(["", "abc", "101", "-1", "Infinity"])("rejects %j", (text) => {
-    expect(parseConstant(text, config)).toBeNull();
-  });
-
-  it("rejects numbers for fields without a number constant", () => {
-    expect(parseConstant("5", { ...config, kinds: ["entity"] })).toBeNull();
-    expect(parseConstant("5", { ...config, value_type: "boolean" })).toBeNull();
   });
 });

@@ -12,7 +12,7 @@ Screenshots are automatically collected using the ScreenshotContext.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 import logging
 from pathlib import Path
@@ -744,60 +744,47 @@ class HAPage:
         return self.page.locator("ha-selector-haeo_input").filter(has_text=label)
 
     def input_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
-        """Add an entity to a HAEO input field by searching for it and picking it from the list."""
+        """Add an entity to a HAEO input field: open its entity list, search, and check the entity."""
         field = self._input_field(field_label)
         field.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
         search = field.get_by_role("combobox")
+        # A field holding a number or entities opens its list from a button; one taking only entities shows its search
+        opener = field.get_by_role("button", name=re.compile(r"^(Choose|Add) entities"))
         option = field.get_by_role("option").filter(has_text=entity_name).first
 
         ctx = ScreenshotContext.current()
-        if ctx:
-            with ctx.scope(f"entity_{field_label}"):
-                self._scroll_and_capture(search)
-                self._capture_with_indicator("search_box", search)
-                search.fill(search_term)
-                option.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
-                self._capture("search_results")
-                self._scroll_into_view(option)
-                self._capture_with_indicator("select", option)
-                option.click(timeout=DEFAULT_TIMEOUT)
-                search.blur()
-                self._capture("selected")
-        else:
+        with ctx.scope(f"entity_{field_label}") if ctx else nullcontext():
+            if opener.count():
+                self._scroll_into_view(opener)
+                if ctx:
+                    self._capture_with_indicator("open_list", opener)
+                opener.click(timeout=DEFAULT_TIMEOUT)
+            search.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
             self._scroll_into_view(search)
             search.fill(search_term)
             option.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
             self._scroll_into_view(option)
+            if ctx:
+                self._capture_with_indicator("select", option)
             option.click(timeout=DEFAULT_TIMEOUT)
-            search.blur()
+            search.press("Escape")
+            if ctx:
+                self._capture("selected")
 
     def input_constant(self, field_label: str, value: str) -> None:
-        """Set a HAEO input field to a fixed number.
-
-        A field already holding a fixed number is edited in place; otherwise the
-        number is typed into the search and taken as a fixed value.
-        """
+        """Type a fixed number into a HAEO input field's number box."""
         field = self._input_field(field_label)
         field.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-        fixed = field.get_by_role("spinbutton")
-        target = fixed if fixed.count() else field.get_by_role("combobox")
-        use_value = field.get_by_role("option").first
+        box = field.get_by_role("spinbutton")
 
         ctx = ScreenshotContext.current()
-        if ctx:
-            with ctx.scope(f"constant_{field_label}"):
-                self._scroll_and_capture(target)
-                self._capture_with_indicator("field", target)
-                target.fill(value)
-                if not fixed.count():
-                    use_value.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-                    self._capture_with_indicator("use_value", use_value)
-                    use_value.click(timeout=DEFAULT_TIMEOUT)
+        with ctx.scope(f"constant_{field_label}") if ctx else nullcontext():
+            self._scroll_into_view(box)
+            if ctx:
+                self._capture_with_indicator("field", box)
+            box.fill(value)
+            if ctx:
                 self._capture("filled")
-        else:
-            target.fill(value)
-            if not fixed.count():
-                use_value.click(timeout=DEFAULT_TIMEOUT)
 
     # endregion
 

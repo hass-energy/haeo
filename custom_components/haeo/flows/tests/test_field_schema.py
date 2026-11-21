@@ -265,9 +265,10 @@ def test_build_sectioned_input_schema_validates_submissions() -> None:
         pytest.param(ENABLED, {"enabled": as_constant_value(False)}, as_constant_value(False), id="stored_boolean"),
         pytest.param(POWER, {"power": as_none_value()}, as_none_value(), id="stored_none"),
         pytest.param(POWER, {"limits": {"power": as_constant_value(5.0)}}, as_constant_value(5.0), id="nested"),
-        pytest.param(POWER, {"power": 5.0}, as_constant_value(50.0), id="stored_non_schema_value"),
+        pytest.param(POWER, {"power": 5.0}, as_none_value(), id="stored_non_schema_value"),
+        pytest.param(POWER, {}, as_none_value(), id="stored_without_the_field"),
         pytest.param(POWER, None, as_constant_value(50.0), id="value_default"),
-        pytest.param(ENABLED, {}, as_constant_value(True), id="boolean_default"),
+        pytest.param(ENABLED, None, as_constant_value(True), id="boolean_default"),
         pytest.param(
             replace(POWER, defaults=InputFieldDefaults(mode="entity", entity="sensor.a")),
             None,
@@ -280,7 +281,7 @@ def test_build_sectioned_input_schema_validates_submissions() -> None:
 def test_get_input_default(
     field: AnyInputFieldInfo, current_data: dict[str, object] | None, expected: SchemaValue
 ) -> None:
-    """A field opens with its stored value, else a constant for a value default, else no value."""
+    """An existing element's field opens with what it stores; a new one's with its value default, else no value."""
     assert get_input_default(field, current_data) == expected
 
 

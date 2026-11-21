@@ -843,22 +843,13 @@
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
     "input": {
       "options": {
-        "add_all": "Add all {count} matches",
-        "clear": "Clear",
-        "fixed_off": "Off (fixed value)",
-        "fixed_on": "On (fixed value)",
-        "fixed_value": "Fixed value",
-        "hint_add_all": "Type to filter the list, then add every match at once.",
-        "hint_value": "Type a number to use it as a fixed value.",
-        "no_matches": "No matching entities",
-        "not_set": "Not set",
-        "off": "Off",
-        "on": "On",
+        "add_entities": "Add entities to {label}",
+        "choose_entities": "Choose entities for {label}",
+        "clear": "Clear {label}",
         "remove": "Remove {name}",
-        "search": "Search entities",
-        "search_or_value": "Search entities or type a value",
-        "selected": "{label} entities",
-        "use_value": "Use {value} as a fixed value"
+        "search": "Search entities for {label}",
+        "select_all": "Select all {count}",
+        "selected": "{label} entities"
       }
     },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }

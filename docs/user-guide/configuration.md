@@ -131,23 +131,15 @@ Most elements are configured in a single step where you enter:
 
 #### Input fields
 
-Each input field is a single control that shows its current value:
+Each input field takes a fixed value, one or more entities, or nothing:
 
-- **Not set** when an optional field has no value
-- A fixed value with its unit, which you can edit in place
-- The chosen entities, each with its current value and a **×** button to remove it
-- An **On**/**Off** switch for an on/off field set to a fixed value
-
-To set a field, use its **Search entities or type a value** box:
-
-- **Choose an entity**: Type to filter the list, then pick an entity.
-    The list offers only entities whose unit fits the field.
-    Fields that take several entities keep each one you pick, in the order you picked them, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors).
-- **Add several entities at once**: When your search matches more than one entity, pick **Add all N matches**.
-    This suits forecast integrations that create one sensor per day or per array, such as Forecast.Solar or Solcast.
-- **Enter a fixed value**: Type a number, such as `10`, and pick **Use 10 as a fixed value**.
-    For an on/off field, pick **On (fixed value)** or **Off (fixed value)**.
-- **Leave it not set**: Click **Clear** on an optional field you don't need, such as an export limit.
+- **Fixed value**: Type a number into the field's box, which shows the field's unit.
+    An on/off field has a switch instead.
+- **Entities**: Click the chart button beside the box to open a list of entities, then check the ones to use.
+    The list offers only entities whose unit fits the field, and its search box narrows it.
+    The checkbox at the top of the list checks every entity it shows, which suits forecast integrations that create one sensor per day or per array, such as Forecast.Solar or Solcast.
+    The chosen entities replace the box, each with its current value, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors) in the order you chose them.
+- **Nothing**: Leave the box empty, or remove the value or entities with **×**, for an optional field you don't need, such as an export limit.
     HAEO leaves that field out of the optimization.
 
 !!! tip "Fixed values are adjustable"
