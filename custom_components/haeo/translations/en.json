@@ -813,7 +813,15 @@
   },
   "selector": {
     "buffer_kind": { "options": { "headroom": "Headroom: keep empty space", "reserve": "Reserve: keep energy" } },
-    "buffer_preview": { "options": { "buffer": "Buffer", "now": "Plan now", "with_buffer": "With this buffer" } },
+    "buffer_preview": {
+      "options": {
+        "buffer": "Buffer",
+        "now": "Plan now",
+        "summary_headroom": "Keeps up to {held}% of the batteries empty. With it they charge as high as {plan}%, against {now}% in the plan now.",
+        "summary_reserve": "Keeps up to {held}% charge in the batteries. With it they go as low as {plan}%, against {now}% in the plan now.",
+        "with_buffer": "With this buffer"
+      }
+    },
     "connection": { "options": { "ac_bus": "{name}, AC", "bus": "{name}", "dc_bus": "{name}, DC" } },
     "connection_path": {
       "options": {

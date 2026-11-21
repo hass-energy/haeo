@@ -1,7 +1,7 @@
 """Tests for HAEO's websocket commands."""
 
 from datetime import datetime
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
 from homeassistant.config_entries import ConfigEntryState
@@ -13,7 +13,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
-from custom_components.haeo.core.adapters.network_builder import build_network
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value
@@ -156,19 +155,19 @@ BUFFER_FORM: dict[str, object] = {
 
 @pytest.fixture
 def planned_hub(hub: MockConfigEntry) -> MockConfigEntry:
-    """Give the hub a coordinator holding its loaded elements and the plan it solved from them."""
-    configs = _loaded_hub()
-    network = build_network("hub", configs, [1800.0, 1800.0])
-    network.optimize()
+    """Give the hub a coordinator holding its loaded elements."""
     hub.runtime_data.horizon_manager.periods_seconds = [1800.0, 1800.0]
-    hub.runtime_data.coordinator = Mock(loaded_configs=Mock(return_value=configs), network=network)
+    hub.runtime_data.coordinator = Mock(loaded_configs=Mock(return_value=_loaded_hub()), relax_infeasible=False)
     return hub
 
 
-async def _buffer_preview(hass: HomeAssistant, buffer: dict[str, object], entry_id: str = "hub") -> Mock:
+async def _buffer_preview(
+    hass: HomeAssistant, buffer: dict[str, object], entry_id: str = "hub", replaces: str | None = None
+) -> Mock:
     """Run the buffer preview command as an admin and return the connection it answered on."""
     connection = Mock(user=Mock(is_admin=True))
-    ws_buffer_preview(hass, connection, {"id": 1, "type": BUFFER_PREVIEW, "entry_id": entry_id, "buffer": buffer})
+    msg = {"id": 1, "type": BUFFER_PREVIEW, "entry_id": entry_id, "replaces": replaces, "buffer": buffer}
+    ws_buffer_preview(hass, connection, msg)
     await hass.async_block_till_done(wait_background_tasks=True)
     return connection
 
@@ -191,6 +190,7 @@ async def test_buffer_preview_plans_with_the_buffer_beside_the_plan_now(hass: Ho
     [
         pytest.param("missing", BUFFER_FORM, "not_found", id="no_hub"),
         pytest.param("hub", {**BUFFER_FORM, "participants": {"storage": []}}, "invalid_format", id="no_battery"),
+        pytest.param("hub", {**BUFFER_FORM, "participants": {"storage": ["Spare"]}}, "invalid_format", id="unknown"),
     ],
 )
 @pytest.mark.usefixtures("planned_hub")
@@ -202,6 +202,26 @@ async def test_buffer_preview_reports_what_it_cannot_plan(
 
     connection.send_result.assert_not_called()
     assert connection.send_error.call_args.args[:2] == (1, error)
+
+
+@pytest.mark.parametrize(
+    ("replaces", "elements", "planned_as"),
+    [
+        pytest.param("Outage", [], "Outage", id="reconfigured_buffer"),
+        pytest.param(None, ["buffer preview"], "buffer preview 2", id="name_an_element_has"),
+    ],
+)
+async def test_buffer_preview_plans_the_draft_under_its_own_name(
+    hass: HomeAssistant, planned_hub: MockConfigEntry, replaces: str | None, elements: list[str], planned_as: str
+) -> None:
+    """A reconfigured buffer is planned in place of itself, and a new one under a name no element has."""
+    configs = {**_loaded_hub(), **dict.fromkeys(elements, Mock())}
+    planned_hub.runtime_data.coordinator.loaded_configs.return_value = configs
+
+    with patch("custom_components.haeo.websocket.preview_buffer") as preview:
+        await _buffer_preview(hass, BUFFER_FORM, replaces=replaces)
+
+    assert preview.call_args.args[1]["name"] == planned_as
 
 
 def test_buffer_preview_is_for_admins(hass: HomeAssistant) -> None:

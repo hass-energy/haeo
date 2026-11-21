@@ -51,7 +51,7 @@ def test_load_element_config_reflects_store_values(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Every element loads, and the salvage value starts at 0.0 (from the store)
-    configs = coordinator._load_from_input_stores()
+    configs = coordinator.loaded_configs()
     assert configs.keys() == {"Test Battery", "Test Grid"}
     battery_config = configs["Test Battery"]
     assert battery_config["element_type"] == ElementType.BATTERY
@@ -62,7 +62,7 @@ def test_load_element_config_reflects_store_values(
     salvage_store.set_value(5.0)
 
     # Load again — must see the updated store value
-    battery_config = coordinator._load_from_input_stores()["Test Battery"]
+    battery_config = coordinator.loaded_configs()["Test Battery"]
     assert battery_config["element_type"] == ElementType.BATTERY
     assert battery_config[SECTION_PRICING].get(CONF_SALVAGE_VALUE) == 5.0
 
@@ -90,11 +90,11 @@ async def test_async_initialize_with_empty_input_stores(
     """Initialization surfaces network creation failures when inputs are empty."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # Mock _load_from_input_stores to return minimal data
+    # Mock loaded_configs to return minimal data
     with (
         patch.object(
             coordinator,
-            "_load_from_input_stores",
+            "loaded_configs",
             return_value={},
         ),
         patch("custom_components.haeo.coordinator.coordinator.build_network") as mock_load,
@@ -126,7 +126,7 @@ async def test_async_update_data_propagates_errors(
     coordinator._network = network_double()
 
     with (
-        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(coordinator, "loaded_configs", return_value={}),
         patch.object(
             hass,
             "async_add_executor_job",
@@ -200,7 +200,7 @@ async def test_async_update_data_solves_with_current_horizon_periods(
         raise RuntimeError(msg)
 
     with (
-        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(coordinator, "loaded_configs", return_value={}),
         patch.object(hass, "async_add_executor_job", side_effect=capture_periods),
         pytest.raises(RuntimeError, match="stop after capturing"),
     ):
@@ -231,7 +231,7 @@ async def test_async_update_data_rebuilds_the_network_when_the_period_count_chan
         raise RuntimeError(msg)
 
     with (
-        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(coordinator, "loaded_configs", return_value={}),
         patch.object(hass, "async_add_executor_job", side_effect=capture_periods),
         patch("custom_components.haeo.coordinator.coordinator.build_network", wraps=build_network) as rebuild,
         pytest.raises(RuntimeError, match="stop after capturing"),
@@ -244,7 +244,7 @@ async def test_async_update_data_rebuilds_the_network_when_the_period_count_chan
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_stores_delegates_to_config_loader(
+def testloaded_configs_delegates_to_config_loader(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
@@ -267,7 +267,7 @@ def test_load_from_input_stores_delegates_to_config_loader(
         "custom_components.haeo.coordinator.coordinator.load_element_config_from_values",
         return_value=loaded_config,
     ) as mock_load:
-        result = coordinator._load_from_input_stores()
+        result = coordinator.loaded_configs()
 
     mock_load.assert_called_once()
     call_args = mock_load.call_args
@@ -323,7 +323,7 @@ async def test_changed_inputs_reach_the_network_at_the_next_optimization(
 
     for _ in range(2):
         with (
-            patch.object(coordinator, "_load_from_input_stores", return_value=loaded),
+            patch.object(coordinator, "loaded_configs", return_value=loaded),
             patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, side_effect=UpdateFailed("stop")),
             pytest.raises(UpdateFailed, match="stop"),
         ):

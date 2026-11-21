@@ -78,7 +78,7 @@ async def _keep_failing_past_the_repair_delay(coordinator: HaeoDataUpdateCoordin
     """Refresh a failing coordinator until it has failed for longer than a repair issue waits."""
     with (
         freeze_time("2025-01-01 12:00:00") as frozen,
-        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(coordinator, "loaded_configs", return_value={}),
     ):
         await coordinator.async_refresh()
         frozen.tick(FAILURE_SECONDS_BEFORE_REPAIR_ISSUE)
@@ -248,7 +248,7 @@ async def test_async_update_data_reports_an_infeasible_plan(
     create_optimization_relaxed_issue(hass, mock_hub_entry.entry_id, EARLIER_ISSUE, EARLIER_DIAGNOSTICS)
 
     with (
-        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(coordinator, "loaded_configs", return_value={}),
         pytest.raises(UpdateFailed) as error,
     ):
         await coordinator._async_update_data()
@@ -299,7 +299,7 @@ async def test_async_update_data_reports_an_infeasible_plan_whose_diagnostics_ca
     network.optimize.side_effect = InfeasibleError((RowLabel("Test Grid:import", "power_limit", 1),))
 
     with (
-        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(coordinator, "loaded_configs", return_value={}),
         pytest.raises(UpdateFailed) as error,
     ):
         await coordinator._async_update_data()
@@ -321,7 +321,7 @@ async def test_async_update_data_reports_a_solver_failure(
     network.optimize.side_effect = SolverError("Unbounded")
 
     with (
-        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(coordinator, "loaded_configs", return_value={}),
         pytest.raises(UpdateFailed) as error,
     ):
         await coordinator._async_update_data()
@@ -347,7 +347,7 @@ async def test_async_update_data_keeps_an_unresolved_infeasible_issue_and_its_di
     )
 
     with (
-        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(coordinator, "loaded_configs", return_value={}),
         pytest.raises(UpdateFailed),
     ):
         await coordinator._async_update_data()
@@ -376,7 +376,7 @@ async def test_every_relaxed_plan_is_logged(
     network.elements = {}
     network.relaxations = (Relaxation(RowLabel("Switchboard", "element_power_balance", 0), 0.1),)
 
-    with patch.object(coordinator, "_load_from_input_stores", return_value={}):
+    with patch.object(coordinator, "loaded_configs", return_value={}):
         await coordinator._async_update_data()
 
     assert "The plan relaxed constraints it cannot meet" in caplog.text

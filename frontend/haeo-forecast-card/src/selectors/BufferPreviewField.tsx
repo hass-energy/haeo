@@ -38,6 +38,24 @@ function linePoints(times: number[], values: number[], x: (time: number) => numb
   return values.map((value, index) => `${x(times[index] ?? 0).toFixed(1)},${y(value).toFixed(1)}`).join(" ");
 }
 
+function percent(value: number): string {
+  return String(Math.round(value * 100));
+}
+
+/** Say what the chart shows: how much the buffer holds, and how far the batteries go with it and in the plan now. */
+export function summary(result: BufferPreviewResult, t: Translate): string {
+  const headroom = result.kind === "headroom";
+  // A reserve holds charge up to its line; headroom holds space down to it
+  const held = headroom ? 1 - Math.min(...result.buffer) : Math.max(...result.buffer);
+  const extreme = (values: number[] | null): string =>
+    values === null ? "–" : percent(headroom ? Math.max(...values) : Math.min(...values));
+  return t(`buffer_preview.options.summary_${headroom ? "headroom" : "reserve"}`, {
+    held: percent(held),
+    plan: extreme(result.plan),
+    now: extreme(result.current),
+  });
+}
+
 /**
  * What the buffer being configured would do: the line it keeps the batteries
  * above (a reserve) or below (headroom), shaded on the side it protects, the
@@ -54,6 +72,8 @@ export function BufferPreviewField({ hass, entryId, replaces, readForm, t }: Buf
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
     let current = true;
+    // Only the latest request's answer is shown, as an earlier one can arrive after it
+    let latest = 0;
     const plan = (): void => {
       const form = readForm();
       const key = JSON.stringify(form);
@@ -61,16 +81,18 @@ export function BufferPreviewField({ hass, entryId, replaces, readForm, t }: Buf
         return;
       }
       last.current = key;
+      const request = ++latest;
+      const answered = (answer: BufferPreviewResult | null): void => {
+        if (current && request === latest) {
+          setResult(answer);
+        }
+      };
       callWS<BufferPreviewResult>({ type: "haeo/buffer_preview", entry_id: entryId, replaces, buffer: form }).then(
-        (answer) => {
-          if (current) {
-            setResult(answer);
-          }
-        },
+        answered,
         () => {
-          if (current) {
-            setResult(null);
-          }
+          // A form the hub could not plan is planned again on the next change, even if it is the same
+          last.current = "";
+          answered(null);
         }
       );
     };
@@ -98,11 +120,7 @@ export function BufferPreviewField({ hass, entryId, replaces, readForm, t }: Buf
   const bufferLine = linePoints(result.times, result.buffer, x, y);
   const edge = result.kind === "headroom" ? y(1) : y(0);
   const zone = `0,${edge.toFixed(1)} ${bufferLine} ${WIDTH},${edge.toFixed(1)}`;
-  const label = [
-    t("buffer_preview.options.with_buffer"),
-    t("buffer_preview.options.now"),
-    t("buffer_preview.options.buffer"),
-  ].join(", ");
+  const label = summary(result, t);
 
   return (
     <div class="buffer-preview">

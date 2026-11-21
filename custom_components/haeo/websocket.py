@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import timedelta
+from functools import partial
 from typing import TYPE_CHECKING, Any  # noqa: TID251  # websocket messages are JSON dicts
 
 from homeassistant.components import websocket_api
@@ -15,7 +16,8 @@ from homeassistant.util import dt as dt_util
 import numpy as np
 import voluptuous as vol
 
-from custom_components.haeo.core.adapters.buffer_preview import buffer_config, preview_buffer, storage_state_of_charge
+from custom_components.haeo.core.adapters.buffer_preview import buffer_config, preview_buffer, unused_name
+from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.data.loader.config_loader import load_element_config, load_fused_sensors
 from custom_components.haeo.core.data.util.input_values import InputError, enforce_non_negative
 from custom_components.haeo.core.model.const import OutputType
@@ -55,31 +57,40 @@ async def ws_buffer_preview(hass: HomeAssistant, connection: ActiveConnection, m
     """Plan once with a buffer as the form has it, and return what it would hold and how the batteries would charge.
 
     The buffer replaces the element named ``replaces``, the one being
-    reconfigured, and every other element reads its inputs as they are now. The
-    plan without the buffer is the hub's own latest plan.
+    reconfigured, and every element reads its inputs as they are now. Both
+    plans are solved from the same inputs, so they line up with the horizon
+    sent with them.
     """
     entry: HaeoConfigEntry | None = hass.config_entries.async_get_entry(msg["entry_id"])
-    runtime_data = entry.runtime_data if entry is not None and entry.state is ConfigEntryState.LOADED else None
-    coordinator = runtime_data.coordinator if runtime_data is not None else None
-    if runtime_data is None or coordinator is None:
+    if entry is None or entry.domain != DOMAIN or entry.state is not ConfigEntryState.LOADED or not entry.runtime_data:
+        connection.send_error(msg["id"], ERR_NOT_FOUND, "HAEO hub is not loaded")
+        return
+    runtime_data = entry.runtime_data
+    coordinator = runtime_data.coordinator
+    if coordinator is None:
         connection.send_error(msg["id"], ERR_NOT_FOUND, "HAEO hub is not loaded")
         return
     times = runtime_data.horizon_manager.get_forecast_timestamps()
-    name = msg.get("replaces") or PREVIEW_BUFFER_NAME
-    draft = buffer_config(name, msg["buffer"])
-    if draft is None:
-        connection.send_error(msg["id"], ERR_INVALID_FORMAT, "The buffer needs a battery and a window")
-        return
     try:
-        loaded = load_element_config(name, draft, HomeAssistantStateMachine(hass), times)
-        participants = {**coordinator.loaded_configs(), name: loaded}
-        periods = runtime_data.horizon_manager.periods_seconds
-        result = await hass.async_add_executor_job(preview_buffer, participants, periods, name)
-    except (InputError, TypeError, ValueError) as error:
+        hub = coordinator.loaded_configs()
+        draft = buffer_config(msg.get("replaces") or unused_name(hub, PREVIEW_BUFFER_NAME), msg["buffer"])
+        if draft is None:
+            connection.send_error(msg["id"], ERR_INVALID_FORMAT, "The buffer needs a battery, a window, and a cost")
+            return
+        loaded = load_element_config(draft[CONF_NAME], draft, HomeAssistantStateMachine(hass), times)
+        result = await hass.async_add_executor_job(
+            partial(
+                preview_buffer,
+                hub,
+                loaded,
+                runtime_data.horizon_manager.periods_seconds,
+                relax_infeasible=coordinator.relax_infeasible,
+            )
+        )
+    except (InputError, KeyError, TypeError, ValueError) as error:
         connection.send_error(msg["id"], ERR_INVALID_FORMAT, str(error))
         return
-    current = storage_state_of_charge(coordinator.network, result["storage"])
-    connection.send_result(msg["id"], {"times": list(times), **result, "current": current, "days": _midnights(times)})
+    connection.send_result(msg["id"], {"times": list(times), **result, "days": _midnights(times)})
 
 
 @require_admin

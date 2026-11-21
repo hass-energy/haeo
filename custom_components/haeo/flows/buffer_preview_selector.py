@@ -18,11 +18,13 @@ BUFFER_PREVIEW_SELECTOR_TYPE = "haeo_buffer_preview"
 # Translation key of the element's labels, under selector.<key>.options
 BUFFER_PREVIEW_TRANSLATION_KEY = "buffer_preview"
 
-# The chart's legend, which the element also reads as its accessible label
+# The chart's legend, and its accessible summary for each kind of buffer
 BUFFER_PREVIEW_STRINGS: dict[str, tuple[str, ...]] = {
     "buffer": (),
     "now": (),
     "with_buffer": (),
+    "summary_reserve": ("held", "plan", "now"),
+    "summary_headroom": ("held", "plan", "now"),
 }
 
 

@@ -171,7 +171,7 @@ async def test_async_update_data_returns_outputs(
         },
     }
 
-    # Patch coordinator to use mocked _load_from_input_stores
+    # Patch coordinator to use mocked loaded_configs
     with (
         patch("custom_components.haeo.coordinator.coordinator.build_network"),
         patch.object(
@@ -191,8 +191,8 @@ async def test_async_update_data_returns_outputs(
         # Set network directly (it's created in async_initialize in production)
         coordinator._network = fake_network
 
-        # Mock the _load_from_input_stores method
-        with patch.object(coordinator, "_load_from_input_stores", return_value=mock_loaded_configs):
+        # Mock the loaded_configs method
+        with patch.object(coordinator, "loaded_configs", return_value=mock_loaded_configs):
             result = await coordinator._async_update_data()
 
     mock_executor.assert_any_call(fake_network.optimize)
@@ -283,7 +283,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     with (
         patch.object(
             coordinator,
-            "_load_from_input_stores",
+            "loaded_configs",
             return_value={"Test Battery": mock_battery_subentry.data},
         ),
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, return_value=0.0),
@@ -449,7 +449,7 @@ async def test_async_update_data_warns_about_mixed_price_currencies(
     coordinator._network = network_double()
 
     with (
-        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(coordinator, "loaded_configs", return_value={}),
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, side_effect=UpdateFailed("solved")),
         pytest.raises(UpdateFailed, match="solved"),
     ):
@@ -459,7 +459,7 @@ async def test_async_update_data_warns_about_mixed_price_currencies(
 
     store.captured_source_states = {"sensor.import_price": source_state("€/kWh")}
     with (
-        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(coordinator, "loaded_configs", return_value={}),
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, side_effect=UpdateFailed("solved")),
         pytest.raises(UpdateFailed, match="solved"),
     ):
