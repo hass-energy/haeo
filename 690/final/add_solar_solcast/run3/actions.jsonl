@@ -1,0 +1,12 @@
+{"t": 5.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 7.5, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 10.6, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 12.3, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 14.2, "command": "type", "args": ["f2e485", "tomorrow"], "error": null, "visible_errors": 0}
+{"t": 15.8, "command": "click", "args": ["f2e577"], "error": null, "visible_errors": 0}
+{"t": 16.2, "command": "type", "args": ["f2e485", "day_3"], "error": null, "visible_errors": 0}
+{"t": 17.8, "command": "click", "args": ["f2e606"], "error": null, "visible_errors": 0}
+{"t": 19.6, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 20.9, "command": "click", "args": ["f2e640"], "error": null, "visible_errors": 0}
+{"t": 22.6, "command": "done", "args": ["Added Solar element named 'Solar', connected to Inverter (DC), forecast set to Solcast Today, Tomorrow and Day 3 sensors. Solar device now appears with 4 entities."], "error": null, "visible_errors": 0}

@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.15498240000000002,
+  "turns": 13,
+  "report": "I added the Grid to HAEO and it saved. HAEO showed \"Created configuration for Grid.\" I didn't reopen the Grid afterwards to check the saved values.\n\n- **Connection:** Switchboard, which was already selected by default. I kept it because the grid is an AC connection.\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Import limit:** 55 kW. I removed the default 100 kW and entered 55 as a fixed value.\n- **Export limit:** 30 kW. I removed the default 100 kW and entered 30 as a fixed value.\n\nI left the grid name as the default, \"Grid\".\n\nPoints where I hesitated or slipped:\n- I didn't know whether to leave the Switchboard connection alone. I assumed the default was right and didn't check it against anything else.\n- The import and export price pickers listed the same two Amber sensors. I picked them by name, general price for import and feed-in price for export.\n- I assumed the limits were in kW, since the field showed kW as the unit.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid (connected to Switchboard) with import price Amber general price, export price Amber feed-in price, import limit 55 kW, export limit 30 kW.",
+  "actions": 14,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.3
+}

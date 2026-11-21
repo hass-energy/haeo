@@ -1,0 +1,11 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "type", "args": ["f2e445", "Household"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 7.0, "command": "type", "args": ["f2e487", "consumed"], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "click", "args": ["f2e634"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "type", "args": ["f2e487", "sigen_plant_consumed_power"], "error": null, "visible_errors": 0}
+{"t": 11.9, "command": "click", "args": ["f2e822"], "error": null, "visible_errors": 0}
+{"t": 13.5, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 14.6, "command": "click", "args": ["f2e854"], "error": null, "visible_errors": 0}

@@ -1,0 +1,16 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "type", "args": ["f2e487", "Battery wear cost"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "click", "args": ["f2e512"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 9.1, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 12.6, "command": "click", "args": ["f2e546"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "click", "args": ["f2e561"], "error": null, "visible_errors": 0}
+{"t": 15.8, "command": "type", "args": ["f2e532", "0.01"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "click", "args": ["f2e593"], "error": null, "visible_errors": 0}
+{"t": 19.2, "command": "click", "args": ["f2e535"], "error": null, "visible_errors": 0}
+{"t": 20.3, "command": "click", "args": ["f2e615"], "error": null, "visible_errors": 0}
+{"t": 22.3, "command": "click", "args": ["f2e620"], "error": null, "visible_errors": 0}
+{"t": 23.7, "command": "click", "args": ["f2e701"], "error": null, "visible_errors": 0}
+{"t": 25.0, "command": "click", "args": ["f2e674"], "error": null, "visible_errors": 0}
+{"t": 26.7, "command": "done", "args": ["Added an enabled HAEO policy named 'Battery wear cost' with Source = Elements: Battery, Target = Any, Price = Fixed value 0.01 $/kWh. Every kWh the battery sends out, wherever it goes, now carries a 0.01 $ cost. Verified by reopening the policy (saved values match) and closing without changes."], "error": null, "visible_errors": 0}

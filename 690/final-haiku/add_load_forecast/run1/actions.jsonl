@@ -1,0 +1,12 @@
+{"t": 2.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.5, "command": "type", "args": ["f2e445", "Household"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 7.3, "command": "type", "args": ["f2e487", "consumed"], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "click", "args": ["f2e634"], "error": null, "visible_errors": 0}
+{"t": 11.8, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 12.1, "command": "type", "args": ["f2e487", "Sigen Plant Consumed Power"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "click", "args": ["f2e822"], "error": null, "visible_errors": 0}
+{"t": 15.0, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 16.1, "command": "click", "args": ["f2e854"], "error": null, "visible_errors": 0}
+{"t": 18.1, "command": "done", "args": ["Added a Load named 'Household' to the Home hub. Connection is Switchboard (AC), the default. Forecast field has sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power (current value). The combined preview shows now 0.501 kW, then the forecast. The success dialog confirmed creation, and the Home hub now lists a Household Load device with 12 entities."], "error": null, "visible_errors": 0}

@@ -1,0 +1,100 @@
+{
+  "runs": 30,
+  "passed": 30,
+  "success_rate": 1.0,
+  "actions": 9.0,
+  "cost_usd": 3.32,
+  "tasks": {
+    "add_battery": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 14,
+      "actions_when_passed": 14,
+      "errors_shown": 0,
+      "seconds": 25.5,
+      "cost_usd": 0.3
+    },
+    "add_battery_raw": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 13,
+      "actions_when_passed": 13,
+      "errors_shown": 0,
+      "seconds": 24.6,
+      "cost_usd": 0.3
+    },
+    "add_connection_raw": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 6,
+      "actions_when_passed": 6,
+      "errors_shown": 0,
+      "seconds": 15.5,
+      "cost_usd": 0.26
+    },
+    "add_grid_amber": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 14,
+      "actions_when_passed": 14,
+      "errors_shown": 0,
+      "seconds": 25.6,
+      "cost_usd": 0.48
+    },
+    "add_load_constant": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 6,
+      "actions_when_passed": 6,
+      "errors_shown": 0,
+      "seconds": 14.3,
+      "cost_usd": 0.22
+    },
+    "add_load_forecast": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 8,
+      "actions_when_passed": 8,
+      "errors_shown": 0,
+      "seconds": 19.2,
+      "cost_usd": 0.35
+    },
+    "add_policy_battery_wear": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 9,
+      "actions_when_passed": 9,
+      "errors_shown": 0,
+      "seconds": 22.3,
+      "cost_usd": 0.31
+    },
+    "add_solar_forecast_solar": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 68,
+      "actions_when_passed": 68,
+      "errors_shown": 0,
+      "seconds": 63.5,
+      "cost_usd": 0.5
+    },
+    "add_solar_solcast": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 6,
+      "actions_when_passed": 6,
+      "errors_shown": 0,
+      "seconds": 15.3,
+      "cost_usd": 0.32
+    },
+    "edit_battery_min_charge": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 8,
+      "actions_when_passed": 8,
+      "errors_shown": 0,
+      "seconds": 19.2,
+      "cost_usd": 0.29
+    }
+  },
+  "model": "sonnet"
+}

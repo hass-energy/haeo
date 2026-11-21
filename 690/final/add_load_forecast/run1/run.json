@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.11148319999999999,
+  "turns": 11,
+  "report": "I added a load called \"Load\" to your Home hub. It's connected to the Switchboard and uses both Sigenergy sensors: `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power`. The preview showed the current value as 0.501 kW. The wizard said \"Created configuration for Load\", and the new load appears in the hub's device list.\n\nPoints where I hesitated or guessed:\n- **Name:** I kept the default name \"Load\" instead of renaming it to something like \"Household\".\n- **Connection:** I left the default Switchboard connection without comparing it to the Inverter option. I assumed household consumption belongs on the AC side.\n- **Current sensor:** There is no separate field for the current consumed power. I added it to the same Forecast field, which accepts several sensors, and the preview's \"now\" value changed to match it. I'm not certain HAEO treats it as intended, but nothing in the interface suggested another place for it.\n- **Shedding:** I didn't open the Shedding section and left it at its defaults.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Load', connected to Switchboard, with forecast sensors sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power. It now appears in the hub.",
+  "actions": 8,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.2
+}

@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.08967290000000001,
+  "turns": 8,
+  "report": "I added \"Pool pump\" to HAEO as its own load. It's connected to the Switchboard and set to a fixed 0.8 kW. It now shows under the Home hub with 12 entities.\n\nI didn't open the new load afterwards to check its saved settings. The only confirmation is HAEO's \"Created configuration for Pool pump\" message and the new entry in the list.\n\nPoints where I was unsure:\n- **Connection:** I left the connection on Switchboard (AC), which the form had already selected. I assumed that's right for a pump on the house's AC supply.\n- **Shedding:** I didn't open the optional \"Shedding\" section. Since the pump runs all the time, I left it alone.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' connected to the Switchboard (AC) with a fixed forecast of 0.8 kW. It now appears under the Home hub with 12 entities.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.3
+}

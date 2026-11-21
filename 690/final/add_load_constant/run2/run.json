@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.06563010000000001,
+  "turns": 8,
+  "report": "I added \"Pool pump\" to the Home hub as its own load. It uses a fixed power of 0.8 kW and connects to the Switchboard. HAEO showed \"Created configuration for Pool pump\", and the new load now appears in the Home hub's list.\n\nPoints where I hesitated:\n- **Connection:** I kept the default (Switchboard, AC). I assumed a pool pump is an ordinary mains-powered appliance, so it belongs there rather than on the Inverter (DC).\n- **Constant power:** The Forecast field asks for a sensor, but typing 0.8 offered a \"Fixed value 0.8 kW\" option. I took that because the pump runs constantly.\n- **Shedding:** I left this section collapsed and unchanged. I didn't know what it does and the task didn't call for it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump', connected to the Switchboard, with a fixed forecast of 0.8 kW. It now appears in the Home hub.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 14.3
+}

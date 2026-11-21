@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.1286389,
+  "turns": 13,
+  "report": "Solar is now in HAEO. It's connected to the Inverter (DC), and its forecast uses all three Solcast sensors: Today, Tomorrow and Day 3. After I submitted, the Solar device appeared on the integration page with 4 entities.\n\nI didn't open the new device to look at its values.\n\nPoints where I hesitated or made mistakes:\n- **Connection:** \"Inverter\" was already selected by default. I left it because the panels feed the inverter, but I didn't check that it was the right choice.\n- **Forecast sensors:** The field wasn't labelled as multi-select. I picked Today first and it accepted more, so I added Tomorrow and Day 3 as well.\n- **Extra click:** After picking Today, I clicked the field again and nothing opened, so I typed to search for the next sensor. That wasted one step.\n- **Curtailment:** I left the section collapsed and unchanged, since you didn't mention it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element named 'Solar', connected to Inverter (DC), forecast set to Solcast Today, Tomorrow and Day 3 sensors. Solar device now appears with 4 entities.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.6
+}

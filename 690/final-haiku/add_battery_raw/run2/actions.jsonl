@@ -1,0 +1,29 @@
+{"t": 2.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.8, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "click", "args": ["f2e501"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "type", "args": ["f2e501", "rated energy capacity"], "error": null, "visible_errors": 0}
+{"t": 7.4, "command": "click", "args": ["f2e626"], "error": null, "visible_errors": 0}
+{"t": 7.8, "command": "click", "args": ["f2e507"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "type", "args": ["f2e507", "state of charge"], "error": null, "visible_errors": 0}
+{"t": 9.9, "command": "click", "args": ["f2e652"], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "click", "args": ["f2e523"], "error": null, "visible_errors": 0}
+{"t": 11.9, "command": "type", "args": ["f2e523", "5"], "error": null, "visible_errors": 0}
+{"t": 13.1, "command": "click", "args": ["f2e678"], "error": null, "visible_errors": 0}
+{"t": 13.5, "command": "click", "args": ["f2e545"], "error": null, "visible_errors": 0}
+{"t": 13.9, "command": "type", "args": ["f2e545", "ESS rated charging"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 16.9, "command": "click", "args": ["f2e836"], "error": null, "visible_errors": 0}
+{"t": 17.3, "command": "click", "args": ["f2e551"], "error": null, "visible_errors": 0}
+{"t": 17.7, "command": "type", "args": ["f2e551", "ESS rated discharging"], "error": null, "visible_errors": 0}
+{"t": 17.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.0, "command": "click", "args": ["f2e1162"], "error": null, "visible_errors": 0}
+{"t": 19.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 20.9, "command": "click", "args": ["f2e621"], "error": null, "visible_errors": 0}
+{"t": 22.2, "command": "click", "args": ["f2e1333"], "error": null, "visible_errors": 0}
+{"t": 22.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 24.4, "command": "click", "args": ["f2e1338"], "error": null, "visible_errors": 0}
+{"t": 24.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 25.9, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 27.3, "command": "click", "args": ["f2e1445"], "error": null, "visible_errors": 0}
+{"t": 27.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 28.9, "command": "done", "args": ["Added a Battery element named 'Battery' to the Home hub, connected via Inverter (DC). Capacity: Sigen Plant Rated Energy Capacity (32.24 kWh). State of charge: Sigen Plant Battery State of Charge. Min charge level: fixed 5%. Max charge power: Sigen Plant ESS Rated Charging Power (16.8 kW). Max discharge power: Sigen Plant ESS Rated Discharging Power (19.2 kW). Saved values verified by reopening the battery; dialog closed without changes."], "error": null, "visible_errors": 0}

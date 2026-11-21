@@ -1,0 +1,13 @@
+{"t": 5.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "click", "args": ["f2e463"], "error": null, "visible_errors": 0}
+{"t": 10.7, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 11.2, "command": "click", "args": ["f2e165"], "error": null, "visible_errors": 0}
+{"t": 13.0, "command": "click", "args": ["f2e615"], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "type", "args": ["f2e618", "20"], "error": null, "visible_errors": 0}
+{"t": 16.4, "command": "click", "args": ["f2e745"], "error": null, "visible_errors": 0}
+{"t": 16.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 18.1, "command": "click", "args": ["f2e732"], "error": null, "visible_errors": 0}
+{"t": 19.9, "command": "click", "args": ["f2e768"], "error": null, "visible_errors": 0}
+{"t": 20.3, "command": "click", "args": ["f2e165"], "error": null, "visible_errors": 0}
+{"t": 21.6, "command": "done", "args": ["Battery min charge level changed from 5% to 20%; saved and verified by reopening."], "error": null, "visible_errors": 0}

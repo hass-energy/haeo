@@ -1,0 +1,85 @@
+{
+  "task": "add_battery_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.017423939999999995,
+  "turns": 19,
+  "report": "I added the Sigen battery to the Home hub as a Battery element and checked the saved values.\n\nSettings:\n- **Name:** Battery (default, left as is)\n- **Connection:** Inverter, DC (default). You said the battery is connected through the inverter, so I kept it.\n- **Capacity:** Sigen Plant Rated Energy Capacity (32.24 kWh)\n- **State of charge:** Sigen Plant Battery State of Charge (currently 12.8%)\n- **Min charge level:** fixed 5%, which is the \"never discharge below 5%\" limit\n- **Max charge power:** Sigen Plant ESS Rated Charging Power (16.8 kW)\n- **Max discharge power:** Sigen Plant ESS Rated Discharging Power (19.2 kW)\n\nI left the pricing fields at their defaults (salvage 0, charge cost -0.001 $/kWh, discharge cost 0), and I left the Max charge level, Battery efficiency and Advanced sections untouched.\n\nPoints where I hesitated or was unsure:\n- **Connection choice:** \"Inverter, DC\" was the default. I kept it because you said the battery goes through the inverter. If the Sigen battery is actually AC-coupled, the other option might fit better.\n- **Min charge level:** I was not fully sure whether this is the right field for the 5% floor, since the form has no field literally named \"discharge limit\". \"Min charge level\" seemed to be the match, and the field accepts a percent.\n- **Picker options:** When searching for the charge power, the list included an \"Add all 2\" option. I did not use it, because it would have added both power sensors to one field. I picked each sensor individually.\n- **Verification:** I reopened the battery to check the saved values, then closed the dialog with the close button without submitting again. Nothing was changed.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Battery element named 'Battery' to the Home hub, connected via Inverter (DC). Capacity: Sigen Plant Rated Energy Capacity (32.24 kWh). State of charge: Sigen Plant Battery State of Charge. Min charge level: fixed 5%. Max charge power: Sigen Plant ESS Rated Charging Power (16.8 kW). Max discharge power: Sigen Plant ESS Rated Discharging Power (19.2 kW). Saved values verified by reopening the battery; dialog closed without changes.",
+  "actions": 21,
+  "looks": 7,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 28.9
+}

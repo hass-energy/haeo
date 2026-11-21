@@ -1,0 +1,16 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.4, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 4.9, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "click", "args": ["f2e513"], "error": null, "visible_errors": 0}
+{"t": 7.3, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 8.4, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e595"], "error": null, "visible_errors": 0}
+{"t": 13.3, "command": "type", "args": ["f2e595", "55"], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "click", "args": ["f2e909"], "error": null, "visible_errors": 0}
+{"t": 15.9, "command": "click", "args": ["f2e607"], "error": null, "visible_errors": 0}
+{"t": 17.1, "command": "type", "args": ["f2e610", "30"], "error": null, "visible_errors": 0}
+{"t": 18.2, "command": "click", "args": ["f2e1215"], "error": null, "visible_errors": 0}
+{"t": 20.0, "command": "click", "args": ["f2e500"], "error": null, "visible_errors": 0}
+{"t": 21.2, "command": "click", "args": ["f2e1237"], "error": null, "visible_errors": 0}
+{"t": 22.8, "command": "done", "args": ["Added the grid connection 'Grid' to the Home hub. Connection: Switchboard (AC). Import price: Amber Express - Home General Price (sensor.amber_express_home_general_price). Export price: Amber Express - Home Feed In Price (sensor.amber_express_home_feed_in_price). Import limit: fixed 55 kW. Export limit: fixed 30 kW. The Grid device now appears under Home with 12 entities."], "error": null, "visible_errors": 0}

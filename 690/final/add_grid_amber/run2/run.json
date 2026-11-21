@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.16853759999999998,
+  "turns": 16,
+  "report": "I added the Grid to your Home hub in HAEO. HAEO showed \"Created configuration for Grid\", and Grid now appears in the hub's list of parts. I didn't reopen it afterwards to re-read the saved values.\n\n- **Connection:** Switchboard. It was already selected, and I left it because the grid is an AC connection.\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Import limit:** 55 kW.\n- **Export limit:** 30 kW.\n\nPoints where I hesitated or slipped:\n- Both price pickers listed the General Price and Feed In Price sensors. I chose by name: General for import, Feed In for export.\n- The power limits were pre-filled with 100 kW. I removed those values and entered 55 and 30.\n- The Import limit picker opened on a long list of unrelated sensors, such as solar forecasts. I ignored them and entered a fixed number.\n- I left the Switchboard connection and the \"Grid\" name unchanged without testing other options.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid to Home: connected to Switchboard (AC), import price = Amber Express General Price, export price = Amber Express Feed In Price, import limit 55 kW, export limit 30 kW. Success confirmed and Grid appears in the hub.",
+  "actions": 14,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.1
+}

@@ -1,0 +1,85 @@
+{
+  "task": "add_battery",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0981238,
+  "turns": 14,
+  "report": "I added the Sigenergy battery to HAEO as \"Battery\", and HAEO showed \"Created configuration for Battery.\" I didn't reopen the new battery's settings afterwards. I did check that the chosen sensors appeared in the form before I submitted it.\n\n- **Connection:** Inverter (DC). It was already selected, and I left it because the battery is connected through your inverter.\n- **Capacity:** Sigen Plant Rated Energy Capacity.\n- **State of charge:** Sigen Plant Battery State of Charge.\n- **Min charge level:** a fixed 5%, so it should never discharge below that.\n- **Max charge power:** Sigen Plant ESS Rated Charging Power.\n- **Max discharge power:** Sigen Plant ESS Rated Discharging Power.\n\nI left the pricing fields at their defaults, and I didn't open the Battery efficiency or Advanced sections.\n\nPoints where I hesitated or slipped:\n- I wasn't sure the Inverter (DC) connection was right, since it was pre-selected. I kept it for the reason above.\n- The power-limit search showed an \"Add all 2\" option. I didn't use it, because it might have put both sensors into one field. I picked each sensor individually.\n- Selected sensors didn't show as chips straight after I picked them. I confirmed afterwards that all four were set.\n- I pressed Submit without scrolling through the optional sections.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Battery (DC via Inverter) with Sigen capacity and SoC sensors, min charge 5%, max charge/discharge power from the ESS rated sensors.",
+  "actions": 15,
+  "looks": 3,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 25.5
+}

@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.09297,
+  "turns": 13,
+  "report": "I added a HAEO policy named \"Battery wear\". It makes every kWh leaving the Battery cost $0.01, whatever the destination.\n\n- **Source:** Battery.\n- **Target:** Any, so the cost applies wherever the energy goes (load, grid or inverter).\n- **Price:** a fixed 0.01 $/kWh.\n\nHome Assistant showed \"Created configuration for Policies\", and a new \"Policies\" device appeared under the Home hub. I didn't open the saved policy again to re-read its settings, and I haven't checked that the optimizer's results reflect the cost.\n\nPoints where I hesitated or was unsure:\n- **Price units:** The field has no stated unit until you type a value. I assumed the price was in dollars, and the suggestion that appeared read \"0.01 $/kWh\", which matched.\n- **Target default:** I wasn't sure at first whether \"Any\" was already selected for Target. The screenshot showed it highlighted, so I left it alone.\n- **Source picker:** My first click on the Source field only opened an empty slot. I had to click that slot to get the list of elements before I could choose Battery.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a HAEO Policy 'Battery wear': source = Battery, target = Any, price = 0.01 $/kWh (fixed). Creation succeeded and a Policies device appeared.",
+  "actions": 9,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.9
+}

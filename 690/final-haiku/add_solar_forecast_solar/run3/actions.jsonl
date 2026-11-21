@@ -1,0 +1,8 @@
+{"t": 1.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.1, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 8.1, "command": "type", "args": ["f2e485", "energy_production_today"], "error": null, "visible_errors": 0}
+{"t": 10.2, "command": "type", "args": ["f2e485", "energy_production"], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "click", "args": ["f2e799"], "error": null, "visible_errors": 0}
+{"t": 13.6, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 14.7, "command": "click", "args": ["f2e1356"], "error": null, "visible_errors": 0}

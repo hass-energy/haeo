@@ -1,0 +1,10 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.7, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 6.8, "command": "type", "args": ["f2e534", "0.8"], "error": null, "visible_errors": 0}
+{"t": 8.1, "command": "click", "args": ["f2e548"], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "click", "args": ["f2e538"], "error": null, "visible_errors": 0}
+{"t": 11.7, "command": "click", "args": ["f2e543"], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "click", "args": ["f2e594"], "error": null, "visible_errors": 0}
+{"t": 13.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 15.4, "command": "done", "args": ["Added a load named 'Pool pump' to the Home HAEO hub. Connection is Switchboard (AC), forecast is the fixed value 0.8 kW, and shedding is left Off. The success dialog said 'Created configuration for Pool pump', and a Pool pump load device with 12 entities now appears under Home."], "error": null, "visible_errors": 0}

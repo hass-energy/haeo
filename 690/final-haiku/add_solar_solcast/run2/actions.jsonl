@@ -1,0 +1,13 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.5, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.3, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 7.0, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 8.4, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 8.9, "command": "type", "args": ["f2e485", "Solcast PV Forecast Forecast Tomorrow"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e577"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 11.6, "command": "type", "args": ["f2e485", "Solcast PV Forecast Forecast Day 3"], "error": null, "visible_errors": 0}
+{"t": 12.7, "command": "click", "args": ["f2e606"], "error": null, "visible_errors": 0}
+{"t": 14.2, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 15.4, "command": "click", "args": ["f2e640"], "error": null, "visible_errors": 0}
+{"t": 16.9, "command": "done", "args": ["Added a Solar element named 'Solar' to the Home hub, connected to the Inverter (DC), with forecast sensors sensor.solcast_pv_forecast_forecast_today, sensor.solcast_pv_forecast_forecast_tomorrow and sensor.solcast_pv_forecast_forecast_day_3. The success dialog said 'Created configuration for Solar', and the Home hub now lists a Solar device with 4 entities."], "error": null, "visible_errors": 0}

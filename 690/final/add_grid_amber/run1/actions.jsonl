@@ -1,0 +1,18 @@
+{"t": 5.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 9.1, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 9.5, "command": "type", "args": ["f2e485", "general"], "error": null, "visible_errors": 0}
+{"t": 11.0, "command": "click", "args": ["f2e513"], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "type", "args": ["f2e491", "feed_in"], "error": null, "visible_errors": 0}
+{"t": 14.2, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 15.8, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 17.2, "command": "click", "args": ["f2e592"], "error": null, "visible_errors": 0}
+{"t": 19.2, "command": "type", "args": ["f2e595", "55"], "error": null, "visible_errors": 0}
+{"t": 19.6, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 21.3, "command": "click", "args": ["f2e607"], "error": null, "visible_errors": 0}
+{"t": 21.7, "command": "type", "args": ["f2e610", "30"], "error": null, "visible_errors": 0}
+{"t": 22.1, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 23.6, "command": "click", "args": ["f2e500"], "error": null, "visible_errors": 0}
+{"t": 25.5, "command": "click", "args": ["f2e1244"], "error": null, "visible_errors": 0}
+{"t": 25.6, "command": "done", "args": ["Added Grid on Switchboard (AC) with import price Amber General, export price Amber Feed In, import limit 55 kW, export limit 30 kW."], "error": null, "visible_errors": 0}

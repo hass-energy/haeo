@@ -1,0 +1,8 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.6, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "click", "args": ["f2e541"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "type", "args": ["f2e541", "10"], "error": null, "visible_errors": 0}
+{"t": 7.5, "command": "click", "args": ["f2e867"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "type", "args": ["f2e505", "Inverter to Switchboard"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e566"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e889"], "error": null, "visible_errors": 0}

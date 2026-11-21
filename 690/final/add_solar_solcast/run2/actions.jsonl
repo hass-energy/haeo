@@ -1,0 +1,8 @@
+{"t": 5.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 8.7, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 9.1, "command": "type", "args": ["f2e485", "solcast"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e557"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 13.9, "command": "click", "args": ["f2e607"], "error": null, "visible_errors": 0}
+{"t": 15.3, "command": "done", "args": ["Added Solar element connected to Inverter, with forecast sensors Solcast today, tomorrow and day 3. Solar device now shows with 4 entities."], "error": null, "visible_errors": 0}

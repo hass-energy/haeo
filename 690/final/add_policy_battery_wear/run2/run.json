@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1032588,
+  "turns": 11,
+  "report": "I added a policy called \"Battery wear\" to the Home hub. It treats every kWh discharged from the Battery as costing $0.01, whatever the energy goes to. HAEO showed \"Created configuration for Policies\", and a new Policies device appeared with 2 entities. I didn't reopen the policy to check the saved values.\n\nThe policy is enabled, with Battery as the source, target left on \"Any\", and a fixed price of 0.01 $/kWh.\n\nPoints where I hesitated or may have erred:\n- **Target setting:** I left Target on its default, \"Any\". The page didn't show which button was selected, so I assumed the default was \"Any\". If it was \"Elements\" with nothing chosen, the policy wouldn't cover every destination.\n- **Price unit:** I assumed 0.01 $/kWh is the right way to enter 1 cent per kWh. The price field accepted it as a fixed value in $/kWh.\n- **Policy name:** I chose \"Battery wear\" myself, since you didn't give a name.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added policy 'Battery wear': source Battery, target Any, price 0.01 $/kWh, enabled. A Policies device now appears.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.3
+}

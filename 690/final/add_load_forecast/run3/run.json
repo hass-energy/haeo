@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.12358819999999998,
+  "turns": 10,
+  "report": "I added a Load named \"Load\" to HAEO. It connects to the Switchboard and uses both Sigenergy sensors. The Forecast field took two entries: `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power`. HAEO confirmed \"Created configuration for Load\", and the Load now appears as a device with 12 entities. I didn't open those entities or check the Load's outputs.\n\nThe preview in the form read \"now 0.501 kW, then 0 kW to 1.66 kW over the next 168 hours\". So the current reading is shown as the starting value and the forecast covers the following week.\n\nPoints where I hesitated or guessed:\n- **Connection:** The Switchboard (AC) option was already selected, and I left it. I assumed household consumption belongs on the AC side. Nothing in the form said so.\n- **Single field for both sensors:** The form has one \"Forecast\" field. I wasn't sure it would accept a current-value sensor next to a forecast sensor. It did, and the preview combined them.\n- **Name:** I kept the default name \"Load\" rather than choosing one.\n- **Shedding:** I left the collapsed \"Shedding\" section alone because you didn't ask for it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Load' connected to the Switchboard (AC), using both sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power as forecast inputs. HAEO created it with 12 entities.",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.4
+}

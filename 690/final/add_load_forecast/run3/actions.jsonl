@@ -1,0 +1,9 @@
+{"t": 5.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "click", "args": ["f2e103"], "error": null, "visible_errors": 0}
+{"t": 8.7, "command": "click", "args": ["f2e475"], "error": null, "visible_errors": 0}
+{"t": 10.7, "command": "click", "args": ["f2e622"], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "type", "args": ["f2e475", "sigen_plant_consumed_power"], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "click", "args": ["f2e805"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "click", "args": ["f2e484"], "error": null, "visible_errors": 0}
+{"t": 16.5, "command": "click", "args": ["f2e837"], "error": null, "visible_errors": 0}
+{"t": 18.4, "command": "done", "args": ["Added a Load element named 'Load' connected to the Switchboard (AC), using both sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power as forecast inputs. HAEO created it with 12 entities."], "error": null, "visible_errors": 0}

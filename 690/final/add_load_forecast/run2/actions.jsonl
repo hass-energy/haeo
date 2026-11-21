@@ -1,0 +1,11 @@
+{"t": 5.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 6.8, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e634"], "error": null, "visible_errors": 0}
+{"t": 11.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 13.0, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "type", "args": ["f2e487", "sensor.sigen_plant_consumed_power"], "error": null, "visible_errors": 0}
+{"t": 15.1, "command": "click", "args": ["f2e817"], "error": null, "visible_errors": 0}
+{"t": 16.8, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 18.5, "command": "click", "args": ["f2e849"], "error": null, "visible_errors": 0}
+{"t": 20.0, "command": "done", "args": ["Added a Load element named 'Load' connected to Switchboard (AC), with forecast sources Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (current). Config created successfully and Load appears under the Home hub."], "error": null, "visible_errors": 0}

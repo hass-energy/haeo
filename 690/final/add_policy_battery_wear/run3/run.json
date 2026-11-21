@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.1091444,
+  "turns": 12,
+  "report": "I added a policy called \"Battery wear\" to Home. It charges 0.01 $/kWh (1 cent) for energy leaving the Battery. Home Assistant reported success, and a new \"Policies\" device now appears under Home. I didn't open the saved policy again or run an optimization to check its effect.\n\nThe policy is enabled. Its source is the Battery element, and its target is left on \"Any\", so the cost applies wherever the energy goes. The price is a fixed 0.01 $/kWh.\n\nPoints where I was unsure:\n- **Target:** I never clicked \"Any\" on the Target row. I assumed it was already selected, since the form let me submit without choosing a target. I didn't confirm that.\n- **Price direction:** I assumed a positive price on a Battery source means a cost per kWh discharged. The form only said \"Price\" and showed $/kWh, so I didn't confirm that a positive price is a cost rather than a reward.\n- **Policy name:** \"Battery wear\" was my own choice, since the task didn't give one.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear' (enabled): source = Battery element, target = Any (left at default), price 0.01 $/kWh fixed. It saved successfully and a Policies device now shows under Home.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.2
+}

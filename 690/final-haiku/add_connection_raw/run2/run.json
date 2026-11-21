@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.00722348,
+  "turns": 7,
+  "report": "I added the connection \"Inverter to Switchboard\" to the Home hub, from Inverter (source) to Switchboard (target), with max power set to a fixed 10 kW. HAEO confirmed \"Created configuration for Inverter to Switchboard\", and the hub now lists the connection with 2 entities.\n\nPoints where I hesitated or was unsure:\n\n- **Units:** The max power field accepts entities or a typed value, and the picker's \"Fixed value 10 kW\" option matched the cable rating. I chose it rather than typing a bare number, since I couldn't confirm the default unit otherwise.\n- **Direction:** The cable limit applies only inverter-to-switchboard, so I left the source and target as they defaulted (Inverter \u2192 Switchboard). I did not add a reverse connection, because the form says reverse flow needs a second connection and the task only asked for this one.\n- **Name:** I renamed the connection from the default \"Connection\" to \"Inverter to Switchboard\" so it's identifiable. This was my own choice, not something you asked for.\n- **Other fields:** I left Pricing and Connection efficiency at their defaults, since the task didn't mention them.\n- **Verification:** I confirmed creation from the success message and the hub list, but I did not reopen the connection to check that the saved max power is 10 kW.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.5
+}

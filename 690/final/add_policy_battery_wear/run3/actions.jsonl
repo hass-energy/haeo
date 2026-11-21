@@ -1,0 +1,12 @@
+{"t": 5.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 7.2, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "type", "args": ["f2e487", "Battery wear"], "error": null, "visible_errors": 0}
+{"t": 9.1, "command": "click", "args": ["f2e512"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e546"], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "type", "args": ["f2e556", "Battery"], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "click", "args": ["f2e561"], "error": null, "visible_errors": 0}
+{"t": 15.6, "command": "type", "args": ["f2e532", "0.01"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "click", "args": ["f2e581"], "error": null, "visible_errors": 0}
+{"t": 18.8, "command": "click", "args": ["f2e535"], "error": null, "visible_errors": 0}
+{"t": 20.3, "command": "click", "args": ["f2e603"], "error": null, "visible_errors": 0}
+{"t": 22.2, "command": "done", "args": ["Added a Policy named 'Battery wear' (enabled): source = Battery element, target = Any (left at default), price 0.01 $/kWh fixed. It saved successfully and a Policies device now shows under Home."], "error": null, "visible_errors": 0}

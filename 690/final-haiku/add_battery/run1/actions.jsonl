@@ -1,0 +1,19 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.6, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "type", "args": ["f2e485", "capacity"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "click", "args": ["f2e610"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 8.4, "command": "type", "args": ["f2e491", "state of charge"], "error": null, "visible_errors": 0}
+{"t": 10.2, "command": "click", "args": ["f2e636"], "error": null, "visible_errors": 0}
+{"t": 10.6, "command": "click", "args": ["f2e507"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "type", "args": ["f2e507", "5"], "error": null, "visible_errors": 0}
+{"t": 12.9, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e529"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "type", "args": ["f2e529", "ESS rated charging"], "error": null, "visible_errors": 0}
+{"t": 20.8, "command": "click", "args": ["f2e820"], "error": null, "visible_errors": 0}
+{"t": 22.2, "command": "click", "args": ["f2e535"], "error": null, "visible_errors": 0}
+{"t": 22.6, "command": "type", "args": ["f2e535", "ESS rated discharging"], "error": null, "visible_errors": 0}
+{"t": 25.2, "command": "click", "args": ["f2e1146"], "error": null, "visible_errors": 0}
+{"t": 27.6, "command": "click", "args": ["f2e605"], "error": null, "visible_errors": 0}
+{"t": 28.7, "command": "click", "args": ["f2e1317"], "error": null, "visible_errors": 0}

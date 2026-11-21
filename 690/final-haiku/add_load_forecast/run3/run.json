@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.009109240000000001,
+  "turns": 11,
+  "report": "I added the household load to the Home hub as **Household**, using the Sigen consumed power forecast and the current consumed power sensor. HAEO reported \"Created configuration for Household,\" and the Home hub now lists a Household Load device.\n\nSettings I chose:\n- **Element type:** Load, the only type that fits household consumption.\n- **Name:** I renamed it from the default \"Load\" to \"Household\".\n- **Connection:** Switchboard, AC, which was the default. I assumed the household sits on the AC side; I did not check that against your wiring.\n- **Forecast:** `sensor.sigen_plant_consumed_power_forecast` plus `sensor.sigen_plant_consumed_power`. The form has no separate field for a current value, so I added both to the forecast list. The preview now reads \"now 0.501 kW, then 0 kW to 1.66 kW over the next 168 hours\", which suggests the current reading covers the present interval and the forecast covers the rest. I did not confirm that the two sensors aren't double-counted.\n- **Shedding:** left at its default.\n\nPoints where I hesitated or may have made a mistake:\n1. I was unsure whether the current consumed power sensor should go in the forecast list at all, since the form has no dedicated current-value field. I went with the list because the preview looked right.\n2. I renamed the load, which was my own choice rather than something you asked for.\n3. I kept the Switchboard connection without verifying it against your actual wiring.\n4. I did not open the new Household load afterwards to confirm the saved forecast entries.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.7
+}

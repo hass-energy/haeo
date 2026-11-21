@@ -1,0 +1,14 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.5, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "type", "args": ["f2e485", "Solcast PV Forecast Forecast Tomorrow"], "error": null, "visible_errors": 0}
+{"t": 10.7, "command": "click", "args": ["f2e577"], "error": null, "visible_errors": 0}
+{"t": 12.0, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "type", "args": ["f2e485", "Solcast PV Forecast Forecast Day 3"], "error": null, "visible_errors": 0}
+{"t": 13.5, "command": "click", "args": ["f2e606"], "error": null, "visible_errors": 0}
+{"t": 15.3, "command": "click", "args": ["f2e489"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 18.1, "command": "click", "args": ["f2e658"], "error": null, "visible_errors": 0}
+{"t": 20.2, "command": "done", "args": ["Added a Solar part named 'Solar' to the Home hub. Connection is Inverter (DC), since the panels feed the inverter. Forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. Curtailment was left at its default (Allow curtailment: On, fixed value). Submitted; the success dialog said 'Created configuration for Solar' and the Solar device now shows 4 entities."], "error": null, "visible_errors": 0}
