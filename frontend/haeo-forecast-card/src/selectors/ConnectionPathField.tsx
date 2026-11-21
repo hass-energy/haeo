@@ -7,7 +7,7 @@ import {
   mdiPlus,
   mdiSpeedometer,
 } from "@mdi/js";
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
 import { NODE_STYLES } from "../element-styles";
@@ -62,14 +62,35 @@ export function ConnectionPathField(props: FieldContext<ConnectionPathConfig, Co
   const kinds = Object.keys(config.segment_types);
   const kindName = (kind: string): string => t(`connection_path.options.${kind}`);
 
-  const setSegments = (next: PathSegment[]): void => {
+  // Each segment's card keeps its own key as segments move, so a card's open search moves with it
+  const nextKey = useRef(0);
+  const newKey = (): number => (nextKey.current += 1);
+  const [keys, setKeys] = useState<number[]>(() => segments.map(() => newKey()));
+  const cardKeys = keys.length === segments.length ? keys : segments.map(() => newKey());
+
+  const setSegments = (next: PathSegment[], nextKeys: number[]): void => {
+    setKeys(nextKeys);
+    setAdding(null);
     onChange({ ...path, segments: next });
   };
 
   const insert = (index: number, kind: string): void => {
     const field = config.segment_types[kind]?.field ?? "";
-    setSegments([...segments.slice(0, index), { segment_type: kind, [field]: undefined }, ...segments.slice(index)]);
-    setAdding(null);
+    setSegments(
+      [...segments.slice(0, index), { segment_type: kind, [field]: undefined }, ...segments.slice(index)],
+      [...cardKeys.slice(0, index), newKey(), ...cardKeys.slice(index)]
+    );
+  };
+
+  const move = (from: number, to: number): void => {
+    setSegments(moved(segments, from, to), moved(cardKeys, from, to));
+  };
+
+  const remove = (index: number): void => {
+    setSegments(
+      segments.filter((_, other) => other !== index),
+      cardKeys.filter((_, other) => other !== index)
+    );
   };
 
   const endpoint = (role: "source" | "target"): JSX.Element => {
@@ -147,7 +168,7 @@ export function ConnectionPathField(props: FieldContext<ConnectionPathConfig, Co
             return null;
           }
           return (
-            <div key={index} class="path-step">
+            <div key={cardKeys[index]} class="path-step">
               <div class="path-segment">
                 <div class="path-segment-head">
                   <Icon path={SEGMENT_ICONS[segment.segment_type] ?? mdiPlus} />
@@ -158,7 +179,7 @@ export function ConnectionPathField(props: FieldContext<ConnectionPathConfig, Co
                       class="path-control"
                       disabled={disabled || index === 0}
                       aria-label={t("connection_path.options.move_earlier", { segment: name })}
-                      onClick={() => setSegments(moved(segments, index, index - 1))}
+                      onClick={() => move(index, index - 1)}
                     >
                       <Icon path={mdiArrowUp} />
                     </button>
@@ -167,7 +188,7 @@ export function ConnectionPathField(props: FieldContext<ConnectionPathConfig, Co
                       class="path-control"
                       disabled={disabled || index === segments.length - 1}
                       aria-label={t("connection_path.options.move_later", { segment: name })}
-                      onClick={() => setSegments(moved(segments, index, index + 1))}
+                      onClick={() => move(index, index + 1)}
                     >
                       <Icon path={mdiArrowDown} />
                     </button>
@@ -176,7 +197,7 @@ export function ConnectionPathField(props: FieldContext<ConnectionPathConfig, Co
                       class="path-control"
                       disabled={disabled}
                       aria-label={t("connection_path.options.remove_segment", { segment: name })}
-                      onClick={() => setSegments(segments.filter((_, other) => other !== index))}
+                      onClick={() => remove(index)}
                     >
                       <Icon path={mdiClose} />
                     </button>
@@ -192,7 +213,10 @@ export function ConnectionPathField(props: FieldContext<ConnectionPathConfig, Co
                   disabled={disabled}
                   t={t}
                   onChange={(input) =>
-                    setSegments(segments.map((other, at) => (at === index ? { ...other, [kind.field]: input } : other)))
+                    onChange({
+                      ...path,
+                      segments: segments.map((other, at) => (at === index ? { ...other, [kind.field]: input } : other)),
+                    })
                   }
                 />
               </div>

@@ -34,11 +34,20 @@ from custom_components.haeo.core.schema.sections import (
 MINOR_VERSION: Final = 7
 
 # Each former section, its field, and the segment it becomes, in the order they applied
-_SEGMENTS_FROM_SECTIONS: Final = (
+SEGMENTS_FROM_SECTIONS: Final = (
     (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET, "power_limit", CONF_MAX_POWER),
     (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET, "pricing", CONF_PRICE),
     (SECTION_EFFICIENCY, CONF_EFFICIENCY_SOURCE_TARGET, "efficiency", CONF_EFFICIENCY),
 )
+
+
+def segment_sources(config: Mapping[str, object]) -> list[tuple[str, str, str]]:
+    """Return, for each segment a connection's sections become, the section and field it came from and its field."""
+    return [
+        (section, field, segment_field)
+        for section, field, _segment_type, segment_field in SEGMENTS_FROM_SECTIONS
+        if (value := section_dict(config, section).get(field)) is not None and not is_none_value(value)
+    ]
 
 
 def migrate_element_config(config: Mapping[str, object]) -> dict[str, object] | None:
@@ -46,9 +55,9 @@ def migrate_element_config(config: Mapping[str, object]) -> dict[str, object] | 
     if config.get(CONF_ELEMENT_TYPE) != ElementType.CONNECTION or CONF_SEGMENTS in config:
         return None
     segments: list[dict[str, object]] = []
-    for section, field, segment_type, segment_field in _SEGMENTS_FROM_SECTIONS:
+    for section, field, segment_type, segment_field in SEGMENTS_FROM_SECTIONS:
         value = section_dict(config, section).get(field)
         if value is not None and not is_none_value(value):
             segments.append({CONF_SEGMENT_TYPE: segment_type, segment_field: value})
-    sections = {section for section, *_ in _SEGMENTS_FROM_SECTIONS}
+    sections = {section for section, *_ in SEGMENTS_FROM_SECTIONS}
     return {**{key: value for key, value in config.items() if key not in sections}, CONF_SEGMENTS: segments}

@@ -1,5 +1,6 @@
 import { render } from "preact";
 import { act as actAsync } from "preact/test-utils";
+import { useState } from "preact/hooks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConnectionPathField } from "./ConnectionPathField";
@@ -145,5 +146,37 @@ describe("ConnectionPathField", () => {
       ...PATH,
       segments: [{ ...LIMIT, max_power: { type: "entity", value: [] } }, LOSS],
     });
+  });
+
+  it("keeps a segment's half-typed search with it when it moves", () => {
+    function Stateful(): preact.JSX.Element {
+      const [path, setPath] = useState(PATH);
+      return (
+        <ConnectionPathField
+          config={config}
+          value={path}
+          hass={null}
+          label="Connection"
+          helper={undefined}
+          required={true}
+          disabled={false}
+          t={t}
+          onChange={setPath}
+        />
+      );
+    }
+    act(() => {
+      render(<Stateful />, container);
+    });
+    const searches = (): HTMLInputElement[] => Array.from(container.querySelectorAll("input[role=combobox]"));
+    act(() => {
+      const efficiency = searches()[1];
+      if (efficiency !== undefined) {
+        efficiency.value = "9";
+        efficiency.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    act(() => button("Move Efficiency earlier").click());
+    expect(searches().map((search) => search.value)).toEqual(["9", ""]);
   });
 });

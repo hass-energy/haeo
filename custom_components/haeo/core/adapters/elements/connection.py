@@ -33,12 +33,14 @@ CONNECTION_DEVICE_NAMES: Final[frozenset[ConnectionDeviceName]] = frozenset(
 
 
 def _segment_spec(segment: SegmentData) -> SegmentSpec:
-    """Return the model's specification of a configured segment."""
-    if segment["segment_type"] == "power_limit":
-        return {"segment_type": "power_limit", "max_power": segment.get("max_power")}
-    if segment["segment_type"] == "pricing":
-        return {"segment_type": "pricing", "price": segment.get("price")}
-    return {"segment_type": "efficiency", "efficiency": segment.get("efficiency")}
+    """Return the model's specification of a configured segment, whose input has the model's field name."""
+    match segment["segment_type"]:
+        case "power_limit":
+            return {"segment_type": "power_limit", "max_power": segment.get("max_power")}
+        case "pricing":
+            return {"segment_type": "pricing", "price": segment.get("price")}
+        case "efficiency":
+            return {"segment_type": "efficiency", "efficiency": segment.get("efficiency")}
 
 
 class ConnectionAdapter:
