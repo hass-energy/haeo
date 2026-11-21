@@ -172,6 +172,10 @@ The list offers what can still be added: picking an entity adds it as a chip, an
 Once a search has narrowed the entities, an **Add all** row naming the match count adds every entity it shows, and chosen entities keep the order they were added in.
 Words appear only as accessible labels, the **Fixed value** label beside a fixed value's readout, and the On and Off of an on/off field.
 
+A field feeding one time series input carries a `preview` config: the hub's entry ID, the field's output type, and whether its values sit at boundaries.
+With those and the chosen entities, the element calls the `haeo/input_preview` websocket command in `websocket.py`, which runs `load_fused_sensors()`, the loader's own step for time series inputs, on the hub's horizon.
+The element draws the result under the chips: the value for now in a readout, then the combined forecast against time, with its range in the accessible label.
+
 Every input opens with a value, as Home Assistant's form cannot start a required field of a selector it does not know without one.
 An existing element's field opens with what it stores, and `{"type": "none"}` when it stores nothing, so saving its form unchanged changes nothing; a new element's field opens with its default.
 

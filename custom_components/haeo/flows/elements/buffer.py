@@ -8,7 +8,6 @@ import voluptuous as vol
 
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_NAME
-from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.buffer import (
     BUFFER_KINDS,
@@ -26,7 +25,7 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_REQUIREMENT,
     BufferRole,
 )
-from custom_components.haeo.flows.field_schema import SectionDefinition, as_mapping
+from custom_components.haeo.flows.field_schema import SectionDefinition, SelectorContext, as_mapping
 from custom_components.haeo.flows.sectioned_flow import FieldEntries, SectionedElementSubentryFlow
 
 
@@ -63,11 +62,11 @@ class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
     def _section_entries(
         self,
         subentry_data: Mapping[str, object] | None,
-        entity_metadata: list[EntityMetadata],
+        context: SelectorContext,
     ) -> dict[str, FieldEntries]:
         """Add a multi-select of elements for each participant list."""
         return {
-            **super()._section_entries(subentry_data, entity_metadata),
+            **super()._section_entries(subentry_data, context),
             SECTION_PARTICIPANTS: {
                 field: (vol.Optional(field), self._participant_selector(field)) for field in BUFFER_ROLES
             },

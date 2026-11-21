@@ -4,7 +4,7 @@ Every input field is an ``InputSelector``, which reports the field's value in
 the form HAEO stores: an entity list, a constant, or none.
 """
 
-from collections.abc import Collection, Iterable, Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Final  # noqa: TID251  # voluptuous schema dicts are Any by design
 
@@ -14,6 +14,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
+from custom_components.haeo.core.data.util.field_units import NON_NEGATIVE_OUTPUT_TYPES
 from custom_components.haeo.core.model.const import ON_OFF_OUTPUT_TYPES
 from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
@@ -98,9 +99,25 @@ def input_kinds(field_schema: FieldSchemaInfo, field_info: AnyInputFieldInfo) ->
     return offered
 
 
-def forecast_entities(entity_metadata: Iterable[EntityMetadata]) -> dict[str, tuple[float, ...]]:
-    """Return the entities that carry a forecast, with each one's preview."""
-    return {metadata.entity_id: metadata.preview for metadata in entity_metadata if metadata.forecast}
+@dataclass(frozen=True, slots=True)
+class SelectorContext:
+    """What the input selectors of one form share."""
+
+    entry_id: str
+    """The hub the form configures, whose horizon previews are drawn on."""
+    entity_metadata: Sequence[EntityMetadata]
+    """The entities a field can offer."""
+    forecasts: Mapping[str, Sequence[float]]
+    """The entities that carry a forecast, with each one's preview."""
+
+
+def selector_context(entry_id: str, entity_metadata: Sequence[EntityMetadata]) -> SelectorContext:
+    """Return the context for a form's input selectors."""
+    return SelectorContext(
+        entry_id=entry_id,
+        entity_metadata=entity_metadata,
+        forecasts={metadata.entity_id: metadata.preview for metadata in entity_metadata if metadata.forecast},
+    )
 
 
 def reads_forecasts(field_info: AnyInputFieldInfo) -> bool:
@@ -112,21 +129,29 @@ def reads_forecasts(field_info: AnyInputFieldInfo) -> bool:
     return any(input_info.time_series for input_info in inputs)
 
 
+def _non_negative(field_info: AnyInputFieldInfo) -> bool:
+    """Return whether the loader clamps a field's values at zero: a physical quantity, or a minimum of zero or more."""
+    minimum = field_info.entity_description.native_min_value if is_number_field_info(field_info) else None
+    return field_info.output_type in NON_NEGATIVE_OUTPUT_TYPES or (minimum is not None and minimum >= 0)
+
+
 def build_input_selector(
     field_info: AnyInputFieldInfo,
     *,
     kinds: Collection[InputKind],
     entities: Sequence[str] | None,
-    forecasts: Mapping[str, Sequence[float]],
+    context: SelectorContext,
 ) -> InputSelector:
     """Build the input selector for a field.
 
     The field offers the entities in its domains, narrowed to ``entities`` when
     given. When the field reads forecasts, the config lists the offered entities
-    that are in ``forecasts``, with their previews. A number
+    that carry one, with their previews, and a field feeding one input says how
+    to preview what its entities combine to on the hub's horizon. A number
     field's constant takes the limits, step and unit of the field's number
     entity, so the form and the entity accept the same values.
     """
+    forecasts = context.forecasts
     domains = entity_domains(field_info)
     offered_forecasts: set[str] = set()
     if reads_forecasts(field_info):
@@ -143,6 +168,13 @@ def build_input_selector(
     }
     if entities is not None:
         config["entities"] = list(entities)
+    if reads_forecasts(field_info) and not field_info.outputs:
+        config["preview"] = {
+            "entry_id": context.entry_id,
+            "output_type": field_info.output_type.value,
+            "boundaries": field_info.boundaries,
+            "non_negative": _non_negative(field_info),
+        }
     if is_number_field_info(field_info):
         description = field_info.entity_description
         if description.native_min_value is not None:
@@ -166,7 +198,7 @@ def build_input_field_entries(
     *,
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: Mapping[str, list[str]],
-    forecasts: Mapping[str, Sequence[float]],
+    context: SelectorContext,
 ) -> dict[str, tuple[vol.Marker, InputSelector]]:
     """Build the schema entry of each input field."""
     entries: dict[str, tuple[vol.Marker, InputSelector]] = {}
@@ -182,7 +214,7 @@ def build_input_field_entries(
                 field_info,
                 kinds=input_kinds(schema_info, field_info),
                 entities=inclusion_map.get(field_info.field_name),
-                forecasts=forecasts,
+                context=context,
             ),
         )
     return entries
@@ -234,7 +266,7 @@ def build_sectioned_input_schema(
     field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
     inclusion_map: Mapping[str, Mapping[str, list[str]]],
     *,
-    forecasts: Mapping[str, Sequence[float]],
+    context: SelectorContext,
     extra_field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]] | None = None,
     top_level_entries: Mapping[str, tuple[vol.Marker, Any]] | None = None,
 ) -> vol.Schema:
@@ -252,7 +284,7 @@ def build_sectioned_input_schema(
                 section_fields,
                 field_schema=field_schema.get(section_def.key, {}),
                 inclusion_map=inclusion_map.get(section_def.key, {}),
-                forecasts=forecasts,
+                context=context,
             )
         )
 

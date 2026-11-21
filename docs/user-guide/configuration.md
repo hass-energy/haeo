@@ -147,7 +147,8 @@ Type into the field and pick from the list below it:
     Once you have typed a search, **Add all** at the top of the list adds every entity it shows, which suits forecast integrations that create one sensor per day or per array, such as Forecast.Solar or Solcast.
     Each entity starts with what the field reads from it: a forecast shows a small line of its values from now, and a sensor whose current value is used shows that value, rounded to fit.
     A forecast field takes both kinds, such as a consumption forecast and the live consumption sensor.
-    Each entity becomes a chip with the same icon, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors) in the order you chose them.
+    Each entity becomes a chip with the same readout, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors).
+    Below the chips of a forecast field, a small plot shows what they combine to over the planning horizon, as HAEO will read them: the value for now on the left, then the combined forecast, with a line at each midnight.
 - **Nothing**: Remove a field's chips with **×**, or Backspace in the empty field, for an optional field you don't need, such as an export limit.
     HAEO leaves that field out of the optimization.
 

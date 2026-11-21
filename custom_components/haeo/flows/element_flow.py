@@ -70,7 +70,7 @@ def filter_compatible_entities(
 
 def build_inclusion_map(
     input_fields: Mapping[str, AnyInputFieldInfo],
-    entity_metadata: list[EntityMetadata],
+    entity_metadata: Sequence[EntityMetadata],
 ) -> dict[str, list[str]]:
     """Return the entities offered by each field that narrows its domains, keyed by field name.
 

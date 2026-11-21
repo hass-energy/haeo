@@ -65,6 +65,7 @@ from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_surfaced_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
+from custom_components.haeo.flows.field_schema import selector_context
 from custom_components.haeo.flows.surfaced_policy import (
     POLICIES_TITLE,
     build_surfaced_defaults,
@@ -918,7 +919,7 @@ def test_build_surfaced_schema_entries_includes_compatible_price_entities(
     _, selector = build_surfaced_schema_entries(
         hass,
         surfaced_fields,
-        extract_entity_metadata(hass, hub_entry),
+        selector_context(hub_entry.entry_id, extract_entity_metadata(hass, hub_entry)),
     )[CONF_CONSUMPTION_COST]
 
     include_entities = selector.config.get("entities", [])

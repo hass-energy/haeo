@@ -18,7 +18,6 @@ from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CONF_PRICE, CONF_RULES, PolicyRuleConfig
@@ -29,7 +28,7 @@ from custom_components.haeo.core.schema.surfaced_policy import find_surfaced_rul
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, localize_input_field
 from custom_components.haeo.flows.element_flow import build_inclusion_map
-from custom_components.haeo.flows.field_schema import build_input_selector, forecast_entities, get_input_default
+from custom_components.haeo.flows.field_schema import SelectorContext, build_input_selector, get_input_default
 from custom_components.haeo.flows.input_selector import InputKind, InputSelector
 
 POLICIES_TITLE = "Policies"
@@ -199,11 +198,10 @@ def get_surfaced_prices(
 def build_surfaced_schema_entries(
     hass: HomeAssistant,
     surfaced_fields: Mapping[str, AnyInputFieldInfo],
-    entity_metadata: list[EntityMetadata],
+    context: SelectorContext,
 ) -> dict[str, tuple[vol.Marker, InputSelector]]:
     """Build the schema entries of the surfaced pricing fields."""
-    inclusion_map = build_inclusion_map(dict(surfaced_fields), entity_metadata)
-    forecasts = forecast_entities(entity_metadata)
+    inclusion_map = build_inclusion_map(dict(surfaced_fields), context.entity_metadata)
     currency = currency_symbol(hass.config.currency)
     return {
         field_name: (
@@ -212,7 +210,7 @@ def build_surfaced_schema_entries(
                 localize_input_field(surfaced_field, currency),
                 kinds=SURFACED_KINDS,
                 entities=inclusion_map.get(field_name),
-                forecasts=forecasts,
+                context=context,
             ),
         )
         for field_name, surfaced_field in surfaced_fields.items()

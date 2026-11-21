@@ -64,6 +64,7 @@ from custom_components.haeo.util import (
     network_subentry,
     remove_deleted_elements_rules,
 )
+from custom_components.haeo.websocket import async_register_websocket_commands
 
 from . import migrations as _migrations
 
@@ -103,10 +104,11 @@ CARD_STATIC_DIR = Path(__file__).parent / STATIC_CARD_STATIC_DIR
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     """Set up the HAEO integration.
 
-    Registers domain-level services that are available even before any config entries are loaded.
+    Registers domain-level services and websocket commands that are available even before any config entries are loaded.
     """
     await _async_register_static_frontend_resources(hass)
     await async_setup_services(hass)
+    async_register_websocket_commands(hass)
     return True
 
 

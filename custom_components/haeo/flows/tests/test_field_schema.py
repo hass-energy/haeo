@@ -30,6 +30,7 @@ from custom_components.haeo.elements.input_fields import (
 )
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
+    SelectorContext,
     build_input_field_entries,
     build_input_selector,
     build_section_schema,
@@ -37,16 +38,18 @@ from custom_components.haeo.flows.field_schema import (
     build_sectioned_input_schema,
     convert_sectioned_input_to_config,
     entity_domains,
-    forecast_entities,
     get_input_default,
     has_input_value,
     input_kinds,
+    selector_context,
     validate_input_fields,
     validate_sectioned_input_fields,
 )
 from custom_components.haeo.flows.input_selector import InputKind, InputSelector
 
 BASE_DOMAINS = ["haeo", "sensor", "input_number", "number", "switch"]
+
+NO_FORECASTS = SelectorContext(entry_id="hub", entity_metadata=[], forecasts={})
 
 REQUIRED = FieldSchemaInfo(value_type=EntityValue | ConstantValue, is_optional=False)
 OPTIONAL = FieldSchemaInfo(value_type=EntityValue | ConstantValue | NoneValue, is_optional=True)
@@ -155,7 +158,9 @@ def test_input_kinds(value_type: object, force_required: bool | None, expected: 
 
 def test_build_input_selector_takes_number_limits_from_the_entity_description() -> None:
     """A number field's constant takes the limits, step and unit of its number entity."""
-    selector = build_input_selector(POWER, kinds=["entity", "constant"], entities=["sensor.power"], forecasts={})
+    selector = build_input_selector(
+        POWER, kinds=["entity", "constant"], entities=["sensor.power"], context=NO_FORECASTS
+    )
 
     assert selector.config == {
         "kinds": ["entity", "constant"],
@@ -176,7 +181,7 @@ def test_build_input_selector_takes_number_limits_from_the_entity_description() 
 )
 def test_build_input_selector_without_limits(field: AnyInputFieldInfo, value_type: str) -> None:
     """A field whose entity states no limits, or a switch field, offers an unbounded constant and its domains."""
-    selector = build_input_selector(field, kinds=["constant"], entities=None, forecasts={})
+    selector = build_input_selector(field, kinds=["constant"], entities=None, context=NO_FORECASTS)
 
     assert selector.config == {
         "kinds": ["constant"],
@@ -217,19 +222,42 @@ def test_build_input_selector_lists_the_entities_it_reads_as_forecasts(
     field: AnyInputFieldInfo, entities: list[str] | None, expected: dict[str, list[float]]
 ) -> None:
     """A field feeding a time series lists the forecasts it offers with their previews, and a scalar field none."""
-    selector = build_input_selector(field, kinds=["entity"], entities=entities, forecasts=FORECASTS)
+    selector = build_input_selector(
+        field, kinds=["entity"], entities=entities, context=SelectorContext("hub", [], FORECASTS)
+    )
 
     assert selector.config["forecasts"] == expected
 
 
-def test_forecast_entities_are_the_ones_carrying_a_forecast() -> None:
+def test_selector_context_lists_the_entities_carrying_a_forecast() -> None:
     """Only entities whose metadata says they carry a forecast are listed, with their previews."""
     metadata = [
         EntityMetadata(entity_id="sensor.power", unit_of_measurement="kW"),
         EntityMetadata(entity_id="sensor.power_forecast", unit_of_measurement="kW", forecast=True, preview=(1.0, 2.0)),
     ]
 
-    assert forecast_entities(metadata) == {"sensor.power_forecast": (1.0, 2.0)}
+    assert selector_context("hub", metadata).forecasts == {"sensor.power_forecast": (1.0, 2.0)}
+
+
+@pytest.mark.parametrize(
+    ("field", "expected"),
+    [
+        pytest.param(
+            replace(POWER, time_series=True, boundaries=True),
+            {"entry_id": "hub", "output_type": "power", "boundaries": True, "non_negative": True},
+            id="time_series",
+        ),
+        pytest.param(POWER, None, id="scalar"),
+        pytest.param(_calendar_field(), None, id="feeds_several_inputs"),
+    ],
+)
+def test_build_input_selector_previews_a_field_feeding_one_time_series(
+    field: AnyInputFieldInfo, expected: dict[str, object] | None
+) -> None:
+    """A field feeding one time series input says how to preview its entities on the hub's horizon."""
+    selector = build_input_selector(field, kinds=["entity"], entities=None, context=NO_FORECASTS)
+
+    assert selector.config.get("preview") == expected
 
 
 @pytest.mark.parametrize(
@@ -247,21 +275,24 @@ def test_build_input_field_entries_markers(
     field = replace(POWER, force_required=force_required)
 
     entries = build_input_field_entries(
-        {"power": field}, field_schema={"power": schema_info}, inclusion_map={"power": ["sensor.power"]}, forecasts={}
+        {"power": field},
+        field_schema={"power": schema_info},
+        inclusion_map={"power": ["sensor.power"]},
+        context=NO_FORECASTS,
     )
 
     key, selector = entries["power"]
     assert type(key) is marker
     assert key.schema == "power"
     assert selector == build_input_selector(
-        field, kinds=input_kinds(schema_info, field), entities=["sensor.power"], forecasts={}
+        field, kinds=input_kinds(schema_info, field), entities=["sensor.power"], context=NO_FORECASTS
     )
 
 
 def test_build_input_field_entries_requires_schema_metadata() -> None:
     """A field the element's schema does not describe is a coding error."""
     with pytest.raises(RuntimeError, match="Missing schema metadata"):
-        build_input_field_entries({"power": POWER}, field_schema={}, inclusion_map={"power": []}, forecasts={})
+        build_input_field_entries({"power": POWER}, field_schema={}, inclusion_map={"power": []}, context=NO_FORECASTS)
 
 
 def test_build_section_schema_includes_sections() -> None:
@@ -288,7 +319,7 @@ def test_build_sectioned_input_schema_validates_submissions() -> None:
         INPUT_FIELDS,
         FIELD_SCHEMA,
         {"limits": {"power": ["sensor.power"], "price": []}, "options": {"enabled": []}},
-        forecasts={},
+        context=NO_FORECASTS,
         extra_field_entries={"options": {"label": (vol.Optional("label"), str)}},
         top_level_entries={"name": (vol.Required("name"), str)},
     )
@@ -443,7 +474,7 @@ def test_selectors_are_input_selectors() -> None:
         {"window_calendar": _calendar_field()},
         field_schema={"window_calendar": FieldSchemaInfo(value_type=EntityValue, is_optional=False)},
         inclusion_map={"window_calendar": ["calendar.pool_pump"]},
-        forecasts={},
+        context=NO_FORECASTS,
     )
 
     _marker, selector = entries["window_calendar"]

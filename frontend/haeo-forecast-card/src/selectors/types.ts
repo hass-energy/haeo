@@ -6,6 +6,14 @@ export type InputValue =
 
 export type InputKind = InputValue["type"];
 
+/** How to preview what a field's entities combine to: the `haeo/input_preview` command's arguments. */
+export interface InputPreviewConfig {
+  entry_id: string;
+  output_type: string;
+  boundaries: boolean;
+  non_negative: boolean;
+}
+
 /** The `haeo_input` selector config the integration sends. */
 export interface InputSelectorConfig {
   /** Kinds of value the field accepts. */
@@ -21,6 +29,8 @@ export interface InputSelectorConfig {
   forecasts: Record<string, number[]>;
   /** The entities the field offers when it narrows its domains, such as by unit. */
   entities?: string[];
+  /** Set for a field feeding a time series input. */
+  preview?: InputPreviewConfig;
   min?: number;
   max?: number;
   step?: number;
@@ -30,6 +40,7 @@ export interface InputSelectorConfig {
 export interface EntityStateLike {
   entity_id: string;
   state: string;
+  last_updated?: string;
   attributes: Record<string, unknown>;
 }
 
@@ -37,6 +48,8 @@ export interface SelectorHass {
   states: Record<string, EntityStateLike | undefined>;
   /** The user's language, which numbers are formatted in. */
   language?: string;
+  /** Call a websocket command, as Home Assistant's frontend does. */
+  callWS?: <T>(message: Record<string, unknown>) => Promise<T>;
   localize: (key: string, values?: Record<string, string>) => string;
 }
 

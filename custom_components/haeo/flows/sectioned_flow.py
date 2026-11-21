@@ -25,12 +25,13 @@ from custom_components.haeo.flows.element_flow import ElementSubentryFlow, build
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
+    SelectorContext,
     as_mapping,
     as_str,
     build_sectioned_input_defaults,
     build_sectioned_input_schema,
     convert_sectioned_input_to_config,
-    forecast_entities,
+    selector_context,
     validate_sectioned_input_fields,
 )
 from custom_components.haeo.flows.sections import build_common_fields
@@ -69,7 +70,7 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
     def _section_entries(
         self,
         subentry_data: Mapping[str, object] | None,
-        entity_metadata: list[EntityMetadata],
+        context: SelectorContext,
     ) -> dict[str, FieldEntries]:
         """Return form fields added to sections beyond their inputs, keyed by section."""
         _ = subentry_data
@@ -79,7 +80,7 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
                 build_surfaced_schema_entries(
                     self.hass,
                     {field_name: surfaced_fields[field_name] for field_name in hints},
-                    entity_metadata,
+                    context,
                 )
             )
             for section, hints in self._surfaced_hints_by_section().items()
@@ -165,14 +166,15 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
         subentry_data: Mapping[str, object] | None,
     ) -> vol.Schema:
         """Build the form schema: top-level fields, then the sectioned inputs."""
+        context = selector_context(self._get_entry().entry_id, entity_metadata)
         return build_sectioned_input_schema(
             self.sections,
             input_fields,
             get_input_field_schema_info(self.element_type, input_fields),
             build_sectioned_inclusion_map(input_fields, entity_metadata),
-            forecasts=forecast_entities(entity_metadata),
+            context=context,
             top_level_entries=self._top_level_entries(subentry_data),
-            extra_field_entries=self._section_entries(subentry_data, entity_metadata),
+            extra_field_entries=self._section_entries(subentry_data, context),
         )
 
     def _build_defaults(

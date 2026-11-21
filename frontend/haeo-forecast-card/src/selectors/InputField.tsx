@@ -2,6 +2,7 @@ import { mdiClose, mdiPlus } from "@mdi/js";
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
+import { FieldPreview } from "./FieldPreview";
 import { describeEntity, filterOptions, offeredEntityIds, readNumber } from "./search";
 import { Readout, shortNumber } from "./Readout";
 import type { ReadoutContent } from "./Readout";
@@ -362,6 +363,10 @@ export function InputField(props: InputFieldProps): JSX.Element {
             </ul>
           )}
         </div>
+      )}
+
+      {config.preview !== undefined && selected.length > 0 && !open && (
+        <FieldPreview hass={hass} preview={config.preview} entityIds={selected} unit={config.unit ?? ""} t={t} />
       )}
 
       {helper !== undefined && helper !== "" && <div class="helper">{helper}</div>}

@@ -248,6 +248,7 @@ See existing parsers for implementation patterns.
 ## Combining payloads
 
 The [`forecast_combiner.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/util/forecast_combiner.py) module merges multiple sensor payloads.
+`load_fused_sensors()` in `config_loader.py` loads a time series input's sensors and combines them on the horizon; the config flow's input preview calls the same function.
 
 ### Combination strategy
 

@@ -38,11 +38,21 @@ INPUT_STRINGS: dict[str, tuple[str, ...]] = {
     "forecast": (),
     "off": (),
     "on": (),
+    "preview": ("hours", "max", "min", "now"),
     "remove": ("name",),
     "search": ("label",),
 }
 
 type InputKind = Literal["entity", "constant", "none"]
+
+
+class InputPreviewConfig(TypedDict):
+    """How the element previews what a field's entities combine to: the ``haeo/input_preview`` command's arguments."""
+
+    entry_id: str
+    output_type: str
+    boundaries: bool
+    non_negative: bool
 
 
 class InputSelectorConfig(TypedDict):
@@ -52,7 +62,8 @@ class InputSelectorConfig(TypedDict):
     when it filters them further, such as by unit. ``forecasts`` maps the
     offered entities the field reads as forecasts to a preview of their values
     from now, which is empty when there is none to show; the field reads the
-    rest as their current value.
+    rest as their current value. ``preview`` is set for a field feeding a
+    time series input.
     """
 
     kinds: list[InputKind]
@@ -60,6 +71,7 @@ class InputSelectorConfig(TypedDict):
     domains: list[str]
     forecasts: dict[str, list[float]]
     entities: NotRequired[list[str]]
+    preview: NotRequired[InputPreviewConfig]
     min: NotRequired[float]
     max: NotRequired[float]
     step: NotRequired[float]
@@ -78,6 +90,12 @@ class InputSelector(Selector[InputSelectorConfig]):
             vol.Required("domains"): [str],
             vol.Required("forecasts"): {str: [vol.Coerce(float)]},
             vol.Optional("entities"): [str],
+            vol.Optional("preview"): {
+                vol.Required("entry_id"): str,
+                vol.Required("output_type"): str,
+                vol.Required("boundaries"): bool,
+                vol.Required("non_negative"): bool,
+            },
             vol.Optional("min"): vol.Coerce(float),
             vol.Optional("max"): vol.Coerce(float),
             vol.Optional("step"): vol.Coerce(float),
@@ -142,4 +160,11 @@ class InputSelector(Selector[InputSelectorConfig]):
             yield ("selector", INPUT_TRANSLATION_KEY, "options", key), placeholders
 
 
-__all__ = ["INPUT_SELECTOR_TYPE", "INPUT_STRINGS", "INPUT_TRANSLATION_KEY", "InputSelector", "InputSelectorConfig"]
+__all__ = [
+    "INPUT_SELECTOR_TYPE",
+    "INPUT_STRINGS",
+    "INPUT_TRANSLATION_KEY",
+    "InputPreviewConfig",
+    "InputSelector",
+    "InputSelectorConfig",
+]

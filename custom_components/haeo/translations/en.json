@@ -852,6 +852,7 @@
         "forecast": "Forecast",
         "off": "Off",
         "on": "On",
+        "preview": "Combined: now {now}, then {min} to {max} over the next {hours} hours",
         "remove": "Remove {name}",
         "search": "{label}: search entities or enter a value"
       }

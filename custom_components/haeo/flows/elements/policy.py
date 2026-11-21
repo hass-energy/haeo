@@ -49,7 +49,7 @@ from custom_components.haeo.elements import get_list_input_fields
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, localize_input_field
 from custom_components.haeo.flows.element_flow import ElementSubentryFlow, build_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
-from custom_components.haeo.flows.field_schema import build_input_selector, forecast_entities, has_input_value
+from custom_components.haeo.flows.field_schema import build_input_selector, has_input_value, selector_context
 from custom_components.haeo.flows.input_selector import InputSelector
 from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE, find_policy_subentry
 
@@ -167,7 +167,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
             field_info,
             kinds=("entity", "constant"),
             entities=inclusion_map.get(CONF_PRICE),
-            forecasts=forecast_entities(entity_metadata),
+            context=selector_context(self._get_entry().entry_id, entity_metadata),
         )
 
     def _build_endpoint_selector(

@@ -28,6 +28,16 @@ export const SELECTOR_STYLES = `
   font-size: 0.625rem; color: var(--secondary-text-color); margin-top: 1px;
 }
 .sparkline { width: 40px; height: 18px; overflow: visible; }
+.preview-plot { display: flex; align-items: center; gap: 8px; }
+.plot { position: relative; flex: 1; min-width: 0; height: 48px; }
+.plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.plot .sparkline-line { stroke-width: 1.5; }
+.plot-day { stroke: var(--divider-color); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.plot-zero { stroke: var(--divider-color); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.plot-max {
+  position: absolute; top: 0; right: 0; font-size: 0.625rem; line-height: 1; color: var(--secondary-text-color);
+  font-variant-numeric: tabular-nums;
+}
 .sparkline-line {
   fill: none; stroke: var(--primary-color); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
   vector-effect: non-scaling-stroke;
