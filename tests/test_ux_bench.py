@@ -291,6 +291,37 @@ def test_transcript_keeps_reasoning_commands_and_the_start_of_each_reply() -> No
     assert "12\n" not in transcript
 
 
+def test_run_keeps_the_transcript_of_an_agent_that_timed_out(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An agent stopped at the time limit still leaves its output so far, to show where it stalled."""
+
+    class _Session:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            (tmp_path / ADD_TASK["id"] / "run1" / "session.json").write_text('{"port": 1}', encoding="utf-8")
+
+        def poll(self) -> None:
+            return None
+
+        def wait(self, **_kwargs: object) -> int:
+            return 0
+
+        def kill(self) -> None:
+            pass
+
+    def _timed_out(*_args: object, **_kwargs: object) -> None:
+        command = "claude"
+        raise subprocess.TimeoutExpired(command, 1.0, output=STREAM.rsplit("\n", 1)[0].encode(), stderr=b"slow")
+
+    monkeypatch.setattr(subprocess, "Popen", _Session)
+    monkeypatch.setattr(subprocess, "run", _timed_out)
+    monkeypatch.setattr("tools.ux_bench.run._finish_session", lambda _port: None)
+    result = run_one(ADD_TASK, 1, tmp_path, model="haiku", budget=1.0, timeout=1.0)
+
+    run_dir = tmp_path / ADD_TASK["id"] / "run1"
+    assert result.get("driver_error") == "The agent did not finish within 1 s"
+    assert "I'll search instead." in (run_dir / "transcript.md").read_text(encoding="utf-8")
+    assert (run_dir / "driver.stderr").read_text(encoding="utf-8") == "slow"
+
+
 def test_summarize_counts_runs() -> None:
     """The summary counts passes and takes medians per task."""
     results: list[RunResult] = [

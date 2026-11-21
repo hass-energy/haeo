@@ -228,11 +228,11 @@ def run_one(task: Task, repeat: int, out: Path, *, model: str, budget: float, ti
                     timeout=timeout,
                     check=False,
                 )
-                (run_dir / "transcript.jsonl").write_text(driver.stdout, encoding="utf-8")
-                (run_dir / "transcript.md").write_text(transcript_markdown(driver.stdout), encoding="utf-8")
-                (run_dir / "driver.stderr").write_text(driver.stderr, encoding="utf-8")
+                _save_transcript(run_dir, driver.stdout, driver.stderr)
                 _add_driver_summary(result, driver.stdout)
-            except subprocess.TimeoutExpired:
+            except subprocess.TimeoutExpired as err:
+                # The agent's output so far shows where it stalled
+                _save_transcript(run_dir, _text(err.stdout), _text(err.stderr))
                 result["driver_error"] = f"The agent did not finish within {timeout:.0f} s"
 
             try:
@@ -250,6 +250,20 @@ def run_one(task: Task, repeat: int, out: Path, *, model: str, budget: float, ti
     else:
         result["problems"] = ["The session wrote no result; see session.log"]
     return _save(run_dir, result)
+
+
+def _text(output: str | bytes | None) -> str:
+    """Return captured output as text; a timed-out run's output can arrive as bytes, or not at all."""
+    if isinstance(output, bytes):
+        return output.decode(errors="replace")
+    return output or ""
+
+
+def _save_transcript(run_dir: Path, stdout: str, stderr: str) -> None:
+    """Write the agent's stream, its readable transcript, and its error output."""
+    (run_dir / "transcript.jsonl").write_text(stdout, encoding="utf-8")
+    (run_dir / "transcript.md").write_text(transcript_markdown(stdout), encoding="utf-8")
+    (run_dir / "driver.stderr").write_text(stderr, encoding="utf-8")
 
 
 def _save(run_dir: Path, result: RunResult) -> RunResult:
