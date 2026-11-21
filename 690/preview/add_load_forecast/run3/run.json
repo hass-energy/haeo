@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.1046174,
+  "turns": 10,
+  "report": "I added a Load called \"Household consumption\" to HAEO. After I finished, it showed up in the Home hub's list.\n\nI picked two sensors in its Forecast field: `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power`, the current reading. The field's preview showed the two combined, starting from the current 0.501 kW and then following the forecast.\n\nI connected it to the Switchboard, which was already selected. I didn't open the Shedding section or change anything in it.\n\nPoints where I hesitated or made mistakes:\n- **Connection:** I left the default (Switchboard) without checking it against your wiring. I assumed household loads sit on the AC side.\n- **Combining the sensors:** The Forecast field takes several entries, so I added the current sensor alongside the forecast one. I couldn't see how HAEO merges them. The preview suggested the current value covers \"now\" and the forecast covers the rest.\n- **Name:** You didn't give one, so I chose \"Household consumption\" over the default \"Load\".",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household consumption",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Household consumption' on the Switchboard, with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (current).",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.2
+}

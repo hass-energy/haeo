@@ -1,0 +1,8 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.7, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.4, "command": "type", "args": ["f2e541", "10"], "error": null, "visible_errors": 0}
+{"t": 6.7, "command": "click", "args": ["f2e571"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "type", "args": ["f2e505", "Inverter to Switchboard"], "error": null, "visible_errors": 0}
+{"t": 9.4, "command": "click", "args": ["f2e566"], "error": null, "visible_errors": 0}
+{"t": 10.5, "command": "click", "args": ["f2e593"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "done", "args": ["Added a connection named 'Inverter to Switchboard' to the Home hub: source Inverter, target Switchboard, max power fixed at 10 kW. The form reported success and the new Connection entry appears under Home with 2 entities. Price and efficiency were left at their defaults."], "error": null, "visible_errors": 0}

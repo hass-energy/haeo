@@ -1,0 +1,81 @@
+{
+  "task": "edit_battery_min_charge",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.0062877,
+  "turns": 11,
+  "report": "Battery minimum charge is now 20%. I reopened the dialog after closing it and it still reads 20%.\n\nMinimum charge is an editable slider in the Battery device's Configuration section. The change applies immediately; there's no separate save step.\n\nWhere I hesitated or made mistakes:\n- **Accidental first move:** my first click on the slider jumped it to 50% instead of focusing it. I corrected it with the arrow keys, stepping down 1% at a time, so I could be sure of landing on 20%.\n- **Live entity dialog, not the settings form:** the Min charge row opened a live-value dialog (\"Now\") rather than the \"Edit settings\" form. I didn't use \"Edit settings\", so I didn't check whether that form also exposes this value or applies it differently.\n- **Two \"Battery\" entries:** the Home hub lists a Battery element and there's also a separate Battery device page. I picked the one under the Home hub, which is where the configuration sits. I didn't verify that the optimizer reads this same value.\n- **Verification:** the device page row no longer shows the numeric value as text, so I verified by reopening the dialog, which showed 20%.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "name": "Battery",
+    "element_type": "battery",
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 98.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 98.0
+      }
+    },
+    "limits": {
+      "max_charge_percentage": {
+        "type": "constant",
+        "value": 100.0
+      },
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 20.0
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      },
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      }
+    },
+    "pricing": {},
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 36,
+  "looks": 3,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 29.1
+}

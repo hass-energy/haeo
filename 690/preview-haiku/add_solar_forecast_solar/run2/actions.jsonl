@@ -1,0 +1,15 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.5, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 8.1, "command": "click", "args": ["f2e547"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "type", "args": ["f2e485", "energy_production_today"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e838"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "type", "args": ["f2e485", "energy_production_tomorrow"], "error": null, "visible_errors": 0}
+{"t": 13.7, "command": "click", "args": ["f2e902"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "type", "args": ["f2e485", "energy_production_d2_"], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "click", "args": ["f2e990"], "error": null, "visible_errors": 0}
+{"t": 18.1, "command": "type", "args": ["f2e485", "energy_production_d"], "error": null, "visible_errors": 0}
+{"t": 19.4, "command": "click", "args": ["f2e1078"], "error": null, "visible_errors": 0}
+{"t": 21.7, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 22.8, "command": "click", "args": ["f2e1459"], "error": null, "visible_errors": 0}
+{"t": 24.4, "command": "done", "args": ["Added a Solar element named 'Solar' to the Home hub, connected to the Inverter (DC), with all 32 Forecast.Solar production sensors (today, tomorrow, day after tomorrow, and 3 to 7 days from now, for east, north, south and west). The Solar device now appears under Home with 4 entities."], "error": null, "visible_errors": 0}

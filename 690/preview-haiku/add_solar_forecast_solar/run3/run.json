@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.010009500000000001,
+  "turns": 8,
+  "report": "I added the solar element to the Home hub with all 32 Forecast.Solar sensors. The Solar device now appears under Home with 4 entities.\n\n**What I set:**\n- **Name:** Solar (default).\n- **Connection:** Inverter, DC (default). You said the panels feed the inverter, so I kept it rather than choosing Switchboard, AC.\n- **Forecast:** all 32 `energy_production_*` sensors, from the \"Add all 32\" option. That is four directions (east, north, south, west) times eight days (today, tomorrow, day after tomorrow, and 3 to 7 days out). The preview chart showed about 0 kW now, rising to about 17.9 kW.\n- **Curtailment:** left at its default, which I did not change.\n\nI did not reopen the element afterwards to check the saved sensor list. The Solar device and its 4 entities confirm the element exists.\n\n**Where I hesitated or might have gone wrong:**\n- **South sensors have different names.** The South sensors are named \"South solar prediction forecast\" while the others are \"solar production forecast\". They use the same `energy_production_*_south` entity-ID pattern, so I treated them as Forecast.Solar too. If the South entries come from a different integration, they should be removed.\n- **Today's sensor is partly used up.** The \"today\" sensors are included as you asked for every day covered. The partly elapsed day may be less useful to the optimiser than the future days. I did not try to exclude it.\n- **Other forecast sensors were ignored on purpose.** I did not add the Solcast PV Forecast sensors or the Sigen sensors, since you asked for Forecast.Solar only.\n- **Connection choice rests on your description.** \"Feeds into your inverter\" could mean either the DC side (what I chose) or the AC side. I chose on the basis of your wording.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.4
+}

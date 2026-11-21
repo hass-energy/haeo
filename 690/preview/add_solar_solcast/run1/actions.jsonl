@@ -1,0 +1,10 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.4, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 7.8, "command": "click", "args": ["f2e676"], "error": null, "visible_errors": 0}
+{"t": 9.4, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 11.0, "command": "type", "args": ["f2e485", "solcast"], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "click", "args": ["f2e839"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 15.4, "command": "click", "args": ["f2e896"], "error": null, "visible_errors": 0}
+{"t": 17.1, "command": "done", "args": ["Added a Solar element named 'Solar', connected to the Inverter, using the three Solcast PV Forecast sensors (Today, Tomorrow, Day 3) as the forecast. HAEO now shows the Solar device with 4 entities."], "error": null, "visible_errors": 0}

@@ -1,0 +1,9 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.7, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "click", "args": ["f2e534"], "error": null, "visible_errors": 0}
+{"t": 7.9, "command": "type", "args": ["f2e534", "0.8"], "error": null, "visible_errors": 0}
+{"t": 9.3, "command": "click", "args": ["f2e868"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e543"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e890"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "done", "args": ["Added a Load element named 'Pool pump' to the Home hub. Connection is the default Switchboard (AC), forecast is a fixed value of 0.8 kW, and shedding is left unset since the pump runs all the time. The success dialog said 'Created configuration for Pool pump', and a 'Pool pump' Load device now appears under Home (entity count went from 60 to 72)."], "error": null, "visible_errors": 0}

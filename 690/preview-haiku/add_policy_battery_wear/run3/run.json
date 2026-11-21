@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.01855425,
+  "turns": 19,
+  "report": "I set the battery's Discharge cost to a fixed $0.01/kWh and saved it. HAEO then also created a Policies element called \"Battery discharge cost\" (source: Battery, target: Any, price: $0.01/kWh). I left the policy unchanged.\n\nWhat I can't confirm is whether the two together double-count the wear cost, at $0.02/kWh. I can't read HAEO's code or docs, so I don't know whether the Discharge cost field is implemented by that policy or is a separate charge.\n\nPoints where I hesitated or was unsure:\n\n- **Which setting to use:** I chose the Battery's Discharge cost field because it sits on the element that discharges. The Policy element could also express this, and I did not compare the two before saving.\n- **Units:** The field offers \"$/kWh\" as the unit, which I took as per kWh discharged. I did not verify that against a help text, because the field showed none.\n- **Unexpected Policy element:** Saving the battery created a Policies element I hadn't asked for. I inspected it but did not delete it, because removing it might drop coverage for discharge paths I can't see.\n- **Double-count risk:** The main unresolved question above. If the field and the policy are separate charges, the battery now costs $0.02/kWh, not $0.01. I did not check this against a simulation or the diagnostics.\n- **Advanced section:** I looked at it and saw a Limit cost of 100 $/kWh/h. I left it alone because it doesn't look like a per-kWh discharge charge, but I didn't investigate it further.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Set the Battery element's Discharge cost to a fixed 0.01 $/kWh and saved. Reopening the page showed HAEO had also created a Policies element named 'Battery discharge cost': source = Battery element, target = Any, price = 0.01 $/kWh. I left the policy unchanged. Whether the two together double-count the wear cost is unverified.",
+  "actions": 14,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 33.1
+}

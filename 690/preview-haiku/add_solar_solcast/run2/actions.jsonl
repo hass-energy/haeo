@@ -1,0 +1,12 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.3, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.1, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 6.7, "command": "click", "args": ["f2e676"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 8.4, "command": "type", "args": ["f2e485", "solcast tomorrow"], "error": null, "visible_errors": 0}
+{"t": 9.5, "command": "click", "args": ["f2e839"], "error": null, "visible_errors": 0}
+{"t": 9.9, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 10.2, "command": "type", "args": ["f2e485", "solcast day 3"], "error": null, "visible_errors": 0}
+{"t": 11.7, "command": "click", "args": ["f2e868"], "error": null, "visible_errors": 0}
+{"t": 13.3, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "click", "args": ["f2e902"], "error": null, "visible_errors": 0}

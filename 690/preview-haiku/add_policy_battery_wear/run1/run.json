@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.06931859,
+  "turns": 29,
+  "report": "HAEO now charges 1 cent per kWh discharged from the battery. The Battery element's Discharge cost is a fixed 0.01 $/kWh, and HAEO created a \"Battery discharge cost\" policy from it: source Battery, target Any, price 0.01 $/kWh, enabled. Target Any is what makes it cover every destination. I confirmed the policy exists after the final save.\n\nPoints where I hesitated, was unsure, or made a mistake:\n\n- **Double-count check, and a mistake I made along the way.** When I first saved 0.01 on the Battery's Discharge cost, HAEO also created the policy. I was unsure whether both would apply and charge 2 cents, so I cleared the Battery field. That also deleted the auto-created policy, leaving no wear cost at all. I then set the Battery field back to 0.01, which recreated the policy. The end state is one policy at 0.01 rather than both at 0.01. The UI doesn't say whether the field and the policy are the same mechanism or add up, so I could not check that directly.\n- **Policy side effect.** Saving the battery also added a \"Policies\" element to the Home hub (8 devices, 63 entities). I didn't create it deliberately, but it is the mechanism for this setting, so I left it.\n- **Policy list count.** After the first clear, the Policies row still showed \"2 entities\" while the dialog said \"No policy rules configured\". I assumed that was a stale count and moved on. I did not re-check the count after the final save.\n- **Discharge cost vs. the policy.** I didn't know whether the Battery's Discharge cost field alone would cover all destinations or only some. The Target Any setting on the policy is what settled it for me.\n- **Advanced section.** I expanded it and saw \"Limit cost\" at 100 $/kWh/h. It looks like a power-limit penalty, not wear, so I left it unchanged. I was not fully sure of that.\n- **Unit.** The field offers \"$/kWh\", which I took as the currency unit for \"1 cent\" ($0.01).\n- **Did not check the optimizer output.** I only checked the configuration screens. I did not look at a plan or sensor to see the cost actually applied.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Set the Battery element's Discharge cost to a fixed 0.01 $/kWh. HAEO then created a 'Battery discharge cost' policy: source = Battery, target = Any, price 0.01 $/kWh, enabled. That covers discharge to any destination. Verified the policy exists after the final save.",
+  "actions": 25,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 52.5
+}

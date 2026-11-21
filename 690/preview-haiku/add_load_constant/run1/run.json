@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.00890612,
+  "turns": 11,
+  "report": "I added \"Pool pump\" as a load under the Home hub, set to a constant 0.8 kW. HAEO confirmed \"Created configuration for Pool pump\", and a Pool pump device with 12 entities now appears under Home.\n\nSettings:\n- **Name:** Pool pump\n- **Connection:** Switchboard, AC (the default). A pool pump is an AC appliance on the house side, not behind the battery inverter.\n- **Forecast:** Fixed value 0.8 kW, picked from the entity picker's \"Fixed value\" option.\n- **Shedding:** left at its default \"Off\", so the optimizer will never switch the pump off.\n\nI did not reopen the saved load to re-check the 0.8 kW value. I relied on the success message and the new device listing.\n\nPoints where I hesitated or was unsure:\n- **Connection choice:** The dialog offered Inverter (DC) or Switchboard (AC). I chose Switchboard because the pump runs on mains AC, but I did not confirm that from any HAEO help text.\n- **Units:** The fixed-value option displayed \"0.8 kW\", so I assumed the constant is entered in kW. The task gave 0.8 kW, so this matched, but I did not check the units field directly.\n- **Shedding:** I checked it because the pump runs all the time. I left it Off without confirming what shedding does in HAEO.\n- **Consumption cost:** I left the optional \"Consumption cost\" field empty and did not consider whether it should be set.\n- **Verification:** I did not open the saved configuration to confirm the value was stored as 0.8 kW.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a load named 'Pool pump' to the Home hub. Connection: Switchboard, AC (a pool pump is an AC appliance on the house side). Forecast: fixed value 0.8 kW. Shedding left at its default 'Off' so the pump is never switched off. HAEO confirmed 'Created configuration for Pool pump' and a new Pool pump device now appears under Home with 12 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 16.2
+}

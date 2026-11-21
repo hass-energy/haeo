@@ -1,0 +1,14 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.6, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "click", "args": ["f2e499"], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 12.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "type", "args": ["f2e485", "energy_production_d3"], "error": null, "visible_errors": 0}
+{"t": 15.8, "command": "type", "args": ["f2e485", "energy_production"], "error": null, "visible_errors": 0}
+{"t": 17.6, "command": "click", "args": ["f2e868"], "error": null, "visible_errors": 0}
+{"t": 17.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.4, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 21.2, "command": "click", "args": ["f2e1411"], "error": null, "visible_errors": 0}
+{"t": 22.6, "command": "done", "args": ["Added Solar element connected to Inverter, with all 32 Forecast.Solar sensors (east/north/south/west \u00d7 today, tomorrow, day after, d3\u2013d7) as forecast."], "error": null, "visible_errors": 0}

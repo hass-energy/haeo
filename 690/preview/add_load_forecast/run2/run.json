@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1471925,
+  "turns": 12,
+  "report": "I added a Load called \"Load\" to HAEO. It connects to the Switchboard and uses both Sigen sensors:\n- `sensor.sigen_plant_consumed_power_forecast`\n- `sensor.sigen_plant_consumed_power` (the current reading)\n\nHAEO showed a \"Success\" message. The Load now appears under the Home hub as a new device with 12 entities. I didn't open the Load's entities to check their values.\n\nPoints where I hesitated or was unsure:\n- **Name:** I left the default name \"Load\" instead of something like \"Household\". I wasn't sure a custom name mattered.\n- **Connection:** The form had Switchboard preselected, and I kept it. I assumed whole-house consumption belongs on the AC side, but I didn't check this against anything.\n- **Single field:** There was one \"Forecast\" field for both sensors, with no separate field for the current power. I wasn't sure it would accept two entries. It did, and the preview chart updated to the combined result.\n- **Dropdown:** After I picked the forecast sensor, the dropdown didn't reopen when I clicked it. I typed \"consumed_power\" to search and picked the current-power sensor that way.\n- **Shedding:** I didn't open the optional Shedding section and left it at its defaults.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Load' connected to the Switchboard, using both sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power as forecast sources. HAEO now shows the Load device with 12 entities.",
+  "actions": 8,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.1
+}

@@ -1,0 +1,17 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.2, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 4.8, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "click", "args": ["f2e513"], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e592"], "error": null, "visible_errors": 0}
+{"t": 12.9, "command": "type", "args": ["f2e595", "55"], "error": null, "visible_errors": 0}
+{"t": 14.0, "command": "click", "args": ["f2e933"], "error": null, "visible_errors": 0}
+{"t": 15.3, "command": "click", "args": ["f2e607"], "error": null, "visible_errors": 0}
+{"t": 16.5, "command": "type", "args": ["f2e610", "30"], "error": null, "visible_errors": 0}
+{"t": 20.7, "command": "click", "args": ["f1270"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 21.9, "command": "click", "args": ["f2e1270"], "error": null, "visible_errors": 0}
+{"t": 23.4, "command": "click", "args": ["f2e500"], "error": null, "visible_errors": 0}
+{"t": 24.6, "command": "click", "args": ["f2e1292"], "error": null, "visible_errors": 0}
+{"t": 26.7, "command": "done", "args": ["Added the grid connection 'Grid' to HAEO's Home hub. Connected to Switchboard (AC). Import price: Amber Express - Home General Price. Export price: Amber Express - Home Feed In Price. Import limit: fixed 55 kW. Export limit: fixed 30 kW. Success dialog confirmed 'Created configuration for Grid'; Grid device now shows 12 entities."], "error": null, "visible_errors": 0}

@@ -1,0 +1,11 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.3, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "type", "args": ["f2e445", "Household consumption"], "error": null, "visible_errors": 0}
+{"t": 6.5, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "click", "args": ["f2e634"], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 10.6, "command": "type", "args": ["f2e487", "sigen_plant_consumed_power"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "click", "args": ["f2e841"], "error": null, "visible_errors": 0}
+{"t": 13.6, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 15.1, "command": "click", "args": ["f2e873"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "done", "args": ["Added a Load named 'Household consumption' on the Switchboard, with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (current)."], "error": null, "visible_errors": 0}

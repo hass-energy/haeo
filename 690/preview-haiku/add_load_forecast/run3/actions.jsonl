@@ -1,0 +1,8 @@
+{"t": 2.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "type", "args": ["f2e487", "consumed"], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "click", "args": ["f2e513"], "error": null, "visible_errors": 0}
+{"t": 10.2, "command": "type", "args": ["f2e487", "consumed"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e574"], "error": null, "visible_errors": 0}

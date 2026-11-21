@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1370264,
+  "turns": 11,
+  "report": "I added a Solar element named \"Solar\" to the Home hub and connected it to the Inverter. Its forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. After submitting, the form said \"Created configuration for Solar\". The hub now lists a Solar device with 4 entities.\n\nI didn't leave the Curtailment section at anything other than its default, and I didn't open the new Solar entities to check their values.\n\nPoints where I hesitated or slipped:\n- **Connection:** The form had Inverter pre-selected. I left it, because you said the panels feed the inverter, but I didn't compare it against the Switchboard option beyond reading the labels.\n- **Forecast picker:** The dropdown only let me add one sensor per click, and a second click on the field showed no list. I typed \"solcast\" to filter it, then used \"Add all 2\" for the remaining two sensors. The three sensors are all showing in the field, but I didn't check how HAEO combines them.\n- **Other forecasts offered:** The list also had many \"energy production\" sensors (East, North, South, West, d2 to d7). I ignored them because they weren't Solcast.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Solar element named 'Solar', connected to the Inverter, using the three Solcast PV Forecast sensors (Today, Tomorrow, Day 3) as the forecast. HAEO now shows the Solar device with 4 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.1
+}

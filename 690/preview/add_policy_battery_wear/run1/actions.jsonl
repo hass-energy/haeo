@@ -1,0 +1,11 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.5, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "type", "args": ["f2e487", "Battery wear"], "error": null, "visible_errors": 0}
+{"t": 6.8, "command": "click", "args": ["f2e512"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "click", "args": ["f2e546"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "click", "args": ["f2e561"], "error": null, "visible_errors": 0}
+{"t": 11.4, "command": "type", "args": ["f2e532", "0.01"], "error": null, "visible_errors": 0}
+{"t": 11.8, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "click", "args": ["f2e535"], "error": null, "visible_errors": 0}
+{"t": 14.9, "command": "click", "args": ["f2e615"], "error": null, "visible_errors": 0}
+{"t": 15.0, "command": "done", "args": ["Created policy 'Battery wear': source Battery, target Any, price 0.01 $/kWh."], "error": null, "visible_errors": 0}

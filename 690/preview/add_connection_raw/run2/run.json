@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.06052369999999999,
+  "turns": 8,
+  "report": "I added a connection called \"Inverter to Switchboard\" in the Home hub. It runs from the Inverter to the Switchboard, with max power set to a fixed 10 kW. Home Assistant showed \"Created configuration for Inverter to Switchboard\", and the new connection now appears in the hub's list.\n\nI left the Price and Connection efficiency fields at their defaults.\n\nPoints where I hesitated or made a mistake:\n- The form already had Inverter as the source and Switchboard as the target, so I didn't change them. I checked both against the dropdowns before submitting.\n- The name field was pre-filled with \"Connection\", and the instructions gave no name. I chose \"Inverter to Switchboard\".\n- The Max power field takes either an entity or a typed value. I typed 10 and picked the \"Fixed value 10 kW\" option, since you gave a fixed rating rather than a sensor.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' from Inverter to Switchboard with max power 10 kW; success confirmed.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 10.6
+}

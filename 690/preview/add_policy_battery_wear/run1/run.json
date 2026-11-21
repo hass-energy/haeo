@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.094961,
+  "turns": 10,
+  "report": "I added a policy named \"Battery wear\" to the Home hub. It sets a price of 0.01 $/kWh on energy leaving the Battery, going to any target. HAEO showed \"Created configuration for Policies\", and a new Policies device appeared on the hub page. I didn't open the policy again to check the saved values.\n\nPoints where I hesitated or was unsure:\n- **Policy as the mechanism:** I picked Policy because it was the only element with a price per source and target. I couldn't confirm that a positive price means a cost on discharge, not a payment. The field only said \"Price\", with a $/kWh unit.\n- **Target left on \"Any\":** I didn't click it. I assumed it was the default, and the form accepted it. I think it covers energy going anywhere, but I never saw it selected.\n- **Source picker:** The first click on \"Elements\" showed only a blank list item. I had to click it again to open the picker, then choose Battery.\n- **Price entry:** I typed 0.01 and pressed Enter to turn it into a fixed value. I did this before the form showed that was how it worked.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Created policy 'Battery wear': source Battery, target Any, price 0.01 $/kWh.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.0
+}

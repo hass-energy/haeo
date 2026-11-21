@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0649778,
+  "turns": 8,
+  "report": "\"Pool pump\" is now in HAEO as its own Load under the Home hub. It's connected to the Switchboard and uses a fixed 0.8 kW as its forecast. After I submitted it, the Home hub listed \"Pool pump\" as a Load device with 12 entities. I didn't open the new load afterwards to check its saved settings.\n\nPoints where I hesitated:\n- **Connection:** The form had \"Switchboard (AC)\" preselected. I kept it because I assumed the pump is wired to your mains switchboard rather than to the inverter's DC side. I couldn't confirm your wiring from the interface.\n- **Forecast field:** The field asks you to search for an entity or enter a value. I typed 0.8 and picked the \"Fixed value 0.8 kW\" option. I assumed this is how a constant load is meant to be entered.\n- **Shedding:** I left the optional Shedding section collapsed and unchanged. The pump runs all the time, so I didn't think it needed it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Pool pump', connected to the Switchboard (AC), with a fixed forecast of 0.8 kW. It now appears under the Home hub.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.4
+}

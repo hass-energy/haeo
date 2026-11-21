@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.0875997,
+  "turns": 8,
+  "report": "I added \"Pool pump\" to HAEO as its own Load under Home. It's connected to the Switchboard and uses a fixed 0.8 kW forecast. After I submitted it, the integration page showed \"Pool pump\" as a new device with 12 entities. I didn't open the device to check its values.\n\nPoints where I hesitated or guessed:\n- **Connection:** I kept the default, Switchboard (AC), without checking it against your wiring. I assumed a pool pump plugs into the house AC side rather than the inverter's DC side.\n- **Forecast:** I typed 0.8 and picked the \"Fixed value 0.8 kW\" option, assuming that is how HAEO takes a constant draw. I didn't expand the optional \"Shedding\" section, so those settings are untouched.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Pool pump', connected to Switchboard (AC), with a fixed forecast of 0.8 kW. It now appears under Home with 12 entities.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 13.0
+}

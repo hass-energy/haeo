@@ -1,0 +1,422 @@
+{
+  "before": {
+    "01M7YHK0VXAYSWMDTAESKBACA8": {
+      "type": "inverter",
+      "title": "Inverter",
+      "data": {
+        "name": "Inverter",
+        "element_type": "inverter",
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        },
+        "efficiency": {},
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_max_active_power"
+            ]
+          },
+          "max_power_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_max_active_power"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YHK0VXNWZDBZB1DSTWF5HA": {
+      "type": "junction",
+      "title": "Switchboard",
+      "data": {
+        "name": "Switchboard",
+        "element_type": "junction"
+      }
+    },
+    "01M7YHK0VXVB3NFH7177642QC0": {
+      "type": "battery",
+      "title": "Battery",
+      "data": {
+        "name": "Battery",
+        "element_type": "battery",
+        "advanced": {
+          "charge_limit_cost": {
+            "type": "constant",
+            "value": 100.0
+          }
+        },
+        "connection": {
+          "type": "connection_target",
+          "value": "Inverter"
+        },
+        "efficiency": {
+          "efficiency_source_target": {
+            "type": "constant",
+            "value": 98.0
+          },
+          "efficiency_target_source": {
+            "type": "constant",
+            "value": 98.0
+          }
+        },
+        "limits": {
+          "max_charge_percentage": {
+            "type": "constant",
+            "value": 100.0
+          },
+          "min_charge_percentage": {
+            "type": "constant",
+            "value": 5.0
+          }
+        },
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_ess_rated_discharging_power"
+            ]
+          },
+          "max_power_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_ess_rated_charging_power"
+            ]
+          }
+        },
+        "pricing": {},
+        "storage": {
+          "capacity": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_rated_energy_capacity"
+            ]
+          },
+          "initial_charge_percentage": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_battery_state_of_charge"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YHK0VXD01JANDTXV3G8Y4F": {
+      "type": "solar",
+      "title": "Solar",
+      "data": {
+        "name": "Solar",
+        "element_type": "solar",
+        "connection": {
+          "type": "connection_target",
+          "value": "Inverter"
+        },
+        "curtailment": {
+          "curtailment": {
+            "type": "constant",
+            "value": true
+          }
+        },
+        "forecast": {
+          "forecast": {
+            "type": "entity",
+            "value": [
+              "sensor.energy_production_d3_east",
+              "sensor.energy_production_d4_east",
+              "sensor.energy_production_d5_east",
+              "sensor.energy_production_d6_east",
+              "sensor.energy_production_d7_east",
+              "sensor.energy_production_d2_east",
+              "sensor.energy_production_today_east",
+              "sensor.energy_production_tomorrow_east",
+              "sensor.energy_production_d3_north",
+              "sensor.energy_production_d4_north",
+              "sensor.energy_production_d5_north",
+              "sensor.energy_production_d6_north",
+              "sensor.energy_production_d7_north",
+              "sensor.energy_production_d2_north",
+              "sensor.energy_production_today_north",
+              "sensor.energy_production_tomorrow_north",
+              "sensor.energy_production_d3_south",
+              "sensor.energy_production_d4_south",
+              "sensor.energy_production_d5_south",
+              "sensor.energy_production_d6_south",
+              "sensor.energy_production_d7_south",
+              "sensor.energy_production_d2_south",
+              "sensor.energy_production_today_south",
+              "sensor.energy_production_tomorrow_south",
+              "sensor.energy_production_d3_west",
+              "sensor.energy_production_d4_west",
+              "sensor.energy_production_d5_west",
+              "sensor.energy_production_d6_west",
+              "sensor.energy_production_d7_west",
+              "sensor.energy_production_d2_west",
+              "sensor.energy_production_today_west",
+              "sensor.energy_production_tomorrow_west",
+              "sensor.sigen_plant_pv_power"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YHK0VX4QXMCAXNBD9TEZNM": {
+      "type": "load",
+      "title": "Load",
+      "data": {
+        "name": "Load",
+        "element_type": "load",
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        },
+        "curtailment": {},
+        "forecast": {
+          "forecast": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_consumed_power_forecast",
+              "sensor.sigen_plant_consumed_power"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YHK0W9JE8T7SCETEZYGHJD": {
+      "type": "network",
+      "title": "System",
+      "data": {
+        "name": "System",
+        "element_type": "network"
+      }
+    }
+  },
+  "after": {
+    "01M7YHK0VXAYSWMDTAESKBACA8": {
+      "type": "inverter",
+      "title": "Inverter",
+      "data": {
+        "name": "Inverter",
+        "element_type": "inverter",
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        },
+        "efficiency": {},
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_max_active_power"
+            ]
+          },
+          "max_power_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_max_active_power"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YHK0VXNWZDBZB1DSTWF5HA": {
+      "type": "junction",
+      "title": "Switchboard",
+      "data": {
+        "name": "Switchboard",
+        "element_type": "junction"
+      }
+    },
+    "01M7YHK0VXVB3NFH7177642QC0": {
+      "type": "battery",
+      "title": "Battery",
+      "data": {
+        "name": "Battery",
+        "element_type": "battery",
+        "advanced": {
+          "charge_limit_cost": {
+            "type": "constant",
+            "value": 100.0
+          }
+        },
+        "connection": {
+          "type": "connection_target",
+          "value": "Inverter"
+        },
+        "efficiency": {
+          "efficiency_source_target": {
+            "type": "constant",
+            "value": 98.0
+          },
+          "efficiency_target_source": {
+            "type": "constant",
+            "value": 98.0
+          }
+        },
+        "limits": {
+          "max_charge_percentage": {
+            "type": "constant",
+            "value": 100.0
+          },
+          "min_charge_percentage": {
+            "type": "constant",
+            "value": 5.0
+          }
+        },
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_ess_rated_discharging_power"
+            ]
+          },
+          "max_power_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_ess_rated_charging_power"
+            ]
+          }
+        },
+        "pricing": {},
+        "storage": {
+          "capacity": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_rated_energy_capacity"
+            ]
+          },
+          "initial_charge_percentage": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_battery_state_of_charge"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YHK0VXD01JANDTXV3G8Y4F": {
+      "type": "solar",
+      "title": "Solar",
+      "data": {
+        "name": "Solar",
+        "element_type": "solar",
+        "connection": {
+          "type": "connection_target",
+          "value": "Inverter"
+        },
+        "curtailment": {
+          "curtailment": {
+            "type": "constant",
+            "value": true
+          }
+        },
+        "forecast": {
+          "forecast": {
+            "type": "entity",
+            "value": [
+              "sensor.energy_production_d3_east",
+              "sensor.energy_production_d4_east",
+              "sensor.energy_production_d5_east",
+              "sensor.energy_production_d6_east",
+              "sensor.energy_production_d7_east",
+              "sensor.energy_production_d2_east",
+              "sensor.energy_production_today_east",
+              "sensor.energy_production_tomorrow_east",
+              "sensor.energy_production_d3_north",
+              "sensor.energy_production_d4_north",
+              "sensor.energy_production_d5_north",
+              "sensor.energy_production_d6_north",
+              "sensor.energy_production_d7_north",
+              "sensor.energy_production_d2_north",
+              "sensor.energy_production_today_north",
+              "sensor.energy_production_tomorrow_north",
+              "sensor.energy_production_d3_south",
+              "sensor.energy_production_d4_south",
+              "sensor.energy_production_d5_south",
+              "sensor.energy_production_d6_south",
+              "sensor.energy_production_d7_south",
+              "sensor.energy_production_d2_south",
+              "sensor.energy_production_today_south",
+              "sensor.energy_production_tomorrow_south",
+              "sensor.energy_production_d3_west",
+              "sensor.energy_production_d4_west",
+              "sensor.energy_production_d5_west",
+              "sensor.energy_production_d6_west",
+              "sensor.energy_production_d7_west",
+              "sensor.energy_production_d2_west",
+              "sensor.energy_production_today_west",
+              "sensor.energy_production_tomorrow_west",
+              "sensor.sigen_plant_pv_power"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YHK0VX4QXMCAXNBD9TEZNM": {
+      "type": "load",
+      "title": "Load",
+      "data": {
+        "name": "Load",
+        "element_type": "load",
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        },
+        "curtailment": {},
+        "forecast": {
+          "forecast": {
+            "type": "entity",
+            "value": [
+              "sensor.sigen_plant_consumed_power_forecast",
+              "sensor.sigen_plant_consumed_power"
+            ]
+          }
+        }
+      }
+    },
+    "01M7YHK0W9JE8T7SCETEZYGHJD": {
+      "type": "network",
+      "title": "System",
+      "data": {
+        "name": "System",
+        "element_type": "network"
+      }
+    },
+    "01M7YHKQ1NHMJVP4DC6XWDGJ5Z": {
+      "type": "grid",
+      "title": "Grid",
+      "data": {
+        "element_type": "grid",
+        "name": "Grid",
+        "pricing": {
+          "price_source_target": {
+            "type": "entity",
+            "value": [
+              "sensor.amber_express_home_general_price"
+            ]
+          },
+          "price_target_source": {
+            "type": "entity",
+            "value": [
+              "sensor.amber_express_home_feed_in_price"
+            ]
+          }
+        },
+        "power_limits": {
+          "max_power_source_target": {
+            "type": "constant",
+            "value": 55.0
+          },
+          "max_power_target_source": {
+            "type": "constant",
+            "value": 30.0
+          }
+        },
+        "connection": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        }
+      }
+    }
+  }
+}

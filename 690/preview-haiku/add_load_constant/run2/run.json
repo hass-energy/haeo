@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.00798539,
+  "turns": 10,
+  "report": "I added \"Pool pump\" as a Load under the Home hub. The success dialog said \"Created configuration for Pool pump\", and a Pool pump device now appears in the Home hub list. The entity count went from 60 to 72.\n\nSettings used:\n- **Name:** Pool pump\n- **Connection:** Switchboard, AC (the default)\n- **Forecast:** Fixed value 0.8 kW, picked from the suggestion that appeared when I typed 0.8\n- **Shedding:** left unset, since the pump runs all the time\n\nI did not reopen the saved load to check the stored values. I relied on the success message and the new device.\n\nPoints where I hesitated or was unsure:\n- **Connection choice:** I kept the default Switchboard (AC) connection without checking the other options. I assumed a pool pump sits on the house AC side, like the existing Load, but I did not confirm this against your wiring.\n- **Constant vs. forecast:** The Forecast field is the only place to enter a constant, so I used \"Fixed value 0.8 kW\" there. I took that to be the intended way to model a constant load, though the form does not say so explicitly.\n- **Shedding:** I did not configure it. Since the pump runs continuously you probably don't want it shed, but I did not check what the Shedding section does by default.\n- **Unit:** The picker showed kW, which matches your 0.8 kW figure, so I did not need to convert anything.\n- **No mistakes made:** I did not change any other element or hub.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Pool pump' to the Home hub. Connection is the default Switchboard (AC), forecast is a fixed value of 0.8 kW, and shedding is left unset since the pump runs all the time. The success dialog said 'Created configuration for Pool pump', and a 'Pool pump' Load device now appears under Home (entity count went from 60 to 72).",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 14.4
+}

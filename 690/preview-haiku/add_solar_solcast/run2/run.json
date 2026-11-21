@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.009388200000000001,
+  "turns": 11,
+  "report": "I added the rooftop solar to HAEO under the Home hub and submitted it. The dialog reported \"Created configuration for Solar\", and a Solar device with 4 entities now appears under Home.\n\nWhat I set:\n- **Name:** left as the default, \"Solar\".\n- **Connection:** \"Inverter, DC\", since you said the panels feed into the inverter.\n- **Forecast:** the three Solcast sensors, `sensor.solcast_pv_forecast_forecast_today`, `_forecast_tomorrow` and `_forecast_day_3`.\n\nPoints where I hesitated or was unsure:\n- **Connection choice:** I picked the DC option because you said the panels feed the inverter. I didn't check whether your Sigen inverter is hybrid or whether the switchboard option would be more accurate.\n- **Forecast list:** the picker also offered East, North, South and West solar sensors, plus a Sigen \"PV Power\" current-value sensor and a \"Consumed Power Forecast\". I left all of them out because you asked for the Solcast forecast.\n- **Curtailment:** I left this collapsed section at its defaults without reading it, because the task didn't mention it.\n- **Verification:** I confirmed only the success message and the entity count. I didn't open the Solar device to check that all three forecast sensors are attached and feeding the optimiser.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.5
+}

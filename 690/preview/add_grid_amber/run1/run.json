@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.15401430000000002,
+  "turns": 13,
+  "report": "I added the Grid to HAEO, and Home Assistant showed \"Created configuration for Grid.\" I didn't reopen the Grid afterwards to check the saved values.\n\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Import limit:** 55 kW.\n- **Export limit:** 30 kW.\n- **Connection:** Switchboard, which was already selected as the default. I left it because the Grid is your connection to the mains, but I wasn't certain it was the right choice.\n\nPoints where I hesitated or went off track:\n- **Connection choice:** the form doesn't explain the options, so Switchboard (AC) over Inverter (DC) is my own judgement.\n- **Default limits:** the limits came pre-filled at 100 kW. I removed each one and typed the new value.\n- **Typed limit values:** typing 55 only counted after pressing Enter to confirm it. I did the same for 30.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid (Switchboard connection) with import price = Amber general price, export price = Amber feed-in price, import limit 55 kW, export limit 30 kW.",
+  "actions": 14,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.5
+}

@@ -1,0 +1,8 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.7, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.4, "command": "type", "args": ["f2e541", "10"], "error": null, "visible_errors": 0}
+{"t": 7.4, "command": "click", "args": ["f2e571"], "error": null, "visible_errors": 0}
+{"t": 8.9, "command": "type", "args": ["f2e505", "Inverter to Switchboard"], "error": null, "visible_errors": 0}
+{"t": 10.2, "command": "click", "args": ["f2e566"], "error": null, "visible_errors": 0}
+{"t": 11.4, "command": "click", "args": ["f2e593"], "error": null, "visible_errors": 0}
+{"t": 13.3, "command": "done", "args": ["Added a Connection named 'Inverter to Switchboard' with source Inverter, target Switchboard, and max power a fixed 10 kW. HAEO reported 'Created configuration for Inverter to Switchboard' and the Home hub now lists the connection."], "error": null, "visible_errors": 0}

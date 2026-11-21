@@ -1,0 +1,17 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "type", "args": ["f2e443", "Sigenergy", "Battery"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "type", "args": ["f2e485", "rated", "energy", "capacity"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "click", "args": ["f2e610"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "type", "args": ["f2e491", "state", "of", "charge"], "error": null, "visible_errors": 0}
+{"t": 10.2, "command": "click", "args": ["f2e636"], "error": null, "visible_errors": 0}
+{"t": 10.6, "command": "type", "args": ["f2e507", "5"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "click", "args": ["f2e654"], "error": null, "visible_errors": 0}
+{"t": 12.6, "command": "type", "args": ["f2e529", "charging", "power"], "error": null, "visible_errors": 0}
+{"t": 14.3, "command": "click", "args": ["f2e676"], "error": null, "visible_errors": 0}
+{"t": 14.7, "command": "type", "args": ["f2e535", "discharging", "power"], "error": null, "visible_errors": 0}
+{"t": 16.1, "command": "click", "args": ["f2e709"], "error": null, "visible_errors": 0}
+{"t": 16.2, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.7, "command": "click", "args": ["f2e605"], "error": null, "visible_errors": 0}
+{"t": 21.7, "command": "click", "args": ["f2e740"], "error": null, "visible_errors": 0}
+{"t": 21.8, "command": "done", "args": ["Added Sigenergy Battery (DC via Inverter) with capacity and SoC sensors, min charge 5%, max charge/discharge power from ESS rated sensors."], "error": null, "visible_errors": 0}

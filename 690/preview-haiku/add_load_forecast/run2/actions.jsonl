@@ -1,0 +1,9 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 7.0, "command": "type", "args": ["f2e487", "consumed"], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "click", "args": ["f2e820"], "error": null, "visible_errors": 0}
+{"t": 11.0, "command": "type", "args": ["f2e445", "Household"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 13.3, "command": "click", "args": ["f2e860"], "error": null, "visible_errors": 0}
+{"t": 15.6, "command": "done", "args": ["Added a Load element named 'Household' to the Home HAEO hub. Connection is Switchboard (AC), the default. Forecast has both sensor.sigen_plant_consumed_power (current, 0.501 kW) and sensor.sigen_plant_consumed_power_forecast. The combined preview shows 0.501 kW now, then 0 to 1.66 kW over 168 hours. The success dialog said 'Created configuration for Household', and the hub now lists a Household device with 12 entities."], "error": null, "visible_errors": 0}
