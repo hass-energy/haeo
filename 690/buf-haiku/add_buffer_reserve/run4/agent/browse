@@ -1,0 +1,2 @@
+#!/bin/sh
+UX_BENCH_PORT=46883 exec /home/codespace/haeo/.claude/worktrees/bridge-cse_012KWZvNQZAmMAZDSSPbhx7H/.venv/bin/python3 /home/codespace/haeo/.claude/worktrees/bridge-cse_012KWZvNQZAmMAZDSSPbhx7H/tools/ux_bench/browse.py "$@"

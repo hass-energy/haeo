@@ -1,0 +1,7 @@
+2026-04-19 11:58:43,155 homeassistant.loader We found a custom integration haeo which has not been tested by Home Assistant. This component might cause stability problems, be sure to disable it if you experience issues with Home Assistant
+2026-04-19 11:58:43,155 homeassistant.loader We found a custom integration haeo which has not been tested by Home Assistant. This component might cause stability problems, be sure to disable it if you experience issues with Home Assistant
+2026-04-19 11:58:43,155 homeassistant.loader We found a custom integration haeo which has not been tested by Home Assistant. This component might cause stability problems, be sure to disable it if you experience issues with Home Assistant
+2026-04-19 11:58:43,155 aiohttp_fast_zlib zlib_ng and isal are not available, falling back to zlib, performance will be degraded.
+2026-04-19 11:58:43,155 __main__ Home Assistant started, seeding the hub
+2026-04-19 11:58:43,155 __main__ Hub seeded, opening the browser
+2026-04-19 11:58:43,155 __main__ Page ready, serving browse commands

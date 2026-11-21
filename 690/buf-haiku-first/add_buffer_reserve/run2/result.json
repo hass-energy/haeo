@@ -1,0 +1,16 @@
+{
+  "task": "add_buffer_reserve",
+  "success": false,
+  "problems": [
+    "Expected one new buffer subentry, found none"
+  ],
+  "result_data": null,
+  "status": "giveup",
+  "message": "Buffer form is filled in but not submitted. Set: name 'Buffer', kind Reserve (keep energy), window 12 h, participants Load, Solar (Generation), Battery, shortfall cost left at default 0.05 $/kWh/h. Level is blank: it needs the energy (kWh) your house uses over 12 hours, which I don't know. The only Level option HAEO offered was the battery state-of-charge sensor (a live %, not a target), so I did not use it. Tell me the kWh figure (or the average load in kW so I can compute 12 h x kW) and I'll enter it and submit.",
+  "actions": 15,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 35.0
+}

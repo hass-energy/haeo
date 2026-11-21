@@ -1,0 +1,49 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.01236081,
+  "turns": 15,
+  "report": "I added an \"Outage reserve\" buffer to HAEO. It is set up as a 12-hour reserve, but I'm not sure it will hold enough energy yet.\n\n**What I set:**\n- **Name:** Outage reserve\n- **Kind:** Reserve (keep energy), not Headroom\n- **Participants:**\n  - Loads: Load (your house)\n  - Generation: Solar, since it keeps producing during a cut\n  - Batteries: Battery\n- **Window:** 12 h (the default, which matches your requirement)\n- **Shortfall cost:** 0.05 $/kWh/h (the default; I didn't change it)\n- **Level:** left empty\n\nHAEO confirmed \"Created configuration for Outage reserve,\" and the Home hub now lists the buffer with 6 entities.\n\n**Where I hesitated or may have gone wrong:**\n- **Level left empty.** The only option offered was the battery state-of-charge sensor, which is a percentage and not an energy amount, so I didn't use it. I don't know your house's energy use over 12 hours, so I couldn't enter a fixed kWh reserve. If HAEO doesn't derive the reserve from the load forecast when Level is empty, the buffer may not hold enough. You may want to set Level to a kWh value.\n- **Preview looked odd.** The \"What it would do\" preview said loads over the window take up to 24% of battery charge, and that the battery goes as low as 5% with the buffer, the same as the plan now. I didn't understand why the buffer changed nothing, and I didn't check the result after saving.\n- **Accidental collapse.** I clicked the Requirement heading to close a dropdown and collapsed that section. I reopened it and confirmed the 12 h window was still set before submitting.\n- **Solar and the 12-hour window.** I included Solar because you said it helps during an outage. I didn't check whether HAEO counts it as reliable backup or how much it contributes. The 12-hour window and Solar's share are the parts I'd most want to verify.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "buffer",
+    "name": "Outage reserve",
+    "participants": {
+      "loads": [
+        "Load"
+      ],
+      "generation": [
+        "Solar"
+      ],
+      "storage": [
+        "Battery"
+      ]
+    },
+    "requirement": {
+      "window": {
+        "type": "constant",
+        "value": 12.0
+      },
+      "level": {
+        "type": "none"
+      }
+    },
+    "pricing": {
+      "shortfall_cost": {
+        "type": "constant",
+        "value": 0.05
+      }
+    },
+    "kind": "reserve"
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 13,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 34.0
+}

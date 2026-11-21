@@ -1,0 +1,45 @@
+{
+  "task": "add_buffer_reserve",
+  "success": true,
+  "problems": [],
+  "result_data": {
+    "element_type": "buffer",
+    "name": "Power cut reserve",
+    "participants": {
+      "loads": [
+        "Load"
+      ],
+      "generation": [
+        "Solar"
+      ],
+      "storage": [
+        "Battery"
+      ]
+    },
+    "requirement": {
+      "window": {
+        "type": "constant",
+        "value": 12.0
+      },
+      "level": {
+        "type": "constant",
+        "value": 24.0
+      }
+    },
+    "pricing": {
+      "shortfall_cost": {
+        "type": "constant",
+        "value": 0.05
+      }
+    },
+    "kind": "reserve"
+  },
+  "status": "done",
+  "message": "Added a HAEO Buffer named 'Power cut reserve' of kind Reserve (keep energy), with Load and Solar as generation/loads and Battery as the battery, a 12 h window and a Level of 24%. Saved and verified in the dialog.",
+  "actions": 18,
+  "looks": 1,
+  "screenshots": 2,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 52.2
+}

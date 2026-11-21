@@ -1,0 +1,50 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.03314114,
+  "turns": 29,
+  "report": "I added an \"Outage reserve\" buffer to your Home hub in HAEO. It is a reserve that keeps the battery at 24% or more. The new buffer device appears in the list with 7 entities, which confirms it saved.\n\n**How I set it:**\n- **Kind:** Reserve (keep energy), the default.\n- **Window:** 12 hours, the default.\n- **Participants:** Load, Solar (generation) and Battery.\n- **Level:** 24%.\n- **Shortfall cost:** 0.05 $/kWh/h, left at the default.\n\n**How I got 24%:** The battery is 32.2 kWh. The load is about 0.5 kW, so 12 hours is roughly 6 kWh. Adding the 5% minimum charge (about 1.6 kWh) gives about 7.6 kWh, which is about 24%. The buffer preview shows the same 24%.\n\n**Where I hesitated or may have made mistakes:**\n- **Level is a percentage, not kWh.** I had to convert the 12-hour energy need into a battery percentage myself. I used the current 0.5 kW load reading as a worst case. The \"Next 24h energy\" figure (9.33 kWh) would give about 4.7 kWh for 12 hours, so 24% is conservative.\n- **Solar is not counted in the level.** You said solar helps during a cut, and it is in the participants, but I did not lower the level for it. That leaves a margin, but it means the reserve may be more than strictly needed in daylight.\n- **I did not test the reserve against a real outage or the optimizer's plan.** I only checked the saved entry and the preview.\n- **First attempt was discarded.** I entered the buffer once, then closed it to check the battery and load figures. I then recreated it from scratch, so only one \"Outage reserve\" buffer exists. I did not check whether the first attempt left anything behind.\n- **A stray click.** In one command I clicked a ref that did not exist (`f1756`). It timed out and changed nothing; the correct click followed.\n- **Battery figures came from the entity list.** The 32.2 kWh capacity and 5% minimum were read from the entity table, not from the battery's own settings.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "buffer",
+    "name": "Outage reserve",
+    "participants": {
+      "loads": [
+        "Load"
+      ],
+      "generation": [
+        "Solar"
+      ],
+      "storage": [
+        "Battery"
+      ]
+    },
+    "requirement": {
+      "window": {
+        "type": "constant",
+        "value": 12.0
+      },
+      "level": {
+        "type": "constant",
+        "value": 24.0
+      }
+    },
+    "pricing": {
+      "shortfall_cost": {
+        "type": "constant",
+        "value": 0.05
+      }
+    },
+    "kind": "reserve"
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 28,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 59.1
+}

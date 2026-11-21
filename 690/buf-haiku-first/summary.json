@@ -1,0 +1,19 @@
+{
+  "runs": 3,
+  "passed": 1,
+  "success_rate": 0.333,
+  "actions": 15,
+  "cost_usd": 0.06,
+  "tasks": {
+    "add_buffer_reserve": {
+      "runs": 3,
+      "passed": 1,
+      "actions": 15,
+      "actions_when_passed": 28,
+      "errors_shown": 0,
+      "seconds": 35.0,
+      "cost_usd": 0.06
+    }
+  },
+  "model": "haiku"
+}

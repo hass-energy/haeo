@@ -1,0 +1,16 @@
+{
+  "task": "add_buffer_reserve",
+  "success": false,
+  "problems": [
+    "Expected one new buffer subentry, found none"
+  ],
+  "result_data": null,
+  "status": "giveup",
+  "message": "Buffer is set up as a Reserve over a 12 h window with Load, Solar and Battery as participants, but I stopped before submitting. The Level field needs the energy to hold back for 12 hours of house use (in kWh or as a percentage of battery), and I don't have that figure. The Level search returned no load-consumption sensor, only the battery state-of-charge sensor. Nothing was submitted.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 25.4
+}

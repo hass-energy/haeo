@@ -1,0 +1,21 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 1,
+  "success": false,
+  "cost_usd": 0.010319090000000003,
+  "turns": 13,
+  "report": "I haven't submitted the buffer. It needs one number I don't have: how much energy the house uses in 12 hours.\n\n**What's set up in the open Buffer form (not submitted):**\n- Name: \"Buffer\" (default, unchanged)\n- Kind: \"Reserve: keep energy\", which is the right choice for a power-cut reserve. Headroom is the other option and doesn't apply here.\n- Participants: Load (loads to keep running), Solar (generation that keeps producing through an outage, so it counts toward the reserve), and Battery (holds the buffer together).\n- Window: 12 h, already filled in by default and matching your requirement.\n- Shortfall cost: 0.05 $/kWh/h, the default, which I left alone.\n\n**What's missing:** the Level field. It's the amount of energy to keep in the batteries. The only sensor the Level search offered was the battery state-of-charge sensor, and I couldn't find a load-consumption sensor. Without a 12-hour usage figure, any number I entered would be a guess. The preview also showed \"Keeps up to 24% charge\", which didn't match anything I had entered, so I couldn't tell what the field expects.\n\n**What I need from you:** your household's average consumption for 12 hours, in kWh. If you'd rather give the reserve as a battery percentage, tell me your battery's usable capacity too. Then I can set the Level and submit.\n\n**Points where I hesitated or was unsure:**\n- The Level field's unit (kWh or %) was not clear from the page, and the preview's 24% figure didn't match anything I'd entered.\n- I didn't know the household's load, so I couldn't size the reserve. I didn't want to submit a made-up value.\n- I added Solar as a participant because you said it keeps producing during an outage. I didn't check whether counting it could leave the reserve too small if your panels produce little in bad weather. You may want to size the reserve without solar as a safety margin.\n- My first click on \"What it would do\" did nothing, so I expanded the Loads picker instead. That was harmless, but it's a small misstep.\n- I gave up with `giveup` after the Level search came back empty. That was a judgement call: the task is blocked on your number, not on the interface.",
+  "driver_error": null,
+  "problems": [
+    "Expected one new buffer subentry, found none"
+  ],
+  "result_data": null,
+  "status": "giveup",
+  "message": "Buffer is set up as a Reserve over a 12 h window with Load, Solar and Battery as participants, but I stopped before submitting. The Level field needs the energy to hold back for 12 hours of house use (in kWh or as a percentage of battery), and I don't have that figure. The Level search returned no load-consumption sensor, only the battery state-of-charge sensor. Nothing was submitted.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 25.4
+}

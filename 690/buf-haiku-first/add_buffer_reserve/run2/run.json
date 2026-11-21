@@ -1,0 +1,21 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 2,
+  "success": false,
+  "cost_usd": 0.01493162,
+  "turns": 17,
+  "report": "I didn't finish the buffer. It is filled in but not submitted, because I don't know how much energy the house needs for 12 hours.\n\n**What's set in the Buffer form (not saved yet):**\n- Name: Buffer\n- Kind: Reserve: keep energy\n- Window: 12 h (already the default)\n- Participants: Load, Solar (under Generation), and Battery\n- Shortfall cost: 0.05 $/kWh/h (the default, which I left alone)\n\n**What's missing:** the Level. HAEO's Level field expects an energy amount, which should be your house's consumption over 12 hours. The only option the picker offered was the battery state-of-charge sensor (currently 12.8 %). That is a live reading, not a target, so I didn't use it. I didn't find any energy or load sensor to pick from.\n\nTo finish, give me either the total kWh the house uses in 12 hours, or your average load in kW (I'll multiply by 12). I'll enter it and submit. I can also check the Load sensor's average in Home Assistant if you'd rather I look it up.\n\nPoints where I hesitated or was unsure:\n- I was unsure what Level expects (energy vs. percentage), since the picker only offered the state-of-charge sensor. I chose not to guess.\n- I left the default shortfall cost of 0.05 $/kWh/h without knowing whether it suits your tariff.\n- I didn't add the Grid to the buffer, because the form's participant list doesn't need it for a reserve, though I haven't confirmed that.\n- My first attempts to clear the Level search text and open \"What it would do\" didn't seem to take effect, so I left that section unread.\n- I stopped with the form open instead of submitting, which is the main open item.",
+  "driver_error": null,
+  "problems": [
+    "Expected one new buffer subentry, found none"
+  ],
+  "result_data": null,
+  "status": "giveup",
+  "message": "Buffer form is filled in but not submitted. Set: name 'Buffer', kind Reserve (keep energy), window 12 h, participants Load, Solar (Generation), Battery, shortfall cost left at default 0.05 $/kWh/h. Level is blank: it needs the energy (kWh) your house uses over 12 hours, which I don't know. The only Level option HAEO offered was the battery state-of-charge sensor (a live %, not a target), so I did not use it. Tell me the kWh figure (or the average load in kW so I can compute 12 h x kW) and I'll enter it and submit.",
+  "actions": 15,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 35.0
+}

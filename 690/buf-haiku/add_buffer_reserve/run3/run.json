@@ -1,0 +1,50 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.019298230000000006,
+  "turns": 21,
+  "report": "I added an \"Outage reserve\" buffer to the Home hub. The buffer now appears in the hub's device list with 7 entities, and the success dialog confirmed it was created.\n\nWhat I set up:\n- **Kind:** Reserve (keep energy), the default.\n- **Participants:** Load as the loads to keep running, Solar as the generation that keeps producing during the outage, and Battery as the batteries that hold the reserve.\n- **Window:** 12 h, the default, which matches your longest outage.\n- **Level:** Fixed 43%.\n- **Shortfall cost:** 0.05 $/kWh/h, the default. I left it alone.\n\nI did not check the entities HAEO created or run an optimisation, so the result is not verified beyond the success message.\n\nPoints where I hesitated or was unsure:\n- **Level value:** The \"What it would do\" preview said covering the loads over 12 h takes \"up to 24%\" of battery charge, and later \"up to 43%\". The figure changed while I was editing and I could not tell why. I chose 43% because a reserve that is too low fails the outage, while one that is too high only costs some battery use. I have not confirmed whether the preview already nets off solar. If it does not, 43% is more than you need, and the figure could be lowered.\n- **Level as a fixed number:** The Level field also accepts a sensor. I chose a fixed value because I could not find a sensor for the required reserve. A fixed value will not adjust if your house load changes.\n- **Solar as a participant:** I included Solar because you said it keeps producing during an outage. I could not confirm how HAEO credits that solar in the reserve calculation.\n- **Shortfall cost:** It is required, and I kept the default 0.05 $/kWh/h. I do not know how strongly that default pushes the optimiser to keep the reserve, so you may want to review it.\n- **Battery participant:** The Battery option is one of the batteries that holds the buffer. My Sigen battery is the only battery HAEO shows, so I added it without checking whether there is more than one.\n- **Buffer name:** I renamed it \"Outage reserve\" from the default \"Buffer\". That is my own choice and easy to change.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "buffer",
+    "name": "Outage reserve",
+    "participants": {
+      "loads": [
+        "Load"
+      ],
+      "generation": [
+        "Solar"
+      ],
+      "storage": [
+        "Battery"
+      ]
+    },
+    "requirement": {
+      "window": {
+        "type": "constant",
+        "value": 12.0
+      },
+      "level": {
+        "type": "constant",
+        "value": 43.0
+      }
+    },
+    "pricing": {
+      "shortfall_cost": {
+        "type": "constant",
+        "value": 0.05
+      }
+    },
+    "kind": "reserve"
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 17,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 50.5
+}

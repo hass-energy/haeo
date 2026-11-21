@@ -1,0 +1,49 @@
+{
+  "task": "add_buffer_reserve",
+  "repeat": 5,
+  "success": true,
+  "cost_usd": 0.01487221,
+  "turns": 16,
+  "report": "I created a HAEO buffer called \"Outage reserve\" to keep enough battery charge for a 12-hour outage, but I did not set an explicit energy amount, and I could not confirm the reserve is actually holding charge.\n\n**What I set up:**\n- **Kind:** Reserve (keep energy), not Headroom.\n- **Window:** 12 h, the default, which matches your outage length.\n- **Participants:** Load (the house loads), Solar (generation that keeps producing during an outage), and Battery (the store holding the reserve).\n- **Level:** left empty. HAEO's preview computes the energy needed to cover the loads over the window.\n- **Shortfall cost:** left at the default of 0.05 $/kWh/h.\n\nThe success dialog confirmed the buffer was created, and it now appears in the hub's device list.\n\n**Where I hesitated or may have gone wrong:**\n- **Level left empty.** The field is not marked required, and the preview said covering the loads over 12 h takes up to 24% of battery charge. But the same preview said the battery would drop \"as low as 5%\" with the buffer, the same as the current plan. That suggests the reserve may not raise the floor, and an empty Level may mean no reserve at all. I did not check this further. Confirm the buffer's effect before relying on it during an outage.\n- **Level search found no load sensor.** Searching \"load\" in the Level picker returned nothing, and the only suggestion was the battery state-of-charge sensor. I did not know which unit Level expects (kWh or %), so I did not type a number.\n- **Solar as a participant.** I included Solar because you said it helps during a power cut. HAEO's text says generation \"keeps producing through an outage\" counts toward the reserve, but I could not check how much solar it credits.\n- **Name.** I renamed the buffer \"Outage reserve\" without being asked; the default was \"Buffer\".\n- **Battery state.** The battery sensor showed about 12.8% state of charge when I opened the picker. That is low for a 12-hour outage, and I did not check whether the reserve is achievable from that level.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "buffer",
+    "name": "Outage reserve",
+    "participants": {
+      "loads": [
+        "Load"
+      ],
+      "generation": [
+        "Solar"
+      ],
+      "storage": [
+        "Battery"
+      ]
+    },
+    "requirement": {
+      "window": {
+        "type": "constant",
+        "value": 12.0
+      },
+      "level": {
+        "type": "none"
+      }
+    },
+    "pricing": {
+      "shortfall_cost": {
+        "type": "constant",
+        "value": 0.05
+      }
+    },
+    "kind": "reserve"
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 14,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 39.8
+}
