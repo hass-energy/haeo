@@ -489,12 +489,12 @@
       "step": {
         "user": {
           "title": "Policies",
-          "description": "Each rule charges a price on power flowing from its source elements to its target elements. A rule with no elements on a side applies to every element there.",
+          "description": "Each rule charges a price on power flowing from the elements in From to the elements in To. An end with no elements is Any, and applies to every element.",
           "data": { "rules": "Rules" }
         },
         "reconfigure": {
           "title": "Policies",
-          "description": "Each rule charges a price on power flowing from its source elements to its target elements. A rule with no elements on a side applies to every element there.",
+          "description": "Each rule charges a price on power flowing from the elements in From to the elements in To. An end with no elements is Any, and applies to every element.",
           "data": { "rules": "Rules" }
         }
       },
@@ -502,6 +502,7 @@
         "duplicate_rule": "Two rules have the same source and target",
         "missing_name": "Every rule needs a name",
         "name_exists": "Two rules have the same name",
+        "no_rules": "Add at least one rule",
         "required": "Choose an entity or enter a value for every rule's price",
         "source_target_same": "A rule's source and target cannot be the same elements"
       },
@@ -851,7 +852,7 @@
         "any": "Any",
         "enabled": "{rule} on",
         "from": "From",
-        "price": "Price",
+        "price": "{rule} price",
         "remove_rule": "Remove {rule}",
         "rule_name": "Rule name",
         "to": "To"

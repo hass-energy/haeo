@@ -1,5 +1,5 @@
 import { mdiArrowRight, mdiClose, mdiPlus } from "@mdi/js";
-import { useRef, useState } from "preact/hooks";
+import { useRef } from "preact/hooks";
 import type { JSX } from "preact";
 
 import { NODE_STYLES } from "../element-styles";
@@ -111,8 +111,11 @@ export function PolicyRulesField(props: FieldContext<PolicyRulesConfig, PolicyRu
   // Each rule's card keeps its own key, so a card's open search stays with its rule when another is removed
   const nextKey = useRef(0);
   const newKey = (): number => (nextKey.current += 1);
-  const [keys, setKeys] = useState<number[]>(() => rules.map(() => newKey()));
-  const cardKeys = keys.length === rules.length ? keys : rules.map(() => newKey());
+  const keys = useRef<number[]>([]);
+  if (keys.current.length !== rules.length) {
+    keys.current = rules.map(() => newKey());
+  }
+  const cardKeys = keys.current;
 
   const update = (index: number, change: Partial<PolicyRule>): void => {
     onChange(rules.map((rule, at) => (at === index ? { ...rule, ...change } : rule)));
@@ -158,7 +161,7 @@ export function PolicyRulesField(props: FieldContext<PolicyRulesConfig, PolicyRu
                 disabled={disabled}
                 aria-label={t("policy_rules.options.remove_rule", { rule: rule.name })}
                 onClick={() => {
-                  setKeys(cardKeys.filter((_, at) => at !== index));
+                  keys.current = cardKeys.filter((_, at) => at !== index);
                   onChange(rules.filter((_, at) => at !== index));
                 }}
               >
@@ -190,7 +193,7 @@ export function PolicyRulesField(props: FieldContext<PolicyRulesConfig, PolicyRu
               config={config.price}
               value={rule.price}
               hass={hass}
-              label={`${rule.name} ${t("policy_rules.options.price")}`}
+              label={t("policy_rules.options.price", { rule: rule.name })}
               labelHidden={true}
               required={true}
               disabled={disabled}
@@ -205,7 +208,7 @@ export function PolicyRulesField(props: FieldContext<PolicyRulesConfig, PolicyRu
         class="path-kind rule-add"
         disabled={disabled}
         onClick={() => {
-          setKeys([...cardKeys, newKey()]);
+          keys.current = [...cardKeys, newKey()];
           onChange([...rules, newRule(rules)]);
         }}
       >

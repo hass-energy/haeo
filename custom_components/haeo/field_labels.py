@@ -7,19 +7,14 @@ list item's field by its input entity's name, both of which Home Assistant loads
 before setting up the integration.
 """
 
-from collections.abc import Mapping
-
-from homeassistant.const import CONF_NAME
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.translation import async_get_cached_translations
 
 from .const import DOMAIN
 from .core.data.loader.config_loader import element_inputs
-from .core.schema.util import get_nested_config_value_by_path
-from .elements import InputFieldPath
-
-# A list item field's config path: the list, the item's index, and the field
-LIST_ITEM_PATH_LENGTH = 3
+from .elements import InputFieldPath, get_list_input_fields
+from .elements.input_fields import LIST_ITEM_PATH_LENGTH, is_switch_field_info, list_item_placeholders
 
 
 def _form_label_key(element_type: str, config_path: InputFieldPath) -> str:
@@ -35,25 +30,18 @@ def _form_label_key(element_type: str, config_path: InputFieldPath) -> str:
             return f"{step}.data.{config_path[-1]}"
 
 
-def _list_item_label(hass: HomeAssistant, config: Mapping[str, object], config_path: InputFieldPath) -> str | None:
+def _list_item_label(hass: HomeAssistant, subentry: ConfigSubentry, config_path: InputFieldPath) -> str | None:
     """Return the name of a list item field's input entity, such as a rule's price, or None when it has none.
 
     A list's items are edited in one element on the form, so a field of an item
     is named as its entity is: by its position, or the item's name when it has one.
     """
     list_key, index, field = config_path
-    item = get_nested_config_value_by_path(config, (list_key, index))
-    placeholders = {
-        "position": str(int(index) + 1),
-        "rule_name": str(item.get(CONF_NAME, "")) if isinstance(item, Mapping) else "",
-    }
+    field_info = get_list_input_fields(subentry.data)[f"{list_key}.{index}"][field]
+    platform = "switch" if is_switch_field_info(field_info) else "number"
     names = async_get_cached_translations(hass, hass.config.language, "entity", DOMAIN)
-    element_type = config.get("element_type")
-    for platform in ("number", "switch"):
-        name = names.get(f"component.{DOMAIN}.entity.{platform}.{element_type}_{field}.name")
-        if name is not None:
-            return name.format_map(placeholders)
-    return None
+    name = names.get(f"component.{DOMAIN}.entity.{platform}.{field_info.entity_description.translation_key}.name")
+    return None if name is None else name.format_map(list_item_placeholders(subentry.data, config_path))
 
 
 def input_field_label(hass: HomeAssistant, entry_id: str, element_name: str, field_path: InputFieldPath) -> str:
@@ -69,7 +57,7 @@ def input_field_label(hass: HomeAssistant, entry_id: str, element_name: str, fie
         field_path
     ]
     if len(config_path) == LIST_ITEM_PATH_LENGTH:
-        label = _list_item_label(hass, {"element_type": subentry.subentry_type, **subentry.data}, config_path)
+        label = _list_item_label(hass, subentry, config_path)
     else:
         translations = async_get_cached_translations(hass, hass.config.language, "config_subentries", DOMAIN)
         label = translations.get(_form_label_key(subentry.subentry_type, config_path))

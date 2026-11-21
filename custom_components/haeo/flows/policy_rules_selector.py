@@ -37,7 +37,7 @@ POLICY_RULES_STRINGS: dict[str, tuple[str, ...]] = {
     "any": (),
     "enabled": ("rule",),
     "from": (),
-    "price": (),
+    "price": ("rule",),
     "remove_rule": ("rule",),
     "rule_name": (),
     "to": (),

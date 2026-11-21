@@ -65,11 +65,14 @@ export function ConnectionPathField(props: FieldContext<ConnectionPathConfig, Co
   // Each segment's card keeps its own key as segments move, so a card's open search moves with it
   const nextKey = useRef(0);
   const newKey = (): number => (nextKey.current += 1);
-  const [keys, setKeys] = useState<number[]>(() => segments.map(() => newKey()));
-  const cardKeys = keys.length === segments.length ? keys : segments.map(() => newKey());
+  const keys = useRef<number[]>([]);
+  if (keys.current.length !== segments.length) {
+    keys.current = segments.map(() => newKey());
+  }
+  const cardKeys = keys.current;
 
   const setSegments = (next: PathSegment[], nextKeys: number[]): void => {
-    setKeys(nextKeys);
+    keys.current = nextKeys;
     setAdding(null);
     onChange({ ...path, segments: next });
   };

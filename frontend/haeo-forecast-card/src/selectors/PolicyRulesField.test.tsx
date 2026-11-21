@@ -18,7 +18,7 @@ const STRINGS: Record<string, string> = {
   "policy_rules.options.enabled": "{rule} on",
   "policy_rules.options.from": "From",
   "policy_rules.options.to": "To",
-  "policy_rules.options.price": "Price",
+  "policy_rules.options.price": "{rule} price",
   "policy_rules.options.remove_rule": "Remove {rule}",
   "policy_rules.options.rule_name": "Rule name",
 };
@@ -153,5 +153,19 @@ describe("PolicyRulesField", () => {
       }
     });
     expect(onChange).toHaveBeenCalledWith([{ ...WEAR, name: "Wear" }, EXPORT]);
+  });
+
+  it("keeps a rule's name box while its name is typed", () => {
+    const onChange = show();
+    const before = container.querySelectorAll<HTMLInputElement>("input[aria-label='Rule name']")[0];
+    act(() => {
+      if (before !== undefined) {
+        before.value = "Wea";
+        before.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    const rules = onChange.mock.calls[0]?.[0] as PolicyRule[];
+    show(rules);
+    expect(container.querySelectorAll<HTMLInputElement>("input[aria-label='Rule name']")[0]).toBe(before);
   });
 });

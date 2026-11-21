@@ -98,6 +98,28 @@ type AnyInputFieldInfo = InputFieldInfo[NumberEntityDescription] | InputFieldInf
 type InputFieldSection = Mapping[str, AnyInputFieldInfo]
 
 
+# A list item field's path: the list, the item's index, and the field
+LIST_ITEM_PATH_LENGTH = 3
+
+
+def list_item_placeholders(data: Mapping[str, object], field_path: tuple[str, ...]) -> dict[str, str]:
+    """Return the placeholders naming a list item's field: its position, and the item's name when it has one.
+
+    A path outside a list, or into an item that is not there, has none.
+    """
+    if len(field_path) < LIST_ITEM_PATH_LENGTH:
+        return {}
+    list_key, index, *_ = field_path
+    items = data.get(list_key)
+    if not isinstance(items, list | tuple) or not index.isdigit() or int(index) >= len(items):
+        return {}
+    item = items[int(index)]
+    placeholders = {"position": str(int(index) + 1)}
+    if isinstance(item, Mapping) and "name" in item:
+        placeholders["rule_name"] = str(item["name"])
+    return placeholders
+
+
 def is_number_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldInfo[NumberEntityDescription]]:
     """Narrow a heterogeneous InputFieldInfo to the NumberEntityDescription variant.
 
@@ -169,6 +191,7 @@ def localize_input_fields(groups: InputFieldGroups, currency_symbol: str) -> Inp
 
 
 __all__ = [
+    "LIST_ITEM_PATH_LENGTH",
     "AnyInputFieldInfo",
     "FieldSchemaInfo",
     "InputFieldDefaults",
@@ -178,6 +201,7 @@ __all__ = [
     "InputFieldSection",
     "is_number_field_info",
     "is_switch_field_info",
+    "list_item_placeholders",
     "localize_input_field",
     "localize_input_fields",
 ]

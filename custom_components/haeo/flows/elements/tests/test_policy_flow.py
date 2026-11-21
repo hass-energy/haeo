@@ -265,6 +265,7 @@ async def test_reconfigure_saves_the_rules_as_edited(
             id="same_pattern",
         ),
         pytest.param([_rule("A", price=as_none_value())], "required", id="no_price"),
+        pytest.param([], "no_rules", id="no_first_rule"),
     ],
 )
 async def test_a_rule_that_cannot_be_saved_is_shown_again_with_the_error(
@@ -276,6 +277,23 @@ async def test_a_rule_that_cannot_be_saved_is_shown_again_with_the_error(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_RULES: error}
     assert _shown_rules(result) == rules
+
+
+async def test_a_stored_rule_naming_what_is_gone_can_still_be_saved(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """A rule naming a deleted element or a sensor no longer offered stays offered, so it doesn't block the form."""
+    stale: PolicyRuleConfig = {
+        "name": "Old",
+        "enabled": ON,
+        "source": ["Old battery"],
+        "price": as_entity_value(["sensor.gone"]),
+    }
+    subentry = _add_policies(hass, hub_entry, [stale])
+
+    result = await _reconfigure_flow(hass, hub_entry, subentry).async_step_reconfigure()
+
+    assert _selector(result)(_shown_rules(result)) == _shown_rules(result)
 
 
 async def test_the_editor_offers_sources_and_targets_by_role(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

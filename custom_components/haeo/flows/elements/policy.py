@@ -6,6 +6,7 @@ opens it with a new rule at the end.
 """
 
 from collections.abc import Mapping, Sequence
+from itertools import count
 from typing import Any  # noqa: TID251  # HA flow signatures upstream
 
 from homeassistant.config_entries import ConfigSubentry, SubentryFlowResult
@@ -112,15 +113,36 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
             entities=build_inclusion_map({CONF_PRICE: field_info}, entity_metadata).get(CONF_PRICE),
             context=selector_context(self._get_entry().entry_id, entity_metadata),
         )
+        # What stored rules name stays offered, so a rule left naming a deleted element, or a
+        # sensor no longer offered, can still be seen and changed without blocking the other rules
+        stored = self._stored_rules()
+        price_config = price.config
+        if "entities" in price_config:
+            kept = [entity for rule in stored if is_entity_value(rule["price"]) for entity in rule["price"]["value"]]
+            price_config = {**price_config, "entities": list(dict.fromkeys([*price_config["entities"], *kept]))}
         selector = PolicyRulesSelector(
             {
-                "sources": self._endpoint_options(can_source=True),
-                "targets": self._endpoint_options(can_sink=True),
-                "price": price.config,
+                "sources": self._with_stored(self._endpoint_options(can_source=True), stored, CONF_SOURCE),
+                "targets": self._with_stored(self._endpoint_options(can_sink=True), stored, CONF_TARGET),
+                "price": price_config,
                 "surfaced": self._surfaced_rules(),
             }
         )
         return vol.Schema({vol.Required(CONF_RULES): selector})
+
+    def _with_stored(
+        self, options: list[ConnectedElement], stored: Sequence[PolicyRuleValue], end: str
+    ) -> list[ConnectedElement]:
+        """Return an end's options with every element a stored rule names on that end."""
+        offered = {option["name"] for option in options}
+        types = {subentry.title: subentry.subentry_type for subentry in self._get_entry().subentries.values()}
+        names = dict.fromkeys(
+            name for rule in stored for name in (rule["source"] if end == CONF_SOURCE else rule["target"])
+        )
+        return [
+            *options,
+            *({"name": name, "element_type": types.get(name, "")} for name in names if name not in offered),
+        ]
 
     def _stored_rules(self) -> list[PolicyRuleValue]:
         """Return the stored rules as the rules element shows them."""
@@ -141,7 +163,7 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
     def _new_rule(rules: Sequence[PolicyRuleValue]) -> PolicyRuleValue:
         """Return a blank rule named apart from the others."""
         names = {rule["name"] for rule in rules}
-        number = next(n for n in range(len(rules) + 1, len(rules) + len(names) + 2) if f"Rule {n}" not in names)
+        number = next(n for n in count(len(rules) + 1) if f"Rule {n}" not in names)
         return {"name": f"Rule {number}", "enabled": True, "source": [], "target": [], "price": as_none_value()}
 
     @staticmethod
@@ -188,6 +210,9 @@ class PolicySubentryFlowHandler(ElementSubentryFlow):
         if user_input is None:
             return None
         rules: list[PolicyRuleValue] = user_input[CONF_RULES]
+        if not rules and self._target_subentry() is None:
+            errors[CONF_RULES] = "no_rules"
+            return None
         self._validate(rules, errors)
         if errors:
             return None
