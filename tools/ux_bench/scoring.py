@@ -59,8 +59,21 @@ def _names(rule: JsonValueType, key: str) -> list[JsonValueType]:
     return names if isinstance(names, list) else []
 
 
+def _without_rules(subentry: Subentry) -> tuple[str, str, dict[str, JsonValueType]]:
+    return (
+        subentry["type"],
+        subentry["title"],
+        {key: value for key, value in subentry["data"].items() if key != "rules"},
+    )
+
+
 def _only_surfaced_rules(before: Subentry | None, after: Subentry | None, element_names: set[str]) -> bool:
-    """Return whether every rule added or removed names the element, by its old or new title."""
+    """Return whether a policy changed only by rules naming the element, by its old or new title.
+
+    The policy's title and its data besides the rules must stay the same.
+    """
+    if before is not None and after is not None and _without_rules(before) != _without_rules(after):
+        return False
     old, new = _rules(before), _rules(after)
     differing = [rule for rule in new if rule not in old] + [rule for rule in old if rule not in new]
     return all(element_names & set(map(str, _names(rule, "source") + _names(rule, "target"))) for rule in differing)

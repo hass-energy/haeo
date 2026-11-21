@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import subprocess
+
 from homeassistant.util.json import JsonValueType
 import pytest
 
 from custom_components.haeo.core.schema.elements import ElementType
 from tools.ux_bench.matching import mismatches
-from tools.ux_bench.run import RunResult, summarize
+from tools.ux_bench.run import RunResult, rescore, run_one, summarize
 from tools.ux_bench.scoring import Subentries, Subentry, evaluate
 from tools.ux_bench.tasks import TASKS_DIR, Task, hub_config, load_tasks, world_states
 
@@ -176,6 +179,45 @@ def test_evaluate_edit_accepts_rules_renamed_with_the_element() -> None:
     }
     task: Task = {**EDIT_TASK, "expect": {"kind": "edit", "element_type": "battery", "title": "Battery", "data": {}}}
     assert evaluate(task, before, after)["success"] is True
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        _sub("policy", "Renamed", {"rules": [_rule(0.01, ["Pump"])]}),
+        _sub("policy", "Policies", {"rules": [_rule(0.01, ["Pump"])], "note": "changed"}),
+    ],
+    ids=["renamed", "other-data"],
+)
+def test_evaluate_rejects_other_changes_to_a_policy_beside_its_rules(policy: Subentry) -> None:
+    """Only rules naming the element may change on an existing policy; its title and other data may not."""
+    before = {**BEFORE, "policy": _sub("policy", "Policies", {"rules": []})}
+    assert evaluate(ADD_TASK, before, {**before, "new": PUMP, "policy": policy})["success"] is False
+
+
+def test_run_starts_from_an_empty_directory_and_saves_a_startup_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A run never sees an earlier run's files, and a session that fails to start is saved for rescoring."""
+    run_dir = tmp_path / ADD_TASK["id"] / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "session.json").write_text('{"port": 1}', encoding="utf-8")
+    (run_dir / "result.json").write_text('{"success": true}', encoding="utf-8")
+
+    class _ExitedSession:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        def poll(self) -> int:
+            return 1
+
+    monkeypatch.setattr(subprocess, "Popen", _ExitedSession)
+    result = run_one(ADD_TASK, 1, tmp_path, model="haiku", budget=1.0, timeout=1.0)
+
+    assert result["success"] is False
+    assert result.get("problems") == ["The session did not start; see session.log"]
+    assert not (run_dir / "result.json").exists()
+    assert [saved.get("problems") for saved in rescore(tmp_path)] == [result.get("problems")]
 
 
 def test_summarize_counts_runs() -> None:
