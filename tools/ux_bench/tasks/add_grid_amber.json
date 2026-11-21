@@ -1,0 +1,40 @@
+{
+  "expect": {
+    "data": {
+      "connection": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      },
+      "power_limits": {
+        "max_power_source_target": {
+          "type": "constant",
+          "value": 55.0
+        },
+        "max_power_target_source": {
+          "type": "constant",
+          "value": 30.0
+        }
+      },
+      "pricing": {
+        "price_source_target": {
+          "type": "entity",
+          "value": {
+            "$set": ["sensor.amber_express_home_general_price"]
+          }
+        },
+        "price_target_source": {
+          "type": "entity",
+          "value": {
+            "$set": ["sensor.amber_express_home_feed_in_price"]
+          }
+        }
+      }
+    },
+    "element_type": "grid",
+    "kind": "add"
+  },
+  "goal": "Add your grid connection to HAEO. You are with Amber Express: buy at its general price and sell at its feed-in price. Your connection can import up to 55 kW and export up to 30 kW.",
+  "id": "add_grid_amber",
+  "participants": ["Inverter", "Switchboard", "Battery", "Solar", "Load"],
+  "scenario": "scenario6"
+}

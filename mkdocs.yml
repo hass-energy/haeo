@@ -240,5 +240,6 @@ nav:
       - Coordinator: developer-guide/coordinator.md
       - Data loading: developer-guide/data-loading.md
       - Config flow: developer-guide/config-flow.md
+      - Config flow usability benchmark: developer-guide/config-flow-benchmark.md
       - Testing: developer-guide/testing.md
       - Contributing: developer-guide/contributing.md
