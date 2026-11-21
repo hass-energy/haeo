@@ -1,0 +1,40 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": false,
+  "cost_usd": 0.01555627,
+  "turns": 14,
+  "report": "I set the battery's discharge cost to $0.01/kWh, but HAEO now also has a second cost on the same energy, so the result may be $0.02/kWh, not $0.01. I did not resolve that.\n\n**What I did**\n- Opened the Battery element and set **Discharge cost** to Constant, 0.01 $/kWh. I left the other pricing fields alone: Salvage value is 0, Charge cost is None, and Limit cost is 100 $/kWh/h.\n- Submitted, and the save reported success. Reopening the Battery element shows Discharge cost at 0.01.\n\n**The problem**\n- After that save, a Policy subentry named \"Battery discharge cost\" appeared (Source: Battery, Target: Any, Price: 0.01 $/kWh). It was not there before. I did not create it on purpose, and I did not change it.\n- That policy fits \"wherever that energy goes\" more literally than the battery field does. But I can't tell from the UI whether the two stack or whether one mirrors the other. If they stack, the battery is charged $0.02/kWh.\n\n**Points where I hesitated or was unsure**\n- **Two costs for one purpose:** I chose the battery's own Discharge cost field because it is the obvious setting. I did not know that submitting it would also create a Target: Any policy. I then left both in place rather than deleting one, because I could not tell which one HAEO applies or whether removing either would have side effects. That is the open issue, and it needs a decision from you.\n- **Stacking not verified:** I did not confirm the actual cost in HAEO's results, so the $0.01 figure is only what the settings say.\n- **Scope of \"wherever it goes\":** I assumed the policy's Target: Any covers every destination. I could not check that in the UI.\n- **Unchanged defaults:** I did not touch Salvage value or the Limit cost. Limit cost is a holding cost outside the min and max charge, not a discharge cost, so I judged it irrelevant.\n- **Unit wording:** The field says \"$/kWh\", which I read as dollars per kWh discharged. That matches your request.",
+  "driver_error": null,
+  "problems": [
+    "Unintended change to battery 'Battery'"
+  ],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Set the Battery element's Discharge cost to a constant 0.01 $/kWh and saved it; the save reported success and the value reads back as 0.01 on reopening. However, HAEO also now shows a Policy named 'Battery discharge cost' (Source: Battery, Target: Any, Price: 0.01 $/kWh) that did not exist before my save. I did not create it deliberately and did not change it. If both are applied, battery discharge is charged 0.02 $/kWh, not 0.01. Please check whether the policy is a mirror of the battery field or a separate charge, and delete one of them if they stack.",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 34.2
+}

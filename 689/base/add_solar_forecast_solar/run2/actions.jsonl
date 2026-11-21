@@ -1,0 +1,117 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.3, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "click", "args": ["f2e482"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "click", "args": ["f2e510"], "error": null, "visible_errors": 0}
+{"t": 9.9, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "click", "args": ["f2e810"], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.2, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 20.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 24.0, "command": "click", "args": ["f2e1105"], "error": null, "visible_errors": 0}
+{"t": 24.4, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 24.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 27.0, "command": "click", "args": ["f2e1400"], "error": null, "visible_errors": 0}
+{"t": 27.4, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 27.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 34.7, "command": "click", "args": ["f2e1695"], "error": null, "visible_errors": 0}
+{"t": 35.1, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 35.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 37.8, "command": "click", "args": ["f2e1990"], "error": null, "visible_errors": 0}
+{"t": 38.2, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 38.6, "command": "click", "args": ["f2e2285"], "error": null, "visible_errors": 0}
+{"t": 39.0, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 39.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 41.4, "command": "click", "args": ["f2e2580"], "error": null, "visible_errors": 0}
+{"t": 41.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 42.3, "command": "click", "args": ["f2e2875"], "error": null, "visible_errors": 0}
+{"t": 42.7, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 43.1, "command": "click", "args": ["f2e3170"], "error": null, "visible_errors": 0}
+{"t": 43.5, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 43.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 47.6, "command": "click", "args": ["f2e3465"], "error": null, "visible_errors": 0}
+{"t": 48.0, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 48.4, "command": "click", "args": ["f2e3760"], "error": null, "visible_errors": 0}
+{"t": 48.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 49.3, "command": "click", "args": ["f2e4055"], "error": null, "visible_errors": 0}
+{"t": 49.7, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 49.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 52.1, "command": "click", "args": ["f2e4350"], "error": null, "visible_errors": 0}
+{"t": 52.5, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 52.9, "command": "click", "args": ["f2e4645"], "error": null, "visible_errors": 0}
+{"t": 53.3, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 53.7, "command": "click", "args": ["f2e4940"], "error": null, "visible_errors": 0}
+{"t": 54.1, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 54.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 56.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 58.7, "command": "type", "args": ["f2e5219", "solar prediction"], "error": null, "visible_errors": 0}
+{"t": 61.2, "command": "click", "args": ["f2e5290"], "error": null, "visible_errors": 0}
+{"t": 61.6, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 61.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 63.9, "command": "type", "args": ["f2e5492", "South"], "error": null, "visible_errors": 0}
+{"t": 66.3, "command": "click", "args": ["f2e5618"], "error": null, "visible_errors": 0}
+{"t": 66.7, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 66.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 70.0, "command": "type", "args": ["f2e5754", "South"], "error": null, "visible_errors": 0}
+{"t": 72.8, "command": "click", "args": ["f2e5880"], "error": null, "visible_errors": 0}
+{"t": 73.2, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 73.8, "command": "type", "args": ["f2e6016", "South"], "error": "Locator.fill: Error: Element is not an <input>, <textarea>, <select> or [contenteditable] and does not have a role allowing [aria-readonly]", "visible_errors": 0}
+{"t": 76.5, "command": "click", "args": ["f2e6010"], "error": null, "visible_errors": 0}
+{"t": 76.9, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 77.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 79.2, "command": "type", "args": ["f2e6245", "South"], "error": null, "visible_errors": 0}
+{"t": 81.2, "command": "click", "args": ["f2e6349"], "error": null, "visible_errors": 0}
+{"t": 81.6, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 81.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 83.8, "command": "type", "args": ["f2e6474", "South"], "error": null, "visible_errors": 0}
+{"t": 86.4, "command": "click", "args": ["f2e6534"], "error": null, "visible_errors": 0}
+{"t": 86.9, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 86.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 89.2, "command": "type", "args": ["f2e6692", "South"], "error": null, "visible_errors": 0}
+{"t": 91.3, "command": "click", "args": ["f2e6752"], "error": null, "visible_errors": 0}
+{"t": 91.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 91.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 94.0, "command": "type", "args": ["f2e6899", "South"], "error": null, "visible_errors": 0}
+{"t": 96.4, "command": "click", "args": ["f2e6959"], "error": null, "visible_errors": 0}
+{"t": 96.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 96.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 99.0, "command": "type", "args": ["f2e7095", "South"], "error": null, "visible_errors": 0}
+{"t": 101.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 103.4, "command": "click", "args": ["f2e7155"], "error": null, "visible_errors": 0}
+{"t": 103.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 103.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 105.9, "command": "type", "args": ["f2e7280", "Estimated energy"], "error": null, "visible_errors": 0}
+{"t": 108.3, "command": "click", "args": ["f2e7340"], "error": null, "visible_errors": 0}
+{"t": 108.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 108.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 111.0, "command": "type", "args": ["f2e7454", "West"], "error": null, "visible_errors": 0}
+{"t": 113.1, "command": "click", "args": ["f2e7569"], "error": null, "visible_errors": 0}
+{"t": 113.5, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 113.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 115.8, "command": "type", "args": ["f2e7617", "West"], "error": null, "visible_errors": 0}
+{"t": 118.0, "command": "click", "args": ["f2e7732"], "error": null, "visible_errors": 0}
+{"t": 118.5, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 118.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 120.7, "command": "type", "args": ["f2e7769", "West"], "error": null, "visible_errors": 0}
+{"t": 122.6, "command": "click", "args": ["f2e7873"], "error": null, "visible_errors": 0}
+{"t": 123.1, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 123.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 125.2, "command": "type", "args": ["f2e7910", "West"], "error": null, "visible_errors": 0}
+{"t": 127.3, "command": "click", "args": ["f2e7970"], "error": null, "visible_errors": 0}
+{"t": 127.7, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 127.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 129.8, "command": "type", "args": ["f2e8040", "West"], "error": null, "visible_errors": 0}
+{"t": 132.0, "command": "click", "args": ["f2e8100"], "error": null, "visible_errors": 0}
+{"t": 132.4, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 132.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 134.9, "command": "type", "args": ["f2e8159", "West"], "error": null, "visible_errors": 0}
+{"t": 136.8, "command": "click", "args": ["f2e8219"], "error": null, "visible_errors": 0}
+{"t": 137.3, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 137.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 139.5, "command": "type", "args": ["f2e8267", "West"], "error": null, "visible_errors": 0}
+{"t": 141.9, "command": "click", "args": ["f2e8327"], "error": null, "visible_errors": 0}
+{"t": 142.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 142.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 144.2, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 146.0, "command": "click", "args": ["f2e8364"], "error": null, "visible_errors": 0}
+{"t": 148.0, "command": "done", "args": ["Added Solar element connected to Inverter with all 32 Forecast.Solar sensors (East, North, South, West x 8 days each)."], "error": null, "visible_errors": 0}

@@ -1,0 +1,11 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "click", "args": ["f2e482"], "error": null, "visible_errors": 0}
+{"t": 7.9, "command": "click", "args": ["f2e576"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "click", "args": ["f2e620"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e700"], "error": null, "visible_errors": 0}
+{"t": 12.6, "command": "click", "args": ["f2e620"], "error": null, "visible_errors": 0}
+{"t": 14.0, "command": "click", "args": ["f2e797"], "error": null, "visible_errors": 0}
+{"t": 15.4, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 17.1, "command": "click", "args": ["f2e834"], "error": null, "visible_errors": 0}
+{"t": 19.1, "command": "done", "args": ["Added Solar element connected to Inverter, forecast using Solcast Today, Tomorrow and Day 3 sensors. It now appears under Home with 4 entities."], "error": null, "visible_errors": 0}

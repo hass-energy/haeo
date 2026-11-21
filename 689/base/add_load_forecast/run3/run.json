@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.1437767,
+  "turns": 13,
+  "report": "I added a Load named \"Load\" to your \"Home\" setup, connected to the Switchboard. It uses both Sigenergy sensors: Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power.\n\nHAEO showed \"Created configuration for Load\", and the integration page now lists a Load device with 12 entities. I didn't open the Load's settings again to check the saved values.\n\nPoints where I hesitated:\n- **Connection choice:** the form defaulted to Inverter. I chose Switchboard because it seemed the right place for whole-home consumption, but nothing in the interface confirmed that. If your household load hangs off the inverter instead, change it.\n- **Two sensors in one field:** I wasn't sure the Forecast field would accept the current-power sensor alongside the forecast. An \"Add entity\" button appeared after the first pick, so I added the second sensor there. I don't know how HAEO combines the two.\n- **Failed click:** my first attempt to open the Connection dropdown timed out because the entity picker was still open. I retried after picking the sensors, and it worked.\n- **Left alone:** I didn't touch the Shedding section.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Load' connected to Switchboard, with forecast entities Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. HAEO now shows 7 devices and a Load device with 12 entities.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 22.8
+}

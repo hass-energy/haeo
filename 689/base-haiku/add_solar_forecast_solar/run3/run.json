@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.39898891,
+  "turns": 59,
+  "report": "The Solar element is added to Home, using all 32 Forecast.Solar-style sensors: East, North, South and West, eight each (today, tomorrow, day after tomorrow, and 3 to 7 days from now). The Solar device now appears under Home with 4 entities.\n\nI confirmed the final selection before submitting. The list had no duplicates and no unrelated sensors. The connection is Inverter, which is where the panels feed in. The name is left as \"Solar\", and the Curtailment section is untouched.\n\nPoints where I hesitated, was unsure, or made a mistake:\n\n- **South sensors look different.** All four directions say \"Estimated energy production\", but the South ones are named \"South solar prediction forecast\" while the others say \"production\". I included them because you asked for all four directions. I could not check where they came from: Forecast.Solar is not in the integrations list, and the entities show no integration. Please check that the South sensors are really your Forecast.Solar output and not a duplicate source.\n- **Pressing Enter in the picker picked the wrong sensor.** The first try selected \"day after tomorrow\" instead of \"tomorrow\". After that I clicked each sensor by its exact label.\n- **I added a wrong sensor by mistake.** I selected \"Sigen Plant Consumed Power\" instead of South today, then removed it. I checked the final list for leftovers and found none.\n- **I typed a stray \"x\".** Early on I ran a type command with a ref from an old page, to a search element on the Settings page. I did not see any visible effect and did not check further.\n- **A Bash command was denied once.** I had piped browser output through a filter and the command was refused. I did not try to work around it; I used plain commands after that.\n- **Remaining defaults.** The Solar name, the Inverter connection and the empty Curtailment section were left as the form gave them. I did not check how the optimizer uses the Curtailment setting.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 88,
+  "looks": 42,
+  "screenshots": 0,
+  "failed_commands": 2,
+  "errors_shown": 0,
+  "seconds": 136.9
+}

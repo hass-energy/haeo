@@ -1,0 +1,25 @@
+{"t": 2.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 5.1, "command": "click", "args": ["f2e147"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e469"], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "click", "args": ["f2e170"], "error": null, "visible_errors": 0}
+{"t": 8.7, "command": "click", "args": ["f2e900"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "type", "args": ["f2e924", "0.01"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "click", "args": ["f2e911"], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "click", "args": ["f2e916"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "click", "args": ["f2e963"], "error": null, "visible_errors": 0}
+{"t": 16.1, "command": "click", "args": ["f2e968"], "error": null, "visible_errors": 0}
+{"t": 18.5, "command": "click", "args": ["f2e1049"], "error": null, "visible_errors": 0}
+{"t": 21.5, "command": "click", "args": ["f2e1022"], "error": null, "visible_errors": 0}
+{"t": 22.0, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 27.5, "command": "click", "args": ["f2e1519"], "error": null, "visible_errors": 0}
+{"t": 28.6, "command": "click", "args": ["f2e1542"], "error": null, "visible_errors": 0}
+{"t": 30.2, "command": "click", "args": ["f2e1553"], "error": null, "visible_errors": 0}
+{"t": 32.1, "command": "click", "args": ["f2e968"], "error": null, "visible_errors": 0}
+{"t": 32.4, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 34.5, "command": "click", "args": ["f2e1563"], "error": null, "visible_errors": 0}
+{"t": 35.0, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 36.5, "command": "click", "args": ["f2e1946"], "error": null, "visible_errors": 0}
+{"t": 37.7, "command": "type", "args": ["f2e1970", "0.01"], "error": null, "visible_errors": 0}
+{"t": 38.8, "command": "click", "args": ["f2e1962"], "error": null, "visible_errors": 0}
+{"t": 40.5, "command": "click", "args": ["f2e1980"], "error": null, "visible_errors": 0}
+{"t": 42.1, "command": "done", "args": ["Set the Battery element's Discharge cost to a constant 0.01 $/kWh. HAEO also shows a 'Battery discharge cost' policy (source: Battery, target: Any, price 0.01 $/kWh) that mirrors this field, and it is back in place after the final save."], "error": null, "visible_errors": 0}

@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1095743,
+  "turns": 12,
+  "report": "I added a Solar element to the Home hub and connected it to the Inverter. Its forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. The Solar entry now shows under Home as a new device with 4 entities, and the hub total went from 6 devices to 7. I didn't open the new entities to look at their values.\n\nI left the name as \"Solar\" and didn't open the optional Curtailment section.\n\nPoints where I hesitated:\n- **Connection:** I wasn't sure the default \"Inverter\" was right. I kept it because you said the panels feed the inverter.\n- **Forecast sensors:** The forecast field looked like it might take only one sensor. I picked Today, then used \"Add entity\" for Tomorrow and Day 3, and all three were accepted. I assumed HAEO combines them into one forecast.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element connected to Inverter, forecast using Solcast Today, Tomorrow and Day 3 sensors. It now appears under Home with 4 entities.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.1
+}

@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.10969809999999999,
+  "turns": 12,
+  "report": "I added a policy called \"Battery wear\" in HAEO. It charges $0.01 for every kWh that leaves the battery, whatever it goes to. It's enabled, with Source set to the Battery element, Target set to Any, and a constant price of 0.01 $/kWh.\n\nHome Assistant showed \"Created configuration for Policies\", and a new Policies device now appears under Home. I didn't run the optimizer to see the cost take effect.\n\nWhere I hesitated or was unsure:\n- **Direction of the charge:** I assumed that Source = Battery means energy flowing out of the battery. The form never says so, and I didn't confirm it afterwards.\n- **Unsure of a charge on battery-bound flows:** Target \"Any\" might also cover flows that end up back in the battery. I couldn't tell from the form.\n- **Source picker:** After I switched Source to \"Elements\", the dropdown looked empty. I had to open it to find Battery.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Created a Policy named 'Battery wear' (enabled): source = Battery, target = Any, price 0.01 $/kWh. It now appears as a Policies device.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 2,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.6
+}

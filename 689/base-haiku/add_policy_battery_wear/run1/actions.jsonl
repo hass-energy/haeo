@@ -1,0 +1,13 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "click", "args": ["f2e827"], "error": null, "visible_errors": 0}
+{"t": 8.1, "command": "type", "args": ["f2e851", "0.01"], "error": null, "visible_errors": 0}
+{"t": 9.8, "command": "click", "args": ["f2e838"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e843"], "error": null, "visible_errors": 0}
+{"t": 12.6, "command": "click", "args": ["f2e890"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e895"], "error": null, "visible_errors": 0}
+{"t": 16.8, "command": "click", "args": ["f2e976"], "error": null, "visible_errors": 0}
+{"t": 20.6, "command": "click", "args": ["f2e949"], "error": null, "visible_errors": 0}
+{"t": 21.1, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 33.3, "command": "click", "args": ["f2e1088"], "error": null, "visible_errors": 0}
+{"t": 34.3, "command": "done", "args": ["Set the Battery element's Discharge cost to a constant 0.01 $/kWh and saved it; the save reported success and the value reads back as 0.01 on reopening. However, HAEO also now shows a Policy named 'Battery discharge cost' (Source: Battery, Target: Any, Price: 0.01 $/kWh) that did not exist before my save. I did not create it deliberately and did not change it. If both are applied, battery discharge is charged 0.02 $/kWh, not 0.01. Please check whether the policy is a mirror of the battery field or a separate charge, and delete one of them if they stack."], "error": null, "visible_errors": 0}

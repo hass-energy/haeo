@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1270199,
+  "turns": 16,
+  "report": "I added a Load called \"Household consumption\" to Home. It's connected to the Switchboard and uses two Sigen sensors as its forecast: \"Sigen Plant Consumed Power Forecast\" and \"Sigen Plant Consumed Power\". After I finished, it showed up under Home in the integration page. I haven't opened it again to check the saved settings.\n\nWhere I hesitated or made a mistake:\n- **Connection choice:** I picked Switchboard over Inverter because a household load sits on the AC side. The form gave no guidance, so this is my judgement.\n- **Wrong entity added:** I accidentally added \"Sigen Plant ESS Rated Charging Power\" because the list refs shifted after the first selection. I removed it and added the correct sensor.\n- **Connection dropdown:** my first attempt to open the dropdown closed it without changing the selection, so I reopened it and chose Switchboard.\n- **Current sensor:** the form has a single forecast field that accepts several entities. I put the current consumed power sensor there alongside the forecast. I'm not sure that is how HAEO expects the current sensor to be supplied.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household consumption",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Household consumption', connected to Switchboard, with forecast entities Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. It now appears under Home.",
+  "actions": 15,
+  "looks": 3,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 30.0
+}

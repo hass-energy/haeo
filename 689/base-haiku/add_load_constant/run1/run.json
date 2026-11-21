@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.008235,
+  "turns": 13,
+  "report": "I added \"Pool pump\" to the Home hub as a load with a constant 0.8 kW forecast. The success dialog said \"Created configuration for Pool pump\", and a new Pool pump device with 12 entities now appears under Home.\n\nSettings used:\n- **Name:** Pool pump\n- **Connection:** Switchboard\n- **Forecast:** Constant, 0.8 kW\n- **Shedding:** left off, so the optimizer cannot switch the pump off\n- **Consumption cost:** None\n\nI did not reopen the saved configuration to confirm the stored values; I checked the form before submitting.\n\nPoints where I hesitated or was unsure:\n- **Connection choice:** The dropdown offered only Inverter (the default) and Switchboard. I picked Switchboard because the pump is a plain AC appliance on the house circuit, not behind the battery/solar inverter. I did not confirm how the existing Load element is wired, so if your house loads sit on the Inverter, this may need changing.\n- **Shedding:** The \"Allow shedding\" switch was already off, and I left it that way. The pump runs continuously, so I treated it as not sheddable, but that is my judgement.\n- **Consumption cost:** I left it at None because no tariff or price was specified for the pump.\n- **Units:** I typed 0.8 into a field labelled kW and checked the value on screen before submitting.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.9
+}

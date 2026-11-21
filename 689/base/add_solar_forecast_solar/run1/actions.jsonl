@@ -1,0 +1,113 @@
+{"t": 3.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.5, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 6.0, "command": "click", "args": ["f2e482"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "click", "args": ["f2e510"], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 12.7, "command": "click", "args": ["f2e810"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 16.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 20.1, "command": "click", "args": ["f2e1105"], "error": null, "visible_errors": 0}
+{"t": 20.5, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 20.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 23.4, "command": "click", "args": ["f2e1400"], "error": null, "visible_errors": 0}
+{"t": 23.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 23.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 27.8, "command": "click", "args": ["f2e1695"], "error": null, "visible_errors": 0}
+{"t": 28.2, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 28.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 30.5, "command": "click", "args": ["f2e1990"], "error": null, "visible_errors": 0}
+{"t": 30.9, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 31.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 32.6, "command": "click", "args": ["f2e2285"], "error": null, "visible_errors": 0}
+{"t": 33.0, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 33.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 35.0, "command": "click", "args": ["f2e2580"], "error": null, "visible_errors": 0}
+{"t": 35.4, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 35.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 37.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 40.4, "command": "click", "args": ["f2e2875"], "error": null, "visible_errors": 0}
+{"t": 40.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 41.2, "command": "click", "args": ["f2e3170"], "error": null, "visible_errors": 0}
+{"t": 41.6, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 41.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 44.2, "command": "click", "args": ["f2e3465"], "error": null, "visible_errors": 0}
+{"t": 44.6, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 45.0, "command": "click", "args": ["f2e3760"], "error": null, "visible_errors": 0}
+{"t": 45.5, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 45.9, "command": "click", "args": ["f2e4055"], "error": null, "visible_errors": 0}
+{"t": 46.3, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 46.7, "command": "click", "args": ["f2e4350"], "error": null, "visible_errors": 0}
+{"t": 47.2, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 47.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 48.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 49.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 51.5, "command": "click", "args": ["f2e4645"], "error": null, "visible_errors": 0}
+{"t": 51.9, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 52.3, "command": "click", "args": ["f2e4940"], "error": null, "visible_errors": 0}
+{"t": 52.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 52.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 54.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 56.1, "command": "type", "args": ["f2e5219", "solar"], "error": null, "visible_errors": 0}
+{"t": 58.5, "command": "click", "args": ["f2e5362"], "error": null, "visible_errors": 0}
+{"t": 58.9, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 59.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 60.9, "command": "type", "args": ["f2e5492", "South"], "error": null, "visible_errors": 0}
+{"t": 63.3, "command": "click", "args": ["f2e5635"], "error": null, "visible_errors": 0}
+{"t": 63.7, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 63.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 65.3, "command": "type", "args": ["f2e5754", "South"], "error": null, "visible_errors": 0}
+{"t": 69.4, "command": "click", "args": ["f2e5886"], "error": null, "visible_errors": 0}
+{"t": 70.0, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 70.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 72.6, "command": "type", "args": ["f2e6005", "South"], "error": null, "visible_errors": 0}
+{"t": 74.7, "command": "click", "args": ["f2e6082"], "error": null, "visible_errors": 0}
+{"t": 75.2, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 75.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 76.8, "command": "type", "args": ["f2e6245", "South"], "error": null, "visible_errors": 0}
+{"t": 78.4, "command": "click", "args": ["f2e6322"], "error": null, "visible_errors": 0}
+{"t": 78.9, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 79.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 80.9, "command": "type", "args": ["f2e6474", "South"], "error": null, "visible_errors": 0}
+{"t": 83.7, "command": "click", "args": ["f2e6551"], "error": null, "visible_errors": 0}
+{"t": 84.1, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 84.5, "command": "type", "args": ["f2e6692", "South"], "error": null, "visible_errors": 0}
+{"t": 86.5, "command": "click", "args": ["f2e6769"], "error": null, "visible_errors": 0}
+{"t": 86.9, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 87.3, "command": "type", "args": ["f2e6899", "South"], "error": null, "visible_errors": 0}
+{"t": 89.2, "command": "click", "args": ["f2e6976"], "error": null, "visible_errors": 0}
+{"t": 89.6, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 89.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 91.3, "command": "type", "args": ["f2e7095", "West"], "error": null, "visible_errors": 0}
+{"t": 93.2, "command": "click", "args": ["f2e7238"], "error": null, "visible_errors": 0}
+{"t": 93.7, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 93.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 95.3, "command": "type", "args": ["f2e7280", "West"], "error": null, "visible_errors": 0}
+{"t": 97.1, "command": "click", "args": ["f2e7423"], "error": null, "visible_errors": 0}
+{"t": 97.5, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 97.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 99.2, "command": "type", "args": ["f2e7454", "West"], "error": null, "visible_errors": 0}
+{"t": 101.3, "command": "click", "args": ["f2e7586"], "error": null, "visible_errors": 0}
+{"t": 101.8, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 101.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 103.5, "command": "type", "args": ["f2e7617", "West"], "error": null, "visible_errors": 0}
+{"t": 105.9, "command": "click", "args": ["f2e7694"], "error": null, "visible_errors": 0}
+{"t": 106.3, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 106.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 108.2, "command": "type", "args": ["f2e7769", "West"], "error": null, "visible_errors": 0}
+{"t": 110.5, "command": "click", "args": ["f2e7846"], "error": null, "visible_errors": 0}
+{"t": 110.9, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 111.3, "command": "type", "args": ["f2e7910", "West"], "error": null, "visible_errors": 0}
+{"t": 113.4, "command": "click", "args": ["f2e7987"], "error": null, "visible_errors": 0}
+{"t": 113.9, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 114.2, "command": "type", "args": ["f2e8040", "West"], "error": null, "visible_errors": 0}
+{"t": 116.1, "command": "click", "args": ["f2e8117"], "error": null, "visible_errors": 0}
+{"t": 116.6, "command": "click", "args": ["f2e796"], "error": null, "visible_errors": 0}
+{"t": 117.0, "command": "type", "args": ["f2e8159", "West"], "error": null, "visible_errors": 0}
+{"t": 119.0, "command": "click", "args": ["f2e8236"], "error": null, "visible_errors": 0}
+{"t": 119.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 119.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 120.9, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 122.4, "command": "click", "args": ["f2e8267"], "error": null, "visible_errors": 0}
+{"t": 124.1, "command": "done", "args": ["Added Solar element connected to Inverter with all 32 Forecast.Solar sensors (East, North, South, West x 8 days each). HAEO confirmed creation."], "error": null, "visible_errors": 0}

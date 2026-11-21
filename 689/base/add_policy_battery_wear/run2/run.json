@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.09714489999999998,
+  "turns": 14,
+  "report": "I added a policy called \"Battery wear\" in HAEO. Its source is Battery, its target is Any, and its price is a constant 0.01 $/kWh. It's enabled. HAEO showed \"Created configuration for Policies\", and a \"Policies\" entry now appears under the Home hub.\n\nI didn't open the saved policy to check the values, and I didn't run the optimizer. I only saw the form with those values before I submitted it, and the success message afterwards.\n\nPoints where I was unsure:\n- **Source and target:** I wasn't sure how to express \"wherever that energy goes\". I assumed that source = Battery with target = Any covers every destination, including the Grid, Load and Inverter. I couldn't confirm from the interface that this is how HAEO reads it.\n- **Source picker:** The picker didn't show its options at first. I had to click the empty field to open the list.\n- **Hub list:** The new policy wasn't listed by name in the hub list. Only a generic \"Policies\" entry appeared, so my check was indirect.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a policy 'Battery wear': source Battery, target Any, constant price 0.01 $/kWh, enabled. Creation reported success and a Policies entry now appears.",
+  "actions": 9,
+  "looks": 3,
+  "screenshots": 2,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.8
+}

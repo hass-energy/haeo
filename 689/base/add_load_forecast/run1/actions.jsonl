@@ -1,0 +1,19 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.0, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.8, "command": "type", "args": ["f2e445", "Household consumption"], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "click", "args": ["f2e484"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "click", "args": ["f2e706"], "error": null, "visible_errors": 0}
+{"t": 11.0, "command": "click", "args": ["f2e805"], "error": null, "visible_errors": 0}
+{"t": 13.0, "command": "click", "args": ["f2e1006"], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 15.4, "command": "click", "args": ["f2e505"], "error": null, "visible_errors": 0}
+{"t": 16.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 18.3, "command": "click", "args": ["f2e1098"], "error": null, "visible_errors": 0}
+{"t": 20.1, "command": "click", "args": ["f2e805"], "error": null, "visible_errors": 0}
+{"t": 23.5, "command": "type", "args": ["f2e814", "Consumed Power"], "error": "Locator.fill: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 25.2, "command": "click", "args": ["f2e1296"], "error": null, "visible_errors": 0}
+{"t": 26.8, "command": "click", "args": ["f2e497"], "error": null, "visible_errors": 0}
+{"t": 28.3, "command": "click", "args": ["f2e1404"], "error": null, "visible_errors": 0}
+{"t": 30.0, "command": "done", "args": ["Added a Load named 'Household consumption', connected to Switchboard, with forecast entities Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. It now appears under Home."], "error": null, "visible_errors": 0}

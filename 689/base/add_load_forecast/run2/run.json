@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1381033,
+  "turns": 13,
+  "report": "I added the household load to HAEO. It's called \"Household consumption\" and now appears under the Home hub with 12 entities.\n\n- **Sensors:** it uses both \"Sigen Plant Consumed Power Forecast\" and \"Sigen Plant Consumed Power\". I added both to the single Forecast field with \"Add entity\".\n- **Connection:** it's connected to Switchboard.\n- **Not checked:** I haven't looked at the new load's sensors or at how HAEO combines the two inputs.\n\nPoints where I hesitated or made a mistake:\n- **Connection choice:** I wasn't sure whether the load belongs on Inverter or Switchboard. The form defaulted to Inverter. I chose Switchboard because household loads normally hang off the switchboard, but that was a guess about your wiring.\n- **Mistake with the connection dropdown:** my first click on it only opened the list and closed again without a selection. I picked Switchboard later and confirmed it showed before submitting.\n- **Single field for both sensors:** the form has no separate field for the current consumed power sensor. I assumed that listing both entities in the one Forecast field was the intended way. I couldn't confirm how HAEO uses them together.\n- **Load name:** the form pre-filled \"Load\" and I renamed it. The name was my own choice.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household consumption",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Household consumption' connected to Switchboard, using Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power as forecast entities. It now appears under the Home hub with 12 entities.",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.0
+}

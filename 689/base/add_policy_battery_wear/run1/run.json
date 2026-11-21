@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.10594129999999999,
+  "turns": 10,
+  "report": "I added a policy named \"Battery wear\" in HAEO. Its source is Battery, its target is Any, and its price is 0.01 $/kWh. That should charge 1 cent for every kWh the battery discharges, wherever the energy goes. HAEO confirmed the policy was created, and a \"Policies\" device now appears under Home.\n\nI haven't opened the policy again to check the saved values.\n\nPoints where I was unsure:\n- **Target \"Any\":** I left the Target on its default, \"Any\". The toggle didn't show which option was selected, so I assumed Any was active. I didn't click it to confirm.\n- **Battery to Battery:** I didn't check whether \"Any\" also counts battery-to-battery flows. I assumed it covers every destination, which is what you asked for.\n- **Price type:** I used the \"Constant\" price option and didn't click it. It looked like the default, and the 0.01 I typed was accepted.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear': source = Battery, target = Any (default), price 0.01 $/kWh, enabled. It was created successfully and a Policies device appeared.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 14.7
+}

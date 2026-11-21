@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.5988275500000001,
+  "turns": 76,
+  "report": "I added the Solar element to Home with all 32 Forecast.Solar sensors, connected to the Inverter. I reopened it afterwards and all 32 are saved. Curtailment was left at its default.\n\nPer direction, I added today, tomorrow, the day after tomorrow, and 3\u20137 days from now, for East, North, South and West.\n\nPoints where I hesitated or was unsure:\n\n- **South sensor names:** the South sensors are named \"South solar **prediction** forecast\", while the others say \"production forecast\". I could not confirm from the picker which integration they belong to. I included them because they share the exact \"Estimated energy production \u2013 <day>\" pattern and the South direction was requested. If they come from a different integration, they should be removed.\n- **Solar element name:** I kept the default name \"Solar\" and did not check whether it clashes with anything.\n- **Sensor count:** I added the sensors one at a time through the picker, so the process was slow. I did not get a count of sensors per direction from the UI beyond reading each list, so I relied on the lists I read.\n- **Connection:** I chose Inverter as the connection. That matches your setup (panels feed the inverter), but I did not look at the Switchboard option.\n- **Curtailment:** I left it at its default without reading its help text, since the task did not mention it.\n- **Mistake:** once I clicked a stale ref for a sensor that was already added. It failed harmlessly, and I then clicked the correct entry.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Solar element to Home (connected to Inverter) with all 32 Forecast.Solar estimated-energy-production sensors: East, North, South and West, each for today, tomorrow, day after tomorrow and 3-7 days from now. Reopened it and confirmed all 32 are saved. Curtailment left at default.",
+  "actions": 73,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 127.1
+}

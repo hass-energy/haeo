@@ -1,0 +1,12 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.0, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "click", "args": ["f2e484"], "error": null, "visible_errors": 0}
+{"t": 9.9, "command": "click", "args": ["f2e450"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 11.9, "command": "click", "args": ["f2e699"], "error": null, "visible_errors": 0}
+{"t": 13.3, "command": "click", "args": ["f2e798"], "error": null, "visible_errors": 0}
+{"t": 15.1, "command": "click", "args": ["f2e988"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 18.4, "command": "click", "args": ["f2e1100"], "error": null, "visible_errors": 0}
+{"t": 19.9, "command": "click", "args": ["f2e497"], "error": null, "visible_errors": 0}
+{"t": 21.2, "command": "click", "args": ["f2e1109"], "error": null, "visible_errors": 0}
+{"t": 22.8, "command": "done", "args": ["Added a Load element named 'Load' connected to Switchboard, with forecast entities Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. HAEO now shows 7 devices and a Load device with 12 entities."], "error": null, "visible_errors": 0}

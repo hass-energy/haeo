@@ -1,0 +1,16 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.3, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 8.1, "command": "click", "args": ["f2e448"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 12.0, "command": "click", "args": ["f2e531"], "error": null, "visible_errors": 0}
+{"t": 13.3, "command": "click", "args": ["f2e482"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e556"], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "click", "args": ["f2e510"], "error": null, "visible_errors": 0}
+{"t": 17.8, "command": "click", "args": ["f2e603"], "error": null, "visible_errors": 0}
+{"t": 19.3, "command": "click", "args": ["f2e518"], "error": null, "visible_errors": 0}
+{"t": 21.0, "command": "type", "args": ["f2e674", "55"], "error": null, "visible_errors": 0}
+{"t": 21.4, "command": "type", "args": ["f2e697", "30"], "error": null, "visible_errors": 0}
+{"t": 23.0, "command": "click", "args": ["f2e523"], "error": null, "visible_errors": 0}
+{"t": 24.5, "command": "click", "args": ["f2e706"], "error": null, "visible_errors": 0}
+{"t": 26.3, "command": "done", "args": ["Added Grid element connected to Switchboard, import price = Amber Express General Price, export price = Amber Express Feed In Price, import limit 55 kW, export limit 30 kW. It now appears under Home (7 devices, 60 entities)."], "error": null, "visible_errors": 0}

@@ -1,0 +1,20 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.6, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.6, "command": "click", "args": ["f2e467"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "click", "args": ["f2e482"], "error": null, "visible_errors": 0}
+{"t": 8.6, "command": "type", "args": ["f2e732", "capacity"], "error": null, "visible_errors": 0}
+{"t": 9.9, "command": "click", "args": ["f2e737"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e510"], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "click", "args": ["f2e784"], "error": null, "visible_errors": 0}
+{"t": 15.4, "command": "click", "args": ["f2e539"], "error": null, "visible_errors": 0}
+{"t": 16.8, "command": "type", "args": ["f2e824", "5"], "error": null, "visible_errors": 0}
+{"t": 18.1, "command": "click", "args": ["f2e575"], "error": null, "visible_errors": 0}
+{"t": 19.2, "command": "click", "args": ["f2e593"], "error": null, "visible_errors": 0}
+{"t": 20.6, "command": "click", "args": ["f2e1036"], "error": null, "visible_errors": 0}
+{"t": 21.8, "command": "click", "args": ["f2e606"], "error": null, "visible_errors": 0}
+{"t": 23.2, "command": "click", "args": ["f2e624"], "error": null, "visible_errors": 0}
+{"t": 24.5, "command": "click", "args": ["f2e1347"], "error": null, "visible_errors": 0}
+{"t": 26.3, "command": "click", "args": ["f2e722"], "error": null, "visible_errors": 0}
+{"t": 27.5, "command": "click", "args": ["f2e1433"], "error": null, "visible_errors": 0}
+{"t": 29.4, "command": "done", "args": ["Added a Battery element to the Home HAEO hub. Connection is Inverter. Capacity comes from Sigen Plant Rated Energy Capacity, state of charge from Sigen Plant Battery State of Charge, max charge power from Sigen Plant ESS Rated Charging Power, and max discharge power from Sigen Plant ESS Rated Discharging Power. Min charge level is a constant 5%. The success dialog said 'Created configuration for Battery', and the Home hub now lists a Battery device with 21 entities."], "error": null, "visible_errors": 0}

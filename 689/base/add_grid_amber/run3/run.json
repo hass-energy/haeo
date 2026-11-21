@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.12157559999999999,
+  "turns": 15,
+  "report": "I added the Grid to Home, and it now appears in the hub's list with 12 entities. I didn't reopen it to re-read the saved values.\n\n- **Connection:** Switchboard. The form defaulted to Inverter. I chose Switchboard because a grid connection normally comes in at the switchboard.\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Limits:** import 55 kW, export 30 kW. Both fields defaulted to 100 kW.\n\nPoints where I hesitated or made a mistake:\n- **Connection choice:** the task didn't say which part the grid attaches to, so Switchboard was my judgement call.\n- **Dropdown mistake:** my first attempt to open the Connection dropdown didn't select anything. My next click landed on the price field instead. I redid the connection after setting the prices, and the form then showed Switchboard.\n- **Export limit field:** the first typed value didn't show up in the page snapshot. I confirmed 30 before submitting.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid to Home: connected to Switchboard, import price = Amber Express General Price, export price = Amber Express Feed In Price, import limit 55 kW, export limit 30 kW. Grid now appears with 12 entities.",
+  "actions": 13,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.3
+}

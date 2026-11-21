@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.06937210000000002,
+  "turns": 9,
+  "report": "I added \"Pool pump\" to the Home hub as its own Load, with a constant power of 0.8 kW. It now shows in the hub as a Load device with 12 entities.\n\nPoints where I hesitated:\n- **Connection:** The form offered only Inverter and Switchboard, and it defaulted to Inverter. I chose Switchboard because a pool pump is an ordinary household load. I couldn't confirm which one the existing \"Load\" uses, so this is a judgement call.\n- **Constant versus entity:** The forecast field defaulted to picking an entity. I switched it to Constant, since you gave a fixed 0.8 kW and no sensor.\n- **Shedding:** I left that section closed and didn't change it. I don't know what the default does.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' to the Home hub. It's a constant 0.8 kW, connected to the Switchboard. It now shows in the hub as a Load device with 12 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 14.9
+}

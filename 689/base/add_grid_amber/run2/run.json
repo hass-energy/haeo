@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1685683,
+  "turns": 18,
+  "report": "I added a Grid to your Home hub, and it now shows up in the list. The hub went from 6 to 7 devices and from 48 to 60 entities. I didn't open the saved Grid to re-read its settings.\n\n- **Connection:** Switchboard.\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Import limit:** 55 kW.\n- **Export limit:** 30 kW.\n\nPoints where I hesitated or slipped:\n- **Connection choice:** The form defaulted to Inverter. I chose Switchboard because a grid connection normally comes in at the switchboard. You didn't say which one, so please check that this matches your setup.\n- **Slow dialog:** After my first click on Grid, the page looked unchanged. The dialog was just slow to appear, so I looked again.\n- **Denied command:** One command, where I chained two actions together, was denied. I re-ran the actions one at a time and it worked.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid element connected to Switchboard, import price = Amber Express General Price, export price = Amber Express Feed In Price, import limit 55 kW, export limit 30 kW. It now appears under Home (7 devices, 60 entities).",
+  "actions": 12,
+  "looks": 3,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.3
+}

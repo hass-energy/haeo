@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.010143570000000001,
+  "turns": 13,
+  "report": "I added a Solar element to the Home hub. It is connected to the Inverter and uses the three Solcast forecast sensors (Today, Tomorrow, Day 3) as its forecast. After submitting, the Solar device appeared under Home with 4 entities.\n\nPoints where I hesitated or was unsure:\n\n1. **Solar name:** I kept the default \"Solar\" rather than picking a more specific name. The task didn't specify one.\n2. **Connection:** The default was Inverter, and I kept it. That matches your setup, since the panels feed the inverter, but I didn't open the dropdown to compare the options.\n3. **Forecast sensors:** The form had only one visible \"Select an entity\" slot at first. I was unsure whether it would take several sensors, so I used \"Add entity\" and it did. Adding the three Solcast sensors is my reading of \"use your Solcast forecast\"; I did not check whether HAEO expects one combined sensor or separate day sensors.\n4. **Picker refs:** After adding the second sensor, my click on the Day 3 option timed out because the picker had re-rendered with new refs. I re-read the page and clicked the new ref, so no wrong entity was added, but I did confirm the final list by reading the page.\n5. **Curtailment:** I left it at its defaults because the task didn't mention curtailment. I did not check whether it needs configuring for a rooftop system.\n6. **Verification:** I confirmed the entity count and the Solar device on the hub page, but I did not open the Solar device to check the saved forecast list or its sensor states.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Solar element to the Home hub, connected to Inverter, with forecast entities Solcast PV Forecast Today, Tomorrow and Day 3. The Solar device now appears under Home with 4 entities. Curtailment left at defaults.",
+  "actions": 12,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 2,
+  "errors_shown": 0,
+  "seconds": 25.3
+}

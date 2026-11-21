@@ -1,0 +1,15 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.0, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "type", "args": ["f2e487", "Battery wear"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "click", "args": ["f2e512"], "error": null, "visible_errors": 0}
+{"t": 7.7, "command": "click", "args": ["f2e560"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 9.3, "command": "click", "args": ["f2e575"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e535"], "error": null, "visible_errors": 0}
+{"t": 11.6, "command": "type", "args": ["f2e545", "0.01"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 16.5, "command": "click", "args": ["f2e549"], "error": null, "visible_errors": 0}
+{"t": 18.3, "command": "click", "args": ["f2e612"], "error": null, "visible_errors": 0}
+{"t": 18.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 21.8, "command": "done", "args": ["Added a policy 'Battery wear': source Battery, target Any, constant price 0.01 $/kWh, enabled. Creation reported success and a Policies entry now appears."], "error": null, "visible_errors": 0}

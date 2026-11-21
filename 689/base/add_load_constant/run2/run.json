@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.06743960000000002,
+  "turns": 8,
+  "report": "I added \"Pool pump\" to the Home hub as its own load, with a constant 0.8 kW draw. I connected it to the Switchboard. After I clicked Finish, \"Pool pump\" showed up in the hub's device list.\n\nWhere I hesitated:\n- **Connection choice:** The form only offered Inverter or Switchboard, and it defaulted to Inverter. I chose Switchboard because a pool pump is a household appliance, not part of the inverter. I didn't check which one the existing \"Load\" uses, so Inverter could be right if that's how your home is wired.\n- **Shedding:** I left the Shedding section alone, since you said the pump runs all the time.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Pool pump' with a constant 0.8 kW forecast, connected to the Switchboard. It now appears under the Home hub.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 14.5
+}

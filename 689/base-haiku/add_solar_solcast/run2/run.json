@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.00755266,
+  "turns": 12,
+  "report": "The Solar element is added to the Home hub. It is connected to the Inverter and uses all three Solcast PV forecast sensors (today, tomorrow and day 3). The Solar device now appears with 4 entities, and the Home hub shows 7 devices and 61 entities.\n\n**Points of hesitation or uncertainty:**\n\n- **Forecast field:** The forecast field is a list that takes one entity at a time through \"Add entity\", so I added all three Solcast sensors. I did not confirm that HAEO combines them into one continuous forecast, so the result is worth checking in the Solar device's entities.\n- **Connection:** \"Inverter\" was preselected, and I kept it because you said the panels feed the inverter. I did not change it to check the alternatives.\n- **Curtailment:** I expanded this section, which defaults to \"Allow curtailment\" on. I left it unchanged because you didn't ask for anything there, but I did not check what it does.\n- **Solar name:** I kept the default name \"Solar\" without thinking about whether you'd want a different name.\n- **Entity list:** The picker also showed a \"Sigen Plant PV Power\" sensor. I used the Solcast forecast sensors as you asked, but you may want to know that a live PV power sensor exists, in case it is more suitable for anything else.\n- **Not verified:** I did not check the optimizer's output, the forecast values, or the Solar device's entity states after setup.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.6
+}
