@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.006504180000000001,
+  "turns": 9,
+  "report": "I added the connection. It's called \"Inverter to Switchboard\", runs from Inverter to Switchboard, and has a fixed max power of 10 kW. It now appears under Home as a Connection with 2 entities.\n\nPoints where I hesitated or was unsure:\n\n- **Renaming:** The form defaulted the name to \"Connection\". I renamed it to \"Inverter to Switchboard\" so the path is clear. You didn't ask for a name, so change it if your naming differs.\n- **Max power input:** I typed 10 and picked the \"Fixed value 10 kW\" suggestion instead of entering a sensor. The field also accepts entities, but you gave a fixed rating, so a constant seemed right.\n- **Direction:** The form pre-filled Source as Inverter and Target as Switchboard, which matches your request. I did not change them. The help text says the connection is one-way, so a reverse path would need a second connection.\n- **Verification gap:** I did not reopen the connection to confirm the saved value is 10 kW. I only saw the success message and the new entry in the list.\n- **Left at defaults:** I did not set Pricing or Connection efficiency because you didn't mention them.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added a HAEO connection named 'Inverter to Switchboard' with source Inverter, target Switchboard, and a fixed max power of 10 kW. It appears under Home as a Connection with 2 entities. Pricing and efficiency were left at their defaults.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 13.2
+}

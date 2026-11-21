@@ -1,0 +1,14 @@
+{"t": 1.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.1, "command": "click", "args": ["f2e129"], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "click", "args": ["f2e114"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 7.9, "command": "click", "args": ["f2e424"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e655"], "error": null, "visible_errors": 0}
+{"t": 13.0, "command": "click", "args": ["f2e847"], "error": null, "visible_errors": 0}
+{"t": 14.7, "command": "type", "args": ["f2e655", "solcast pv forecast"], "error": null, "visible_errors": 0}
+{"t": 15.9, "command": "click", "args": ["f2e1018"], "error": null, "visible_errors": 0}
+{"t": 17.1, "command": "type", "args": ["f2e655", "solcast pv forecast"], "error": null, "visible_errors": 0}
+{"t": 18.3, "command": "click", "args": ["f2e1039"], "error": null, "visible_errors": 0}
+{"t": 20.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 22.0, "command": "click", "args": ["f2e664"], "error": null, "visible_errors": 0}
+{"t": 23.0, "command": "click", "args": ["f2e1080"], "error": null, "visible_errors": 0}

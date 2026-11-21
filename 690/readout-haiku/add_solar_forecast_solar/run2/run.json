@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.52990462,
+  "turns": 72,
+  "report": "The solar element is added to HAEO with all 32 Forecast.Solar sensors: today, tomorrow and days 2 to 7 for each of East, North, South and West. I reopened the saved element and all 32 are listed. The connection is \"Inverter, DC\", the default, since your panels feed the inverter. The element is named \"Solar\" and I left the Curtailment section at its defaults.\n\nPoints where I hesitated, were unsure, or could have gone wrong:\n\n- **Connection choice:** I kept the default \"Inverter, DC\" because you said the panels feed the inverter. If your panels are on the AC side of a separate inverter, \"Switchboard, AC\" would be correct instead. I did not check this against your wiring.\n- **Which sensors count:** The picker also listed Solcast and Sigen sensors. I left those out, and I avoided \"Select all\" because it would have added them.\n- **Day coverage:** I included \"today\" and \"tomorrow\" along with days 2 to 7, reading \"every day it covers\" as all of them. \"Today\" is probably a partial day, which may not be what you want.\n- **South label:** The South sensors are labelled \"solar prediction forecast\" instead of \"solar production forecast\". Their entity IDs follow the same `energy_production_*_south` pattern, so I treated them as Forecast.Solar.\n- **Slow entry:** The picker closes after each selection, so I added each sensor by searching its ID and pressing Enter. That took many steps. One shell loop was denied, so I did it one call at a time. The end result is the same.\n- **Unchecked:** The Solar device now shows \"4 entities\". I did not look into what those are.\n- **Name:** I kept the default name \"Solar\" without thinking about whether a more specific name would help.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 69,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 102.5
+}

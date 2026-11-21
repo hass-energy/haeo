@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.008121850000000002,
+  "turns": 10,
+  "report": "I added \"Pool pump\" to the Home hub as a Load with a fixed forecast of 0.8 kW. HAEO confirmed \"Created configuration for Pool pump\", and a Pool pump load device now appears under Home with 12 entities.\n\nWhere I hesitated or made choices:\n\n- **Connection:** I kept the default, Switchboard (AC). The pump runs off the house AC, so this seemed right, but I did not compare it with the other options.\n- **Forecast as a constant:** The Forecast field accepted \"0.8\" as a \"Fixed value 0.8 kW\" option. I chose that over a sensor because you described a steady draw. The field's help text is brief, so I inferred the unit from the chip that showed kW.\n- **Shedding:** I left it at its default. You didn't mention whether the pump can be switched off, and since it runs all the time I saw no reason to change it.\n- **Verification:** I did not reopen the Pool pump configuration to check the saved 0.8 kW value. I relied on the chip and the success message.\n- **Name:** I typed \"Pool pump\" exactly as you asked and did not rename anything else.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' to the Home HAEO hub. Connection is Switchboard (AC), the default, and the forecast is a fixed value of 0.8 kW. Shedding was left at its default. The success dialog said 'Created configuration for Pool pump', and a Pool pump load device now appears under Home with 12 entities.",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.5
+}

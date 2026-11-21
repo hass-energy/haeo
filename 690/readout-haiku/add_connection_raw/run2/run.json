@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.011115020000000001,
+  "turns": 12,
+  "report": "I added the connection from Inverter to Switchboard in HAEO with a fixed max power of 10 kW. I reopened it afterwards and the saved value shows 10 kW.\n\nThe connection is named \"Inverter to Switchboard\". The task didn't specify a name, so I chose one to tell it apart from other connections. I left Price and Connection efficiency at their defaults, since the task didn't mention them.\n\nPoints where I hesitated or was unsure:\n- **Units:** The Max power picker offered \"Fixed value 10 kW\" as an option. I chose that rather than typing a bare number, so the limit is explicitly kilowatts.\n- **Direction:** The form notes that a connection is one-way and that reverse flow needs a second connection. I made only the Inverter \u2192 Switchboard connection, since the cable limit applies to that direction. I didn't add a reverse connection, and the task didn't ask for one.\n- **Name:** The default name was \"Connection\", which is ambiguous once there are several. I renamed it, which was my own choice rather than something you asked for.\n- **Efficiency and pricing:** I didn't touch these. If the cable has losses you want modelled, that would be a separate setting I didn't address.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added a HAEO connection named 'Inverter to Switchboard' from Inverter (source) to Switchboard (target), with Max power set to a fixed 10 kW. Reopened it to confirm the saved value. Price and efficiency were left at their defaults.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.0
+}

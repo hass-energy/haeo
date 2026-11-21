@@ -1,0 +1,9 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.6, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e536"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "type", "args": ["f2e536", "0.8"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "click", "args": ["f2e870"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "click", "args": ["f2e545"], "error": null, "visible_errors": 0}
+{"t": 11.9, "command": "click", "args": ["f2e889"], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "done", "args": ["Added a load named 'Pool pump' to the Home hub. Connection: Switchboard (AC), the default, since the pump is an AC load on the house side. Forecast: fixed value 0.8 kW, which the form offered as a constant. Left Shedding at its default. The Home hub now lists a Pool pump Load device with 12 entities."], "error": null, "visible_errors": 0}

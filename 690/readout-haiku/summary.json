@@ -1,0 +1,100 @@
+{
+  "runs": 30,
+  "passed": 30,
+  "success_rate": 1.0,
+  "actions": 9.0,
+  "cost_usd": 0.88,
+  "tasks": {
+    "add_battery": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 18,
+      "actions_when_passed": 18,
+      "errors_shown": 0,
+      "seconds": 28.6,
+      "cost_usd": 0.05
+    },
+    "add_battery_raw": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 16,
+      "actions_when_passed": 16,
+      "errors_shown": 0,
+      "seconds": 29.9,
+      "cost_usd": 0.06
+    },
+    "add_connection_raw": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 6,
+      "actions_when_passed": 6,
+      "errors_shown": 0,
+      "seconds": 13.2,
+      "cost_usd": 0.02
+    },
+    "add_grid_amber": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 14,
+      "actions_when_passed": 14,
+      "errors_shown": 0,
+      "seconds": 23.0,
+      "cost_usd": 0.04
+    },
+    "add_load_constant": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 7,
+      "actions_when_passed": 7,
+      "errors_shown": 0,
+      "seconds": 13.4,
+      "cost_usd": 0.02
+    },
+    "add_load_forecast": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 9,
+      "actions_when_passed": 9,
+      "errors_shown": 0,
+      "seconds": 20.3,
+      "cost_usd": 0.03
+    },
+    "add_policy_battery_wear": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 10,
+      "actions_when_passed": 10,
+      "errors_shown": 0,
+      "seconds": 29.4,
+      "cost_usd": 0.04
+    },
+    "add_solar_forecast_solar": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 6,
+      "actions_when_passed": 6,
+      "errors_shown": 0,
+      "seconds": 19.9,
+      "cost_usd": 0.55
+    },
+    "add_solar_solcast": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 9,
+      "actions_when_passed": 9,
+      "errors_shown": 0,
+      "seconds": 20.5,
+      "cost_usd": 0.03
+    },
+    "edit_battery_min_charge": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 8,
+      "actions_when_passed": 8,
+      "errors_shown": 0,
+      "seconds": 14.5,
+      "cost_usd": 0.03
+    }
+  },
+  "model": "haiku"
+}

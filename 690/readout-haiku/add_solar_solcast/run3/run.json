@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.012702070000000001,
+  "turns": 15,
+  "report": "I added the rooftop solar to HAEO's Home hub as a \"Solar\" element and pointed its forecast at your three Solcast sensors.\n\n- **Name:** Solar (left as default).\n- **Connection:** Inverter, DC (the default), since the panels feed the inverter.\n- **Forecast:** `sensor.solcast_pv_forecast_forecast_today`, `sensor.solcast_pv_forecast_forecast_tomorrow` and `sensor.solcast_pv_forecast_forecast_day_3`.\n- **Curtailment:** left unset.\n\nThe submit reported \"Created configuration for Solar\". The Home hub now lists a Solar device with 4 entities, and the entity count went from 56 to 60.\n\nI did not check the new entities' values or run an optimisation.\n\nPoints where I hesitated or made a mistake:\n- **Wrong element opened first:** my first click landed on the Buffer button instead of Solar. I closed that dialog with its close button and did not submit it, so no Buffer was created.\n- **Connection choice:** I kept the default \"Inverter, DC\" without reading a help text for it. I chose it because you said the panels feed the inverter, but I did not confirm that this is the right option for a solar array on a hybrid inverter.\n- **Forecast picker:** the picker closes after each selection, so I added the three sensors one at a time by searching \"solcast pv forecast\". The search also listed other solar forecasts (East, North, South, West). I picked only the Solcast ones, which match your setup.\n- **Curtailment:** I did not open it. I treated it as optional since you did not mention it.\n- **Blocked command:** one `./browse look | sed` check was denied by the permission mode. I re-ran it as a plain `./browse look` and got the same information.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 12,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 27.5
+}

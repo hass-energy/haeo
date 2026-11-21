@@ -1,0 +1,85 @@
+{
+  "task": "add_battery",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.014976970000000003,
+  "turns": 17,
+  "report": "The Sigenergy battery is now added to HAEO as a Battery element on the Home hub. The success dialog read \"Created configuration for Battery\", and the Battery device appears under Home.\n\nWhat I set:\n- **Name:** Battery (default).\n- **Connection:** Inverter, DC (default). You said the battery is connected through the inverter, so I kept it.\n- **Capacity:** Sigen Plant Rated Energy Capacity (reads 32.24 kWh).\n- **State of charge:** Sigen Plant Battery State of Charge (%).\n- **Min charge level:** fixed 5 %, so the battery is never discharged below 5%.\n- **Max charge power:** Sigen Plant ESS Rated Charging Power (16.8 kW at the time).\n- **Max discharge power:** Sigen Plant ESS Rated Discharging Power (19.2 kW at the time).\n\nI left the max charge level, salvage value, charge and discharge costs, battery efficiency and advanced settings at their defaults, since you didn't mention them.\n\nPoints where I hesitated or was unsure:\n- **Connection type:** The default is Inverter, DC, and I kept it. I assumed the Sigen battery is DC-coupled behind the inverter, as you described. If it is actually AC-coupled, the Switchboard option would be the right one.\n- **Min charge level units:** The field accepts a bare number and offered \"Fixed value 5 %\" as the choice. I picked that option rather than typing a fraction such as 0.05.\n- **Max charge level:** I did not set it, because you only asked for the 5% floor. The battery may therefore charge to whatever HAEO assumes by default, not necessarily 100%.\n- **Power sensor values:** The power sensors reported 16.8 kW and 19.2 kW when I selected them. I did not check whether those are current limits or peak ratings. HAEO will use whatever the sensors report.\n- **Battery name:** I left it as \"Battery\". If you have several batteries later, a more specific name would help.\n- **Verification:** I confirmed the device appears under Home, but I did not open the new element to check the saved values.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Battery element to the Home HAEO hub. Connection: Inverter (DC, the default, since the battery sits behind the inverter). Capacity: Sigen Plant Rated Energy Capacity sensor (32.24 kWh). State of charge: Sigen Plant Battery State of Charge sensor (%). Min charge level: fixed 5 %. Max charge power: Sigen Plant ESS Rated Charging Power sensor. Max discharge power: Sigen Plant ESS Rated Discharging Power sensor. Battery name, max charge level, salvage and cost fields, and efficiency/advanced settings were left at defaults. The success dialog said 'Created configuration for Battery' and the Battery device now appears under Home.",
+  "actions": 18,
+  "looks": 6,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 23.9
+}

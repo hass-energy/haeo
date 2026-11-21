@@ -1,0 +1,7 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.5, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.1, "command": "type", "args": ["f2e543", "10"], "error": null, "visible_errors": 0}
+{"t": 6.5, "command": "click", "args": ["f2e574"], "error": null, "visible_errors": 0}
+{"t": 8.4, "command": "click", "args": ["f2e570"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "click", "args": ["f2e593"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "done", "args": ["Added a Connection subentry to the Home HAEO hub: source Inverter, target Switchboard, max power fixed at 10 kW (the 'Fixed value 10 kW' option), name left as the default 'Connection'. Creation succeeded and a Connection device with 2 entities now appears."], "error": null, "visible_errors": 0}
