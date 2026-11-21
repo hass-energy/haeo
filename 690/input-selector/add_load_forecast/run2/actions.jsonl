@@ -1,0 +1,14 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.7, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.0, "command": "click", "args": ["f2e457"], "error": null, "visible_errors": 0}
+{"t": 8.6, "command": "click", "args": ["f2e565"], "error": null, "visible_errors": 0}
+{"t": 10.2, "command": "click", "args": ["f2e560"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "click", "args": ["f2e478"], "error": null, "visible_errors": 0}
+{"t": 13.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 14.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 15.1, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 18.6, "command": "click", "args": ["f2e478"], "error": null, "visible_errors": 0}
+{"t": 20.6, "command": "click", "args": ["f2e703"], "error": null, "visible_errors": 0}
+{"t": 22.2, "command": "click", "args": ["f2e466"], "error": null, "visible_errors": 0}
+{"t": 23.8, "command": "click", "args": ["f2e712"], "error": null, "visible_errors": 0}
+{"t": 25.7, "command": "done", "args": ["Added a Load named 'Load', connected to the Switchboard, with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. HAEO showed the success message and the Load now appears under the Home hub."], "error": null, "visible_errors": 0}

@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.12049939999999999,
+  "turns": 13,
+  "report": "Solar is now added to the Home hub. It's connected to the Inverter and uses all 32 Forecast.Solar sensors. That is 8 for each of east, north, south and west. For each direction there is today, tomorrow, the day after tomorrow and 3 to 7 days from now. I reopened the saved Solar entry and counted 32 forecast entries. None of them were Solcast or Sigen sensors.\n\nPoints where I hesitated or made a mistake:\n- **Enter submitted the form:** I typed `energy_production_` to filter the list and pressed Enter. I expected it to add the matches, but it added them and submitted the whole form in one go. I hadn't meant to submit yet, so I checked the saved result afterwards, and it was correct.\n- **Selection not checked first:** I didn't look at what the filter had selected before submitting, so I didn't know the list was right until I reopened the entry.\n- **Odd sensor names:** The south sensors are named \"South solar prediction forecast\" rather than \"production\". The entity IDs matched the pattern, so I included them as Forecast.Solar sensors.\n- **Connection and curtailment:** The Connection field already said Inverter, and I accepted that without comparing it to the Switchboard. I didn't open or change the Curtailment section.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar to HAEO Home, connected to Inverter, with all 32 Forecast.Solar energy production sensors (east, north, south, west; today, tomorrow, day after tomorrow, and 3-7 days ahead for each).",
+  "actions": 7,
+  "looks": 8,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.9
+}

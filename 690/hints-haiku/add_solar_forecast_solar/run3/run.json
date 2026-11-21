@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.013074680000000002,
+  "turns": 12,
+  "report": "I added the Solar element to the Home hub with all 32 Forecast.Solar sensors, and the setup reported \"Created configuration for Solar.\" The Solar device now appears under Home with 4 entities.\n\n**What I set up**\n- **Name:** Solar (the default).\n- **Connection:** Inverter (the default, which is correct because the panels feed the inverter).\n- **Forecast:** 8 sensors per direction for east, north, south and west, covering today, tomorrow, day after tomorrow, and 3 to 7 days from now. That gives 32 in total.\n- **Curtailment:** left at its default.\n\n**Where I hesitated or made a mistake**\n- I typed `energy_production` into the forecast picker and used \"Add all 32 matches.\" I checked the resulting list against the expected 8-per-direction pattern, but I did not confirm after submitting what was saved.\n- The South sensors are named \"South solar prediction forecast\" while the others say \"production.\" I included them because their entity IDs follow the same `sensor.energy_production_*_south` pattern as the rest. If that is wrong, the South group needs a second look.\n- The picker also listed Solcast PV Forecast sensors. I left them out because Solcast is a different integration from Forecast.Solar.\n- I could not grep the saved output file because Bash was denied in that step. I read the file with the Read tool instead and got the same information.\n- I did not change the default Curtailment settings, because the task did not mention curtailment and I do not know whether it applies to your system.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 7,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 24.7
+}

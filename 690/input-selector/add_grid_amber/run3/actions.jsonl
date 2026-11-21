@@ -1,0 +1,18 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "click", "args": ["f2e465"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "click", "args": ["f2e448"], "error": null, "visible_errors": 0}
+{"t": 8.1, "command": "click", "args": ["f2e465"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "click", "args": ["f2e501"], "error": null, "visible_errors": 0}
+{"t": 11.0, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e472"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "click", "args": ["f2e514"], "error": null, "visible_errors": 0}
+{"t": 15.6, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 17.4, "command": "click", "args": ["f2e448"], "error": null, "visible_errors": 0}
+{"t": 18.8, "command": "click", "args": ["f2e536"], "error": null, "visible_errors": 0}
+{"t": 20.2, "command": "click", "args": ["f2e476"], "error": null, "visible_errors": 0}
+{"t": 21.8, "command": "type", "args": ["f2e547", "55"], "error": null, "visible_errors": 0}
+{"t": 22.2, "command": "type", "args": ["f2e557", "30"], "error": null, "visible_errors": 0}
+{"t": 23.8, "command": "click", "args": ["f2e481"], "error": null, "visible_errors": 0}
+{"t": 25.2, "command": "click", "args": ["f2e569"], "error": null, "visible_errors": 0}
+{"t": 27.1, "command": "done", "args": ["Added Grid, connected to Switchboard. Import price: Amber Express - Home General Price; export price: Amber Express - Home Feed In Price. Import limit 55 kW, export limit 30 kW. HAEO confirmed creation (Grid device with 12 entities)."], "error": null, "visible_errors": 0}

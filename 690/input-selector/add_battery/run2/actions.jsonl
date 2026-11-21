@@ -1,0 +1,21 @@
+{"t": 3.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "type", "args": ["f2e443", "Sigenergy", "Battery"], "error": null, "visible_errors": 0}
+{"t": 7.3, "command": "click", "args": ["f2e465"], "error": null, "visible_errors": 0}
+{"t": 9.1, "command": "click", "args": ["f2e579"], "error": null, "visible_errors": 0}
+{"t": 9.5, "command": "click", "args": ["f2e472"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e592"], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "click", "args": ["f2e513"], "error": null, "visible_errors": 0}
+{"t": 13.1, "command": "type", "args": ["f2e513", "rated", "charging"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e695"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "click", "args": ["f2e520"], "error": null, "visible_errors": 0}
+{"t": 15.5, "command": "type", "args": ["f2e520", "rated", "discharging"], "error": null, "visible_errors": 0}
+{"t": 17.2, "command": "click", "args": ["f2e916"], "error": null, "visible_errors": 0}
+{"t": 18.9, "command": "click", "args": ["f2e489"], "error": null, "visible_errors": 0}
+{"t": 20.8, "command": "type", "args": ["f2e489", "5"], "error": null, "visible_errors": 0}
+{"t": 22.7, "command": "click", "args": ["f2e1040"], "error": null, "visible_errors": 0}
+{"t": 22.9, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 23.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 24.5, "command": "click", "args": ["f2e575"], "error": null, "visible_errors": 0}
+{"t": 26.5, "command": "click", "args": ["f2e1053"], "error": null, "visible_errors": 0}
+{"t": 26.7, "command": "done", "args": ["Added Sigenergy Battery connected to Inverter: capacity and SoC from Sigen Plant sensors, max charge/discharge from ESS rated power sensors, min charge level fixed 5%."], "error": null, "visible_errors": 0}

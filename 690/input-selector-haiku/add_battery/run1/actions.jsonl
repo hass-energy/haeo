@@ -1,0 +1,20 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.5, "command": "click", "args": ["f2e122"], "error": null, "visible_errors": 0}
+{"t": 6.8, "command": "click", "args": ["f2e117"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 8.6, "command": "click", "args": ["f2e424"], "error": null, "visible_errors": 0}
+{"t": 9.8, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 11.8, "command": "click", "args": ["f2e596"], "error": null, "visible_errors": 0}
+{"t": 14.0, "command": "type", "args": ["f2e596", "capacity"], "error": null, "visible_errors": 0}
+{"t": 15.3, "command": "click", "args": ["f2e710"], "error": null, "visible_errors": 0}
+{"t": 17.5, "command": "click", "args": ["f2e603"], "error": null, "visible_errors": 0}
+{"t": 18.9, "command": "click", "args": ["f2e723"], "error": null, "visible_errors": 0}
+{"t": 20.8, "command": "click", "args": ["f2e620"], "error": null, "visible_errors": 0}
+{"t": 22.9, "command": "type", "args": ["f2e620", "5"], "error": null, "visible_errors": 0}
+{"t": 24.3, "command": "click", "args": ["f2e741"], "error": null, "visible_errors": 0}
+{"t": 25.8, "command": "click", "args": ["f2e644"], "error": null, "visible_errors": 0}
+{"t": 27.3, "command": "click", "args": ["f2e838"], "error": null, "visible_errors": 0}
+{"t": 29.6, "command": "type", "args": ["f2e651", "ESS Rated Discharging"], "error": null, "visible_errors": 0}
+{"t": 30.8, "command": "click", "args": ["f2e962"], "error": null, "visible_errors": 0}
+{"t": 33.1, "command": "click", "args": ["f2e706"], "error": null, "visible_errors": 0}
+{"t": 34.3, "command": "click", "args": ["f2e982"], "error": null, "visible_errors": 0}
+{"t": 38.0, "command": "done", "args": ["Added the Sigenergy battery to HAEO hub 'Home' as 'Battery' with Inverter as connection; capacity, SoC, charge/discharge power from Sigen sensors; min charge level fixed at 5%."], "error": null, "visible_errors": 0}

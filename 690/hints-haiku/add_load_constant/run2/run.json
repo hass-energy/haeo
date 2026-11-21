@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.00939411,
+  "turns": 12,
+  "report": "I added \"Pool pump\" to the Home hub as a regular Load with a fixed 0.8 kW forecast. HAEO confirmed \"Created configuration for Pool pump\", and a Pool pump Load device with 12 entities now appears under Home.\n\nSettings:\n- **Name:** Pool pump\n- **Connection:** Switchboard\n- **Forecast:** fixed value 0.8 kW (entered as a number, shown as kW)\n- **Shedding:** left unset\n\nI did not reopen the saved entry to check that 0.8 kW was stored. I only saw it in the form before submitting.\n\nPoints where I hesitated or may have gone wrong:\n- **Load vs. Deferrable load:** I chose Load because the pump runs constantly at a steady draw and doesn't need to be scheduled. A deferrable load would be the choice if it could be shifted in time.\n- **Connection:** I picked Switchboard because the pump is an AC house appliance. The default was Inverter, and I didn't check which connection the existing \"Load\" entry uses, so this may not match your setup.\n- **Units:** The fixed value field showed \"kW\" next to the number, so I took 0.8 as kW, which matches your 0.8 kW figure.\n- **Shedding:** I skipped it because the task didn't mention shedding. If the pump can be switched off when power is short, that setting would need adding.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' to the Home hub. Connection: Switchboard. Forecast: fixed value 0.8 kW. Shedding left unset. Confirmed the success message 'Created configuration for Pool pump' and a new Pool pump Load device (12 entities) under Home.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.3
+}

@@ -1,0 +1,12 @@
+{"t": 2.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.4, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 6.7, "command": "click", "args": ["f2e467"], "error": null, "visible_errors": 0}
+{"t": 8.6, "command": "click", "args": ["f2e567"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "click", "args": ["f2e572"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 14.0, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 16.0, "command": "click", "args": ["f2e484"], "error": null, "visible_errors": 0}
+{"t": 17.8, "command": "click", "args": ["f2e476"], "error": null, "visible_errors": 0}
+{"t": 19.4, "command": "click", "args": ["f2e712"], "error": null, "visible_errors": 0}
+{"t": 21.0, "command": "done", "args": ["Added a Load element named 'Load' connected to Switchboard, with Forecast set to both Sigen Plant Consumed Power and Sigen Plant Consumed Power Forecast. It now appears under the Home hub."], "error": null, "visible_errors": 0}

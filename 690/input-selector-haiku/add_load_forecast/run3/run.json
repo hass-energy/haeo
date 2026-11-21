@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.012459479999999998,
+  "turns": 11,
+  "report": "I added a Household load to the Home hub, with both consumed-power sensors on it. The success dialog said \"Created configuration for Household\", and the Household load now shows under Home with 12 entities. I did not reopen the saved form to confirm both sensors were kept.\n\nWhat I set:\n- **Name:** Household (the form defaulted to \"Load\").\n- **Connection:** Switchboard. The form offered only Inverter or Switchboard; I chose Switchboard because household consumption sits on the house-side bus, not behind the inverter.\n- **Forecast:** `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power`.\n\nPoints where I hesitated or may have made a mistake:\n- **Current sensor placement:** The form has no separate field for a current power sensor. The Forecast field is a multi-select list, so I added the current sensor there alongside the forecast. I did not find a dedicated \"current power\" field, and I did not confirm how HAEO treats a current sensor in that list.\n- **Connection choice:** Switchboard is my best guess for a household load. The form gave no help text, so I could be wrong about where the Sigen consumption is metered.\n- **Name:** I renamed the load to \"Household\" without being asked. It is easy to change if you prefer another name.\n- **Shedding:** I left the Shedding section untouched because you did not mention it.\n- **Verification:** I did not reopen the saved Household configuration to check that both sensors were stored.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.5
+}

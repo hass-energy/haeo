@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.11080509999999999,
+  "turns": 11,
+  "report": "I added a Solar element to HAEO. It's connected to the Inverter and uses all three Solcast sensors as its forecast: Forecast Today, Forecast Tomorrow and Forecast Day 3. HAEO showed \"Created configuration for Solar.\" after I submitted. I didn't open the new Solar element again to check its saved settings.\n\nPoints where I hesitated or slipped:\n- **Forecast picker:** It listed many similar sensors, including East, North, South and West production forecasts. I picked only the three Solcast PV Forecast sensors. I wasn't sure at first that the field accepted several sensors, so I added Today first and saw it was a multi-select.\n- **Connection:** The dialog already showed Inverter, so I left it. That matches your setup, but I didn't open the dropdown to confirm it was a real selection rather than a default.\n- **Curtailment:** I left that section collapsed and untouched, since you didn't mention it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element connected to Inverter with Solcast forecast today, tomorrow and day 3 sensors.",
+  "actions": 8,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 16.9
+}

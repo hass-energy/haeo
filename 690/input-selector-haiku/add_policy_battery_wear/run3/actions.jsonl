@@ -1,0 +1,18 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.8, "command": "click", "args": ["f2e146"], "error": null, "visible_errors": 0}
+{"t": 6.5, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 9.9, "command": "click", "args": ["f2e166"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e469"], "error": null, "visible_errors": 0}
+{"t": 11.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 13.6, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 15.6, "command": "click", "args": ["f2e696"], "error": null, "visible_errors": 0}
+{"t": 17.7, "command": "type", "args": ["f2e696", "0.01"], "error": null, "visible_errors": 0}
+{"t": 18.9, "command": "click", "args": ["f2e725"], "error": null, "visible_errors": 0}
+{"t": 20.9, "command": "click", "args": ["f2e711"], "error": null, "visible_errors": 0}
+{"t": 22.5, "command": "click", "args": ["f2e739"], "error": null, "visible_errors": 0}
+{"t": 23.1, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 26.3, "command": "click", "args": ["f2e798"], "error": null, "visible_errors": 0}
+{"t": 26.7, "command": "click", "args": ["f2e744"], "error": null, "visible_errors": 0}
+{"t": 29.2, "command": "click", "args": ["f2e1008"], "error": null, "visible_errors": 0}
+{"t": 32.9, "command": "click", "args": ["f2e981"], "error": null, "visible_errors": 0}
+{"t": 34.2, "command": "done", "args": ["Set the Battery element's Discharge cost to a fixed 0.01 $/kWh and saved it (verified it persisted). HAEO also auto-created a 'Battery discharge cost' policy: source = Battery, target = Any, price 0.01 $/kWh, which covers discharge to any destination."], "error": null, "visible_errors": 0}

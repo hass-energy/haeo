@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.00899423,
+  "turns": 13,
+  "report": "The \"Pool pump\" load is now in the Home hub, with a fixed 0.8 kW forecast on the Switchboard connection. The success dialog said \"Created configuration for Pool pump,\" and the hub now lists a Pool pump device with 12 entities. I did not check the entity values themselves.\n\nWhere I hesitated or may have got it wrong:\n\n- **Connection:** The form offered Inverter (the default) and Switchboard. I chose Switchboard because the pool pump is a mains AC load on the house side, not something fed through the battery inverter. I did not check how the existing \"Load\" entry is connected, so this is my judgement.\n- **Constant value:** The Forecast field also accepts a typed number. I typed 0.8 and picked \"Use 0.8 kW as a fixed value\", which showed kW next to the field. I took that as the unit rather than confirming it elsewhere.\n- **Shedding:** I left the Shedding section at its default. You said the pump runs all the time, so I saw no reason to set anything there, but I did not read what it does.\n- **Name and help text:** I used the name \"Pool pump\" exactly as you asked. The dialog's help text says \"forecast or constant power\", and I did not look for a separate constant-power option, because the fixed-value entry in the Forecast field seemed to be the intended route.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.0
+}

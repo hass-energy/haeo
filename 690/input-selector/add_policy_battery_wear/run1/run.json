@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1218013,
+  "turns": 13,
+  "report": "I added a policy named \"Battery wear\" to your Home setup. It charges $0.01 per kWh whenever energy leaves the Battery, wherever that energy goes. I didn't run the optimizer to see the effect on its plan.\n\nThe policy has these settings:\n- **Source:** Battery.\n- **Target:** Any, which is the default. I left it alone so the cost applies to every destination.\n- **Price:** a fixed value of 0.01 $/kWh. The price box first listed only the two Amber price sensors, so I typed 0.01 and picked the \"fixed value\" option.\n- **Enabled:** on.\n\nHome Assistant showed \"Created configuration for Policies\", and a new \"Policies\" device now appears under Home. I didn't open the policy again to check the saved values.\n\nPoints where I hesitated or was unsure:\n- I assumed \"Any\" was already selected for Target, because no button looked highlighted in the page text. I didn't check this, and I didn't click it to confirm.\n- I chose the name \"Battery wear\" myself, since you didn't give one.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear' to Home: source = Battery, target = Any (default), price = fixed 0.01 $/kWh, enabled. It saved and a Policies device appeared.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.4
+}

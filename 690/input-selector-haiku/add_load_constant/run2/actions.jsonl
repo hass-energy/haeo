@@ -1,0 +1,10 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.6, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.1, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 7.4, "command": "click", "args": ["f2e512"], "error": null, "visible_errors": 0}
+{"t": 9.8, "command": "type", "args": ["f2e512", "0.8"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e730"], "error": null, "visible_errors": 0}
+{"t": 13.5, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e740"], "error": null, "visible_errors": 0}
+{"t": 16.0, "command": "click", "args": ["f2e521"], "error": null, "visible_errors": 0}
+{"t": 17.1, "command": "click", "args": ["f2e749"], "error": null, "visible_errors": 0}

@@ -1,0 +1,11 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "click", "args": ["f2e512"], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "type", "args": ["f2e512", "0.8"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "click", "args": ["f2e733"], "error": null, "visible_errors": 0}
+{"t": 14.6, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 15.7, "command": "click", "args": ["f2e743"], "error": null, "visible_errors": 0}
+{"t": 17.2, "command": "click", "args": ["f2e521"], "error": null, "visible_errors": 0}
+{"t": 18.3, "command": "click", "args": ["f2e752"], "error": null, "visible_errors": 0}
+{"t": 20.3, "command": "done", "args": ["Added a Load named 'Pool pump' to the Home hub. Connection: Switchboard. Forecast: fixed value 0.8 kW. Shedding left unset. Confirmed the success message 'Created configuration for Pool pump' and a new Pool pump Load device (12 entities) under Home."], "error": null, "visible_errors": 0}

@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.013329650000000004,
+  "turns": 10,
+  "report": "I added the rooftop solar to HAEO as a Solar element named \"Solar\", and it's now listed under the Home hub with 4 entities.\n\n- **Connection:** Inverter, which was the default and matches where your panels feed in.\n- **Forecast:** three Solcast sensors, `sensor.solcast_pv_forecast_forecast_today`, `..._forecast_tomorrow` and `..._forecast_forecast_day_3`. The field accepts several sensors, so I added all three.\n\nI didn't open the saved configuration to check the sensors after submitting; I only confirmed the success message and the new device.\n\nPoints where I hesitated or was unsure:\n- **Several forecast sensors in one field:** the field is a multi-select, and I assumed HAEO combines the three days into one forecast. The form didn't say so, and I didn't verify the result.\n- **Similar-looking sensors:** the list also had East, North, South and West solar forecasts, plus `sensor.sigen_plant_pv_power`. I passed over them because you asked for Solcast.\n- **Curtailment:** I left that section at its defaults without opening it, since you didn't mention curtailment.\n- **Element name:** I kept the default name \"Solar\" without thinking about whether you'd want something else.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.4
+}

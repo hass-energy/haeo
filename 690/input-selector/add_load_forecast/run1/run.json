@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.154593,
+  "turns": 13,
+  "report": "I added a Load named \"Load\" to the Home hub. It's connected to the Switchboard, and its Forecast field holds both Sigen sensors: Sigen Plant Consumed Power and Sigen Plant Consumed Power Forecast. HAEO showed \"Created configuration for Load\", and the Load now appears under Home. I didn't open it again to check the saved values.\n\nPoints where I hesitated or slipped:\n- **Connection choice:** The form defaulted to Inverter. I chose Switchboard because household consumption normally hangs off the switchboard. Nothing in the interface confirmed that was right.\n- **Single \"Forecast\" field:** I expected separate fields for the forecast and the current reading. The form had one multi-select \"Forecast\" field, so I put both sensors in it. I'm not sure HAEO combines them the way I intended.\n- **Dropdown mix-up:** My first attempt to change the Connection dropdown was interrupted when I opened the Forecast picker, so I had to redo it. The end result was correct.\n- **Shedding section:** I didn't open or change it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power",
+          "sensor.sigen_plant_consumed_power_forecast"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Load' connected to Switchboard, with Forecast set to both Sigen Plant Consumed Power and Sigen Plant Consumed Power Forecast. It now appears under the Home hub.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.0
+}

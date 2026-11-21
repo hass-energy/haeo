@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.14399910000000002,
+  "turns": 12,
+  "report": "\"Pool pump\" is now in HAEO as its own Load under the Home hub. It has a fixed 0.8 kW power value, and it shows up with 12 entities. I didn't open the new load to check its settings afterwards. The only confirmation was HAEO's \"Created configuration for Pool pump\" message and the entry in the hub list.\n\nPoints where I hesitated or slipped:\n- **Connection choice:** The form offered only Inverter or Switchboard, and it defaulted to Inverter. I picked Switchboard on the assumption that a household load belongs there. I didn't check which one the existing \"Load\" uses, so that is a guess.\n- **Connection dropdown:** My first attempt to change the connection didn't register, so I set the forecast first and came back to it. It showed Switchboard before I submitted.\n- **Forecast field:** The forecast box looked like a sensor picker. I had to type 0.8 to get a \"Use 0.8 kW as a fixed value\" option, and I wasn't sure at first that a constant was allowed.\n- **Shedding section:** I left the collapsed \"Shedding\" section alone.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' with a fixed 0.8 kW forecast, connected to Switchboard. It now appears in the Home hub with 12 entities.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.3
+}

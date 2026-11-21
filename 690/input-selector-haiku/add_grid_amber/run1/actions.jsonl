@@ -1,0 +1,15 @@
+{"t": 1.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.0, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 5.1, "command": "click", "args": ["f2e448"], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "click", "args": ["f2e489"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "click", "args": ["f2e465"], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "click", "args": ["f2e497"], "error": null, "visible_errors": 0}
+{"t": 10.5, "command": "click", "args": ["f2e472"], "error": null, "visible_errors": 0}
+{"t": 11.6, "command": "click", "args": ["f2e510"], "error": null, "visible_errors": 0}
+{"t": 12.9, "command": "click", "args": ["f2e476"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e477"], "error": null, "visible_errors": 0}
+{"t": 15.9, "command": "type", "args": ["f2e536", "55"], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "type", "args": ["f2e546", "30"], "error": null, "visible_errors": 0}
+{"t": 17.8, "command": "click", "args": ["f2e481"], "error": null, "visible_errors": 0}
+{"t": 18.9, "command": "click", "args": ["f2e558"], "error": null, "visible_errors": 0}
+{"t": 21.9, "command": "done", "args": ["Added the Grid connection to the Home HAEO hub. Connection is set to Switchboard, the junction where the grid meets the home. Import price is Amber Express Home General Price (sensor.amber_express_home_general_price). Export price is Amber Express Home Feed In Price (sensor.amber_express_home_feed_in_price). Import limit is 55 kW and export limit is 30 kW. The success dialog confirmed 'Created configuration for Grid', and a Grid device with 12 entities now appears under Home."], "error": null, "visible_errors": 0}

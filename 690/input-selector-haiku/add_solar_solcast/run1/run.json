@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.01803206,
+  "turns": 14,
+  "report": "I added the rooftop solar to HAEO as a Solar element under the Home hub. It is connected to the Inverter and uses your three Solcast forecasts. I reopened it afterwards and all three were saved.\n\n- **Name:** left as the default, \"Solar\".\n- **Connection:** Inverter, since the panels feed the inverter.\n- **Forecast:** `sensor.solcast_pv_forecast_forecast_today`, `sensor.solcast_pv_forecast_forecast_tomorrow` and `sensor.solcast_pv_forecast_forecast_day_3`.\n- **Curtailment:** left at the default, \"Allow curtailment: On\".\n\nThe Solar device now shows 4 entities, and the Home hub went from 56 to 60 entities.\n\nPoints where I hesitated or was unsure:\n- The forecast picker also lists other forecast sensors (East, North, South and West solar, plus Sigen plant values). I chose only the Solcast ones because you asked for Solcast.\n- The forecast field accepts several sensors, but nothing in the UI said so. I only found that out by selecting one and seeing the field stay open. I did not check whether HAEO sums or otherwise combines the three sensors.\n- I expanded the Curtailment section to look at it and left it at its default. I did not check what the curtailment setting does beyond its label.\n- My first click on the Curtailment heading just closed the sensor dropdown instead of expanding the section. I clicked again and it opened.\n- I did not check the Solcast sensor values against what your inverter actually produces. I took the sensors as correct because you named them.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Solar element to the Home HAEO hub, named 'Solar', connected to the Inverter. Its forecast is the three Solcast PV Forecast sensors: sensor.solcast_pv_forecast_forecast_today, sensor.solcast_pv_forecast_forecast_tomorrow and sensor.solcast_pv_forecast_forecast_day_3. Curtailment was left at the default (allowed). Reopened the element afterwards and confirmed all three forecasts are saved.",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.8
+}

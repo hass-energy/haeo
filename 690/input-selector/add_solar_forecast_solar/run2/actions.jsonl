@@ -1,0 +1,21 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "click", "args": ["f2e465"], "error": null, "visible_errors": 0}
+{"t": 7.5, "command": "click", "args": ["f2e478"], "error": null, "visible_errors": 0}
+{"t": 13.1, "command": "click", "args": ["f2e483"], "error": null, "visible_errors": 0}
+{"t": 13.6, "command": "click", "args": ["f2e488"], "error": null, "visible_errors": 0}
+{"t": 14.2, "command": "click", "args": ["f2e493"], "error": null, "visible_errors": 0}
+{"t": 18.1, "command": "type", "args": ["f2e465", "solar_east"], "error": null, "visible_errors": 0}
+{"t": 20.3, "command": "type", "args": ["f2e465", "_east"], "error": null, "visible_errors": 0}
+{"t": 22.9, "command": "click", "args": ["f2e709"], "error": null, "visible_errors": 0}
+{"t": 24.9, "command": "type", "args": ["f2e465", "_north"], "error": null, "visible_errors": 0}
+{"t": 27.1, "command": "click", "args": ["f2e779"], "error": null, "visible_errors": 0}
+{"t": 27.4, "command": "type", "args": ["f2e465", "_south"], "error": null, "visible_errors": 0}
+{"t": 29.6, "command": "click", "args": ["f2e869"], "error": null, "visible_errors": 0}
+{"t": 29.9, "command": "type", "args": ["f2e465", "_west"], "error": null, "visible_errors": 0}
+{"t": 32.3, "command": "click", "args": ["f2e959"], "error": null, "visible_errors": 0}
+{"t": 32.7, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 32.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 34.9, "command": "click", "args": ["f2e474"], "error": null, "visible_errors": 0}
+{"t": 37.1, "command": "click", "args": ["f2e1056"], "error": null, "visible_errors": 0}
+{"t": 39.1, "command": "done", "args": ["Added Solar element connected to Inverter with all 32 Forecast.Solar sensors (east, north, south, west; 8 each: today, tomorrow, day after tomorrow, 3-7 days). Config created successfully."], "error": null, "visible_errors": 0}

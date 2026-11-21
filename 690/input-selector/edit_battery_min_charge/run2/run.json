@@ -1,0 +1,86 @@
+{
+  "task": "edit_battery_min_charge",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.08565350000000001,
+  "turns": 7,
+  "report": "I raised the Battery's minimum charge level from 5% to 20%. I saved it and got \"Configuration updated successfully\". When I reopened the Battery settings, the field showed 20.\n\nI left the reopened Battery settings dialog open instead of closing it. I didn't change anything else.\n\nPoints where I hesitated or made a mistake:\n- **Where to click:** I wasn't sure which control opened the battery settings. I guessed the \"Battery\" button with the cog, and it was the right one.\n- **Saved value:** After saving, the entity count went up by one (60 to 61). I didn't investigate why, and it may just be a new entity for the changed setting.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 20.0
+      },
+      "max_charge_percentage": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 98.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 98.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Battery min charge level changed from 5% to 20%; saved and reopened to confirm it shows 20.",
+  "actions": 5,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 10.5
+}

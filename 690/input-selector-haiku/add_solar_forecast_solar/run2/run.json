@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.52178192,
+  "turns": 79,
+  "report": "The Solar element is set up on Home, connected to the Inverter, with all 32 Forecast.Solar sensors. I reopened it afterwards and the saved list has all of them.\n\n- **Sensors included:** For each of east, north, south and west, the `energy_production_*` sensors for today, tomorrow, day after tomorrow, and 3 to 7 days from now (8 per direction).\n- **Sensors excluded:** Solcast PV Forecast and the Sigen plant sensors, because they are not Forecast.Solar.\n- **Left at defaults:** Solar name (\"Solar\") and the Curtailment section.\n\nPoints where I hesitated or made a mistake:\n\n1. **Enter submitted the form early.** I pressed Enter to pick a sensor, expecting it to select the option. It submitted the dialog instead and created the Solar element with only east today and east tomorrow. I fixed it by reopening the element and adding the other 30 sensors. I used clicks from then on.\n2. **Name of the south sensors.** They appear as \"South solar prediction forecast\" rather than \"production forecast\", and they are Forecast.Solar sensors by their `energy_production_*_south` entity IDs. I included them, but that wording difference is worth knowing.\n3. **Curtailment left alone.** I did not look into the Curtailment options, since the task did not mention them.\n4. **Shell access blocked late.** Near the end, shell commands for searching and saving output were denied. I did the final check by reading the page output directly instead, which covered the same ground.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added the Solar element to Home (connected to Inverter) with all 32 Forecast.Solar sensors: east, north, south and west, each for today, tomorrow, day after tomorrow, and 3 to 7 days from now. Verified the saved list after reopening. Solcast and Sigen sensors were excluded because they are not Forecast.Solar. Solar name and curtailment were left at defaults.",
+  "actions": 72,
+  "looks": 4,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 113.9
+}
