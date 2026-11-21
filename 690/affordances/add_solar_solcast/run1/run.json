@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.14153680000000002,
+  "turns": 9,
+  "report": "I added a Solar element to the Home hub, connected to the Inverter. Its forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. HAEO showed \"Created configuration for Solar\", and Solar now appears under the Home hub on the integration page. I didn't open it again to check the saved settings.\n\nPoints where I hesitated or slipped:\n- **Forecast field:** it also had a fixed kW number box, but I left that empty and used only the sensors. I assumed the sensors were enough, and the form accepted it.\n- **Curtailment:** I left the optional Curtailment section untouched.\n- **Duplicate-looking sensors:** the picker listed other solar forecast sensors (East, North, South, West). I ignored them because you asked for Solcast.\n- **Output dump:** one command printed far more page text than I needed. It didn't change anything.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element connected to Inverter, with forecast sensors Solcast PV Forecast Forecast Today, Tomorrow and Day 3. It now appears in the Home hub.",
+  "actions": 8,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 14.8
+}

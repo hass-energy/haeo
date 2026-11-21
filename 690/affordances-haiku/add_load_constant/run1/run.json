@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.0057572199999999995,
+  "turns": 9,
+  "report": "I added \"Pool pump\" as a load in the Home HAEO hub. The success dialog said \"Created configuration for Pool pump,\" and it now appears in the hub's list with 12 entities.\n\nSettings:\n- **Name:** Pool pump\n- **Connection:** Switchboard\n- **Forecast:** 0.8 kW typed into the constant kW field. I did not choose any sensor entities.\n- **Shedding:** left at its default, since the pump runs all the time.\n\nI did not open the new load afterwards to confirm the stored value.\n\nPoints where I hesitated or was unsure:\n- **Connection choice:** The dropdown offered only Inverter and Switchboard, and it defaulted to Inverter. I picked Switchboard because a pool pump is a household AC load that sits on the house bus, not behind the battery inverter. I did not check how the existing Load element is connected, so this choice is an inference.\n- **Forecast field:** The section is labelled \"Forecast\", but I used it as the constant power input because the task asked for a steady 0.8 kW. I did not confirm from the help text that a plain number is the intended way to enter constant power. The intro text does say \"forecast or constant power\", so I took that as the cue.\n- **Shedding:** I left it alone without reading its contents. A pump that runs continuously might be sheddable in practice, but nothing in the task asked for that.\n- **Verification:** I did not check the saved value or the sign convention for a load. I only confirmed the entry was created.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 27.2
+}

@@ -1,0 +1,9 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 6.5, "command": "type", "args": ["f2e512", "0.8"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "click", "args": ["f2e533"], "error": null, "visible_errors": 0}
+{"t": 10.1, "command": "click", "args": ["f2e525"], "error": null, "visible_errors": 0}
+{"t": 12.0, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 13.6, "command": "done", "args": ["Added a Load named 'Pool pump' with a constant 0.8 kW forecast, connected to the Switchboard. It now appears in the Home hub with 12 entities."], "error": null, "visible_errors": 0}

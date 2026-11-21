@@ -1,0 +1,9 @@
+{"t": 2.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.4, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.7, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 7.0, "command": "type", "args": ["f2e512", "0.8"], "error": null, "visible_errors": 0}
+{"t": 7.4, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "click", "args": ["f2e533"], "error": null, "visible_errors": 0}
+{"t": 9.4, "command": "click", "args": ["f2e525"], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 13.0, "command": "done", "args": ["Added Load 'Pool pump' with constant 0.8 kW, connected to Switchboard; it now appears in the Home hub."], "error": null, "visible_errors": 0}

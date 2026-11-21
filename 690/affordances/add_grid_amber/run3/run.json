@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.10608600000000001,
+  "turns": 13,
+  "report": "I added the Grid to HAEO, and HAEO showed \"Created configuration for Grid.\"\n\n- **Connection:** Switchboard\n- **Import price:** Amber Express - Home General Price\n- **Export price:** Amber Express - Home Feed In Price\n- **Import limit:** 55 kW\n- **Export limit:** 30 kW\n\nI didn't reopen the Grid afterwards to check the saved values. I did see the 55 and 30 in the form before I submitted it.\n\nPoints where I hesitated or made a mistake:\n- **Connection:** It defaulted to Inverter. I chose Switchboard because it's the junction and a grid normally connects there, but nothing told me which was right.\n- **First attempt at the connection:** My first attempt to open the Connection dropdown didn't change the value, so I set it again at the end. It then showed Switchboard.\n- **Power limits:** They were collapsed and defaulted to 100 for both. I opened the section and typed the values in.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid connected to Switchboard: import price Amber general price, export price Amber feed-in price, import limit 55 kW, export limit 30 kW.",
+  "actions": 15,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.2
+}

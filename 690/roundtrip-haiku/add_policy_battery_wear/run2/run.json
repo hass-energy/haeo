@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.021242670000000005,
+  "turns": 22,
+  "report": "Every kWh discharged from the battery now costs $0.01. The battery's Discharge cost is set to 0.01 $/kWh, and HAEO created a policy named \"Battery discharge cost\" from it. That policy has source Battery and target Any, at 0.01 $/kWh, so the charge applies wherever the energy goes. I confirmed this in the policy's edit dialog and closed it without changes.\n\nWhere I hesitated or made mistakes:\n\n- **Field choice:** I wasn't sure whether the battery's Discharge cost covers every destination or only some. I had no docs to check, so I added a Battery \u2192 Any policy by hand. HAEO rejected it as a duplicate, which showed the Discharge cost field already creates that rule. I did not add a second charge, so it isn't counted twice.\n- **Leftover UI state:** I opened the Discharge cost entity picker and the Advanced section by accident, and I didn't review the Limit cost field (100 $/kWh/h), which I left unchanged. I also didn't check the Battery efficiency section.\n- **Duplicate-rule check:** I saw the \"Policy\" element's Source/Target options and used them to try the policy route. This was a guess, and I didn't test whether the policy's Target \"Any\" matches all destinations, beyond what the form showed.\n- **Unverified runtime effect:** I didn't check how the optimizer actually behaves with the new cost. The success messages and the policy's saved values are all I confirmed.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Set the Battery element's Discharge cost to 0.01 $/kWh. HAEO turned that into a policy named 'Battery discharge cost' with source Battery and target Any, at 0.01 $/kWh, so every kWh discharged from the battery is charged that amount wherever it goes. I then tried to add a separate Battery->Any policy, but HAEO rejected it as a duplicate, so no extra rule was created and the wear cost is not counted twice. Verified in the policy edit dialog.",
+  "actions": 19,
+  "looks": 2,
+  "screenshots": 3,
+  "failed_commands": 0,
+  "errors_shown": 1,
+  "seconds": 46.3
+}

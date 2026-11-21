@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1029709,
+  "turns": 10,
+  "report": "I added a Solar element to the Home hub, connected to the Inverter. Its forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. Home Assistant showed \"Created configuration for Solar\", and Solar now appears under Home. I didn't open the new element afterwards to check its saved settings.\n\nPoints where I hesitated or slipped:\n- **Connection:** the form already had Inverter selected, and I left it, since that matches your setup.\n- **Forecast picker:** after I clicked the first Solcast sensor I wasn't sure it had registered. The picker stays open after each pick, so I re-read the page and confirmed all three were listed.\n- **Escape key:** I pressed Escape before submitting, to close the picker. It didn't close the whole dialog, but I wasn't sure it would.\n- **Other fields:** I left the Curtailment section alone, and I didn't set any value in the forecast number box.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element connected to Inverter, using Solcast PV Forecast Today, Tomorrow and Day 3 sensors as forecast. Created successfully and it appears under Home.",
+  "actions": 8,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.3
+}

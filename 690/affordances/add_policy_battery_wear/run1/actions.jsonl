@@ -1,0 +1,12 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.8, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.5, "command": "type", "args": ["f2e487", "Battery", "wear"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "click", "args": ["f2e512"], "error": null, "visible_errors": 0}
+{"t": 7.7, "command": "click", "args": ["f2e551"], "error": null, "visible_errors": 0}
+{"t": 7.9, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "click", "args": ["f2e566"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "type", "args": ["f2e533", "0.01"], "error": null, "visible_errors": 0}
+{"t": 12.7, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 16.2, "command": "click", "args": ["f2e540"], "error": null, "visible_errors": 0}
+{"t": 17.7, "command": "click", "args": ["f2e603"], "error": null, "visible_errors": 0}
+{"t": 19.5, "command": "done", "args": ["Added a HAEO Policy named 'Battery wear': source = Battery element, target = Any, price 0.01 $/kWh, enabled. It was created and now appears under Home as 'Policies'."], "error": null, "visible_errors": 0}

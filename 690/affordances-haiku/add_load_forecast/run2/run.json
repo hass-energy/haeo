@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.027845620000000005,
+  "turns": 21,
+  "report": "I added the household load as \"Household\" under the Home hub. The integration now shows 7 devices and 61 entities, up from 6 and 49, and the Household load appears in the device list.\n\n**What I set:**\n- **Name:** Household, instead of the default \"Load\".\n- **Connection:** Switchboard, the junction where the house loads, grid and inverter meet. The other option was Inverter.\n- **Forecast:** both `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power` (the current consumed power sensor).\n- **Shedding and consumption cost:** left at defaults. Shedding is off, and I did not set a consumption cost.\n\nI did not open the entities or the device page afterwards to confirm how HAEO is using the two sensors.\n\n**Points where I hesitated or made mistakes:**\n- **Current sensor placement:** The form has no separate field for current power. The only sensor slot is the Forecast list, so I added the current sensor there as well. HAEO may treat a single-value sensor in a forecast list differently from a forecast series, or may add the two together. I could not check this from the UI, so it is the main thing to verify.\n- **Mis-click:** When I added the current sensor, I clicked the forecast sensor's row by mistake. That removed the forecast sensor from the list. I noticed it from the screenshot, re-selected the current sensor and then the forecast sensor, and confirmed the list showed both before submitting.\n- **Connection choice:** I chose Switchboard over Inverter by reasoning about the topology. The help text did not say which one to use for household loads.\n- **Name:** I renamed the load from the default \"Load\" to \"Household\". This is my choice, not something you asked for.\n- **Shedding:** \"Allow shedding\" is marked required, but its switch was already off. I left it off, since a household load should not be shed.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power",
+          "sensor.sigen_plant_consumed_power_forecast"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 14,
+  "looks": 2,
+  "screenshots": 2,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 45.4
+}

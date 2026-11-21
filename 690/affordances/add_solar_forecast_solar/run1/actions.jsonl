@@ -1,0 +1,9 @@
+{"t": 2.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.3, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "click", "args": ["f2e467"], "error": null, "visible_errors": 0}
+{"t": 7.7, "command": "type", "args": ["f2e485", "sensor.energy_production_"], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e694"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e478"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "click", "args": ["f2e896"], "error": null, "visible_errors": 0}
+{"t": 15.8, "command": "done", "args": ["Added Solar to HAEO 'Home', connected to Inverter, using all 32 Forecast.Solar sensors (east/north/south/west \u00d7 today, tomorrow, day after tomorrow, days 3\u20137). Solar device now appears with 4 entities."], "error": null, "visible_errors": 0}

@@ -1,0 +1,25 @@
+{"t": 5.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 11.0, "command": "click", "args": ["f2e652"], "error": null, "visible_errors": 0}
+{"t": 13.3, "command": "type", "args": ["f2e650", "0.01"], "error": null, "visible_errors": 0}
+{"t": 15.5, "command": "click", "args": ["f2e665"], "error": null, "visible_errors": 0}
+{"t": 15.7, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 18.7, "command": "click", "args": ["f2e669"], "error": null, "visible_errors": 0}
+{"t": 20.6, "command": "click", "args": ["f2e716"], "error": null, "visible_errors": 0}
+{"t": 20.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 21.2, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 24.9, "command": "type", "args": ["f2e793", "Battery wear"], "error": null, "visible_errors": 0}
+{"t": 25.3, "command": "click", "args": ["f2e818"], "error": null, "visible_errors": 0}
+{"t": 26.5, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 29.1, "command": "click", "args": ["f2e857"], "error": null, "visible_errors": 0}
+{"t": 30.3, "command": "click", "args": ["f2e872"], "error": null, "visible_errors": 0}
+{"t": 31.7, "command": "type", "args": ["f2e839", "0.01"], "error": null, "visible_errors": 0}
+{"t": 33.6, "command": "click", "args": ["f2e846"], "error": null, "visible_errors": 1}
+{"t": 35.4, "command": "click", "args": ["f2e775"], "error": null, "visible_errors": 0}
+{"t": 35.9, "command": "click", "args": ["f2e721"], "error": null, "visible_errors": 0}
+{"t": 37.8, "command": "click", "args": ["f2e1026"], "error": null, "visible_errors": 0}
+{"t": 39.4, "command": "click", "args": ["f2e1040"], "error": null, "visible_errors": 0}
+{"t": 39.8, "command": "click", "args": ["f2e1034"], "error": null, "visible_errors": 0}
+{"t": 41.8, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 44.7, "command": "click", "args": ["f2e1007"], "error": null, "visible_errors": 0}
+{"t": 46.3, "command": "done", "args": ["Set the Battery element's Discharge cost to 0.01 $/kWh. HAEO turned that into a policy named 'Battery discharge cost' with source Battery and target Any, at 0.01 $/kWh, so every kWh discharged from the battery is charged that amount wherever it goes. I then tried to add a separate Battery->Any policy, but HAEO rejected it as a duplicate, so no extra rule was created and the wear cost is not counted twice. Verified in the policy edit dialog."], "error": null, "visible_errors": 0}

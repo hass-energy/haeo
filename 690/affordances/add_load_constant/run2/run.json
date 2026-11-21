@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.0693324,
+  "turns": 7,
+  "report": "\"Pool pump\" is now in HAEO as its own load, set to a constant 0.8 kW and connected to the Switchboard. HAEO showed \"Created configuration for Pool pump\", and the new load appears under the Home hub. I didn't open it afterwards to re-check the 0.8 kW value.\n\nPoints where I hesitated:\n- **Connection:** The form defaulted to Inverter, but I chose Switchboard. I assumed a pool pump is an ordinary household load on the switchboard, not something on the inverter. I couldn't tell how the existing Load is connected, so this is a guess. If your pump is wired differently, change it under Configure.\n- **Constant power:** The Forecast field takes either a number or a sensor. I typed 0.8 as a fixed kW value because you said the pump runs all the time at about that draw.\n- **Shedding:** I left the Shedding section collapsed and unchanged, since you didn't mention it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Load 'Pool pump', constant 0.8 kW, connected to Switchboard.",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.6
+}

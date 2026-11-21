@@ -1,0 +1,24 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "click", "args": ["f2e653"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "type", "args": ["f2e653", "0.01"], "error": null, "visible_errors": 0}
+{"t": 11.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "click", "args": ["f2e668"], "error": null, "visible_errors": 0}
+{"t": 13.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 15.3, "command": "click", "args": ["f2e672"], "error": null, "visible_errors": 0}
+{"t": 16.8, "command": "click", "args": ["f2e701"], "error": null, "visible_errors": 0}
+{"t": 16.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.5, "command": "click", "args": ["f2e706"], "error": null, "visible_errors": 0}
+{"t": 21.6, "command": "click", "args": ["f2e787"], "error": null, "visible_errors": 0}
+{"t": 25.6, "command": "click", "args": ["f2e760"], "error": null, "visible_errors": 0}
+{"t": 26.0, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 26.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 31.7, "command": "click", "args": ["f2e1079"], "error": null, "visible_errors": 0}
+{"t": 31.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 34.1, "command": "click", "args": ["f2e1096"], "error": null, "visible_errors": 0}
+{"t": 34.5, "command": "click", "args": ["f2e890"], "error": null, "visible_errors": 0}
+{"t": 34.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 36.4, "command": "click", "args": ["f2e706"], "error": null, "visible_errors": 0}
+{"t": 39.7, "command": "click", "args": ["f2e787"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 39.8, "command": "look", "args": [], "error": null, "visible_errors": 0}

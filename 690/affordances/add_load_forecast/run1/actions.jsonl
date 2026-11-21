@@ -1,0 +1,13 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "type", "args": ["f2e445", "Household"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 6.7, "command": "click", "args": ["f2e469"], "error": null, "visible_errors": 0}
+{"t": 8.9, "command": "click", "args": ["f2e578"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "click", "args": ["f2e583"], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e488"], "error": null, "visible_errors": 0}
+{"t": 16.1, "command": "click", "args": ["f2e480"], "error": null, "visible_errors": 0}
+{"t": 18.0, "command": "click", "args": ["f2e724"], "error": null, "visible_errors": 0}
+{"t": 19.6, "command": "done", "args": ["Added Load 'Household' connected to Switchboard with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power; it now appears under Home."], "error": null, "visible_errors": 0}

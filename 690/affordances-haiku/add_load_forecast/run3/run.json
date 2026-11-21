@@ -1,0 +1,42 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": false,
+  "cost_usd": 0.013670840000000002,
+  "turns": 13,
+  "report": "I added a Household load to HAEO, but I could not attach the current consumed power sensor, so only half of what you asked for is in place.\n\n**What was set up:**\n- **Element:** a new Load named \"Household\" under the Home hub, with 12 entities.\n- **Connection:** Switchboard. The form defaulted to Inverter. I chose Switchboard because household consumption is on the house side of the inverter, where grid, solar, battery and loads meet.\n- **Forecast:** `sensor.sigen_plant_consumed_power_forecast`, the only forecast sensor added.\n- **Shedding and consumption cost:** left at their defaults.\n\n**What is missing:** `sensor.sigen_plant_consumed_power` (the current consumed power sensor) is not attached. The Load form has only a Forecast field, a Shedding section, and a Connection picker, with no field for a current or live power value. I did not put the live sensor into the Forecast list, because that list is for forecast sensors and a live reading there would be mixed in with forecast data. You will need to tell me where HAEO expects the current value to go, or confirm that the forecast alone is enough.\n\n**Where I hesitated or was unsure:**\n- The current consumed power sensor has no obvious home in this form. I submitted without it rather than guess.\n- I chose Switchboard over the default Inverter from my understanding of the layout, not from any HAEO documentation.\n- I renamed the load from \"Load\" to \"Household\" to make it recognisable. This is a cosmetic choice.\n- I did not check the optimizer's result after saving, so I have not confirmed how HAEO uses the forecast value.",
+  "driver_error": null,
+  "problems": [
+    "$.forecast.forecast.value: expected the items ['sensor.sigen_plant_consumed_power_forecast', 'sensor.sigen_plant_consumed_power'] in any order, found ['sensor.sigen_plant_consumed_power_forecast']"
+  ],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 30.9
+}

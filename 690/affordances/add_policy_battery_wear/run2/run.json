@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.11685289999999998,
+  "turns": 11,
+  "report": "I added a policy called \"Battery wear\" that charges $0.01 for every kWh the battery discharges, whatever the destination. I didn't open the policy again or look at the Policies entities, so I haven't confirmed how HAEO applies it. HAEO showed \"Created configuration for Policies\", and a new Policies element now appears under Home.\n\nThe policy is enabled, with the source set to Battery, the target set to Any, and the price set to 0.01 $/kWh.\n\nPoints where I hesitated or was unsure:\n- **Target setting:** I assumed \"Any\" was already selected, because the screenshot showed it highlighted. I never clicked it myself.\n- **Price direction:** The form only said \"Price\". I assumed a positive price means a cost on that flow, not a reward. I couldn't check this from the interface.\n- **Self-flows:** I'm not sure whether \"Any\" as the target also covers battery-to-battery flows. I assumed it doesn't matter for wear.\n- **Typing errors:** My first attempt to type into the price field returned the page without showing the value. The later screenshot showed 0.01, so I treated it as fine.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear' (enabled): source = Battery, target = Any, price 0.01 $/kWh. It was created successfully and shows under a new Policies element.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.0
+}

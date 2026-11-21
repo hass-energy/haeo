@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.01871321,
+  "turns": 16,
+  "report": "I added the household load as \"Household\", connected to the Switchboard, with both Sigen sensors as its forecast inputs. HAEO confirmed \"Created configuration for Household,\" and the Household device now appears under the Home hub. I didn't reopen the saved configuration to check the entity list.\n\nHesitations and mistakes:\n\n- **Connection choice:** I picked Switchboard over Inverter. Household consumption sits on the house side, and Switchboard is the junction the other parts connect to. The form offered only these two options, and I couldn't confirm from the UI which one HAEO expects for a house load.\n- **Current sensor placement:** The form has no separate field for a current power reading. The only power input is the Forecast list, so I added `sensor.sigen_plant_consumed_power` there alongside `sensor.sigen_plant_consumed_power_forecast`. I can't tell whether HAEO treats the live reading as a forecast point, sums it with the forecast (double-counting), or ignores it. This is the main thing to check in the saved configuration.\n- **Left at defaults:** I did not change the Shedding section (Allow shedding and Consumption cost), since you didn't mention it.\n- **Name:** I renamed the default \"Load\" to \"Household\" to match your description. Say if you want a different name.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 12,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 33.4
+}

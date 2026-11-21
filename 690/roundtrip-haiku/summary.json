@@ -1,0 +1,28 @@
+{
+  "runs": 6,
+  "passed": 5,
+  "success_rate": 0.833,
+  "actions": 12.5,
+  "cost_usd": 0.11,
+  "tasks": {
+    "add_load_forecast": {
+      "runs": 3,
+      "passed": 2,
+      "actions": 12,
+      "actions_when_passed": 12.5,
+      "errors_shown": 0,
+      "seconds": 32.2,
+      "cost_usd": 0.05
+    },
+    "add_policy_battery_wear": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 19,
+      "actions_when_passed": 19,
+      "errors_shown": 0,
+      "seconds": 46.3,
+      "cost_usd": 0.06
+    }
+  },
+  "model": "haiku"
+}

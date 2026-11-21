@@ -1,0 +1,16 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "type", "args": ["f2e445", "Household"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "click", "args": ["f2e469"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "click", "args": ["f2e578"], "error": null, "visible_errors": 0}
+{"t": 10.7, "command": "click", "args": ["f2e583"], "error": null, "visible_errors": 0}
+{"t": 12.7, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 12.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e450"], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 16.0, "command": "click", "args": ["f2e488"], "error": null, "visible_errors": 0}
+{"t": 17.8, "command": "click", "args": ["f2e480"], "error": null, "visible_errors": 0}
+{"t": 18.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 20.4, "command": "click", "args": ["f2e724"], "error": null, "visible_errors": 0}
+{"t": 22.2, "command": "done", "args": ["Added a Load named Household, connected to Switchboard, with Forecast set to both Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. It now appears under Home."], "error": null, "visible_errors": 0}

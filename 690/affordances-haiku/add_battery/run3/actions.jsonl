@@ -1,0 +1,16 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.5, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.6, "command": "click", "args": ["f2e467"], "error": null, "visible_errors": 0}
+{"t": 6.8, "command": "click", "args": ["f2e620"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e478"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "click", "args": ["f2e478"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "click", "args": ["f2e639"], "error": null, "visible_errors": 0}
+{"t": 12.3, "command": "type", "args": ["f2e497", "5"], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "click", "args": ["f2e531"], "error": null, "visible_errors": 0}
+{"t": 15.0, "command": "click", "args": ["f2e753"], "error": null, "visible_errors": 0}
+{"t": 16.7, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 17.9, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 19.1, "command": "click", "args": ["f2e979"], "error": null, "visible_errors": 0}
+{"t": 21.3, "command": "click", "args": ["f2e611"], "error": null, "visible_errors": 0}
+{"t": 22.6, "command": "click", "args": ["f2e611"], "error": null, "visible_errors": 0}
+{"t": 23.8, "command": "click", "args": ["f2e1104"], "error": null, "visible_errors": 0}

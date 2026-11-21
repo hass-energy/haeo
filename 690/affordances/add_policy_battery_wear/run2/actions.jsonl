@@ -1,0 +1,11 @@
+{"t": 2.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.3, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "type", "args": ["f2e487", "Battery", "wear"], "error": null, "visible_errors": 0}
+{"t": 6.8, "command": "type", "args": ["f2e533", "0.01"], "error": null, "visible_errors": 0}
+{"t": 7.2, "command": "click", "args": ["f2e512"], "error": null, "visible_errors": 0}
+{"t": 8.6, "command": "click", "args": ["f2e551"], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "click", "args": ["f2e566"], "error": null, "visible_errors": 0}
+{"t": 10.5, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "click", "args": ["f2e540"], "error": null, "visible_errors": 0}
+{"t": 15.4, "command": "click", "args": ["f2e603"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "done", "args": ["Added a Policy named 'Battery wear' (enabled): source = Battery, target = Any, price 0.01 $/kWh. It was created successfully and shows under a new Policies element."], "error": null, "visible_errors": 0}

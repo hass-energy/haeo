@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.017714590000000002,
+  "turns": 15,
+  "report": "I added a \"Household\" load to the Home hub, connected to the Switchboard, with both Sigen consumed-power sensors in its Forecast field. HAEO confirmed \"Created configuration for Household,\" and the Household device now appears under Home with 12 entities.\n\nWhere I hesitated:\n\n1. **Load name.** You didn't give one, so I used \"Household.\"\n2. **Connection.** The dialog defaulted to Inverter. I chose Switchboard because household consumption sits on the house-side bus, not on the inverter's DC side. If your Sigen wiring puts the load behind the inverter, this should be changed.\n3. **Where the current sensor went.** The load form has no separate field for a current power sensor. The only sensor slot is the Forecast list, so I added `sensor.sigen_plant_consumed_power` next to `sensor.sigen_plant_consumed_power_forecast`. I can't see how HAEO combines the entries in that list. If it adds them together, household load is double-counted, which is the main risk here. I did not verify the combined value.\n4. **Shedding.** I left \"Allow shedding\" and \"Consumption cost\" at their defaults because you didn't ask about them.\n5. **Constant-value field.** The Forecast field showed a kW number box above the entity picker. I left it empty and used only entities, since you asked for sensors.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 13,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 33.5
+}

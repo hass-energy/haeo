@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0874442,
+  "turns": 8,
+  "report": "I added \"Pool pump\" as its own Load in the Home hub, with a constant 0.8 kW and connected to the Switchboard. It now shows up in the hub list as a Load with 12 entities. I didn't open the new load afterwards to check the saved values.\n\nPoints where I hesitated:\n- **Connection choice:** the form offered only Inverter or Switchboard, and it defaulted to Inverter. I chose Switchboard because a pool pump is an ordinary household load on the AC side. Nothing in the form said which was right, so this is my judgement.\n- **Forecast field:** it is labelled \"Forecast\" but accepts a plain number in kW. I entered 0.8 there because the pump runs all the time at a steady draw. I'm assuming that field is how HAEO takes a constant value.\n- **Shedding:** I left this section collapsed and unchanged, since you didn't mention it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' with a constant 0.8 kW forecast, connected to the Switchboard. It now appears in the Home hub with 12 entities.",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 13.6
+}

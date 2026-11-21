@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.01504221,
+  "turns": 20,
+  "report": "The grid connection is added to Home as \"Grid\". HAEO reported \"Created configuration for Grid\", and the Grid device now shows under Home with 12 entities.\n\n- **Connection:** Switchboard, where the grid meets the house circuits.\n- **Import price:** `sensor.amber_express_home_general_price` (Amber's general price).\n- **Export price:** `sensor.amber_express_home_feed_in_price` (Amber's feed-in price).\n- **Import limit:** 55 kW.\n- **Export limit:** 30 kW.\n\nI did not reopen the saved Grid configuration to confirm the limits stuck; I only checked the values in the form before submitting.\n\nWhere I hesitated or made mistakes:\n- I first opened \"Add hub\" by mistake. That creates a new system, so I closed it without submitting and used the \"Grid\" element button instead.\n- I chose Switchboard over Inverter for the connection. I inferred this from the usual layout, where the grid joins the main board rather than the inverter. I have no equipment details to confirm it, so you should check it matches your wiring.\n- The Grid name defaulted to \"Grid\", and I kept it.\n- The Import and Export price boxes were left blank because I used sensors. I assumed the sensor selection is what HAEO expects, not a fixed price.\n- The first click on the Export price picker only closed the Import picker, and I had to click it again. The Power limits section also needed a second click to expand.\n- The export limit field had a default of 100 kW, and I changed it to 30 kW as you specified.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added the Grid element to the Home hub: name 'Grid', connected to the Switchboard, import price from sensor.amber_express_home_general_price, export price from sensor.amber_express_home_feed_in_price, import limit 55 kW, export limit 30 kW. Submitted and got 'Created configuration for Grid'; the Grid device now appears under Home with 12 entities.",
+  "actions": 16,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 27.5
+}

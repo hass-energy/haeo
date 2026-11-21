@@ -1,0 +1,19 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.5, "command": "click", "args": ["f2e102"], "error": null, "visible_errors": 0}
+{"t": 5.3, "command": "click", "args": ["f2e424"], "error": null, "visible_errors": 0}
+{"t": 5.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 7.0, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e526"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e575"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e545"], "error": null, "visible_errors": 0}
+{"t": 13.7, "command": "click", "args": ["f2e590"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "click", "args": ["f2e556"], "error": null, "visible_errors": 0}
+{"t": 16.7, "command": "click", "args": ["f2e556"], "error": null, "visible_errors": 0}
+{"t": 18.0, "command": "click", "args": ["f2e611"], "error": null, "visible_errors": 0}
+{"t": 19.5, "command": "click", "args": ["f2e562"], "error": null, "visible_errors": 0}
+{"t": 20.6, "command": "click", "args": ["f2e562"], "error": null, "visible_errors": 0}
+{"t": 22.3, "command": "type", "args": ["f2e639", "55"], "error": null, "visible_errors": 0}
+{"t": 22.7, "command": "type", "args": ["f2e653", "30"], "error": null, "visible_errors": 0}
+{"t": 24.4, "command": "click", "args": ["f2e567"], "error": null, "visible_errors": 0}
+{"t": 25.5, "command": "click", "args": ["f2e668"], "error": null, "visible_errors": 0}
+{"t": 27.5, "command": "done", "args": ["Added the Grid element to the Home hub: name 'Grid', connected to the Switchboard, import price from sensor.amber_express_home_general_price, export price from sensor.amber_express_home_feed_in_price, import limit 55 kW, export limit 30 kW. Submitted and got 'Created configuration for Grid'; the Grid device now appears under Home with 12 entities."], "error": null, "visible_errors": 0}

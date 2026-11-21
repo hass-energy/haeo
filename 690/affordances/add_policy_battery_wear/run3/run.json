@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0960458,
+  "turns": 10,
+  "report": "I added a policy called \"Battery wear\" with Battery as the source, Target left on \"Any\", and a price of 0.01 $/kWh. That should charge 1 cent for every kWh the battery discharges, wherever it goes. HAEO confirmed \"Created configuration for Policies\", and a new \"Policies\" device now appears under Home.\n\nI didn't reopen the policy to check the saved values, and I haven't seen the optimiser's output change.\n\nPoints where I hesitated or was unsure:\n- **Target setting:** I didn't click either Target button. I assumed \"Any\" was the default because the form gave no sign of which was selected. The Source list did look selected after I picked Battery.\n- **Battery-to-battery flow:** \"Any\" may include energy that goes back into the battery itself. I assumed that was fine, since you asked for the cost to apply wherever the energy goes.\n- **Source list:** After I clicked \"Elements\" for Source, the picker showed only an empty list item. I had to click it before the Battery, Grid and Solar options appeared.\n- **Price direction:** The Price field didn't say whether a positive value is a cost or a payment. I assumed positive means a cost.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear' (enabled): source Battery, target Any, price 0.01 $/kWh. HAEO reported it created.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.6
+}

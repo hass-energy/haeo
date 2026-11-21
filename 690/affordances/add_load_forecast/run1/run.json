@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.16836949999999998,
+  "turns": 12,
+  "report": "I added a Load called \"Household\" to your Home hub. It now shows up in the list of parts.\n\n- **Connection:** Switchboard. I assumed household consumption belongs there, not on the Inverter.\n- **Forecast sensors:** Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. The Forecast field accepted both, so I added both.\n\nI haven't checked that HAEO combines the two sensors the way you intend.\n\nPoints where I hesitated or slipped:\n- **Connection choice:** The form defaulted to Inverter. I wasn't sure which was right, so I picked Switchboard.\n- **Dropdown click:** I opened the connection dropdown, then clicked the entity picker without choosing anything. I went back and set Switchboard before submitting.\n- **Name:** I changed the default name \"Load\" to \"Household\". You didn't give a name.\n- **Final check:** I confirmed \"Household\" appears in the list, but I didn't reopen it to check the saved settings.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power",
+          "sensor.sigen_plant_consumed_power_forecast"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Load 'Household' connected to Switchboard with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power; it now appears under Home.",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.6
+}

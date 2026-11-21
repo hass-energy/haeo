@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.12191429999999999,
+  "turns": 13,
+  "report": "I added a Policy named \"Battery wear\" to Home. It has Battery as the source, Target set to Any, and a price of 0.01 $/kWh. The policy is enabled. I didn't run the optimizer to see the cost take effect. After I submitted, the integration page showed a new \"Policies\" entry with 2 entities, so HAEO accepted the policy.\n\nHesitations:\n- **Policy as the right element:** There's no obvious \"battery wear\" setting. I chose Policy over editing the Battery because it can price power flowing from one element to another.\n- **Sign of the price:** I assumed a positive price is a cost on the discharged energy rather than a credit. The form didn't say.\n- **Target \"Any\":** I left Target on Any to cover wherever the energy goes. From the screenshot, Any looked selected by default, but I didn't confirm it after submitting.\n- **Not reopened:** I didn't reopen the saved policy to check its values.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a HAEO Policy named 'Battery wear': source = Battery element, target = Any, price 0.01 $/kWh, enabled. It was created and now appears under Home as 'Policies'.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 2,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.5
+}

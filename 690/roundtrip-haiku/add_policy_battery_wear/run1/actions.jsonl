@@ -1,0 +1,10 @@
+{"t": 5.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "type", "args": ["f2e650", "0.01"], "error": null, "visible_errors": 0}
+{"t": 12.3, "command": "click", "args": ["f2e665"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "click", "args": ["f2e669"], "error": null, "visible_errors": 0}
+{"t": 18.4, "command": "click", "args": ["f2e698"], "error": null, "visible_errors": 0}
+{"t": 18.9, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 21.3, "command": "click", "args": ["f2e757"], "error": null, "visible_errors": 0}
+{"t": 23.8, "command": "done", "args": ["Set the Battery element's Discharge cost to 0.01 $/kWh and saved it. Reopening the dialog shows 0.01 persisted. The Battery config had no other discharge-related field, so this is the setting that charges for every kWh discharged. Note: after saving, a 'Policies' element (1 device, 2 entities) appeared in the Home hub; I did not create it on purpose."], "error": null, "visible_errors": 0}

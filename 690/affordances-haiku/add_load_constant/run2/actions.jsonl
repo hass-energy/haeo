@@ -1,0 +1,9 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.0, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 7.0, "command": "type", "args": ["f2e512", "0.8"], "error": null, "visible_errors": 0}
+{"t": 9.9, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 11.2, "command": "click", "args": ["f2e533"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e525"], "error": null, "visible_errors": 0}
+{"t": 13.7, "command": "click", "args": ["f2e542"], "error": null, "visible_errors": 0}
+{"t": 15.5, "command": "done", "args": ["Added a load named 'Pool pump' to the Home hub with a constant forecast of 0.8 kW and connection set to Switchboard. The success dialog said 'Created configuration for Pool pump', and the Home hub now lists a Pool pump Load device with 12 entities."], "error": null, "visible_errors": 0}

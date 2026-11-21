@@ -1,0 +1,12 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "type", "args": ["f2e653", "0.01"], "error": null, "visible_errors": 0}
+{"t": 9.3, "command": "click", "args": ["f2e672"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "click", "args": ["f2e686"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 13.6, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "click", "args": ["f2e745"], "error": null, "visible_errors": 0}
+{"t": 16.8, "command": "click", "args": ["f2e691"], "error": null, "visible_errors": 0}
+{"t": 19.4, "command": "click", "args": ["f2e989"], "error": null, "visible_errors": 0}
+{"t": 23.0, "command": "click", "args": ["f2e962"], "error": null, "visible_errors": 0}
+{"t": 25.4, "command": "done", "args": ["Set the Battery element's Discharge cost to 0.01 $/kWh and saved. HAEO then showed a new 'Battery discharge cost' policy (Source: Battery, Target: Any, Price 0.01 $/kWh), which covers discharge wherever the energy goes. I confirmed the battery value persisted and left the policy unchanged. The battery field and the policy may both now apply, which could double-count the cost; I could not verify that from the UI."], "error": null, "visible_errors": 0}

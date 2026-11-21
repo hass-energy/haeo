@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.011689690000000003,
+  "turns": 15,
+  "report": "I added a HAEO policy that charges $0.01 for every kWh leaving the battery, with no restriction on where the energy goes. I reopened the saved policy to confirm it: name \"Battery wear\", enabled, source = Battery only, target = Any, price 0.01 $/kWh.\n\nThe policy is named \"Battery wear\". It is the only one I added, and I did not change the Battery element itself.\n\nPoints where I hesitated or was unsure:\n\n1. **Which element type to use.** The request could be read as a Battery setting or as a Policy. The Battery element may have its own discharge-cost field, and I did not check it. I chose a Policy because it has Source and Target fields, which matches \"wherever that energy goes\". If the Battery element also has a cost field, the two could double-count.\n2. **Direction of the policy.** I assumed that a Source of Battery with Target Any prices only energy flowing out of the battery. I did not confirm that charging is excluded. The help text only says the policy controls \"how power flows between elements\".\n3. **Target default.** Target was already set to \"Any\" when I opened the form. I confirmed this from the screenshot, not from any label.\n4. **Constant versus sensor price.** The Price field has a chart icon that can take a sensor. I used a fixed 0.01 because you gave a fixed amount.\n5. **Units.** The field is labelled $/kWh, which matches your request. I did not check the number against any other price setting in HAEO.\n6. **Source picker.** The Source field showed an empty box at first. I found the Battery option only after clicking the field's list item, so I may have missed a more direct way to pick it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 11,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 35.3
+}

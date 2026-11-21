@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.12653630000000002,
+  "turns": 14,
+  "report": "I added a Load called \"Household\" to Home. HAEO confirmed \"Created configuration for Household\", and the load now appears under Home. I didn't open it again afterwards to check the saved values.\n\n- **Forecast:** I selected both Sigen sensors in the one Forecast field: \"Sigen Plant Consumed Power Forecast\" and the current \"Sigen Plant Consumed Power\". The field accepts several sensors, so I added both there.\n- **Connection:** I set it to Switchboard.\n\nPoints where I hesitated or slipped:\n- **Connection choice:** The dropdown offered only Inverter (the default) and Switchboard. I chose Switchboard because household consumption normally sits on the switchboard, but nothing in the form said which was right.\n- **Forecast field:** HAEO has no separate field for the current consumed power sensor. I wasn't sure whether putting both sensors in the Forecast field would combine them sensibly, and I didn't confirm how HAEO uses them together.\n- **Dialog still open:** Pressing Escape after picking the sensors didn't close the dialog, so I carried on with the form, which was fine.\n- **Late updates:** I went quiet for a while during the steps and should have said what I was doing.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power",
+          "sensor.sigen_plant_consumed_power_forecast"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named Household, connected to Switchboard, with Forecast set to both Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. It now appears under Home.",
+  "actions": 11,
+  "looks": 4,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.2
+}

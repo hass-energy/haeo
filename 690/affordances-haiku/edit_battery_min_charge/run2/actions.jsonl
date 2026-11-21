@@ -1,0 +1,14 @@
+{"t": 1.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.5, "command": "click", "args": ["f2e164"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "click", "args": ["f2e145"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 11.6, "command": "click", "args": ["f2e168"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 12.8, "command": "click", "args": ["f2e469"], "error": null, "visible_errors": 0}
+{"t": 15.1, "command": "click", "args": ["f2e169"], "error": null, "visible_errors": 0}
+{"t": 16.4, "command": "type", "args": ["f2e623", "20"], "error": null, "visible_errors": 0}
+{"t": 17.7, "command": "click", "args": ["f2e745"], "error": null, "visible_errors": 0}
+{"t": 19.2, "command": "click", "args": ["f2e756"], "error": null, "visible_errors": 0}
+{"t": 19.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 20.8, "command": "click", "args": ["f2e169"], "error": null, "visible_errors": 0}
+{"t": 22.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 23.7, "command": "click", "args": ["f2e767"], "error": null, "visible_errors": 0}
