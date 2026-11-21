@@ -23,6 +23,7 @@ import json
 import os
 from pathlib import Path
 import shlex
+import shutil
 import statistics
 import subprocess
 import sys
@@ -190,8 +191,10 @@ def browse_script(port: int) -> str:
 def run_one(task: Task, repeat: int, out: Path, *, model: str, budget: float, timeout: float) -> RunResult:
     """Run one task once and return its result."""
     run_dir = out / task["id"] / f"run{repeat}"
+    # A previous run's files would let the agent reach a stale session, or count its result as this one's
+    shutil.rmtree(run_dir, ignore_errors=True)
     agent_dir = run_dir / "agent"
-    agent_dir.mkdir(parents=True, exist_ok=True)
+    agent_dir.mkdir(parents=True)
     result: RunResult = {"task": task["id"], "repeat": repeat, "success": False}
 
     with (run_dir / "session.log").open("wb") as session_log:
@@ -204,7 +207,7 @@ def run_one(task: Task, repeat: int, out: Path, *, model: str, budget: float, ti
         try:
             if not _wait_for_file(run_dir / "session.json", session, READY_SECONDS):
                 result["problems"] = ["The session did not start; see session.log"]
-                return result
+                return _save(run_dir, result)
             port = int(json.loads((run_dir / "session.json").read_text(encoding="utf-8"))["port"])
             browse = agent_dir / "browse"
             browse.write_text(browse_script(port), encoding="utf-8")
@@ -240,6 +243,11 @@ def run_one(task: Task, repeat: int, out: Path, *, model: str, budget: float, ti
         result.update(json.loads(result_file.read_text(encoding="utf-8")))
     else:
         result["problems"] = ["The session wrote no result; see session.log"]
+    return _save(run_dir, result)
+
+
+def _save(run_dir: Path, result: RunResult) -> RunResult:
+    """Write a run's result where rescoring finds it, failed or not, and return it."""
     (run_dir / "run.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     return result
 
