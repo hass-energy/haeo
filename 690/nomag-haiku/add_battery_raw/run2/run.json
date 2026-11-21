@@ -1,0 +1,85 @@
+{
+  "task": "add_battery_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.019553960000000002,
+  "turns": 19,
+  "report": "I added the Sigen battery to the Home HAEO hub. The success dialog said \"Created configuration for Battery\", and the new Battery device shows 21 entities.\n\nSettings I entered:\n- **Name:** Battery (default, left unchanged)\n- **Connection:** Inverter, DC (default, left unchanged). You said the battery is connected through the inverter, so I kept this rather than Switchboard.\n- **Capacity:** `sensor.sigen_plant_rated_energy_capacity` (32.24 kWh)\n- **State of charge:** `sensor.sigen_plant_battery_state_of_charge` (12.8 %)\n- **Min charge level:** fixed value 5 %, for the \"never below 5%\" rule\n- **Max charge power:** `sensor.sigen_plant_ess_rated_charging_power` (16.8 kW)\n- **Max discharge power:** `sensor.sigen_plant_ess_rated_discharging_power` (19.2 kW)\n\nI did not open the Max charge level, Battery efficiency, Pricing, or Advanced sections. Pricing kept its defaults (salvage 0, charge cost -0.001, discharge cost 0 $/kWh), and I did not check whether those defaults suit you.\n\nPoints where I hesitated or was unsure:\n1. **Connection choice:** I chose \"Inverter, DC\" because you said the battery sits behind the inverter. The dialog's own options were Inverter and Switchboard, and I did not check how HAEO treats the two.\n2. **Min charge level as the 5% floor:** I read \"never discharge below 5%\" as the Min charge level field. I did not confirm that this is the field HAEO uses to enforce the floor.\n3. **Units:** The Min charge level picker showed \"5 %\" once I picked the fixed value, so the unit looked right. I did not check the stored value after saving.\n4. **Unrequested Policy device:** After submitting, the Home hub gained a \"Policies\" device with 4 entities. I did not add it on purpose and did not investigate why it appeared. It may come from HAEO itself when a battery is added.\n5. **Sensor list:** The picker lists are long. I picked sensors by their names and entity IDs and did not look closely at the other candidates, such as the \"Sigen Plant Max Active Power\" sensor, to confirm there was no better match.\n6. **Verification:** I did not open the saved battery configuration or check its values after Finish. I relied on the success message and the entity count.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added the Sigenergy battery to the Home HAEO hub as 'Battery' (connection: Inverter, DC). Capacity = sensor.sigen_plant_rated_energy_capacity (32.24 kWh). State of charge = sensor.sigen_plant_battery_state_of_charge. Min charge level = fixed 5 %. Max charge power = sensor.sigen_plant_ess_rated_charging_power (16.8 kW). Max discharge power = sensor.sigen_plant_ess_rated_discharging_power (19.2 kW). Submitted; the success dialog confirmed 'Created configuration for Battery', and the Battery device now shows 21 entities.",
+  "actions": 18,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 28.2
+}

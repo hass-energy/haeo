@@ -1,0 +1,12 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 7.7, "command": "click", "args": ["f2e628"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e635"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 12.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 14.9, "command": "type", "args": ["f2e487", "consumed_power_forecast"], "error": null, "visible_errors": 0}
+{"t": 16.5, "command": "click", "args": ["f2e831"], "error": null, "visible_errors": 0}
+{"t": 17.9, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 19.5, "command": "click", "args": ["f2e856"], "error": null, "visible_errors": 0}
+{"t": 21.2, "command": "done", "args": ["Added a Load element named 'Load' connected to the Switchboard, using both sensor.sigen_plant_consumed_power (current) and sensor.sigen_plant_consumed_power_forecast (forecast) as its forecast inputs. It now appears under the Home hub."], "error": null, "visible_errors": 0}

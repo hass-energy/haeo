@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.010881790000000002,
+  "turns": 18,
+  "report": "I added a HAEO policy that charges $0.01 per kWh for every kWh discharged from the battery. I reopened the saved policy to confirm the values.\n\n- **Name:** Battery wear, enabled.\n- **Source:** Elements, set to Battery only.\n- **Target:** Any, so the cost applies wherever the discharged energy goes.\n- **Price:** Fixed value 0.01 $/kWh.\n\nPoints where I hesitated or was unsure:\n\n1. **Source \"Elements\" vs \"Any\":** I chose Elements with only Battery as the source. The task only mentions battery discharge, so \"Any\" as the source would have been too broad.\n2. **Price units:** The price field offered \"$/kWh\" as the unit, which matches the requested $0.01 per kWh. I did not check how HAEO applies it to energy that flows in the other direction.\n3. **Target \"Any\" default:** Target already showed \"Any\" highlighted, so I left it alone. I did not click it, so I can't be fully certain it was the active selection rather than only a visual state. The reopened policy did show Target as Any.\n4. **Policy-only change:** I added one policy and did not change any battery, inverter, or other element settings. I did not check whether HAEO also has a battery-level wear or cost field that might have been the intended place for this.\n5. **Verification depth:** I checked the saved values in the edit dialog but did not run an optimization or view a resulting schedule to confirm the cost takes effect.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a HAEO Policy named 'Battery wear' (enabled) with Source = Battery (Elements), Target = Any, and Price = fixed 0.01 $/kWh. Re-opened the saved policy to confirm these values.",
+  "actions": 12,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.1
+}

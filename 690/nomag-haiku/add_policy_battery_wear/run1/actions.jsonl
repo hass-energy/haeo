@@ -1,0 +1,19 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "type", "args": ["f2e487", "Battery wear cost"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "click", "args": ["f2e512"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e502"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "click", "args": ["f2e546"], "error": null, "visible_errors": 0}
+{"t": 16.8, "command": "click", "args": ["f2e561"], "error": null, "visible_errors": 0}
+{"t": 19.1, "command": "click", "args": ["f2e532"], "error": null, "visible_errors": 0}
+{"t": 20.4, "command": "type", "args": ["f2e532", "0.01"], "error": null, "visible_errors": 0}
+{"t": 21.6, "command": "click", "args": ["f2e610"], "error": null, "visible_errors": 0}
+{"t": 23.0, "command": "click", "args": ["f2e535"], "error": null, "visible_errors": 0}
+{"t": 24.1, "command": "click", "args": ["f2e632"], "error": null, "visible_errors": 0}
+{"t": 25.6, "command": "click", "args": ["f2e637"], "error": null, "visible_errors": 0}
+{"t": 27.3, "command": "click", "args": ["f2e718"], "error": null, "visible_errors": 0}
+{"t": 28.4, "command": "click", "args": ["f2e691"], "error": null, "visible_errors": 0}
+{"t": 29.7, "command": "done", "args": ["Added a HAEO policy named 'Battery wear cost': enabled, Source = Elements [Battery], Target = Any, Price = fixed value 0.01 $/kWh. Verified in the edit form after saving (closed without changes)."], "error": null, "visible_errors": 0}

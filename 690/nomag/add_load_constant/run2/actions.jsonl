@@ -1,0 +1,8 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 6.0, "command": "type", "args": ["f2e534", "0.8"], "error": null, "visible_errors": 0}
+{"t": 7.5, "command": "click", "args": ["f2e547"], "error": null, "visible_errors": 0}
+{"t": 8.9, "command": "click", "args": ["f2e543"], "error": null, "visible_errors": 0}
+{"t": 10.5, "command": "click", "args": ["f2e569"], "error": null, "visible_errors": 0}
+{"t": 12.0, "command": "done", "args": ["Added a Load element named 'Pool pump' with a fixed forecast of 0.8 kW, connected to the Switchboard (AC). It now appears under Home with 12 entities."], "error": null, "visible_errors": 0}

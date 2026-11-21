@@ -1,0 +1,8 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.5, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.4, "command": "click", "args": ["f2e477"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "type", "args": ["f2e477", "energy_production"], "error": null, "visible_errors": 0}
+{"t": 13.5, "command": "click", "args": ["f2e819"], "error": null, "visible_errors": 0}
+{"t": 15.1, "command": "click", "args": ["f2e486"], "error": null, "visible_errors": 0}
+{"t": 16.9, "command": "click", "args": ["f2e1143"], "error": null, "visible_errors": 0}
+{"t": 19.2, "command": "done", "args": ["Created the Solar element 'Solar' in HAEO with all 32 Forecast.Solar energy production sensors (today, tomorrow, day after tomorrow and 3-7 days from now, for East, North, South and West). Connection left at the default 'Inverter, DC' and Curtailment left at defaults. The Home hub now shows a Solar device with 4 entities."], "error": null, "visible_errors": 0}

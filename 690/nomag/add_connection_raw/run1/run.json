@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1011389,
+  "turns": 8,
+  "report": "I added a connection called \"Inverter to Switchboard\" to the Home hub. Its source is the Inverter, its target is the Switchboard, and Max power is a fixed 10 kW. HAEO showed \"Created configuration for Inverter to Switchboard\", and the connection now appears in the hub's device list. I didn't reopen it to re-check the saved values.\n\nI left Price and Connection efficiency at their defaults.\n\nPoints where I hesitated or slipped:\n- **Endpoints:** The form already had Inverter as source and Switchboard as target. I never selected them myself. I only read them off the form before submitting, so I can't be sure that was the default and not something I should have set.\n- **Max power entry:** I typed \"10\" and picked the \"Fixed value 10 kW\" option from the list. The field offered that unit and I assumed it was right for a 10 kW limit.\n- **Name:** The form had a default name, \"Connection\". I replaced it with \"Inverter to Switchboard\", which was my own choice because you didn't give a name.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with Max power fixed at 10 kW; it now appears in the Home hub.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.4
+}

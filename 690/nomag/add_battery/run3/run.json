@@ -1,0 +1,85 @@
+{
+  "task": "add_battery",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.14489220000000003,
+  "turns": 15,
+  "report": "I added the battery to HAEO as \"Battery\", and HAEO confirmed \"Created configuration for Battery.\" I didn't reopen the saved battery afterwards. I checked the values in a screenshot before submitting.\n\n- **Connection:** Inverter, which was the default. I took \"connected through your inverter\" to mean this option rather than Switchboard.\n- **Capacity:** Sigen Plant Rated Energy Capacity (`sensor.sigen_plant_rated_energy_capacity`, reading 32.24 kWh).\n- **State of charge:** Sigen Plant Battery State of Charge (`sensor.sigen_plant_battery_state_of_charge`, reading 12.8%).\n- **Minimum charge level:** a fixed 5%, so it never discharges below that.\n- **Maximum charge power:** Sigen Plant ESS Rated Charging Power (16.8 kW).\n- **Maximum discharge power:** Sigen Plant ESS Rated Discharging Power (19.2 kW).\n\nI left everything else at its defaults. That includes the pricing fields, battery efficiency and the advanced section. It also includes the maximum charge level, which stayed empty.\n\nPoints where I hesitated or slipped:\n- **Connection choice:** the Inverter/Switchboard choice was the only judgement call, for the reason above.\n- **Power sensor search:** searching \"rated charging\" returned both the charging and discharging sensors. I picked each by its exact name.\n- **Missed typed values:** my first couple of searches printed no result list. I only checked the result and selected the matching sensor each time.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Battery (connected to Inverter) with capacity sensor.sigen_plant_rated_energy_capacity, SoC sensor.sigen_plant_battery_state_of_charge, min charge level 5%, max charge/discharge power from the ESS rated charging/discharging power sensors.",
+  "actions": 18,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.3
+}

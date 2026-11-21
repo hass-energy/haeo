@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.09173060000000001,
+  "turns": 8,
+  "report": "I added a connection called \"Inverter to Switchboard\" in HAEO. It runs from the Inverter to the Switchboard with a fixed Max power of 10 kW. After I submitted it, it appeared under Home as a Connection device with 2 entities. I didn't reopen it to check the saved values.\n\nPoints where I hesitated or could have gone wrong:\n- **Endpoints:** The Source and Target fields were already filled with Inverter and Switchboard, and I left them. I never opened the dropdowns, so I'm trusting that those pre-filled values were really set. The page showed no other value for either field.\n- **Connection name:** The form was pre-filled with \"Connection\". I renamed it to \"Inverter to Switchboard\" so it is easy to tell apart. You didn't ask for that name.\n- **Limit entry:** Typing \"10\" only offered a \"Fixed value 10 kW\" option, so I picked that. The field is labelled Max power with no unit shown until the value is chosen. I took the unit to be kW because the option said so.\n- **Other fields:** I left Price and Connection efficiency empty, since you didn't give values for them.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added a HAEO connection 'Inverter to Switchboard' from Inverter (source) to Switchboard (target) with a fixed Max power of 10 kW. It now appears under Home as a Connection with 2 entities.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 13.1
+}

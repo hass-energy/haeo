@@ -1,0 +1,85 @@
+{
+  "task": "add_battery_raw",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.01943517,
+  "turns": 18,
+  "report": "I added the Sigenergy battery to HAEO as a Battery element under the Home hub. The integration now shows a Battery device with 21 entities. I didn't reopen the saved configuration to check each field, so the values below are what I entered before submitting.\n\n- **Connection:** Inverter (DC), the default, because the battery sits behind the inverter.\n- **Capacity:** Sigen Plant Rated Energy Capacity (32.24 kWh).\n- **State of charge:** Sigen Plant Battery State of Charge (12.8 %).\n- **Min charge level:** fixed value 5 %, so the battery is never discharged below 5 %.\n- **Max charge power:** Sigen Plant ESS Rated Charging Power (16.8 kW).\n- **Max discharge power:** Sigen Plant ESS Rated Discharging Power (19.2 kW).\n- **Name:** left as \"Battery\".\n- **Left at defaults:** max charge level, charge and discharge costs, salvage value, efficiency and advanced settings.\n\nPoints where I hesitated or was unsure:\n\n1. **Connection choice:** The form showed \"Inverter, DC\" as the default and \"Switchboard\" as the other option. I kept Inverter because you said the battery is connected through the inverter. I did not check whether the inverter in your HAEO setup is the same one this battery connects through.\n2. **Min charge level units:** The field accepts a sensor or a typed number. I typed 5 and picked the \"Fixed value 5 %\" option that appeared. The %-based label confirmed the unit, but I did not confirm how HAEO stores it.\n3. **Battery name:** I kept the default \"Battery\" name instead of something like \"Sigenergy Battery\". That's a cosmetic choice you could change.\n4. **Unrequested extra device:** After submitting, a \"Policies\" device with 4 entities also appeared under Home. I did not create it on purpose. It may have been created automatically by HAEO alongside the battery, but I did not verify that.\n5. **Unverified saved values:** I did not reopen the Battery's configuration to check the saved values, and I did not check whether the sensors report sensible numbers. The capacity sensor reads 32.24 kWh and the rated power sensors read 16.8 kW and 19.2 kW, which look plausible for a Sigen system.\n6. **Discharge and charge power sensors:** I used the ESS rated charging and discharging power sensors for max charge and max discharge power, as you specified. I did not check whether those sensors are the right limits for this battery, since the sensor names alone don't say.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 16,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.3
+}

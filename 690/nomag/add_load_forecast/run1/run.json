@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.10444929999999998,
+  "turns": 11,
+  "report": "I added a Load called \"Load\" to the Home hub, connected to the Switchboard. It uses both Sigenergy sensors: `sensor.sigen_plant_consumed_power` (current) and `sensor.sigen_plant_consumed_power_forecast` (forecast). HAEO showed \"Created configuration for Load\", and the Load now appears under the Home hub. I didn't open the Load afterwards to check the two saved sensors.\n\nPoints where I hesitated or slipped:\n- **One field for both sensors:** The form only has a \"Forecast\" field, with no separate place for the current sensor. It accepts several entities, so I put both in it. I'm not certain HAEO combines a current-value sensor with a forecast the way I intended.\n- **Connection:** I left the default, Switchboard (AC), because household consumption sits on the AC side. I didn't confirm that was the right choice.\n- **Mistake:** My first attempt to add the second sensor didn't register. I re-searched for it and added it, and both then showed as selected before I submitted.\n- **Left alone:** I didn't open the collapsed \"Shedding\" section.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power",
+          "sensor.sigen_plant_consumed_power_forecast"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Load' connected to the Switchboard, using both sensor.sigen_plant_consumed_power (current) and sensor.sigen_plant_consumed_power_forecast (forecast) as its forecast inputs. It now appears under the Home hub.",
+  "actions": 9,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 21.2
+}

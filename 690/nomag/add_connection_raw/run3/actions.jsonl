@@ -1,0 +1,8 @@
+{"t": 2.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.4, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "type", "args": ["f2e505", "Inverter to Switchboard"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "type", "args": ["f2e541", "10"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e570"], "error": null, "visible_errors": 0}
+{"t": 9.9, "command": "click", "args": ["f2e566"], "error": null, "visible_errors": 0}
+{"t": 11.4, "command": "click", "args": ["f2e592"], "error": null, "visible_errors": 0}
+{"t": 13.1, "command": "done", "args": ["Added a HAEO connection 'Inverter to Switchboard' from Inverter (source) to Switchboard (target) with a fixed Max power of 10 kW. It now appears under Home as a Connection with 2 entities."], "error": null, "visible_errors": 0}

@@ -1,0 +1,28 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.2, "command": "click", "args": ["f2e141"], "error": null, "visible_errors": 0}
+{"t": 4.8, "command": "click", "args": ["f2e441"], "error": null, "visible_errors": 0}
+{"t": 4.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "type", "args": ["f2e624", "Sigenergy Battery"], "error": null, "visible_errors": 0}
+{"t": 8.9, "command": "click", "args": ["f2e665"], "error": null, "visible_errors": 0}
+{"t": 11.0, "command": "type", "args": ["f2e665", "energy capacity"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e789"], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "click", "args": ["f2e671"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "type", "args": ["f2e671", "state of charge"], "error": null, "visible_errors": 0}
+{"t": 14.9, "command": "click", "args": ["f2e806"], "error": null, "visible_errors": 0}
+{"t": 15.3, "command": "click", "args": ["f2e687"], "error": null, "visible_errors": 0}
+{"t": 15.7, "command": "type", "args": ["f2e687", "5"], "error": null, "visible_errors": 0}
+{"t": 17.4, "command": "click", "args": ["f2e830"], "error": null, "visible_errors": 0}
+{"t": 17.8, "command": "click", "args": ["f2e709"], "error": null, "visible_errors": 0}
+{"t": 18.2, "command": "type", "args": ["f2e709", "ESS rated"], "error": null, "visible_errors": 0}
+{"t": 21.9, "command": "type", "args": ["f2e709", "ESS rated charging"], "error": null, "visible_errors": 0}
+{"t": 22.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 24.1, "command": "click", "args": ["f2e989"], "error": null, "visible_errors": 0}
+{"t": 24.5, "command": "click", "args": ["f2e715"], "error": null, "visible_errors": 0}
+{"t": 24.9, "command": "type", "args": ["f2e715", "ESS rated discharging"], "error": null, "visible_errors": 0}
+{"t": 26.4, "command": "click", "args": ["f2e1328"], "error": null, "visible_errors": 0}
+{"t": 26.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 28.0, "command": "click", "args": ["f2e785"], "error": null, "visible_errors": 0}
+{"t": 29.4, "command": "click", "args": ["f2e1515"], "error": null, "visible_errors": 0}
+{"t": 29.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 31.6, "command": "done", "args": ["Added a Sigenergy Battery element to the Home HAEO hub, connected through the Inverter. Capacity: Sigen Plant Rated Energy Capacity sensor. State of charge: Sigen Plant Battery State of Charge sensor. Min charge level: 5%. Max charge power: Sigen Plant ESS Rated Charging Power sensor. Max discharge power: Sigen Plant ESS Rated Discharging Power sensor. The battery now appears under Home with the device and entities created. Other battery settings (max charge level, costs, efficiency, advanced) were left at defaults."], "error": null, "visible_errors": 0}

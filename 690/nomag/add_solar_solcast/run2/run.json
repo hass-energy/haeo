@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.11890830000000002,
+  "turns": 13,
+  "report": "I added a Solar element to the Home hub. It connects to the Inverter, and it uses the three Solcast sensors for its forecast: Forecast Today, Forecast Tomorrow and Forecast Day 3. HAEO showed \"Created configuration for Solar\", and Solar now appears under the Home hub. I didn't open the saved Solar entry again to check the three forecast sensors were stored. I only saw them listed in the form before I submitted.\n\nPoints where I hesitated or slipped:\n- **Connection:** the form already had Inverter selected, which matches your setup, so I left it. I didn't change the optional Curtailment section.\n- **Forecast picker:** it is a multi-select that closes after each pick, so I selected the sensors one at a time. After my first click the Day 3 sensor was the only one selected, so I reopened the list and searched \"solcast\" to add Today and then Tomorrow.\n- **Look-alike sensors:** the list also held many unrelated \"energy production\" sensors for East, North, South and West, and Sigen sensors. I took only the Solcast ones.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element connected to the Inverter (DC), with forecast sensors Solcast PV Forecast Forecast Today, Tomorrow and Day 3. Saved successfully and Solar now appears under the Home hub.",
+  "actions": 10,
+  "looks": 3,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.2
+}

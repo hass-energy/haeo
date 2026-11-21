@@ -1,0 +1,10 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 7.5, "command": "click", "args": ["f2e628"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "type", "args": ["f2e487", "consumed_power_forecast"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "click", "args": ["f2e831"], "error": null, "visible_errors": 0}
+{"t": 11.9, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "click", "args": ["f2e856"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "done", "args": ["Added a Load named 'Load' connected to Switchboard (AC), using both sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power as forecast inputs. It now appears under Home with 12 entities."], "error": null, "visible_errors": 0}

@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.01104155,
+  "turns": 15,
+  "report": "I added the solar array to the Home hub as a Solar element named \"Solar\", and it now shows up under Home with 4 entities.\n\n- **Connection:** \"Inverter, DC\". The panels feed your inverter, so this is the right option. The other choice, \"Switchboard, AC\", is for AC-coupled solar.\n- **Forecast:** the three Solcast sensors, `sensor.solcast_pv_forecast_forecast_today`, `sensor.solcast_pv_forecast_forecast_tomorrow` and `sensor.solcast_pv_forecast_forecast_day_3`.\n- **Curtailment:** left at its defaults. You didn't ask for it, and I didn't open it.\n\nWhere I hesitated or may have gone wrong:\n- **Forecast picker:** I added the sensors one at a time, and the picker kept re-opening after each pick. I confirmed the final list shows exactly the three Solcast sensors, but I didn't check the saved entry afterwards.\n- **Solcast sensor names:** the picker also listed other PV forecast sensors (for example, `energy_production_*` for east, north, south and west). I picked only the Solcast ones, since those are what you asked for.\n- **Solar name:** I kept the default \"Solar\" without thinking about whether you wanted a different label.\n- **Curtailment:** I didn't read its help text. If your inverter limits export, you may want to set it, and I didn't check.\n- **Verification:** I confirmed the success dialog and the new device, but I didn't open the Solar element to check its saved forecast sensors.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Solar element named 'Solar' to the Home hub. Connection is 'Inverter, DC' (panels feed the inverter). Forecast uses the three Solcast sensors: sensor.solcast_pv_forecast_forecast_today, sensor.solcast_pv_forecast_forecast_tomorrow, sensor.solcast_pv_forecast_forecast_day_3. Curtailment left at default. The Solar device now appears under Home with 4 entities.",
+  "actions": 12,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.4
+}

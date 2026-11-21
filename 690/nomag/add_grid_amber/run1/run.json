@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.17743750000000003,
+  "turns": 18,
+  "report": "I added the Grid to your Home setup. HAEO showed \"Created configuration for Grid\", and Grid now appears under Home.\n\n- **Connection:** Switchboard. This was already selected, and I left it because the grid supplies your AC side.\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Import limit:** 55 kW. I removed the default 100 kW and typed this in.\n- **Export limit:** 30 kW. I replaced the default 100 kW in the same way.\n\nI didn't open the saved Grid to re-read its settings. I only checked the values in the form before submitting.\n\nPoints where I hesitated or made a mistake:\n- **Switchboard:** I wasn't sure it was the right connection point. I kept it because it was the default and the grid is an AC source.\n- **Power limits:** The section was collapsed, so I nearly missed it. Both limits defaulted to 100 kW and had to be removed before I could type new values.\n- **Wasted output:** Opening the import-limit box produced a very long list of unrelated sensors. This only cost me some reading time.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid element connected to Switchboard, import price = Amber Express General Price, export price = Amber Express Feed In Price, import limit 55 kW, export limit 30 kW. Saved and Grid now appears under Home.",
+  "actions": 14,
+  "looks": 5,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.7
+}

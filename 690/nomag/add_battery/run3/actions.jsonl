@@ -1,0 +1,22 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.0, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "type", "args": ["f2e485", "rated", "energy"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "click", "args": ["f2e609"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 9.9, "command": "type", "args": ["f2e491", "state", "of", "charge"], "error": null, "visible_errors": 0}
+{"t": 11.7, "command": "click", "args": ["f2e626"], "error": null, "visible_errors": 0}
+{"t": 12.1, "command": "click", "args": ["f2e507"], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "type", "args": ["f2e507", "5"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "click", "args": ["f2e650"], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "click", "args": ["f2e529"], "error": null, "visible_errors": 0}
+{"t": 14.9, "command": "type", "args": ["f2e529", "rated", "charging"], "error": null, "visible_errors": 0}
+{"t": 16.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 18.6, "command": "click", "args": ["f2e809"], "error": null, "visible_errors": 0}
+{"t": 19.0, "command": "click", "args": ["f2e535"], "error": null, "visible_errors": 0}
+{"t": 19.3, "command": "type", "args": ["f2e535", "rated", "discharging"], "error": null, "visible_errors": 0}
+{"t": 20.8, "command": "click", "args": ["f2e1148"], "error": null, "visible_errors": 0}
+{"t": 20.9, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 24.1, "command": "click", "args": ["f2e605"], "error": null, "visible_errors": 0}
+{"t": 26.3, "command": "click", "args": ["f2e1335"], "error": null, "visible_errors": 0}
+{"t": 26.4, "command": "done", "args": ["Added Battery (connected to Inverter) with capacity sensor.sigen_plant_rated_energy_capacity, SoC sensor.sigen_plant_battery_state_of_charge, min charge level 5%, max charge/discharge power from the ESS rated charging/discharging power sensors."], "error": null, "visible_errors": 0}

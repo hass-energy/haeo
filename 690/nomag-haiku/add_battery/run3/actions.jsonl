@@ -1,0 +1,19 @@
+{"t": 1.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 2.9, "command": "click", "args": ["f2e122"], "error": null, "visible_errors": 0}
+{"t": 5.1, "command": "click", "args": ["f2e424"], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 8.6, "command": "click", "args": ["f2e630"], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "click", "args": ["f2e754"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e636"], "error": null, "visible_errors": 0}
+{"t": 12.1, "command": "click", "args": ["f2e771"], "error": null, "visible_errors": 0}
+{"t": 14.0, "command": "click", "args": ["f2e652"], "error": null, "visible_errors": 0}
+{"t": 15.1, "command": "type", "args": ["f2e652", "5"], "error": null, "visible_errors": 0}
+{"t": 16.5, "command": "click", "args": ["f2e795"], "error": null, "visible_errors": 0}
+{"t": 18.0, "command": "click", "args": ["f2e674"], "error": null, "visible_errors": 0}
+{"t": 19.2, "command": "click", "args": ["f2e954"], "error": null, "visible_errors": 0}
+{"t": 20.8, "command": "type", "args": ["f2e680", "Discharging Power"], "error": null, "visible_errors": 0}
+{"t": 22.0, "command": "click", "args": ["f2e1142"], "error": null, "visible_errors": 0}
+{"t": 24.1, "command": "click", "args": ["f2e750"], "error": null, "visible_errors": 0}
+{"t": 25.3, "command": "click", "args": ["f2e1165"], "error": null, "visible_errors": 0}
+{"t": 27.3, "command": "done", "args": ["Added the Sigenergy battery to HAEO hub 'Home' as 'Battery' (Inverter/DC connection). Capacity = Sigen Plant Rated Energy Capacity; State of charge = Sigen Plant Battery State of Charge; Min charge level = 5%; Max charge power = Sigen Plant ESS Rated Charging Power; Max discharge power = Sigen Plant ESS Rated Discharging Power. The Battery device now appears under Home with 21 entities."], "error": null, "visible_errors": 0}

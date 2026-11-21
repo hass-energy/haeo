@@ -1,0 +1,20 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.4, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e501"], "error": null, "visible_errors": 0}
+{"t": 7.0, "command": "type", "args": ["f2e501", "capacity"], "error": null, "visible_errors": 0}
+{"t": 8.1, "command": "click", "args": ["f2e625"], "error": null, "visible_errors": 0}
+{"t": 8.7, "command": "click", "args": ["f2e507"], "error": null, "visible_errors": 0}
+{"t": 9.0, "command": "type", "args": ["f2e507", "state of charge"], "error": null, "visible_errors": 0}
+{"t": 10.5, "command": "click", "args": ["f2e642"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e523"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "type", "args": ["f2e523", "5"], "error": null, "visible_errors": 0}
+{"t": 13.7, "command": "click", "args": ["f2e666"], "error": null, "visible_errors": 0}
+{"t": 14.2, "command": "click", "args": ["f2e545"], "error": null, "visible_errors": 0}
+{"t": 14.6, "command": "type", "args": ["f2e545", "ESS rated charging"], "error": null, "visible_errors": 0}
+{"t": 18.6, "command": "click", "args": ["f2e825"], "error": null, "visible_errors": 0}
+{"t": 19.9, "command": "click", "args": ["f2e551"], "error": null, "visible_errors": 0}
+{"t": 20.3, "command": "type", "args": ["f2e551", "ESS rated discharging"], "error": null, "visible_errors": 0}
+{"t": 22.9, "command": "click", "args": ["f2e1164"], "error": null, "visible_errors": 0}
+{"t": 24.9, "command": "click", "args": ["f2e621"], "error": null, "visible_errors": 0}
+{"t": 26.1, "command": "click", "args": ["f2e1351"], "error": null, "visible_errors": 0}
+{"t": 28.2, "command": "done", "args": ["Added the Sigenergy battery to the Home HAEO hub as 'Battery' (connection: Inverter, DC). Capacity = sensor.sigen_plant_rated_energy_capacity (32.24 kWh). State of charge = sensor.sigen_plant_battery_state_of_charge. Min charge level = fixed 5 %. Max charge power = sensor.sigen_plant_ess_rated_charging_power (16.8 kW). Max discharge power = sensor.sigen_plant_ess_rated_discharging_power (19.2 kW). Submitted; the success dialog confirmed 'Created configuration for Battery', and the Battery device now shows 21 entities."], "error": null, "visible_errors": 0}

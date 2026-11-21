@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1178833,
+  "turns": 14,
+  "report": "I added a policy named \"Battery wear\" to the Home hub. Its source is Battery, its target is Any, and its price is a fixed 0.01 $/kWh. The idea is that every kWh leaving the battery costs 1 cent, whether it goes to the load, the grid or anywhere else. The policy is enabled. HAEO showed \"Created configuration for Policies\", and a new \"Policies\" entry now appears under Home. I didn't run the optimizer to see the cost's effect on a plan.\n\nPoints where I hesitated or was unsure:\n- **Price direction:** I assumed a positive price means a cost on the battery's output. The form didn't say which way the sign works, so I didn't verify it.\n- **Price entry:** typing 0.01 didn't set the value by itself. I had to pick the \"Fixed value 0.01 $/kWh\" option from the dropdown. I then checked a screenshot to confirm the Battery chip, Target = Any and the price were all set before submitting.\n- **Policy name:** the name \"Battery wear\" was my own choice.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear' (enabled): source = Battery, target = Any, price = fixed 0.01 $/kWh. It was created and now appears as a Policies entry under Home.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 2,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.9
+}

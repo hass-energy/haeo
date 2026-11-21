@@ -1,0 +1,10 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "type", "args": ["f2e487", "consumed"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "click", "args": ["f2e509"], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 12.0, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "click", "args": ["f2e680"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "type", "args": ["f2e445", "Household"], "error": null, "visible_errors": 0}
+{"t": 16.2, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 17.4, "command": "click", "args": ["f2e889"], "error": null, "visible_errors": 0}

@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.10056840000000002,
+  "turns": 8,
+  "report": "I added \"Pool pump\" to HAEO as a new load on the Home hub. It's connected to the Switchboard and set to a fixed 0.8 kW. It now appears in the Home hub's device list with 12 entities.\n\nI didn't open the load's settings again to read the values back. The device list and the \"Created configuration for Pool pump\" message are my only confirmation.\n\nPoints where I was unsure:\n- **Connection:** I left it on Switchboard (AC), which the form had already selected. I assumed that suits a pool pump on household power, but I didn't check it against your wiring.\n- **Constant power:** The Forecast field asks for a sensor or a value. I typed 0.8 and picked the \"Fixed value 0.8 kW\" option it offered. I took that to be the right way to enter a constant.\n- **Shedding:** I left the optional Shedding section collapsed and unchanged. I don't know what the defaults do, so check them if you want the optimizer to be allowed to switch the pump off.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' connected to the Switchboard (AC) with a fixed forecast of 0.8 kW. It now shows in the Home hub with 12 entities.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 13.1
+}

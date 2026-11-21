@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.11312450000000002,
+  "turns": 13,
+  "report": "Solar is now added to your Home hub. It connects to the Inverter, and its forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. HAEO showed \"Created configuration for Solar\", and Solar now appears in the hub's list of parts.\n\nI didn't open the new Solar entry afterwards to check the saved values.\n\nPoints where I hesitated or slipped:\n- **Connection:** \"Inverter\" was already selected. I kept it because you said the panels feed into your inverter. I didn't compare it against the Switchboard option.\n- **Forecast picker:** I wasn't sure at first whether it took one sensor or several. It turned out to allow several, so I added the three Solcast sensors one at a time.\n- **Look-alike sensors:** The list also had many \"energy production\" forecast sensors for East, North, South and West. I ignored them because they aren't Solcast.\n- **Extra clicks:** Two of my commands filtered the output and showed nothing. I re-ran them with a search term to get the options.\n- **Curtailment:** I left this section collapsed and didn't change it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar to the Home hub, connected to the Inverter (DC), with forecast set to the three Solcast sensors: Forecast Today, Tomorrow and Day 3. HAEO confirmed the Solar configuration was created and it now appears in the hub.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.2
+}

@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.11382779999999999,
+  "turns": 11,
+  "report": "I added a policy called \"Battery wear\" to Home. It makes every kWh leaving the battery cost a fixed $0.01/kWh, whatever the destination. HAEO showed \"Created configuration for Policies\", and a new \"Policies\" device now appears with 2 entities.\n\nThe policy has Source set to Battery, Target left on Any, and Price set to a fixed 0.01 $/kWh.\n\nI didn't reopen the policy to check the saved values, and I haven't seen HAEO's optimizer results change.\n\nPoints where I hesitated or was unsure:\n- **Target setting:** I never clicked the Target \"Any\" button. I assumed it was the default, but the screen didn't show which option was selected. If the target had defaulted to something else, the rule wouldn't apply \"wherever that energy goes\".\n- **Battery as the only source:** I picked \"Battery\" in the Source list rather than the Inverter or Switchboard, because the battery is the only thing that discharges. I'm fairly confident this is right.\n- **Price entry:** I typed 0.01 and chose the \"Fixed value 0.01 $/kWh\" option, since the field offers either a fixed value or a sensor. I assumed the unit shown was the right one and didn't confirm what $/kWh means for a policy price.\n- **Policy name:** I made up the name \"Battery wear\".",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy 'Battery wear': source = Battery, target = Any (default), price = fixed 0.01 $/kWh. A Policies device appeared with 2 entities.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.0
+}

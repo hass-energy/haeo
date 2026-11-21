@@ -1,0 +1,8 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.0, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 8.7, "command": "type", "args": ["f2e485", "energy_production"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "click", "args": ["f2e819"], "error": null, "visible_errors": 0}
+{"t": 13.9, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 16.0, "command": "click", "args": ["f2e1143"], "error": null, "visible_errors": 0}
+{"t": 16.1, "command": "done", "args": ["Added Solar to HAEO on the Inverter (DC) connection with all 32 Forecast.Solar energy production sensors (east, north, south, west; 8 each). HAEO confirmed the configuration was created."], "error": null, "visible_errors": 0}

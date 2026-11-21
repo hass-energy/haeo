@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1230787,
+  "turns": 10,
+  "report": "I added Solar to the Home hub with all 32 Forecast.Solar sensors. That is 8 per direction (today, tomorrow, and the following six days) for east, north, south and west. HAEO reported \"Created configuration for Solar\", and Solar now appears in the hub's device list. I didn't open the new Solar entry to check its saved settings.\n\nI connected it to the Inverter (DC), which was already selected by default, because your panels feed into the inverter.\n\nPoints where I hesitated or slipped:\n- **Sensor filter:** I typed `energy_production_` to narrow the list, which gave exactly 32 entries. I used \"Select all\" on that filtered list instead of ticking each one. I'm assuming no other Forecast.Solar sensors fall outside that name pattern.\n- **Look-alike sensors:** The picker also listed Solcast and Sigen sensors. I left them out because you asked for Forecast.Solar only.\n- **South sensors:** These are labelled \"solar prediction forecast\" rather than \"solar production forecast\". I included them because their entity names match the other three directions.\n- **Optional settings:** I didn't open the Curtailment section and left the name as the default \"Solar\".",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar (connected to Inverter, DC) to Home with all 32 Forecast.Solar sensors (east, north, south, west; today, tomorrow, d2-d7). Solar now appears in the hub's list.",
+  "actions": 6,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 16.1
+}

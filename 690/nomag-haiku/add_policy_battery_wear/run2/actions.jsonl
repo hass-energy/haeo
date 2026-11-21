@@ -1,0 +1,8 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "click", "args": ["f2e146"], "error": null, "visible_errors": 0}
+{"t": 7.5, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "click", "args": ["f2e469"], "error": null, "visible_errors": 0}
+{"t": 8.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 10.5, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 10.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
