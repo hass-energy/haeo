@@ -300,10 +300,10 @@ describe("InputField", () => {
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.load", "sensor.east", "sensor.west"] });
   });
 
-  it("offers to add all only once a search narrows the entities", () => {
+  it("offers to add every entity the list shows, before any search", () => {
     show();
     act(() => field().dispatchEvent(new FocusEvent("focus")));
-    expect(options().some((option) => option.textContent.startsWith("Add all"))).toBe(false);
+    expect(options().some((option) => option.textContent === "Add all 3")).toBe(true);
   });
 
   it("clears the search and closes the list after a pick", () => {

@@ -144,7 +144,8 @@ Type into the field and pick from the list below it:
     Click a fixed value's chip to change it.
 - **Entities**: Type part of an entity's name to narrow the list, then pick one to add it as a chip; the list offers only entities you haven't added.
     The list offers only entities whose unit fits the field.
-    Once you have typed a search, **Add all** at the top of the list adds every entity it shows, which suits forecast integrations that create one sensor per day or per array, such as Forecast.Solar or Solcast.
+    **Add all** at the top of the list adds every entity it shows, so type a search to narrow the list first.
+    That suits forecast integrations that create one sensor per day or per array, such as Forecast.Solar or Solcast.
     Each entity starts with what the field reads from it: a forecast shows a small line of its values from now, and a sensor whose current value is used shows that value, rounded to fit.
     A forecast field takes both kinds, such as a consumption forecast and the live consumption sensor.
     Each entity becomes a chip with the same readout, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors).

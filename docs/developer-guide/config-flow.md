@@ -169,7 +169,7 @@ The readout's accessible label carries the full value.
 A forecast with nothing to preview, such as a calendar, shows a chart icon instead.
 The list marks entities the same way, so forecasts and current values appear side by side.
 The list offers what can still be added: picking an entity adds it as a chip, and chosen entities leave the list until their chip is removed.
-Once a search has narrowed the entities, an **Add all** row naming the match count adds every entity it shows, and chosen entities keep the order they were added in.
+An **Add all** row naming the count adds every entity the list shows, and chosen entities keep the order they were added in.
 Words appear only as accessible labels, the **Fixed value** label beside a fixed value's readout, and the On and Off of an on/off field.
 
 A field feeding one time series input carries a `preview` config: the hub's entry ID, the field's output type, and whether its values sit at boundaries.

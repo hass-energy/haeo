@@ -327,8 +327,7 @@ export function InputField(props: InputFieldProps): JSX.Element {
           )}
           {entityChoices && (
             <ul class="option-group entities" role="group">
-              {/* Adding every entity only makes sense once a search has narrowed them */}
-              {allowsEntity && query.trim() !== "" && matches.length > 1 && (
+              {allowsEntity && matches.length > 1 && (
                 <li
                   role="option"
                   class="option all"
