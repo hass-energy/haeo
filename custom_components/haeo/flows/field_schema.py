@@ -104,7 +104,10 @@ def forecast_entities(entity_metadata: Iterable[EntityMetadata]) -> frozenset[st
 
 
 def reads_forecasts(field_info: AnyInputFieldInfo) -> bool:
-    """Return whether a field feeds a time series input, which reads an entity's forecast instead of its state."""
+    """Return whether a field feeds a time series input, which reads an entity's forecast instead of its state.
+
+    A field with outputs feeds calendar inputs, which are always time series.
+    """
     inputs = field_info.outputs.values() if field_info.outputs else (field_info,)
     return any(input_info.time_series for input_info in inputs)
 
@@ -119,24 +122,24 @@ def build_input_selector(
     """Build the input selector for a field.
 
     The field offers the entities in its domains, narrowed to ``entities`` when
-    given. Of those, the ones in ``forecasts`` are listed as forecasts when the
-    field reads forecasts, so the element shows how each entity loads. A number
+    given. When the field reads forecasts, the config lists the offered entities
+    that are in ``forecasts``. A number
     field's constant takes the limits, step and unit of the field's number
     entity, so the form and the entity accept the same values.
     """
     domains = entity_domains(field_info)
-    offered = set(entities) if entities is not None else None
+    offered_forecasts: set[str] = set()
+    if reads_forecasts(field_info):
+        offered_forecasts = (
+            set(forecasts).intersection(entities)
+            if entities is not None
+            else {entity_id for entity_id in forecasts if entity_id.split(".", 1)[0] in domains}
+        )
     config: InputSelectorConfig = {
         "kinds": list(kinds),
         "value_type": "number" if is_number_field_info(field_info) else "boolean",
         "domains": domains,
-        "forecasts": sorted(
-            entity_id
-            for entity_id in forecasts
-            if entity_id.split(".", 1)[0] in domains and (offered is None or entity_id in offered)
-        )
-        if reads_forecasts(field_info)
-        else [],
+        "forecasts": sorted(offered_forecasts),
     }
     if entities is not None:
         config["entities"] = list(entities)

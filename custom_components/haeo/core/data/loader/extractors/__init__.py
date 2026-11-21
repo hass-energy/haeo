@@ -84,7 +84,7 @@ FORMATS: Final[tuple[Format, ...]] = (
 
 
 def carries_forecast(state: EntityState) -> bool:
-    """Return whether a state is in one of :data:`FORMATS`, so a time series input reads its forecast."""
+    """Return whether a state is in one of :data:`FORMATS`."""
     return any(forecast_format.detect(state) for forecast_format in FORMATS)
 
 

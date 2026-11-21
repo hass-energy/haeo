@@ -13,7 +13,7 @@ class EntityMetadata:
     unit_of_measurement: str | None
     state_class: str | None = None
     forecast: bool = False
-    """Whether the entity carries a forecast, which a time series input reads instead of its state."""
+    """Whether the entity's state is in a forecast format."""
 
     @property
     def keeps_running_total(self) -> bool:
