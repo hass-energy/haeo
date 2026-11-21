@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.11312330000000001,
+  "turns": 11,
+  "report": "I added a Policy to your Home hub called \"Battery wear\". It's enabled, with the source set to Battery, the target set to Any, and a price of 0.01 $/kWh. That means every kWh leaving the battery should cost 1 cent, whatever it goes to.\n\nHAEO showed a \"Created configuration for Policies\" message, and a new \"Policies\" device with 2 entities now appears under Home. I didn't open the policy again to check the saved values.\n\nPoints where I hesitated or was unsure:\n- **Target:** I chose \"Any\" rather than listing elements, because you said \"wherever that energy goes\". I couldn't tell whether \"Any\" also counts battery energy going to the Switchboard or Inverter. I assumed it does.\n- **Price field:** It accepted a typed number only after I picked the \"Fixed value 0.01 $/kWh\" option from the dropdown. I assumed that option was correct.\n- **Policy name:** You didn't give one, so \"Battery wear\" is my choice.\n- **Progress note:** I went quiet for a few steps before telling you what I was doing.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear' (enabled): source = Battery, target = Any, price 0.01 $/kWh. A new Policies device appeared under Home.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.7
+}

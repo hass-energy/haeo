@@ -1,0 +1,10 @@
+{"t": 2.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.9, "command": "click", "args": ["f2e169"], "error": null, "visible_errors": 0}
+{"t": 7.0, "command": "click", "args": ["f2e579"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "type", "args": ["f2e582", "20"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e702"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e691"], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "click", "args": ["f2e722"], "error": null, "visible_errors": 0}
+{"t": 14.7, "command": "click", "args": ["f2e169"], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "done", "args": ["Battery min charge level changed from 5% to 20% and saved; reopening the Battery config shows 20 %."], "error": null, "visible_errors": 0}

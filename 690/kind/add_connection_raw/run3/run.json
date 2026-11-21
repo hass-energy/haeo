@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0904624,
+  "turns": 8,
+  "report": "I added a connection named \"Inverter to Switchboard\" to the Home hub. It runs from the Inverter to the Switchboard, with Max power set to a fixed 10 kW. After I submitted, HAEO showed \"Created configuration for Inverter to Switchboard.\" The connection now appears in the hub's device list with 2 entities.\n\nI didn't reopen the connection to check the saved limit. I only saw the 10 kW value in the form before I submitted it.\n\nI left Price and Connection efficiency at their defaults, since you only gave a power limit.\n\nPoints where I hesitated or slipped:\n- **Endpoints:** The form already had Inverter as source and Switchboard as target, so I didn't change them. I only checked that this matched the direction you asked for.\n- **Name:** You didn't give a name, so I chose \"Inverter to Switchboard\".\n- **Max power entry:** Typing \"10\" only offered a \"Fixed value 10 kW\" option, which I had to click to confirm it.\n- **Status update:** I went quiet for a while before the last steps, and you had to prompt me for an update.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with Max power fixed at 10 kW; it now appears in the hub's list.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.7
+}

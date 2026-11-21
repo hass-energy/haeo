@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.1042521,
+  "turns": 11,
+  "report": "I added a load called \"Household\" to your Home hub. HAEO confirmed it with \"Created configuration for Household\", and it now shows in the device list.\n\n- **Connection:** the Switchboard, which was already selected by default. I assumed that's right for whole-house consumption.\n- **Forecast sources:** `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power`. Both went into the one \"Forecast\" field, which accepts several sensors.\n\nI didn't check the load's values or the optimizer's output afterwards. I only confirmed that the new load appears in the list.\n\nPoints where I hesitated:\n- **Current-power sensor:** the form has no separate field for it, only the one \"Forecast\" picker. I put it in the same field, though I'm not certain HAEO combines the two the way I expect.\n- **Name:** I renamed the default \"Load\" to \"Household\". That was my choice, not something you asked for.\n- **Skipped section:** I left the \"Shedding\" section alone because you didn't mention it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power",
+          "sensor.sigen_plant_consumed_power_forecast"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a load named Household, connected to the Switchboard, with forecast sources sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power. It now appears under Home.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.3
+}

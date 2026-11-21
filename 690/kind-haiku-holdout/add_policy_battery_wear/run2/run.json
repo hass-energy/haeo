@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.013097180000000003,
+  "turns": 13,
+  "report": "The battery now costs $0.01 per kWh discharged, applied to all destinations. I set the Battery element's Discharge cost to a fixed 0.01 $/kWh and saved it (\"Configuration updated successfully\"). HAEO then created a \"Battery discharge cost\" policy: source is the Battery element, target is Any, price 0.01 $/kWh. I opened that policy to confirm it and closed it without changes.\n\nPoints where I hesitated or was unsure:\n\n1. **Which control to use.** The task said \"wherever that energy goes,\" and HAEO has both a Battery \"Discharge cost\" field and a separate Policy element. I chose the Battery field because it is the per-battery discharge price. I did not add a Policy by hand, so the auto-created policy is the only record of the rule.\n2. **Side effect I did not ask for.** Saving the battery added a new \"Policies\" device with 2 entities, and the entity count went from 60 to 63. I did not expect that, though it looks like HAEO's normal way of storing this price.\n3. **Units.** The field showed \"$/kWh\" and accepted 0.01, which matches the requested $0.01 per kWh. I did not check the optimizer's output, so I have not verified how the cost is applied in the plan.\n4. **Scope.** I did not touch the Battery's Charge cost, Salvage value, or any other settings.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Set the Battery element's Discharge cost to a fixed 0.01 $/kWh and saved it. HAEO then created a 'Battery discharge cost' policy (source: Battery element, target: Any, price 0.01 $/kWh), so every kWh discharged from the battery is charged 1 cent wherever it goes. I checked the policy editor and closed it without changes.",
+  "actions": 9,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.0
+}

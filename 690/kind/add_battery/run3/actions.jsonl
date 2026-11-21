@@ -1,0 +1,16 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.6, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.3, "command": "type", "args": ["f2e487", "rated", "energy"], "error": null, "visible_errors": 0}
+{"t": 7.4, "command": "click", "args": ["f2e624"], "error": null, "visible_errors": 0}
+{"t": 7.8, "command": "type", "args": ["f2e495", "state", "of", "charge"], "error": null, "visible_errors": 0}
+{"t": 9.3, "command": "click", "args": ["f2e641"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "type", "args": ["f2e539", "rated", "charging"], "error": null, "visible_errors": 0}
+{"t": 11.7, "command": "click", "args": ["f2e660"], "error": null, "visible_errors": 0}
+{"t": 12.1, "command": "type", "args": ["f2e547", "rated", "discharging"], "error": null, "visible_errors": 0}
+{"t": 13.7, "command": "click", "args": ["f2e684"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "type", "args": ["f2e513", "5"], "error": null, "visible_errors": 0}
+{"t": 15.7, "command": "click", "args": ["f2e701"], "error": null, "visible_errors": 0}
+{"t": 18.8, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 22.4, "command": "click", "args": ["f2e620"], "error": null, "visible_errors": 0}
+{"t": 23.9, "command": "click", "args": ["f2e720"], "error": null, "visible_errors": 0}
+{"t": 25.9, "command": "done", "args": ["Added Battery (connected to Inverter, DC) using Sigen Plant Rated Energy Capacity for capacity, Sigen Plant Battery State of Charge for SoC, ESS Rated Charging/Discharging Power sensors for max charge/discharge power, min charge level 5%. Hub now shows a Battery with 21 entities."], "error": null, "visible_errors": 0}

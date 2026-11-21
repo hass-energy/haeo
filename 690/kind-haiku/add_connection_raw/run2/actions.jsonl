@@ -1,0 +1,9 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.5, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "click", "args": ["f2e543"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "type", "args": ["f2e543", "10"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "click", "args": ["f2e827"], "error": null, "visible_errors": 0}
+{"t": 10.2, "command": "type", "args": ["f2e505", "Inverter to Switchboard"], "error": null, "visible_errors": 0}
+{"t": 11.4, "command": "click", "args": ["f2e570"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e846"], "error": null, "visible_errors": 0}
+{"t": 14.7, "command": "done", "args": ["Added a connection named 'Inverter to Switchboard' to HAEO hub 'Home', with source Inverter, target Switchboard, and Max power set to a fixed 10 kW. The form reported success and the new Connection device now appears under Home with 2 entities."], "error": null, "visible_errors": 0}

@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1714848,
+  "turns": 13,
+  "report": "I added a Solar element to the Home hub and connected it to the Inverter. It uses all three Solcast forecast sensors: Today, Tomorrow and Day 3. After I submitted it, Solar appeared in the hub's list with 4 entities. I didn't open it again to check the saved settings.\n\nI left the Curtailment section alone.\n\nPoints where I hesitated or slipped:\n- **Connection:** the Inverter option was already selected, which matches your setup, so I kept it. The other choice was the Switchboard.\n- **Forecast picker:** it let me pick only one sensor at a time. I had to search \"solcast\" and click each of the three separately.\n- **Missed progress update:** I went quiet for a few steps near the end, until the \"say what you're doing\" prompt.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element to Home, connected to the Inverter (DC), with the three Solcast sensors (today, tomorrow, day 3) as forecast. Solar now appears with 4 entities.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.4
+}

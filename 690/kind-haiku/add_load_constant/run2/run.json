@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.005831810000000001,
+  "turns": 9,
+  "report": "I added \"Pool pump\" as a Load under the Home hub. HAEO confirmed it with \"Created configuration for Pool pump\", and a Pool pump device with 12 entities now appears in the hub.\n\n- **Connection:** I kept the default, Switchboard (AC). The pump is a house-side AC load, so I think that is right, but I did not check it against your wiring.\n- **Forecast:** I picked \"Fixed value 0.8 kW\" from the picker, which gives a constant 0.8 kW draw. I did not open the saved element afterwards to confirm the value stuck.\n- **Shedding:** I left it at its default because the pump runs all the time and I could see no reason to make it sheddable. I did not open that section to see what its options are.\n\nPoints where I hesitated or was unsure:\n- I was not sure whether Switchboard or Inverter was the better connection. I chose Switchboard because it is the default and matches a load on the house side.\n- I was not sure whether Shedding should be left alone. I left it alone without reading its options.\n- I did not reopen the saved Pool pump configuration to check the 0.8 kW value and connection after submitting.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Pool pump' to the Home hub. Connection is Switchboard (AC), the default, which fits a pool pump on the house side. Forecast is the fixed value 0.8 kW, the constant draw you described. Shedding was left at its default. The confirmation said 'Created configuration for Pool pump', and the Home hub now lists a Pool pump device with 12 entities.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.7
+}

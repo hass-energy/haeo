@@ -1,0 +1,9 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.6, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "click", "args": ["f2e543"], "error": null, "visible_errors": 0}
+{"t": 7.3, "command": "type", "args": ["f2e543", "10"], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "click", "args": ["f2e827"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "type", "args": ["f2e505", "Inverter to Switchboard"], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "click", "args": ["f2e570"], "error": null, "visible_errors": 0}
+{"t": 12.6, "command": "click", "args": ["f2e846"], "error": null, "visible_errors": 0}
+{"t": 15.6, "command": "done", "args": ["Added a Connection named 'Inverter to Switchboard' to the Home HAEO hub, with source Inverter, target Switchboard, and max power set to a fixed 10 kW (the picker's 'Fixed value 10 kW' option). The success dialog confirmed creation, and the new connection device appears under Home."], "error": null, "visible_errors": 0}

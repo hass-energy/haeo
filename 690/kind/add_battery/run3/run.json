@@ -1,0 +1,85 @@
+{
+  "task": "add_battery",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.131071,
+  "turns": 15,
+  "report": "I added the battery to the Home hub as \"Battery\". HAEO's success dialog said it created the configuration, and the hub now lists Battery with 21 entities. I didn't reopen the saved battery to check the fields.\n\n- **Connection:** Inverter (DC), the default.\n- **Capacity:** Sigen Plant Rated Energy Capacity, which reads 32.24 kWh.\n- **State of charge:** Sigen Plant Battery State of Charge, which reads 12.8 %.\n- **Max charge power:** Sigen Plant ESS Rated Charging Power, which reads 16.8 kW.\n- **Max discharge power:** Sigen Plant ESS Rated Discharging Power, which reads 19.2 kW.\n- **Min charge level:** fixed 5 %, so it is never discharged below that.\n\nI left max charge level, pricing, efficiency and advanced settings at their defaults.\n\nPoints where I hesitated or slipped:\n- I accepted the default Inverter (DC) connection without comparing it to Switchboard (AC). A Sigenergy battery behind the inverter seemed to fit DC.\n- When I searched for the charging power sensor, the picker offered a \"Select all 2\" option. I clicked the specific sensor instead.\n- A screenshot confirmed the power sensors and the 5 % level were selected before I submitted. I never saw the capacity and state-of-charge fields on screen, so I'm relying on the picker clicks for those.\n- One command was denied by the sandbox, so I switched to a screenshot to check the form.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Battery (connected to Inverter, DC) using Sigen Plant Rated Energy Capacity for capacity, Sigen Plant Battery State of Charge for SoC, ESS Rated Charging/Discharging Power sensors for max charge/discharge power, min charge level 5%. Hub now shows a Battery with 21 entities.",
+  "actions": 13,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 25.9
+}

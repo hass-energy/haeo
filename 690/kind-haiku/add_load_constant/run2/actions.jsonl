@@ -1,0 +1,8 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.4, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.1, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "type", "args": ["f2e536", "0.8"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "click", "args": ["f2e549"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "click", "args": ["f2e545"], "error": null, "visible_errors": 0}
+{"t": 10.7, "command": "click", "args": ["f2e568"], "error": null, "visible_errors": 0}
+{"t": 12.7, "command": "done", "args": ["Added a Load element named 'Pool pump' to the Home hub. Connection is Switchboard (AC), the default, which fits a pool pump on the house side. Forecast is the fixed value 0.8 kW, the constant draw you described. Shedding was left at its default. The confirmation said 'Created configuration for Pool pump', and the Home hub now lists a Pool pump device with 12 entities."], "error": null, "visible_errors": 0}

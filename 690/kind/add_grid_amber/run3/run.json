@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.14216020000000001,
+  "turns": 14,
+  "report": "I added the Grid to your HAEO \"Home\" setup. HAEO showed \"Created configuration for Grid.\" I didn't re-open the Grid afterwards to check the saved values.\n\n- **Connection:** Switchboard (AC). It was already selected by default, and I left it because the Switchboard is where the grid connects.\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Import limit:** 55 kW.\n- **Export limit:** 30 kW.\n\nPoints where I hesitated or made a mistake:\n- The Switchboard default was unexplained, so I assumed it was right rather than confirming it.\n- Both power limits started at 100 kW, so I removed those values and typed in 55 and 30. The field had no obvious way to overwrite a value.\n- When I removed the 100 kW import value, the picker opened a very long list of unrelated sensors, which made the page output hard to read. It didn't affect the result.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid on Switchboard (AC), import price Amber Express General Price, export price Amber Express Feed In Price, import limit 55 kW, export limit 30 kW.",
+  "actions": 14,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.0
+}

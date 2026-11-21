@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.0746097,
+  "turns": 8,
+  "report": "I added \"Pool pump\" to the Home hub as its own Load, with a fixed 0.8 kW power. It now shows up in the hub's list of parts.\n\nI connected it to the Switchboard (AC). That was already selected by default, and I kept it because a pool pump is a mains-powered appliance.\n\nPoints where I hesitated:\n- **Connection:** I wasn't told where the pump plugs in. I assumed the Switchboard rather than the Inverter (DC).\n- **Constant value:** The \"Forecast\" field is required. I wasn't sure a plain number would work, but typing 0.8 offered a \"Fixed value 0.8 kW\" option, so I picked that.\n- **Shedding:** I left the collapsed \"Shedding\" section alone, since you said the pump runs all the time.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' on the Switchboard (AC) with a fixed 0.8 kW forecast. It now appears under the Home hub.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.0
+}

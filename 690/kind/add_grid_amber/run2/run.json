@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.14742840000000001,
+  "turns": 13,
+  "report": "I added the Grid to HAEO and got a \"Created configuration for Grid\" confirmation. I didn't reopen it afterwards to check the saved values.\n\n- **Connection:** Switchboard (AC). It was already selected, so I left it.\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Import limit:** 55 kW, a fixed value.\n- **Export limit:** 30 kW, a fixed value.\n\nPoints where I hesitated or made a mistake:\n- **Connection:** I wasn't sure Switchboard was the right place for the grid. I kept the default because the Switchboard is the AC junction that the Inverter and Load already hang off.\n- **Power limits:** The import and export limits both defaulted to 100 kW. I removed each and typed the new value, since I wasn't sure typing would replace the default.\n- **Import limit entry:** I didn't confirm the 55 was accepted before moving on. The next screen showed it as a fixed 55 kW, so it worked.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid on Switchboard (AC), import price = Amber General Price, export price = Amber Feed In Price, import limit 55 kW, export limit 30 kW.",
+  "actions": 14,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.8
+}

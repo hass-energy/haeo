@@ -1,0 +1,16 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.0, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "type", "args": ["f2e503", "rated", "energy", "capacity"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "click", "args": ["f2e640"], "error": null, "visible_errors": 0}
+{"t": 7.9, "command": "type", "args": ["f2e511", "state", "of", "charge"], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "click", "args": ["f2e657"], "error": null, "visible_errors": 0}
+{"t": 10.1, "command": "type", "args": ["f2e555", "rated", "charging", "power"], "error": null, "visible_errors": 0}
+{"t": 11.8, "command": "click", "args": ["f2e676"], "error": null, "visible_errors": 0}
+{"t": 12.1, "command": "type", "args": ["f2e563", "rated", "discharging", "power"], "error": null, "visible_errors": 0}
+{"t": 14.9, "command": "click", "args": ["f2e700"], "error": null, "visible_errors": 0}
+{"t": 15.3, "command": "type", "args": ["f2e529", "5"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "click", "args": ["f2e717"], "error": null, "visible_errors": 0}
+{"t": 19.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 20.6, "command": "click", "args": ["f2e636"], "error": null, "visible_errors": 0}
+{"t": 22.9, "command": "click", "args": ["f2e736"], "error": null, "visible_errors": 0}
+{"t": 23.0, "command": "done", "args": ["Added Battery to Home (connected to Inverter, DC) with capacity, SoC, max charge/discharge power from the Sigen Plant sensors, min charge level 5%."], "error": null, "visible_errors": 0}

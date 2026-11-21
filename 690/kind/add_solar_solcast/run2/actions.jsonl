@@ -1,0 +1,11 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.6, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 7.4, "command": "click", "args": ["f2e639"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "type", "args": ["f2e487", "solcast"], "error": null, "visible_errors": 0}
+{"t": 10.7, "command": "click", "args": ["f2e770"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "type", "args": ["f2e487", "solcast"], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "click", "args": ["f2e805"], "error": null, "visible_errors": 0}
+{"t": 15.3, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 16.9, "command": "click", "args": ["f2e826"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "done", "args": ["Added Solar element connected to Inverter (DC) with Solcast forecast sensors Today, Tomorrow, Day 3; creation confirmed."], "error": null, "visible_errors": 0}

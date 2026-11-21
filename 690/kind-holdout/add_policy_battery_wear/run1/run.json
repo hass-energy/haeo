@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.11364310000000001,
+  "turns": 12,
+  "report": "I added a policy called \"Battery wear\" to the Home hub. It treats every kWh leaving the Battery as costing $0.01, whatever the destination. The setup showed a success message, and a new \"Policies\" device now appears in the hub. I didn't open the policy again to check the saved values.\n\nThe policy is enabled, with the source set to Battery, the target left on \"Any\" and the price set to a fixed 0.01 $/kWh.\n\nPoints where I was unsure:\n- **Direction of the rule:** I assumed a policy price applies to energy flowing from the source to the target, so \"source = Battery, target = Any\" means every discharge. The form doesn't say this. I couldn't confirm it.\n- **Battery to Battery:** \"Any\" as target might include a battery-to-battery flow, which is harmless here.\n- **Policy name:** I made up \"Battery wear\", since nothing specified one.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy 'Battery wear' (enabled): source = Battery, target = Any, price 0.01 $/kWh. A new Policies device appeared in the Home hub.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.8
+}

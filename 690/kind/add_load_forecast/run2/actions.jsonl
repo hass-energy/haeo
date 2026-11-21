@@ -1,0 +1,10 @@
+{"t": 2.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.5, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.7, "command": "click", "args": ["f2e489"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "click", "args": ["f2e600"], "error": null, "visible_errors": 0}
+{"t": 8.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "type", "args": ["f2e489", "consumed_power_forecast"], "error": null, "visible_errors": 0}
+{"t": 11.9, "command": "click", "args": ["f2e765"], "error": null, "visible_errors": 0}
+{"t": 13.9, "command": "click", "args": ["f2e498"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "click", "args": ["f2e786"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "done", "args": ["Added a Load named 'Load' connected to the Switchboard, using Sigen Plant Consumed Power (current value) and Sigen Plant Consumed Power Forecast (forecast) sensors. It now appears under the Home hub with 12 entities."], "error": null, "visible_errors": 0}

@@ -1,0 +1,20 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 5.0, "command": "click", "args": ["f2e170"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "click", "args": ["f2e678"], "error": null, "visible_errors": 0}
+{"t": 8.6, "command": "type", "args": ["f2e678", "0.01"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e711"], "error": null, "visible_errors": 0}
+{"t": 11.9, "command": "click", "args": ["f2e693"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 13.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e731"], "error": null, "visible_errors": 0}
+{"t": 16.8, "command": "click", "args": ["f2e735"], "error": null, "visible_errors": 0}
+{"t": 19.7, "command": "click", "args": ["f2e817"], "error": null, "visible_errors": 0}
+{"t": 22.7, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 22.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 24.0, "command": "click", "args": ["f2e790"], "error": null, "visible_errors": 0}
+{"t": 25.4, "command": "click", "args": ["f2e170"], "error": null, "visible_errors": 0}
+{"t": 31.5, "command": "click", "args": ["f2e1139"], "error": null, "visible_errors": 0}
+{"t": 33.1, "command": "click", "args": ["f2e1130"], "error": null, "visible_errors": 0}
+{"t": 34.3, "command": "click", "args": ["f2e1157"], "error": null, "visible_errors": 0}
+{"t": 35.8, "command": "click", "args": ["f2e1183"], "error": null, "visible_errors": 0}
+{"t": 38.0, "command": "done", "args": ["Set battery wear cost to 0.01 $/kWh on all battery discharge. Setting the Battery's Discharge cost to 0.01 $/kWh made HAEO create a Policy named 'Battery discharge cost' (source: Battery element, target: Any, price 0.01 $/kWh), which covers discharge to any destination. Because the Battery's own Discharge cost would have charged the same kWh a second time, I cleared that field and saved. The Policy remains in place and the battery saved successfully."], "error": null, "visible_errors": 0}

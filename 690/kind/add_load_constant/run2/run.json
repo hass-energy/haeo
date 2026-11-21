@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.06486159999999999,
+  "turns": 8,
+  "report": "I added \"Pool pump\" to the Home hub as a Load with a fixed 0.8 kW power value. It's connected to the Switchboard, and it now shows up in the hub's device list.\n\nI did not open the new entry afterwards to check its saved settings.\n\nPoints where I hesitated:\n- **Connection:** I left the default, Switchboard (AC), because a household pump plugs into the house wiring. I didn't have a strong reason to change it.\n- **Fixed value:** In the Forecast field I typed \"0.8\" and picked the \"Fixed value 0.8 kW\" option, since I wasn't sure a plain number would be accepted. I assumed that option means a constant 0.8 kW at all times.\n- **Shedding:** I skipped the \"Shedding\" section. The pump runs all the time, so I didn't set anything there.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Load 'Pool pump' with fixed 0.8 kW forecast, connected to Switchboard (AC). It appears under the Home hub.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.6
+}

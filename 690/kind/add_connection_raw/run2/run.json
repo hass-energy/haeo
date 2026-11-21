@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.08954740000000001,
+  "turns": 8,
+  "report": "I added a connection called \"Inverter to Switchboard\" to the Home hub. It runs from the Inverter to the Switchboard with max power set to a fixed 10 kW. It now shows in the hub's device list with 2 entities.\n\nI only checked that it appeared in the list. I didn't open it again to confirm the 10 kW saved.\n\nPoints where I hesitated or went beyond the instructions:\n- The form already had Inverter as the source and Switchboard as the target, so I left both unchanged.\n- I chose the name \"Inverter to Switchboard\" myself. The form's default was just \"Connection\", and you didn't specify a name.\n- I left the Price and Connection efficiency fields at their defaults, since you only asked for the limit.\n- The max power box offered \"Fixed value 10 kW\" as an option rather than taking the typed number directly, so I clicked that option.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with max power fixed at 10 kW; it now appears under the Home hub.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 11.7
+}

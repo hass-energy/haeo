@@ -1,0 +1,10 @@
+{"t": 1.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.4, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 5.3, "command": "type", "args": ["f2e445", "Household"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "click", "args": ["f2e489"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "click", "args": ["f2e607"], "error": null, "visible_errors": 0}
+{"t": 10.1, "command": "type", "args": ["f2e489", "Sigen Plant Consumed Power"], "error": null, "visible_errors": 0}
+{"t": 11.2, "command": "click", "args": ["f2e766"], "error": null, "visible_errors": 0}
+{"t": 12.7, "command": "click", "args": ["f2e498"], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "click", "args": ["f2e795"], "error": null, "visible_errors": 0}
+{"t": 15.6, "command": "done", "args": ["Added a Load element named 'Household' to the Home hub, connected to the Switchboard (AC). Its forecast input has two sensors: sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power (current value). The creation succeeded and the Household device now appears under Home with 12 entities."], "error": null, "visible_errors": 0}

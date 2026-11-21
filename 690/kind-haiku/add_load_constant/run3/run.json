@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0057778,
+  "turns": 9,
+  "report": "I added \"Pool pump\" to the Home hub as a Load with a fixed 0.8 kW forecast. The success dialog said \"Created configuration for Pool pump\", and it now appears in the Hubs list with 12 entities.\n\nPoints where I hesitated or was unsure:\n\n1. **Connection choice:** The form offered Inverter (DC) and Switchboard (AC). I kept the default, Switchboard, because a pool pump is a house-side AC load, not a battery or solar device. I didn't check the Switchboard's wiring, so this rests on that reasoning.\n2. **Forecast as a constant:** The field accepts sensors or typed values. I typed 0.8 and picked the \"Fixed value 0.8 kW\" option. The unit shown was kW, which matches your figure. I took \"runs all the time\" to mean a constant, steady draw, so I didn't set up any time-varying forecast.\n3. **Shedding section:** I left Shedding untouched. You didn't mention wanting the pump to be sheddable, and a pump that runs all the time seemed not to need it. If you want the optimizer to be able to switch it off, that's a change to make later.\n4. **Verification:** I confirmed creation from the success dialog and the hub's entity list. I didn't open the new load's configuration page to check that the 0.8 kW value stored as expected.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a load named 'Pool pump' to the Home HAEO hub. It uses the Switchboard (AC) connection, the default and right for a house-side load, with a fixed forecast of 0.8 kW. The success dialog said 'Created configuration for Pool pump', and it now appears in the Hubs list with 12 entities.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 11.4
+}

@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.01594111,
+  "turns": 15,
+  "report": "I set the battery's discharge cost to $0.01/kWh and confirmed it saved. HAEO also created a policy that covers the same cost, and I could not tell whether the two would double-count.\n\n**What's configured**\n- **Battery \u2192 Pricing \u2192 Discharge cost:** 0.01 $/kWh (the field is labelled $/kWh). Reopening the Battery element shows the value saved.\n- **Policies \u2192 \"Battery discharge cost\" (created automatically after saving):** Source is the Battery element, Target is \"Any\", Price is 0.01 $/kWh, Enabled. The \"Any\" target is what makes this match \"wherever that energy goes.\"\n\nI left both in place. I did not delete either one.\n\n**Where I hesitated or was unsure**\n- **Possible double-counting:** I did not create the policy myself, and I don't know whether HAEO applies both the battery's discharge cost and the policy's price. If it does, discharged energy would cost $0.02/kWh rather than $0.01. I could not check this from the UI. Someone should confirm which one HAEO uses, and remove the other if both apply.\n- **Battery's discharge cost on its own:** I didn't know whether the field alone covers every destination (load, grid export, etc.). The policy with target \"Any\" does, which is why I didn't remove it.\n- **Opened the policy edit form:** I pressed Submit on the Policies dialog to view the policy, then closed the edit form with its Close button without saving. No changes were made to that policy.\n- **Advanced \u2192 Limit cost (100 $/kWh/h):** I saw this but left it alone. It is a per-hour cost on power limits, not a per-kWh discharge cost, so I judged it unrelated.\n- **Discharge cost entry:** I typed 0.01 and then selected the \"Fixed value 0.01 $/kWh\" suggestion rather than using a sensor. That matches the requirement of a constant $0.01.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 13,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 31.1
+}

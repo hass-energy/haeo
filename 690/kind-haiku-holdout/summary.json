@@ -1,0 +1,28 @@
+{
+  "runs": 6,
+  "passed": 5,
+  "success_rate": 0.833,
+  "actions": 8.5,
+  "cost_usd": 0.08,
+  "tasks": {
+    "add_policy_battery_wear": {
+      "runs": 3,
+      "passed": 2,
+      "actions": 13,
+      "actions_when_passed": 11.0,
+      "errors_shown": 0,
+      "seconds": 31.1,
+      "cost_usd": 0.05
+    },
+    "edit_battery_min_charge": {
+      "runs": 3,
+      "passed": 3,
+      "actions": 7,
+      "actions_when_passed": 7,
+      "errors_shown": 0,
+      "seconds": 14.2,
+      "cost_usd": 0.03
+    }
+  },
+  "model": "haiku"
+}

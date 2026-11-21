@@ -1,0 +1,20 @@
+{"t": 2.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "click", "args": ["f2e503"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "type", "args": ["f2e503", "rated", "energy"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e640"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e511"], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "type", "args": ["f2e511", "state", "of", "charge"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "click", "args": ["f2e657"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "click", "args": ["f2e529"], "error": null, "visible_errors": 0}
+{"t": 12.9, "command": "type", "args": ["f2e529", "5"], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "click", "args": ["f2e681"], "error": null, "visible_errors": 0}
+{"t": 14.9, "command": "click", "args": ["f2e555"], "error": null, "visible_errors": 0}
+{"t": 15.3, "command": "type", "args": ["f2e555", "charging", "power"], "error": null, "visible_errors": 0}
+{"t": 17.4, "command": "click", "args": ["f2e805"], "error": null, "visible_errors": 0}
+{"t": 17.8, "command": "click", "args": ["f2e563"], "error": null, "visible_errors": 0}
+{"t": 18.1, "command": "type", "args": ["f2e563", "discharging", "power"], "error": null, "visible_errors": 0}
+{"t": 19.9, "command": "click", "args": ["f2e1076"], "error": null, "visible_errors": 0}
+{"t": 21.6, "command": "click", "args": ["f2e636"], "error": null, "visible_errors": 0}
+{"t": 23.3, "command": "click", "args": ["f2e1227"], "error": null, "visible_errors": 0}
+{"t": 25.2, "command": "done", "args": ["Added Battery to Home, connected to Inverter (DC). Capacity=Sigen Plant Rated Energy Capacity, SoC=Sigen Plant Battery State of Charge, min charge level 5%, max charge/discharge power = ESS Rated Charging/Discharging Power sensors. Other fields left at defaults."], "error": null, "visible_errors": 0}

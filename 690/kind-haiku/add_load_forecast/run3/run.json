@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.009870780000000001,
+  "turns": 11,
+  "report": "I added a \"Household\" load to HAEO's Home hub, using both the Sigenergy consumed power forecast and the current consumed power sensor. The success dialog confirmed \"Created configuration for Household\", and the hub now lists a Household device with 12 entities.\n\nSettings I chose:\n- **Name:** \"Household\" (the default was \"Load\").\n- **Connection:** Switchboard, AC (left at default). Household consumption sits on the AC side of the house.\n- **Forecast:** `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power`.\n- **Shedding:** left empty, since you didn't mention any loads you could shed.\n\nI did not open the Household device afterwards to confirm the two sensors are stored as I selected them.\n\nPoints where I hesitated or was unsure:\n- The field is labelled \"Forecast\" but also accepted the current-value sensor. I took that as intended because you asked for both, but I'm not certain how HAEO uses a current-value sensor alongside a forecast in that field.\n- The first click on the current-value sensor failed because the dropdown had closed after the first selection. I reopened the picker and searched again; the second selection then worked.\n- I renamed the load from the default \"Load\" to \"Household\" without being asked. It's a small choice that you can change.\n- I left Connection on Switchboard without checking alternatives. I believe that's right for household consumption, but I didn't verify it against HAEO's guidance.\n- I did not set any shedding behaviour, because you didn't mention any loads that could be shed.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 23.9
+}

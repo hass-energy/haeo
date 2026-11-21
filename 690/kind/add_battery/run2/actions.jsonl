@@ -1,0 +1,18 @@
+{"t": 2.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.8, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "type", "args": ["f2e487", "rated", "energy", "capacity"], "error": null, "visible_errors": 0}
+{"t": 7.2, "command": "click", "args": ["f2e624"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "type", "args": ["f2e495", "state", "of", "charge"], "error": null, "visible_errors": 0}
+{"t": 9.4, "command": "click", "args": ["f2e641"], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "type", "args": ["f2e513", "5"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e658"], "error": null, "visible_errors": 0}
+{"t": 11.7, "command": "type", "args": ["f2e539", "charging", "power"], "error": null, "visible_errors": 0}
+{"t": 13.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 15.1, "command": "click", "args": ["f2e673"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 16.9, "command": "type", "args": ["f2e547", "discharging", "power"], "error": null, "visible_errors": 0}
+{"t": 18.7, "command": "click", "args": ["f2e697"], "error": null, "visible_errors": 0}
+{"t": 18.9, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 22.2, "command": "click", "args": ["f2e620"], "error": null, "visible_errors": 0}
+{"t": 24.3, "command": "click", "args": ["f2e720"], "error": null, "visible_errors": 0}
+{"t": 24.4, "command": "done", "args": ["Added Battery (DC, via Inverter) with capacity and SoC from Sigen Plant sensors, min charge 5%, max charge/discharge power from the ESS rated sensors."], "error": null, "visible_errors": 0}

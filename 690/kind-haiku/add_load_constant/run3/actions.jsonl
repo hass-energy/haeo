@@ -1,0 +1,8 @@
+{"t": 1.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.1, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 4.8, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "type", "args": ["f2e536", "0.8"], "error": null, "visible_errors": 0}
+{"t": 7.2, "command": "click", "args": ["f2e549"], "error": null, "visible_errors": 0}
+{"t": 8.7, "command": "click", "args": ["f2e545"], "error": null, "visible_errors": 0}
+{"t": 9.8, "command": "click", "args": ["f2e568"], "error": null, "visible_errors": 0}
+{"t": 11.4, "command": "done", "args": ["Added a load named 'Pool pump' to the Home HAEO hub. It uses the Switchboard (AC) connection, the default and right for a house-side load, with a fixed forecast of 0.8 kW. The success dialog said 'Created configuration for Pool pump', and it now appears in the Hubs list with 12 entities."], "error": null, "visible_errors": 0}

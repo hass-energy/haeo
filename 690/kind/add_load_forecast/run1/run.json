@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.11935889999999999,
+  "turns": 12,
+  "report": "I added a Load called \"Household\" to your Home hub. It's connected to the Switchboard and uses both Sigenergy sensors:\n- **Forecast:** Sigen Plant Consumed Power Forecast\n- **Current value:** Sigen Plant Consumed Power\n\nHAEO showed \"Created configuration for Household\". The Household device now appears under the hub, and the entity count went from 49 to 61.\n\nI didn't open the new load afterwards to check which sensors it saved. I only saw both sensors listed as selected before I submitted.\n\nPoints where I hesitated or was unsure:\n- **Name:** I changed the default \"Load\" to \"Household\". You didn't give a name, so that was my choice.\n- **Connection:** I kept the default, Switchboard. You didn't say where the load connects, and household consumption seemed to belong on the switchboard.\n- **One field for both sensors:** The Forecast field accepts several sensors. I wasn't sure the current-value sensor belonged there, so I added it to the same field. There was no other field for it.\n- **Dropdown closing:** After my first pick, the dropdown closed. I searched \"consumed\" to find the second sensor, which cost a few extra steps.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named Household to Home, connected to Switchboard, with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (current value). The Household device now appears.",
+  "actions": 9,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.5
+}

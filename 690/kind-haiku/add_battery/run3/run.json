@@ -1,0 +1,85 @@
+{
+  "task": "add_battery",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.00759748,
+  "turns": 13,
+  "report": "I added the Sigenergy battery to the Home hub as a Battery element. The success dialog said \"Created configuration for Battery,\" and Battery now appears in the Home hub's element list.\n\nSettings entered:\n- **Name:** Battery (the default, left unchanged)\n- **Connection:** Inverter, DC (the default, which fits a battery behind the inverter)\n- **Capacity:** Sigen Plant Rated Energy Capacity (`sensor.sigen_plant_rated_energy_capacity`, 32.24 kWh)\n- **State of charge:** Sigen Plant Battery State of Charge (`sensor.sigen_plant_battery_state_of_charge`)\n- **Min charge level:** 5% fixed value, so the battery is never discharged below 5%\n- **Max charge power:** Sigen Plant ESS Rated Charging Power (`sensor.sigen_plant_ess_rated_charging_power`, 16.8 kW)\n- **Max discharge power:** Sigen Plant ESS Rated Discharging Power (`sensor.sigen_plant_ess_rated_discharging_power`, 19.2 kW)\n\nI left Max charge level, Salvage value, Charge cost, Discharge cost, battery efficiency and Advanced at their defaults. I did not open the Advanced section or check the efficiency settings.\n\nPoints where I hesitated or was unsure:\n- **Min charge level as a percentage:** The field accepted \"5\" and displayed it as \"5 %\", so I took that as the 5% floor. I did not confirm the stored value after submitting.\n- **Connection choice:** The form defaults to Inverter, DC. You said the battery is connected through the inverter, so I kept that. If Sigen's battery is actually on the AC side of the inverter, Switchboard would be the right choice instead.\n- **Charge and discharge cost defaults:** Charge cost defaulted to -0.001 $/kWh and the other costs to 0. I left them alone without knowing whether they suit your tariff.\n- **Battery name:** I kept \"Battery\" rather than naming it after the Sigen unit, which was a judgement call.\n- **Max charge level:** I left this blank, so no upper charge limit is set. You did not mention one.\n- **Verification:** I confirmed the chosen values from the form chips and the success message, not from the saved entity states afterwards.\n- **Budget:** I kept my actions short to stay within the budget, so I skipped the extra checks I would normally run.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Battery element to the Home HAEO hub. Connection: Inverter (DC). Capacity: Sigen Plant Rated Energy Capacity (32.24 kWh). State of charge: Sigen Plant Battery State of Charge. Min charge level: 5% fixed. Max charge power: Sigen Plant ESS Rated Charging Power. Max discharge power: Sigen Plant ESS Rated Discharging Power. Battery now listed under Home. Creation confirmed by the success dialog.",
+  "actions": 18,
+  "looks": 4,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.1
+}

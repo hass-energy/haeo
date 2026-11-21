@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.00896047,
+  "turns": 10,
+  "report": "I added the pool pump as a Load named \"Pool pump\" under the Home hub. HAEO confirmed \"Created configuration for Pool pump\", and it now shows in the hub's device list with 12 entities.\n\nSettings:\n- **Connection:** Switchboard, AC (the default). A pool pump is an AC appliance on the house side.\n- **Forecast:** Fixed value 0.8 kW. I picked the suggested \"Fixed value 0.8 kW\" option rather than a sensor, since no sensor measures the pump and you gave a constant draw.\n- **Shedding:** left at its default, since you didn't mention it.\n\nI didn't open the new device afterwards to confirm the saved value reads back as 0.8 kW.\n\nPoints where I hesitated or was unsure:\n1. **Load vs. Deferrable load:** I chose a regular Load because the pump runs constantly at a steady draw. A deferrable load is for consumption HAEO can schedule. I judged that wrong for this case.\n2. **Connection:** I kept the default Switchboard (AC). The pump is an AC appliance, but I didn't check whether your wiring puts it on a different branch.\n3. **Units:** The picker showed other sensors in kW, so I read \"0.8\" as 0.8 kW. The result showed \"0.8 kW\", which matches.\n4. **Shedding:** I didn't review it. Shedding is a load-priority setting, and I didn't know whether a pool pump should be sheddable, so I left the default.\n5. **Constant vs. sensor:** There's no pool-pump power sensor in the list, so the constant is the only option I had. If you have a smart plug or energy sensor for the pump, a sensor would be more accurate.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Pool pump' under the Home hub, on the Switchboard (AC) connection, with a fixed forecast value of 0.8 kW. The new device appears in the hub list with 12 entities. Shedding was left at its default.",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 14.3
+}
