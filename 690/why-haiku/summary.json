@@ -1,0 +1,19 @@
+{
+  "runs": 6,
+  "passed": 6,
+  "success_rate": 1.0,
+  "actions": 67.0,
+  "cost_usd": 1.49,
+  "tasks": {
+    "add_solar_forecast_solar": {
+      "runs": 6,
+      "passed": 6,
+      "actions": 67.0,
+      "actions_when_passed": 67.0,
+      "errors_shown": 0.0,
+      "seconds": 70.8,
+      "cost_usd": 1.49
+    }
+  },
+  "model": "haiku"
+}

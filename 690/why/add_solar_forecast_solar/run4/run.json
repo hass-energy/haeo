@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 4,
+  "success": true,
+  "cost_usd": 0.11812990000000001,
+  "turns": 12,
+  "report": "I added a Solar element to Home. It uses all 32 Forecast.Solar sensors: east, north, south and west, each with today, tomorrow, day after tomorrow and 3 to 7 days from now. HAEO showed \"Created configuration for Solar\", and Solar now appears in the hub's list.\n\nI connected it to the Inverter (DC), which was the default. I left Curtailment alone. I didn't open the new Solar entry again to check its saved settings. Before submitting, the field held 32 sensors, and the combined forecast preview covered 168 hours with a peak of 17.9 kW.\n\nPoints where I hesitated:\n- **Connection:** I kept the default Inverter (DC) because you said the panels feed into your inverter. I didn't compare it against the Switchboard (AC) option.\n- **Number of sensors:** I assumed \"every day it covers\" meant all 8 day-sensors per direction, including today. I added the first one by hand and then used the \"Add all 31\" option for the rest.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar to Home, connected to Inverter (DC), with all 32 Forecast.Solar sensors (east, north, south, west \u00d7 today, tomorrow, day after tomorrow, d3\u2013d7).",
+  "actions": 8,
+  "looks": 3,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 24.1
+}
