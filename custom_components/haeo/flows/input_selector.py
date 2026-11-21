@@ -30,7 +30,7 @@ INPUT_SELECTOR_TYPE = "haeo_input"
 INPUT_TRANSLATION_KEY = "input"
 # The element's text: accessible labels and the words for on and off, with the placeholders it fills in
 INPUT_STRINGS: dict[str, tuple[str, ...]] = {
-    "current_value": (),
+    "current_value": ("value",),
     "enter_value": ("label",),
     "fixed_value": ("value",),
     "forecast": (),

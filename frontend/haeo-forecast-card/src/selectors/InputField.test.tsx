@@ -8,7 +8,7 @@ import { HaeoInputSelector } from "./input-selector";
 import type { InputSelectorConfig, InputValue, SelectorHass } from "./types";
 
 const STRINGS: Record<string, string> = {
-  "input.options.current_value": "Current value",
+  "input.options.current_value": "Current value {value}",
   "input.options.forecast": "Forecast",
   "input.options.enter_value": "{label}: enter a value",
   "input.options.fixed_value": "Fixed value {value}",
@@ -175,7 +175,7 @@ describe("InputField", () => {
 
   it("shows a fixed value as a chip with its unit, distinct from entity chips", () => {
     show({ value: { type: "constant", value: 0.8 } });
-    expect(container.querySelector(".chip.constant")?.textContent).toBe("0.8 kW");
+    expect(container.querySelector(".chip.constant .readout.fixed")?.textContent).toBe("0.8kW");
     expect(container.querySelector(".chip.entity")).toBeNull();
   });
 
@@ -199,20 +199,34 @@ describe("InputField", () => {
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.west", "sensor.east"] });
   });
 
-  it("shows chosen entities as chips with their current values", () => {
+  it("shows chosen entities as chips led by their current values", () => {
     show({ value: { type: "entity", value: ["sensor.east"] } });
-    expect(container.querySelector(".chip.entity")?.textContent).toBe("East solar3 kW");
+    expect(container.querySelector(".chip.entity")?.textContent).toBe("3kWEast solar");
   });
 
-  it("marks forecasts without a preview with a chart, and others with a gauge and their current value", () => {
+  it("rounds a current value to fit its readout, and tells screen readers the whole value", () => {
+    const precise: SelectorHass = {
+      ...hass,
+      states: {
+        "sensor.east": { entity_id: "sensor.east", state: "0.501000", attributes: { unit_of_measurement: "kW" } },
+      },
+    };
+    show({ hass: precise, value: { type: "entity", value: ["sensor.east"] } });
+    const readout = container.querySelector(".chip.entity .readout");
+    expect(readout?.querySelector(".readout-value")?.textContent).toBe("0.501");
+    expect(readout?.getAttribute("aria-label")).toBe("Current value 0.501000 kW");
+  });
+
+  it("leads forecasts with a chart when there is no preview, and others with their current value", () => {
     show({
       config: { ...numberConfig, forecasts: { "sensor.west": [] } },
       value: { type: "entity", value: ["sensor.east", "sensor.west"] },
     });
     const [east, west] = Array.from(container.querySelectorAll(".chip.entity"));
-    expect(east?.querySelector("[role=img]")?.getAttribute("aria-label")).toBe("Current value");
-    expect(east?.textContent).toBe("East solar3 kW");
+    expect(east?.querySelector("[role=img]")?.getAttribute("aria-label")).toBe("Current value 3 kW");
+    expect(east?.textContent).toBe("3kWEast solar");
     expect(west?.querySelector("[role=img]")?.getAttribute("aria-label")).toBe("Forecast");
+    expect(west?.querySelector(".readout svg.icon")).not.toBeNull();
     expect(west?.textContent).toBe("West solar");
   });
 
@@ -221,9 +235,9 @@ describe("InputField", () => {
       config: { ...numberConfig, forecasts: { "sensor.west": [1, 3, 2] } },
       value: { type: "entity", value: ["sensor.west"] },
     });
-    const sparkline = container.querySelector(".chip.entity .sparkline");
-    expect(sparkline?.getAttribute("aria-label")).toBe("Forecast");
-    expect(sparkline?.querySelector("polyline")?.getAttribute("points")).toBe("0.0,16.0 18.0,2.0 36.0,9.0");
+    const readout = container.querySelector(".chip.entity .readout");
+    expect(readout?.getAttribute("aria-label")).toBe("Forecast");
+    expect(readout?.querySelector("polyline")?.getAttribute("points")).toBe("0.0,16.0 18.0,2.0 36.0,9.0");
   });
 
   it("lists forecasts and current values together, each marked by how the field reads it", () => {
@@ -232,13 +246,13 @@ describe("InputField", () => {
     const marks = options()
       .slice(1)
       .map((option) => option.querySelector("[role=img]")?.getAttribute("aria-label"));
-    expect(marks).toEqual(["Current value", "Forecast"]);
+    expect(marks).toEqual(["Current value 3 kW", "Forecast"]);
   });
 
   it("replaces entities with a picked fixed value", () => {
     const onChange = show({ value: { type: "entity", value: ["sensor.east"] } });
     type("2");
-    clickOption("2 kW");
+    act(() => byLabel("Fixed value 2 kW").click());
     expect(onChange).toHaveBeenCalledWith({ type: "constant", value: 2 });
   });
 

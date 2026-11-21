@@ -1,17 +1,10 @@
-import {
-  mdiChartLine,
-  mdiClose,
-  mdiGauge,
-  mdiMagnify,
-  mdiNumeric,
-  mdiToggleSwitch,
-  mdiToggleSwitchOffOutline,
-} from "@mdi/js";
+import { mdiClose, mdiMagnify } from "@mdi/js";
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
 import { describeEntity, filterOptions, offeredEntityIds, readNumber } from "./search";
-import { Sparkline } from "./Sparkline";
+import { Readout, shortNumber } from "./Readout";
+import type { ReadoutContent } from "./Readout";
 import type { EntityOption } from "./search";
 import type { InputSelectorConfig, InputValue, SelectorHass, Translate } from "./types";
 
@@ -37,13 +30,9 @@ type Choice =
 
 let idCounter = 0;
 
-function Icon({ path, label }: { path: string; label?: string }): JSX.Element {
-  return label === undefined ? (
+function Icon({ path }: { path: string }): JSX.Element {
+  return (
     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d={path} />
-    </svg>
-  ) : (
-    <svg class="icon" viewBox="0 0 24 24" role="img" aria-label={label}>
       <path d={path} />
     </svg>
   );
@@ -68,9 +57,9 @@ function entityValue(entityIds: string[]): InputValue {
  *
  * The field is a token input. Typing filters the entities the field offers, and a
  * typed number is offered as a fixed value above them. A chosen value becomes a
- * chip: a fixed value shows its unit, an entity read as a forecast a sparkline of
- * it, and an entity read as its current value a gauge and that value, so how each
- * loads is visible without words.
+ * chip. Every chip and choice starts with the same-sized readout of the value it
+ * gives: a forecast's sparkline, an entity's current value, or the fixed value,
+ * tinted. How each loads is visible without words, and the readouts line up.
  */
 export function InputField(props: InputFieldProps): JSX.Element {
   const { config, value, hass, label, helper, required, disabled, t, onChange } = props;
@@ -126,26 +115,38 @@ export function InputField(props: InputFieldProps): JSX.Element {
     return config.unit !== undefined && config.unit !== "" ? `${constant} ${config.unit}` : String(constant);
   };
 
-  // How the field reads an entity: its forecast, drawn when there is a preview, or its current value, which is shown
-  const preview = (entity: EntityOption): number[] | undefined => config.forecasts[entity.entityId];
-  const entityKindIcon = (entity: EntityOption): JSX.Element => {
-    const values = preview(entity);
-    if (values === undefined) {
-      return <Icon path={mdiGauge} label={t("input.options.current_value")} />;
-    }
-    return values.length > 1 ? (
-      <Sparkline values={values} label={t("input.options.forecast")} />
-    ) : (
-      <Icon path={mdiChartLine} label={t("input.options.forecast")} />
-    );
-  };
-  const entityState = (entity: EntityOption): string => (preview(entity) === undefined ? entity.current : "");
+  const constantReadout = (constant: number | boolean): ReadoutContent => ({
+    kind: "value",
+    text: typeof constant === "boolean" ? constantText(constant) : shortNumber(constant),
+    unit: typeof constant === "boolean" ? "" : (config.unit ?? ""),
+    fixed: true,
+  });
 
-  const constantIcon = (constant: number | boolean): string => {
-    if (typeof constant === "boolean") {
-      return constant ? mdiToggleSwitch : mdiToggleSwitchOffOutline;
+  // A state as short as the readout needs: a rounded number, or on and off in the user's words
+  const stateText = (state: string): string => {
+    if (state === "") {
+      return "–";
     }
-    return mdiNumeric;
+    if (state === "on" || state === "off") {
+      return t(`input.options.${state}`);
+    }
+    const number = Number(state);
+    return state.trim() !== "" && Number.isFinite(number) ? shortNumber(number) : state;
+  };
+
+  // How the field reads an entity: its forecast, drawn from the preview, or its current value
+  const entityReadout = (entity: EntityOption): JSX.Element => {
+    const values = config.forecasts[entity.entityId];
+    if (values !== undefined) {
+      return <Readout content={{ kind: "series", values }} label={t("input.options.forecast")} />;
+    }
+    const full = entity.state === "" ? "–" : `${entity.state} ${entity.unit}`.trim();
+    return (
+      <Readout
+        content={{ kind: "value", text: stateText(entity.state), unit: entity.unit, fixed: false }}
+        label={t("input.options.current_value", { value: full })}
+      />
+    );
   };
 
   // Like an address field, a pick clears the search and closes the list until the next one
@@ -244,8 +245,7 @@ export function InputField(props: InputFieldProps): JSX.Element {
               aria-label={t("input.options.fixed_value", { value: constantText(value.value) })}
               onClick={() => editConstant(value.value)}
             >
-              <Icon path={constantIcon(value.value)} />
-              <span>{constantText(value.value)}</span>
+              <Readout content={constantReadout(value.value)} />
             </button>
             <button
               type="button"
@@ -263,9 +263,8 @@ export function InputField(props: InputFieldProps): JSX.Element {
           return (
             <span class="chip entity" key={entityId}>
               <span class="chip-body">
-                {entityKindIcon(entity)}
+                {entityReadout(entity)}
                 <span class="entity-name">{entity.name}</span>
-                {entityState(entity) !== "" && <span class="entity-state">{entityState(entity)}</span>}
               </span>
               <button
                 type="button"
@@ -319,8 +318,8 @@ export function InputField(props: InputFieldProps): JSX.Element {
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(choice)}
               >
-                <Icon path={constantIcon(choice.value)} />
-                <span class="option-text">{constantText(choice.value)}</span>
+                <input type="checkbox" class="check-space" tabIndex={-1} aria-hidden="true" readOnly />
+                <Readout content={constantReadout(choice.value)} />
               </li>
             )
           )}
@@ -348,12 +347,11 @@ export function InputField(props: InputFieldProps): JSX.Element {
                 onClick={() => choose(choice)}
               >
                 <input type="checkbox" tabIndex={-1} checked={choice.selected} aria-hidden="true" readOnly />
-                {entityKindIcon(choice.option)}
+                {entityReadout(choice.option)}
                 <span class="option-text">
                   <span class="entity-name">{choice.option.name}</span>
                   <span class="entity-id">{choice.option.entityId}</span>
                 </span>
-                <span class="entity-state">{entityState(choice.option)}</span>
               </li>
             )
           )}

@@ -10,12 +10,28 @@ export const SELECTOR_STYLES = `
 .label { font-size: 0.875rem; color: var(--secondary-text-color); }
 .helper { font-size: 0.75rem; color: var(--secondary-text-color); }
 .icon { width: 18px; height: 18px; fill: currentColor; flex: none; }
-.sparkline { width: 36px; height: 18px; flex: none; overflow: visible; }
+.readout {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex: none;
+  box-sizing: border-box; width: 48px; height: 26px; border-radius: 13px; line-height: 1;
+  background: color-mix(in srgb, var(--primary-text-color) 8%, transparent); color: var(--primary-text-color);
+}
+.readout.fixed { background: color-mix(in srgb, var(--primary-color) 22%, transparent); }
+.readout .icon { color: var(--secondary-text-color); }
+.readout-value {
+  max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.75rem; font-weight: 500; font-variant-numeric: tabular-nums;
+}
+.readout-unit {
+  max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.625rem; color: var(--secondary-text-color); margin-top: 1px;
+}
+.sparkline { width: 40px; height: 18px; overflow: visible; }
 .sparkline-line {
   fill: none; stroke: var(--primary-color); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }
 .sparkline-area { fill: color-mix(in srgb, var(--primary-color) 18%, transparent); stroke: none; }
+.check-space { visibility: hidden; }
 
 .tokens {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px; box-sizing: border-box; min-height: 48px;
@@ -36,16 +52,10 @@ export const SELECTOR_STYLES = `
   border-radius: 16px; border: 1px solid var(--divider-color); background: var(--card-background-color);
 }
 .chip-body {
-  display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 0 4px 0 10px;
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 0 4px 0 3px;
   border: none; background: none; font: inherit; color: inherit;
 }
-.chip.entity .icon { color: var(--secondary-text-color); }
-.chip.constant {
-  border-color: transparent;
-  background: color-mix(in srgb, var(--primary-color) 18%, transparent);
-}
-.chip.constant .chip-body { cursor: pointer; font-variant-numeric: tabular-nums; }
-.chip.constant .icon { color: var(--primary-color); }
+.chip.constant .chip-body { cursor: pointer; }
 .chip-remove {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
   width: 24px; height: 24px; margin-right: 4px; padding: 0; border: none; border-radius: 50%;
@@ -57,7 +67,6 @@ export const SELECTOR_STYLES = `
 .entity-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .option .entity-name { flex: 1; }
 .entity-id { font-size: 0.75rem; color: var(--secondary-text-color); overflow: hidden; text-overflow: ellipsis; }
-.entity-state { color: var(--secondary-text-color); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .options {
   list-style: none; margin: 0; padding: 4px 0; max-height: 280px; overflow-y: auto;
@@ -65,9 +74,6 @@ export const SELECTOR_STYLES = `
 }
 .option { display: flex; align-items: center; gap: 12px; padding: 6px 12px; cursor: pointer; }
 .option.active, .option:hover { background: var(--secondary-background-color); }
-.option > .icon { color: var(--secondary-text-color); }
-.option.constant .icon { color: var(--primary-color); }
-.option.constant { font-variant-numeric: tabular-nums; }
 .option[aria-disabled="true"] { opacity: 0.4; cursor: default; }
 .option.all { border-bottom: 1px solid var(--divider-color); }
 .option input[type="checkbox"] { margin: 0; accent-color: var(--primary-color); pointer-events: none; }

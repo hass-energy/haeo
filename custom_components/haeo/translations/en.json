@@ -844,7 +844,7 @@
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
     "input": {
       "options": {
-        "current_value": "Current value",
+        "current_value": "Current value {value}",
         "enter_value": "{label}: enter a value",
         "fixed_value": "Fixed value {value}",
         "forecast": "Forecast",

@@ -15,10 +15,10 @@ export function sparklinePoints(values: number[]): string {
 }
 
 /** A forecast's shape from now to its end, with no axes. */
-export function Sparkline({ values, label }: { values: number[]; label: string }): JSX.Element {
+export function Sparkline({ values }: { values: number[] }): JSX.Element {
   const line = sparklinePoints(values);
   return (
-    <svg class="sparkline" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={label}>
+    <svg class="sparkline" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
       <polygon class="sparkline-area" points={`0,${HEIGHT} ${line} ${WIDTH},${HEIGHT}`} />
       <polyline class="sparkline-line" points={line} />
     </svg>

@@ -164,7 +164,8 @@ Whether a required field has a value is checked by the flow instead, so the erro
 
 The element is a token input with no instructional text.
 Typing filters the offered entities, and a typed number is offered as a fixed value above them, disabled when it is outside the field's range.
-A chosen value becomes a chip: a fixed value with its unit and a number icon, an entity the field reads as a forecast with a sparkline of it, or an entity it reads as its current value with a gauge icon and that value, so how each value loads is visible without words.
+Every chip and choice starts with a readout of the same size, showing the value it gives: a forecast's sparkline, the current value of an entity read as its current value, or the fixed value on a tint, with values rounded to fit and their unit beneath.
+Lining them up shows that each is the same thing, a plot or a number, and how each value loads is visible without words; the readout's accessible label carries the full value.
 A forecast with nothing to preview, such as a calendar, shows a chart icon instead.
 The list marks entities the same way, so forecasts and current values appear side by side.
 A select-all row with the match count checks every entity the search shows, and chosen entities keep the order they were picked in.

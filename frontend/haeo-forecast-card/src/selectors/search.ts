@@ -4,8 +4,10 @@ import type { EntityStateLike, InputSelectorConfig, SelectorHass } from "./types
 export interface EntityOption {
   entityId: string;
   name: string;
-  /** The entity's current state with its unit, or "" when it has none. */
-  current: string;
+  /** The entity's current state, or "" when it has none. */
+  state: string;
+  /** The unit the entity states, or "". */
+  unit: string;
 }
 
 function friendlyName(entityId: string, state: EntityStateLike | undefined): string {
@@ -14,17 +16,18 @@ function friendlyName(entityId: string, state: EntityStateLike | undefined): str
 }
 
 function currentState(state: EntityStateLike | undefined): string {
-  if (state === undefined || state.state === "unknown" || state.state === "unavailable") {
-    return "";
-  }
-  const unit = state.attributes["unit_of_measurement"];
-  return typeof unit === "string" && unit !== "" ? `${state.state} ${unit}` : state.state;
+  return state === undefined || state.state === "unknown" || state.state === "unavailable" ? "" : state.state;
+}
+
+function stateUnit(state: EntityStateLike | undefined): string {
+  const unit = state?.attributes["unit_of_measurement"];
+  return typeof unit === "string" ? unit : "";
 }
 
 /** Describe an entity for display, whether or not it is currently offered. */
 export function describeEntity(hass: SelectorHass | null, entityId: string): EntityOption {
   const state = hass?.states[entityId];
-  return { entityId, name: friendlyName(entityId, state), current: currentState(state) };
+  return { entityId, name: friendlyName(entityId, state), state: currentState(state), unit: stateUnit(state) };
 }
 
 /** The IDs of every entity the field offers, sorted by name so the order never shifts while picking. */

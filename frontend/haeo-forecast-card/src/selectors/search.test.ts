@@ -28,18 +28,24 @@ const config: InputSelectorConfig = {
 };
 
 describe("describeEntity", () => {
-  it("shows the friendly name and the state with its unit", () => {
+  it("shows the friendly name, the state and its unit", () => {
     expect(describeEntity(hass, "sensor.b")).toEqual({
       entityId: "sensor.b",
       name: "Battery power",
-      current: "2.5 kW",
+      state: "2.5",
+      unit: "kW",
     });
   });
 
   it("falls back to the entity ID and hides an unavailable state", () => {
-    expect(describeEntity(hass, "sensor.a").current).toBe("");
+    expect(describeEntity(hass, "sensor.a").state).toBe("");
     expect(describeEntity(hass, "sensor.c").name).toBe("sensor.c");
-    expect(describeEntity(null, "sensor.gone")).toEqual({ entityId: "sensor.gone", name: "sensor.gone", current: "" });
+    expect(describeEntity(null, "sensor.gone")).toEqual({
+      entityId: "sensor.gone",
+      name: "sensor.gone",
+      state: "",
+      unit: "",
+    });
   });
 });
 
