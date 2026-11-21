@@ -1,0 +1,12 @@
+{"t": 2.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.3, "command": "click", "args": ["f2e109"], "error": null, "visible_errors": 0}
+{"t": 6.0, "command": "click", "args": ["f2e473"], "error": null, "visible_errors": 0}
+{"t": 7.9, "command": "click", "args": ["f2e664"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "type", "args": ["f2e473", "solcast_pv_forecast_forecast_tomorrow"], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "click", "args": ["f2e818"], "error": null, "visible_errors": 0}
+{"t": 11.9, "command": "type", "args": ["f2e473", "solcast_pv_forecast_forecast_day_3"], "error": null, "visible_errors": 0}
+{"t": 13.3, "command": "click", "args": ["f2e838"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e482"], "error": null, "visible_errors": 0}
+{"t": 16.4, "command": "click", "args": ["f2e863"], "error": null, "visible_errors": 0}
+{"t": 18.5, "command": "done", "args": ["Added Solar to Home, connected to the Inverter (DC), with the three Solcast forecast sensors: Today, Tomorrow and Day 3. HAEO confirmed the Solar configuration was created and it appears in the Home list."], "error": null, "visible_errors": 0}

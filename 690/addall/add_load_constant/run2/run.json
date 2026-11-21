@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.0615795,
+  "turns": 8,
+  "report": "I added \"Pool pump\" to HAEO as its own load. It has a fixed forecast of 0.8 kW and is connected to the Switchboard. HAEO showed \"Created configuration for Pool pump\", and \"Pool pump\" now appears in the Home hub's list.\n\nPoints where I hesitated or made a choice:\n- **Connection:** I kept the form's default, Switchboard (AC), without comparing it against the Inverter (DC) option. I assumed a pool pump is an ordinary mains-powered appliance.\n- **Constant power:** I typed 0.8 into the Forecast field and picked the \"Fixed value 0.8 kW\" suggestion. That field is the only place the form takes power, and the form says a load can use \"forecast or constant power\".\n- **Shedding:** I didn't open the \"Shedding\" section and left it at its defaults. You said the pump runs all the time, so I didn't think it needed changing.\n\nI made no mistakes that I'm aware of.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Pool pump load on Switchboard (AC) with fixed forecast 0.8 kW; success confirmed.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 11.2
+}

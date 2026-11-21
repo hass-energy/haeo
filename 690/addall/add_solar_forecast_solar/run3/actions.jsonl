@@ -1,0 +1,70 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 7.6, "command": "click", "args": ["f2e499"], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 13.7, "command": "type", "args": ["f2e485", "energy_production_d4_east"], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "click", "args": ["f2e830"], "error": null, "visible_errors": 0}
+{"t": 16.6, "command": "type", "args": ["f2e485", "energy_production_d5_east"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 24.1, "command": "type", "args": ["f2e485", "energy_production_d6_east"], "error": null, "visible_errors": 0}
+{"t": 24.4, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 24.8, "command": "type", "args": ["f2e485", "energy_production_d7_east"], "error": null, "visible_errors": 0}
+{"t": 25.2, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 25.5, "command": "type", "args": ["f2e485", "energy_production_d2_east"], "error": null, "visible_errors": 0}
+{"t": 25.9, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 26.2, "command": "type", "args": ["f2e485", "energy_production_today_east"], "error": null, "visible_errors": 0}
+{"t": 26.6, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 27.0, "command": "type", "args": ["f2e485", "energy_production_tomorrow_east"], "error": null, "visible_errors": 0}
+{"t": 27.3, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 32.5, "command": "type", "args": ["f2e485", "energy_production_d3_north"], "error": null, "visible_errors": 0}
+{"t": 32.9, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 33.3, "command": "type", "args": ["f2e485", "energy_production_d4_north"], "error": null, "visible_errors": 0}
+{"t": 33.6, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 34.0, "command": "type", "args": ["f2e485", "energy_production_d5_north"], "error": null, "visible_errors": 0}
+{"t": 34.3, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 34.7, "command": "type", "args": ["f2e485", "energy_production_d6_north"], "error": null, "visible_errors": 0}
+{"t": 35.1, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 35.4, "command": "type", "args": ["f2e485", "energy_production_d7_north"], "error": null, "visible_errors": 0}
+{"t": 35.8, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 36.1, "command": "type", "args": ["f2e485", "energy_production_d2_north"], "error": null, "visible_errors": 0}
+{"t": 36.5, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 36.9, "command": "type", "args": ["f2e485", "energy_production_today_north"], "error": null, "visible_errors": 0}
+{"t": 37.2, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 37.6, "command": "type", "args": ["f2e485", "energy_production_tomorrow_north"], "error": null, "visible_errors": 0}
+{"t": 37.9, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 42.0, "command": "type", "args": ["f2e485", "energy_production_d3_south"], "error": null, "visible_errors": 0}
+{"t": 42.4, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 42.8, "command": "type", "args": ["f2e485", "energy_production_d4_south"], "error": null, "visible_errors": 0}
+{"t": 43.1, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 43.5, "command": "type", "args": ["f2e485", "energy_production_d5_south"], "error": null, "visible_errors": 0}
+{"t": 43.8, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 44.2, "command": "type", "args": ["f2e485", "energy_production_d6_south"], "error": null, "visible_errors": 0}
+{"t": 44.6, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 44.9, "command": "type", "args": ["f2e485", "energy_production_d7_south"], "error": null, "visible_errors": 0}
+{"t": 45.3, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 45.7, "command": "type", "args": ["f2e485", "energy_production_d2_south"], "error": null, "visible_errors": 0}
+{"t": 46.0, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 46.4, "command": "type", "args": ["f2e485", "energy_production_today_south"], "error": null, "visible_errors": 0}
+{"t": 46.8, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 47.1, "command": "type", "args": ["f2e485", "energy_production_tomorrow_south"], "error": null, "visible_errors": 0}
+{"t": 47.5, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 50.8, "command": "type", "args": ["f2e485", "energy_production_d3_west"], "error": null, "visible_errors": 0}
+{"t": 51.1, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 51.5, "command": "type", "args": ["f2e485", "energy_production_d4_west"], "error": null, "visible_errors": 0}
+{"t": 51.9, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 52.4, "command": "type", "args": ["f2e485", "energy_production_d5_west"], "error": null, "visible_errors": 0}
+{"t": 52.8, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 53.2, "command": "type", "args": ["f2e485", "energy_production_d6_west"], "error": null, "visible_errors": 0}
+{"t": 53.5, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 53.9, "command": "type", "args": ["f2e485", "energy_production_d7_west"], "error": null, "visible_errors": 0}
+{"t": 54.3, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 54.6, "command": "type", "args": ["f2e485", "energy_production_d2_west"], "error": null, "visible_errors": 0}
+{"t": 55.0, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 55.4, "command": "type", "args": ["f2e485", "energy_production_today_west"], "error": null, "visible_errors": 0}
+{"t": 55.7, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 56.1, "command": "type", "args": ["f2e485", "energy_production_tomorrow_west"], "error": null, "visible_errors": 0}
+{"t": 56.5, "command": "press", "args": ["Enter"], "error": null, "visible_errors": 0}
+{"t": 58.4, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 60.3, "command": "click", "args": ["f2e1447"], "error": null, "visible_errors": 0}
+{"t": 62.3, "command": "done", "args": ["Added Solar connected to the Inverter (DC) with all 32 Forecast.Solar sensors (east, north, south, west \u00d7 today, tomorrow, day after tomorrow, days 3\u20137). HAEO confirmed the configuration was created and Solar now appears in the hub."], "error": null, "visible_errors": 0}

@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.0888683,
+  "turns": 8,
+  "report": "I added a connection called \"Inverter to Switchboard\" to the Home hub. It runs from the Inverter to the Switchboard, with Max power set to a fixed 10 kW. After I submitted it, HAEO said \"Created configuration for Inverter to Switchboard\", and it now shows in the hub's device list with 2 entities.\n\nI didn't reopen the connection to check the saved values. The source and target were already filled in as Inverter and Switchboard, so I left them. I left the pricing and efficiency settings at their defaults.\n\nPoints where I hesitated or slipped:\n- **Endpoints:** I wasn't sure the pre-filled Inverter and Switchboard values were really selected rather than just shown as placeholders. I submitted without re-picking them. They appear to have been kept, since the connection was created, but I didn't confirm it.\n- **Max power:** typing \"10\" didn't set the value on its own. I had to click the \"Fixed value 10 kW\" option that appeared before it registered.\n- **Name:** the name field was pre-filled with \"Connection\", and I chose \"Inverter to Switchboard\" myself because you didn't give one.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with Max power fixed at 10 kW. It now appears in the Home hub.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 12.2
+}

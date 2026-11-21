@@ -1,0 +1,85 @@
+{
+  "task": "add_battery_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1088346,
+  "turns": 13,
+  "report": "I added the battery to HAEO as \"Sigenergy Battery\", and it now shows up under the Home hub. HAEO confirmed it with \"Created configuration for Sigenergy Battery.\"\n\n- **Connection:** Inverter, which was the default. I left it because you said the battery is connected through your inverter.\n- **Capacity:** Sigen Plant Rated Energy Capacity (32.24 kWh).\n- **State of charge:** Sigen Plant Battery State of Charge (12.8% at the time).\n- **Minimum charge level:** a fixed 5%.\n- **Maximum charge power:** Sigen Plant ESS Rated Charging Power (16.8 kW).\n- **Maximum discharge power:** Sigen Plant ESS Rated Discharging Power (19.2 kW).\n\nI left every other setting at its default, including the pricing fields (salvage value 0, charge cost -0.001, discharge cost 0), the battery efficiency settings and the advanced settings. I didn't set a maximum charge level.\n\nPoints where I hesitated or slipped:\n- **Name:** the form pre-filled \"Battery\". You didn't give a name, so I chose \"Sigenergy Battery\".\n- **Broken-pipe error:** one command crashed with a \"Broken pipe\" error just after I picked the discharge power sensor. I wasn't sure that pick had registered. I re-checked the form before submitting, and all the sensors were selected.\n- **Verification:** I confirmed the battery appears in the hub list after finishing. I did not reopen its settings to re-read the saved values.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Sigenergy Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added 'Sigenergy Battery' connected to Inverter, capacity=Sigen Plant Rated Energy Capacity, SoC=Sigen Plant Battery State of Charge, min charge level 5%, max charge/discharge power from ESS rated charging/discharging power sensors.",
+  "actions": 15,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.2
+}

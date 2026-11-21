@@ -1,0 +1,85 @@
+{
+  "task": "add_battery",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.019604140000000003,
+  "turns": 17,
+  "report": "The Sigenergy battery is now added to the Home HAEO hub as a Battery element, and it shows up under Home with 21 entities.\n\nSettings I entered:\n- **Name:** Battery (default, left unchanged)\n- **Connection:** Inverter, DC (default, which fits a battery behind the inverter)\n- **Capacity:** Sigen Plant Rated Energy Capacity (currently 32.24 kWh)\n- **State of charge:** Sigen Plant Battery State of Charge (currently 12.8%)\n- **Min charge level:** Fixed value 5%, so it is never discharged below 5%\n- **Max charge power:** Sigen Plant ESS Rated Charging Power (currently 16.8 kW)\n- **Max discharge power:** Sigen Plant ESS Rated Discharging Power (currently 19.2 kW)\n- **Pricing and battery efficiency:** left at HAEO defaults (salvage 0, charge cost -0.001 $/kWh, discharge cost 0)\n\nI did not check the Max charge level field, so it remains empty.\n\nPoints where I hesitated, was unsure, or made a mistake:\n- **Mistake:** I first clicked the Buffer button instead of Battery, which opened the Buffer dialog. I closed it with Close and did not submit it, so no Buffer was created.\n- **Unsure about the \"Policies\" device:** After submitting, a \"Policies\" device with 4 entities appeared under Home, which I did not add myself. The entity count rose from 41 to 66, which matches the Battery's 21 plus these 4. I assume HAEO created it along with the battery, but I did not confirm why.\n- **Unsure about the 5% limit:** I used \"Min charge level\" as the 5% floor. The help text was not visible to me, so I am relying on the field name.\n- **Unsure about the default pricing:** I left the default charge cost of -0.001 $/kWh and the other pricing values alone, since you did not mention them. Those defaults may not match how you want the battery to behave.\n- **Unsure about the name:** I kept the default name \"Battery\" rather than something like \"Sigen Battery\". It works, but it may be less clear if you later add more batteries.\n- **Not verified:** I did not open the new Battery device to check its sensor values or confirm that the 5% limit is stored as expected.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Battery element to the Home HAEO hub: Inverter (DC) connection, capacity from Sigen Plant Rated Energy Capacity, state of charge from Sigen Plant Battery State of Charge, minimum charge level fixed at 5%, max charge power from Sigen Plant ESS Rated Charging Power, max discharge power from Sigen Plant ESS Rated Discharging Power. Left name 'Battery', pricing and efficiency at defaults. Confirmed the Battery device (21 entities) now appears under Home. Also noticed a Policies device appeared after the submit that I did not add myself.",
+  "actions": 20,
+  "looks": 8,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 31.7
+}

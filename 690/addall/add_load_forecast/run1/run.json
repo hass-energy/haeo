@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1343733,
+  "turns": 10,
+  "report": "I added a Load called \"Household\" to HAEO, connected to the Switchboard. Its Forecast field holds both Sigen sensors: `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power`. Afterwards the Home hub showed \"Household\" with 12 entities and the hub's entity count went from 49 to 61. I didn't check what those entities show, only that they were created.\n\nPoints where I hesitated or made a choice:\n- **Connection:** Switchboard was already selected by default and I left it. I assumed household consumption belongs on the AC side. I didn't look for any other guidance.\n- **Name:** I changed the default \"Load\" to \"Household\". You didn't ask for this; I did it to make the name clearer.\n- **Current sensor:** The only place to put it was the Forecast field, which accepts several sensors. I wasn't sure that was the right slot, but there was no separate field for it.\n- **Shedding:** I left that section closed and unchanged.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Household' connected to Switchboard, with forecast field set to Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (current). It now appears in the hub with 12 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.0
+}

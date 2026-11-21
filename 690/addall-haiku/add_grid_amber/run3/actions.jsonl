@@ -1,0 +1,20 @@
+{"t": 2.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.5, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 5.3, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e513"], "error": null, "visible_errors": 0}
+{"t": 7.0, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "click", "args": ["f2e533"], "error": null, "visible_errors": 0}
+{"t": 9.5, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e574"], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "type", "args": ["f2e577", "55"], "error": null, "visible_errors": 0}
+{"t": 13.9, "command": "click", "args": ["f2e915"], "error": null, "visible_errors": 0}
+{"t": 15.1, "command": "click", "args": ["f2e589"], "error": null, "visible_errors": 0}
+{"t": 16.2, "command": "type", "args": ["f2e592", "30"], "error": null, "visible_errors": 0}
+{"t": 17.3, "command": "click", "args": ["f2e1252"], "error": null, "visible_errors": 0}
+{"t": 18.6, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.8, "command": "click", "args": ["f2e500"], "error": null, "visible_errors": 0}
+{"t": 21.0, "command": "click", "args": ["f2e1274"], "error": null, "visible_errors": 0}
+{"t": 22.9, "command": "click", "args": ["f2e1279"], "error": null, "visible_errors": 0}
+{"t": 24.1, "command": "click", "args": ["f2e1428"], "error": null, "visible_errors": 0}
+{"t": 25.4, "command": "click", "args": ["f2e1337"], "error": null, "visible_errors": 0}
+{"t": 27.5, "command": "done", "args": ["Added the Grid element to the Home hub as 'Grid', connected to the Switchboard. Import price: Amber Express - Home General Price (sensor.amber_express_home_general_price). Export price: Amber Express - Home Feed In Price (sensor.amber_express_home_feed_in_price). Import limit: fixed 55 kW. Export limit: fixed 30 kW. Saved and re-opened to confirm the values; closed without further changes."], "error": null, "visible_errors": 0}

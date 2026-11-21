@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.01964313,
+  "turns": 21,
+  "report": "The grid connection is added to Home as \"Grid\", connected to the Switchboard. I re-opened it afterwards and the saved values are as below.\n\n- **Import price:** Amber Express - Home General Price (`sensor.amber_express_home_general_price`)\n- **Export price:** Amber Express - Home Feed In Price (`sensor.amber_express_home_feed_in_price`)\n- **Import limit:** fixed 55 kW\n- **Export limit:** fixed 30 kW\n\nPoints where I hesitated or was unsure:\n\n1. **Connection choice:** The form pre-selected Switchboard, and I kept it. A grid normally sits on the AC side, so this looked right, but I did not check it against your wiring.\n2. **Grid name:** The form defaulted to \"Grid\" and I left it unchanged.\n3. **Power limits:** Both limits defaulted to 100 kW. I removed each default and entered the fixed value you gave (55 kW import, 30 kW export). The picker also offered sensors for these fields, which I did not use because you gave fixed numbers.\n4. **Verification:** I confirmed the saved values by reopening the Grid configuration and closing it without submitting. I did not check the Amber sensors' live values or that the optimizer picks up the new grid.\n5. **Ambiguous sensor names:** Amber offered only two price sensors, and their names matched what you described. I chose by name (\"General\" for buy, \"Feed In\" for sell) without looking at the sensor attributes to confirm the units.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added the Grid element to the Home hub as 'Grid', connected to the Switchboard. Import price: Amber Express - Home General Price (sensor.amber_express_home_general_price). Export price: Amber Express - Home Feed In Price (sensor.amber_express_home_feed_in_price). Import limit: fixed 55 kW. Export limit: fixed 30 kW. Saved and re-opened to confirm the values; closed without further changes.",
+  "actions": 17,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 27.5
+}

@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.007566660000000001,
+  "turns": 9,
+  "report": "I added the pool pump as a Load called \"Pool pump\" under the Home hub, with a fixed 0.8 kW forecast. The success dialog confirmed \"Created configuration for Pool pump\", and the hub list now shows a Pool pump Load device with 12 entities.\n\nWhere I hesitated or may have made a mistake:\n\n- **Element type:** I chose \"Load\" over \"Deferrable load\". The pool pump runs constantly and can't be shifted, so a plain load seemed right. I didn't open the Deferrable load form to compare its options.\n- **Connection:** I left the default \"Switchboard, AC\". I assumed the pump is on the AC side of the house, but I didn't check the wiring.\n- **Forecast:** No pool pump sensor existed, so I entered a fixed 0.8 kW value. I didn't check whether the value is in kW or W. The picker showed \"Fixed value 0.8 kW\", so I took it as kW.\n- **Shedding:** I skipped the collapsed Shedding section because the task didn't mention it. The pump may need a setting there if it should ever be switched off, and I didn't review that.\n- **Verification:** I confirmed the device appears in the list, but I didn't reopen the saved configuration to check the stored values.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 15.9
+}

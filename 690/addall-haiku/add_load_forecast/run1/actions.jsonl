@@ -1,0 +1,17 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.6, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.0, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "type", "args": ["f2e487", "sigen plant consumed power forecast"], "error": null, "visible_errors": 0}
+{"t": 9.5, "command": "click", "args": ["f2e634"], "error": null, "visible_errors": 0}
+{"t": 11.2, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 11.6, "command": "type", "args": ["f2e487", "sigen plant consumed power"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 18.8, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 23.4, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 23.7, "command": "type", "args": ["f2e487", "sigen plant consumed power"], "error": null, "visible_errors": 0}
+{"t": 27.2, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 28.6, "command": "type", "args": ["f2e445", "Household"], "error": null, "visible_errors": 0}
+{"t": 30.0, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 31.3, "command": "click", "args": ["f2e1183"], "error": null, "visible_errors": 0}
+{"t": 33.8, "command": "done", "args": ["Added a Load element named 'Household' to the Home hub (Switchboard connection, shedding 'Off' by default) with the Sigen Plant Consumed Power Forecast sensor (sensor.sigen_plant_consumed_power_forecast) as its forecast. The HAEO page now shows 61 entities and the Household device. NOT done: sensor.sigen_plant_consumed_power (the current consumed power sensor) was not added. The load form has no separate current-power field; the only place for it is the Forecast list, which appears to combine its entries, so adding the current reading would likely double-count household load. Please confirm how you want it used before I add it."], "error": null, "visible_errors": 0}

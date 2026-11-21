@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.1355497,
+  "turns": 14,
+  "report": "I've added the Grid to HAEO, and HAEO showed \"Created configuration for Grid.\" Grid now appears in the Home hub's list.\n\n- **Connection:** Switchboard (AC), which was already selected by default. I left it because the grid supplies the whole house.\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Import limit:** 55 kW.\n- **Export limit:** 30 kW.\n\nI didn't reopen the Grid entry to check the saved values. I only confirmed the success message and that it appears in the list.\n\nPoints where I hesitated or slipped:\n- **Connection choice:** I wasn't sure whether the connection should be the Switchboard or the Inverter. I kept the Switchboard default without testing the alternative.\n- **Price pickers:** Both price lists offered both Amber sensors, so I picked each one by its name (\"General\" for import, \"Feed In\" for export).\n- **Power limits:** They were collapsed, and the fields came pre-filled with 100 kW. I removed those defaults and typed 55 and 30. Removing the import default opened a very long entity list, which was a distraction.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid connected to Switchboard (AC), import price Amber Express General Price, export price Amber Express Feed In Price, import limit 55 kW, export limit 30 kW. Success shown and Grid appears in the list.",
+  "actions": 14,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.7
+}

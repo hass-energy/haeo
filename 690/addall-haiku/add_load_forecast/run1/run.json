@@ -1,0 +1,42 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": false,
+  "cost_usd": 0.01683884,
+  "turns": 16,
+  "report": "I added the household load, but I did not add the current consumed power sensor, so the task is only partly done.\n\n**What's in place:**\n- A new Load element named **Household**, on the Switchboard (AC) connection.\n- Forecast: **Sigen Plant Consumed Power Forecast** (`sensor.sigen_plant_consumed_power_forecast`).\n- Shedding left at the default \"Off\" (fixed value), since the household load shouldn't be shed.\n- The HAEO page now lists the Household device, and the entity count went from 49 to 61.\n\n**What's missing:** `sensor.sigen_plant_consumed_power` (the current consumed power sensor). The load form has no separate field for it. The only place it could go is the Forecast list, and that list looks like it sums its entries (the solar forecasts for each orientation are listed together, which suggests summing). Adding the current reading would probably double-count household load, so I left it out. The fix is to decide how you want it used, then add it in the Household load's settings.\n\n**Points where I hesitated or was unsure:**\n1. **Current consumed power sensor:** I could not find a separate slot for it, and I suspect it would be summed with the forecast. I did not add it. This is the main open item.\n2. **Load name:** I renamed the default \"Load\" to \"Household\". That is my choice, not something you asked for.\n3. **Connection:** I kept the Switchboard (AC) default, because a household load sits on the AC side. I did not verify this against your wiring.\n4. **Shedding:** I accepted the default \"Off\" without checking what the field means in detail.\n5. **Verification:** I confirmed the device and entity counts changed, but I did not open the new load's settings afterwards to check the saved forecast sensor.",
+  "driver_error": null,
+  "problems": [
+    "$.forecast.forecast.value: expected the items ['sensor.sigen_plant_consumed_power_forecast', 'sensor.sigen_plant_consumed_power'] in any order, found ['sensor.sigen_plant_consumed_power_forecast']"
+  ],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Household' to the Home hub (Switchboard connection, shedding 'Off' by default) with the Sigen Plant Consumed Power Forecast sensor (sensor.sigen_plant_consumed_power_forecast) as its forecast. The HAEO page now shows 61 entities and the Household device. NOT done: sensor.sigen_plant_consumed_power (the current consumed power sensor) was not added. The load form has no separate current-power field; the only place for it is the Forecast list, which appears to combine its entries, so adding the current reading would likely double-count household load. Please confirm how you want it used before I add it.",
+  "actions": 14,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 33.8
+}

@@ -1,0 +1,11 @@
+{"t": 2.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.5, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 8.1, "command": "click", "args": ["f2e676"], "error": null, "visible_errors": 0}
+{"t": 9.8, "command": "type", "args": ["f2e485", "solcast_pv_forecast_forecast_tomorrow"], "error": null, "visible_errors": 0}
+{"t": 11.4, "command": "click", "args": ["f2e830"], "error": null, "visible_errors": 0}
+{"t": 12.9, "command": "type", "args": ["f2e485", "forecast_day_3"], "error": null, "visible_errors": 0}
+{"t": 14.2, "command": "click", "args": ["f2e850"], "error": null, "visible_errors": 0}
+{"t": 15.9, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 17.3, "command": "click", "args": ["f2e875"], "error": null, "visible_errors": 0}
+{"t": 19.4, "command": "done", "args": ["Added Solar element to Home, connected to Inverter, with forecast sensors Solcast PV Forecast Today, Tomorrow and Day 3. It now shows in the hub with 4 entities."], "error": null, "visible_errors": 0}

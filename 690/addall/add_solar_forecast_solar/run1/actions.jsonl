@@ -1,0 +1,11 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 7.7, "command": "click", "args": ["f2e547"], "error": null, "visible_errors": 0}
+{"t": 10.1, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 10.5, "command": "type", "args": ["f2e485", "energy_production"], "error": null, "visible_errors": 0}
+{"t": 10.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 12.6, "command": "click", "args": ["f2e829"], "error": null, "visible_errors": 0}
+{"t": 14.2, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 15.8, "command": "click", "args": ["f2e1393"], "error": null, "visible_errors": 0}
+{"t": 15.9, "command": "done", "args": ["Added Solar element (connected to Inverter) with all 32 Forecast.Solar sensors (east/north/south/west x today, tomorrow, day after, d3-d7)."], "error": null, "visible_errors": 0}

@@ -1,0 +1,21 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "type", "args": ["f2e443", "Sigenergy Battery"], "error": null, "visible_errors": 0}
+{"t": 6.2, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "type", "args": ["f2e485", "rated energy capacity"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e610"], "error": null, "visible_errors": 0}
+{"t": 8.7, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 9.1, "command": "type", "args": ["f2e491", "state of charge"], "error": null, "visible_errors": 0}
+{"t": 10.7, "command": "click", "args": ["f2e628"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e507"], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "type", "args": ["f2e507", "5"], "error": null, "visible_errors": 0}
+{"t": 13.3, "command": "click", "args": ["f2e654"], "error": null, "visible_errors": 0}
+{"t": 13.7, "command": "click", "args": ["f2e529"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "type", "args": ["f2e529", "rated charging power"], "error": null, "visible_errors": 0}
+{"t": 15.8, "command": "click", "args": ["f2e812"], "error": null, "visible_errors": 0}
+{"t": 16.2, "command": "click", "args": ["f2e535"], "error": null, "visible_errors": 0}
+{"t": 16.6, "command": "type", "args": ["f2e535", "rated discharging power"], "error": null, "visible_errors": 0}
+{"t": 18.1, "command": "click", "args": ["f2e1154"], "error": null, "visible_errors": 0}
+{"t": 20.1, "command": "click", "args": ["f2e605"], "error": null, "visible_errors": 0}
+{"t": 21.7, "command": "click", "args": ["f2e1341"], "error": null, "visible_errors": 0}
+{"t": 22.1, "command": "done", "args": ["Added battery 'Sigenergy Battery' connected to Inverter (DC): capacity=sensor.sigen_plant_rated_energy_capacity, SoC=sensor.sigen_plant_battery_state_of_charge, min charge level 5%, max charge/discharge power from ESS rated charging/discharging power sensors."], "error": null, "visible_errors": 0}

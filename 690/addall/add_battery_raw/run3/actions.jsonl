@@ -1,0 +1,18 @@
+{"t": 2.5, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.1, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.7, "command": "click", "args": ["f2e501"], "error": null, "visible_errors": 0}
+{"t": 7.5, "command": "click", "args": ["f2e626"], "error": null, "visible_errors": 0}
+{"t": 7.8, "command": "click", "args": ["f2e507"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e644"], "error": null, "visible_errors": 0}
+{"t": 10.4, "command": "click", "args": ["f2e545"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "type", "args": ["f2e545", "rated charging"], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 13.9, "command": "click", "args": ["f2e803"], "error": null, "visible_errors": 0}
+{"t": 14.3, "command": "type", "args": ["f2e551", "rated discharging"], "error": null, "visible_errors": 0}
+{"t": 16.0, "command": "click", "args": ["f2e997"], "error": null, "visible_errors": 0}
+{"t": 16.4, "command": "type", "args": ["f2e523", "5"], "error": null, "visible_errors": 0}
+{"t": 17.8, "command": "click", "args": ["f2e1015"], "error": null, "visible_errors": 0}
+{"t": 19.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.7, "command": "click", "args": ["f2e621"], "error": null, "visible_errors": 0}
+{"t": 21.5, "command": "click", "args": ["f2e1037"], "error": null, "visible_errors": 0}
+{"t": 21.6, "command": "done", "args": ["Added Battery (DC via Inverter) with Sigen capacity, SoC, rated charge/discharge power sensors, min charge level 5%."], "error": null, "visible_errors": 0}

@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.1199116,
+  "turns": 14,
+  "report": "I added a policy named \"Battery wear\" in HAEO. It treats every kWh discharged from the Battery as costing $0.01. I didn't open the policy again afterwards, and I didn't run an optimisation to see the cost applied.\n\n- **Settings:** The source is Battery, the target is Any, and the price is a fixed 0.01 $/kWh. The policy is enabled.\n- **Check:** HAEO showed a \"Created configuration for Policies\" success message. A new \"Policies\" device then appeared under Home with 2 entities, and the hub's entity count went from 60 to 63.\n\nPoints where I hesitated or went wrong:\n- **Element type:** I wasn't sure Policy was the right element for a per-kWh cost. It was the only one that offered a source, a target and a price, so I used it.\n- **Target:** I left it on \"Any\" so the cost applies wherever the energy goes. I didn't test whether \"Any\" also covers energy going back into the battery.\n- **Picker:** The Battery option in the source picker had no clickable reference in the page text. I had to take a screenshot and look at the page again to find it.\n- **Price:** I assumed the price field means dollars per kWh. The field's \"$/kWh\" label confirmed it, so 0.01 is one cent.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy 'Battery wear': source = Battery, target = Any, price 0.01 $/kWh fixed. A Policies device with 2 entities now appears.",
+  "actions": 9,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.7
+}

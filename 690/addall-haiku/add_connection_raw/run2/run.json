@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.015924079999999997,
+  "turns": 16,
+  "report": "I added the connection \"Inverter to Switchboard\" in HAEO with source Inverter, target Switchboard, and Max power set to a fixed 10 kW. I reopened it afterwards and the limit showed \"Fixed value 10 kW\".\n\nWhere I hesitated or made mistakes:\n\n- **First attempt didn't save the limit.** I typed \"10\" into Max power but didn't pick the suggested \"Fixed value 10 kW\" option, and I closed the picker with Escape. The connection was created with an empty Max power. I caught this when reopening it, re-entered 10, selected the \"Fixed value 10 kW\" option, and submitted again. The final result is correct.\n- **Unit not labelled.** The Max power field shows no unit. I assumed kW because the suggestions show sensors in kW and the option reads \"Fixed value 10 kW\". The cable rating is in kW, so this should be right.\n- **Connection name.** The task didn't give a name, so I renamed the default \"Connection\" to \"Inverter to Switchboard\". That was my choice, not something you asked for.\n- **Unchecked optional fields.** I left Pricing and Connection efficiency blank since the task didn't mention them.\n- **Dialog wording.** The submit dialog's title showed as \"true\" on the update confirmation. It still reported \"Configuration updated successfully\", so I treated it as a harmless display quirk.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added connection 'Inverter to Switchboard' (source Inverter, target Switchboard) with Max power set to a fixed 10 kW. Verified after reopening that the limit saved.",
+  "actions": 15,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.7
+}

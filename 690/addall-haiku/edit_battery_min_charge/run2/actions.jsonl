@@ -1,0 +1,11 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.8, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e571"], "error": null, "visible_errors": 0}
+{"t": 8.2, "command": "type", "args": ["f2e579", "20"], "error": null, "visible_errors": 0}
+{"t": 9.4, "command": "click", "args": ["f2e688"], "error": null, "visible_errors": 0}
+{"t": 10.6, "command": "click", "args": ["f2e677"], "error": null, "visible_errors": 0}
+{"t": 12.1, "command": "click", "args": ["f2e711"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e721"], "error": null, "visible_errors": 0}
+{"t": 15.0, "command": "done", "args": ["Changed the Battery element's Min charge level from fixed 5% to fixed 20% and submitted. HAEO reported 'Configuration updated successfully', and reopening the form shows Fixed value 20 %. Other fields were left as they were."], "error": null, "visible_errors": 0}

@@ -1,0 +1,11 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.0, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 5.4, "command": "click", "args": ["f2e571"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "type", "args": ["f2e579", "20"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e688"], "error": null, "visible_errors": 0}
+{"t": 9.5, "command": "click", "args": ["f2e677"], "error": null, "visible_errors": 0}
+{"t": 11.3, "command": "click", "args": ["f2e711"], "error": null, "visible_errors": 0}
+{"t": 11.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 12.6, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "click", "args": ["f2e721"], "error": null, "visible_errors": 0}
+{"t": 14.3, "command": "done", "args": ["Changed the Battery element's Min charge level from a fixed 5% to a fixed 20% and submitted. HAEO confirmed the update, and reopening the Battery configuration shows Fixed value 20 %."], "error": null, "visible_errors": 0}

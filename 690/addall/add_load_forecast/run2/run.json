@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.12814270000000003,
+  "turns": 10,
+  "report": "I added a Load element called \"Load\" to the Home hub. It appears as a new device with 12 entities.\n\n- **Connection:** I left it on Switchboard (AC), which was already selected. I assumed household consumption belongs there, but I didn't check how your Sigenergy system is wired.\n- **Sensors:** The Forecast field accepted several entries, so I selected both `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power`. I didn't open the load's settings again afterwards, so I haven't confirmed that both sensors were saved.\n\nPoints where I hesitated or was unsure:\n- The field is labelled \"Forecast\", so I wasn't sure it would take the current-power sensor as well. It let me add both, but I don't know how HAEO combines them.\n- I kept the default name \"Load\" rather than something like \"Household\".\n- I didn't open the optional \"Shedding\" section.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Load' on the Switchboard (AC) connection, with both Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power selected as forecast sources. It now shows as a device with 12 entities.",
+  "actions": 7,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 16.2
+}

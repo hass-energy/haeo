@@ -1,0 +1,10 @@
+{"t": 3.0, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.7, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.6, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "click", "args": ["f2e634"], "error": null, "visible_errors": 0}
+{"t": 10.1, "command": "type", "args": ["f2e487", "sigen_plant_consumed_power"], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "click", "args": ["f2e832"], "error": null, "visible_errors": 0}
+{"t": 14.0, "command": "type", "args": ["f2e445", "Household"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 15.8, "command": "click", "args": ["f2e855"], "error": null, "visible_errors": 0}
+{"t": 18.0, "command": "done", "args": ["Added a Load named 'Household' connected to Switchboard, with forecast field set to Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power (current). It now appears in the hub with 12 entities."], "error": null, "visible_errors": 0}

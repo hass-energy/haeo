@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.13689749999999998,
+  "turns": 11,
+  "report": "I added the household load to HAEO. A new \"Load\" device is now under the Home hub, with 12 entities.\n\n- **Connection:** Switchboard, which was already selected by default.\n- **Forecast field:** it accepted several sensors, so I picked both `sensor.sigen_plant_consumed_power_forecast` (the forecast) and `sensor.sigen_plant_consumed_power` (current consumed power).\n\nI didn't check whether the 12 entities are correct, only that the device appeared. I haven't confirmed that HAEO actually uses the current-power sensor.\n\nPoints where I hesitated or was unsure:\n- **Connection:** I kept the Switchboard default without checking it. I assumed household consumption belongs on the AC side.\n- **Name:** I left the default name \"Load\" instead of something like \"Household\".\n- **Forecast field:** I wasn't sure it would take two sensors, since it's labelled \"Forecast\". It did, but I don't know how HAEO combines a forecast sensor with a current-value sensor.\n- **Shedding section:** I left it untouched.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Load",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Load' connected to Switchboard, with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. It now appears as a device with 12 entities.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.6
+}

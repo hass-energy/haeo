@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.0803378,
+  "turns": 12,
+  "report": "I added a Policy named \"Battery wear\" to the Home hub. It charges 1 cent ($0.01) for every kWh the Battery discharges, whatever the energy goes to.\n\n- **Source:** Battery only.\n- **Target:** Any, so the cost applies wherever the energy goes.\n- **Price:** a fixed $0.01/kWh.\n\nHome Assistant said \"Created configuration for Policies\", and a new Policies device appeared with 2 entities. I didn't open the policy again to check the saved values, and I haven't seen HAEO's optimizer results with it applied.\n\nPoints where I hesitated or was unsure:\n- **Policy element:** There was no obvious \"battery wear\" setting on the Battery itself. I assumed a Policy with the Battery as source was the right way to price discharge.\n- **Direction:** I assumed a policy with the Battery as source applies to energy leaving it. The form didn't say so outright.\n- **Fixed price:** The price field accepts a sensor or a fixed value. I picked a fixed value because you gave a flat 1 cent.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear': source = Battery, target = Any, price = fixed 0.01 $/kWh. HAEO created the Policies device with 2 entities.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.8
+}

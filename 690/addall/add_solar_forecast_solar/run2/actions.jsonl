@@ -1,0 +1,13 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.0, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.5, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 7.4, "command": "click", "args": ["f2e499"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 9.5, "command": "type", "args": ["f2e485", "energy_production"], "error": null, "visible_errors": 0}
+{"t": 12.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e830"], "error": null, "visible_errors": 0}
+{"t": 14.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 16.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 17.6, "command": "click", "args": ["f2e494"], "error": null, "visible_errors": 0}
+{"t": 19.2, "command": "click", "args": ["f2e1392"], "error": null, "visible_errors": 0}
+{"t": 20.7, "command": "done", "args": ["Added Solar element connected to Inverter, with all 32 Forecast.Solar energy production sensors (8 per direction: east, north, south, west)."], "error": null, "visible_errors": 0}

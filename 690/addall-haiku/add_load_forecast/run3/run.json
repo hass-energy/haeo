@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.00891275,
+  "turns": 13,
+  "report": "I added a \"Household\" load to the Home hub, connected to the Switchboard (AC), with both consumed power sensors attached. HAEO now lists a Household device with 12 entities, and the hub shows 7 devices and 61 entities.\n\n**What I set up**\n- **Name:** Household (the default was \"Load\"; I renamed it to match what it represents).\n- **Connection:** Switchboard, AC. I left this as the default. The household draws from the AC side, so it seemed right.\n- **Forecast:** Sigen Plant Consumed Power Forecast (`sensor.sigen_plant_consumed_power_forecast`).\n- **Current consumed power:** Sigen Plant Consumed Power (`sensor.sigen_plant_consumed_power`), added to the same Forecast field, which showed a current value of 0.501 kW.\n- **Shedding:** left at the default (\"Allow shedding\" set to Off, no consumption cost).\n\n**Where I hesitated or was unsure**\n- **Current sensor placement:** The load form had no separate \"current power\" field. The only entity field was \"Forecast\", which accepts several entities. I added the current consumed power sensor there because I found no other slot for it. I am not certain HAEO treats a current-value sensor in the Forecast list the way the form intends. The dialog text says \"forecast or constant power\", and the picker did not label the current sensor as a forecast. Please check that the Household load's power inputs look right in HAEO after this.\n- **Name:** I chose \"Household\" myself. You did not specify a name.\n- **Shedding and cost:** I did not change these. I don't know whether a household load should allow shedding, so I left the default. \"Allow shedding\" is marked required, and the default Off was already filled in.\n- **Connection choice:** Switchboard is my best guess for a household load. I did not verify it against your wiring.\n- **Verification:** I confirmed the Household device and its 12 entities appear on the HAEO page. I did not check the forecast values or the entity states inside HAEO.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 25.7
+}

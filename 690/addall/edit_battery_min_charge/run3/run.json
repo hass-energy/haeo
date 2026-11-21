@@ -1,0 +1,85 @@
+{
+  "task": "edit_battery_min_charge",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0928948,
+  "turns": 11,
+  "report": "I raised the Battery's minimum charge level from 5% to 20%. Home Assistant showed \"Configuration updated successfully\". When I reopened the Battery configuration, Min charge level showed a fixed value of 20 %.\n\nPoints where I hesitated or slipped:\n- **Removing the old value:** There was no field to overwrite, so I removed the 5 % chip first. The dropdown then offered the battery's state-of-charge sensor, which I ignored.\n- **Picking the new value:** I typed 20 and then chose the \"Fixed value 20 %\" option from the list. I wasn't sure typing alone would register, so I confirmed it showed as a chip before submitting.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 20.0
+      },
+      "max_charge_percentage": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 98.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 98.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Battery min charge level changed from 5% to 20% and saved; reopened config to confirm it shows 20%.",
+  "actions": 7,
+  "looks": 3,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 16.4
+}

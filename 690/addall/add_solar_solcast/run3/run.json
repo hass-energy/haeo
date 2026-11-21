@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0947426,
+  "turns": 10,
+  "report": "I added Solar to the \"Home\" hub. It connects to the Inverter (the DC connection, which was the default), and it uses three Solcast PV Forecast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. HAEO showed \"Created configuration for Solar,\" and Solar now appears in the hub's list. I didn't open the new Solar entry to check its saved settings.\n\nPoints where I hesitated or slipped:\n- **Several forecast sensors:** I wasn't sure the forecast field would take more than one sensor. It did: each pick showed up as a chip, so I added all three.\n- **Similar sensors in the list:** The picker also listed East, North, South and West \"solar production forecast\" sensors. I ignored them because you said to use Solcast.\n- **Connection:** I accepted the pre-selected Inverter option rather than choosing it myself. It matches what you described.\n- **Optional settings:** I didn't open the Curtailment section and left it at its defaults.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow",
+          "sensor.solcast_pv_forecast_forecast_day_3"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.8
+}

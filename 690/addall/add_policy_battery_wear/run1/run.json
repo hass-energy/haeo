@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.09951199999999999,
+  "turns": 11,
+  "report": "I added a Policy named \"Battery wear\" to the Home hub. It has Battery as the source, Target left on \"Any\", and a fixed price of 0.01 $/kWh. HAEO showed \"Created configuration for Policies\", and a new Policies device with 2 entities now appears under the hub. I didn't run the optimiser or look at the new entities, so I haven't seen the 1-cent cost affect a plan.\n\nWhere I hesitated or was unsure:\n- **Policy as the right element:** I picked Policy over Battery's own settings because the Battery element had no obvious wear-cost option. I never opened the Battery settings to check, so there may be a simpler way.\n- **Target \"Any\":** I left it on \"Any\" so the cost applies wherever the energy goes. I didn't confirm that \"Any\" covers every destination, including the grid, the load and the battery's own inverter.\n- **Price unit:** The price field showed \"$/kWh\", and I entered 0.01 as the fixed value. That matches the 1 cent per kWh you asked for.\n- **Status update:** I was slow to tell you what I was doing at one point.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear': source = Battery, target = Any, price = fixed 0.01 $/kWh. It was created and now shows as a Policies device with 2 entities.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 16.6
+}

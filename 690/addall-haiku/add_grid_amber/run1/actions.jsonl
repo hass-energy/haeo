@@ -1,0 +1,16 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.8, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 5.2, "command": "click", "args": ["f2e485"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "click", "args": ["f2e513"], "error": null, "visible_errors": 0}
+{"t": 7.4, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "click", "args": ["f2e533"], "error": null, "visible_errors": 0}
+{"t": 9.7, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 11.2, "command": "click", "args": ["f2e574"], "error": null, "visible_errors": 0}
+{"t": 12.8, "command": "type", "args": ["f2e577", "55"], "error": null, "visible_errors": 0}
+{"t": 14.0, "command": "click", "args": ["f2e915"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "click", "args": ["f2e589"], "error": null, "visible_errors": 0}
+{"t": 16.3, "command": "type", "args": ["f2e592", "30"], "error": null, "visible_errors": 0}
+{"t": 17.5, "command": "click", "args": ["f2e1252"], "error": null, "visible_errors": 0}
+{"t": 18.9, "command": "click", "args": ["f2e500"], "error": null, "visible_errors": 0}
+{"t": 20.1, "command": "click", "args": ["f2e1274"], "error": null, "visible_errors": 0}
+{"t": 23.0, "command": "done", "args": ["Added a Grid connection to the Home hub. Connection: Switchboard (AC), the default, which is where the grid sits. Import price: Amber Express - Home General Price (sensor.amber_express_home_general_price). Export price: Amber Express - Home Feed In Price (sensor.amber_express_home_feed_in_price). Import limit: fixed 55 kW. Export limit: fixed 30 kW. Grid name left as 'Grid'. The success dialog said 'Created configuration for Grid', and the Hubs list now shows a Grid device with 12 entities."], "error": null, "visible_errors": 0}

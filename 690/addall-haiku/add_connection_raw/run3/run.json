@@ -1,0 +1,48 @@
+{
+  "task": "add_connection_raw",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0059200400000000005,
+  "turns": 9,
+  "report": "I added the connection. HAEO now has a Connection named \"Inverter to Switchboard\" on the Home hub, with the source set to Inverter, the target set to Switchboard, and max power set to a fixed 10 kW. The success dialog confirmed creation, and the hub lists the new connection device.\n\nPoints where I hesitated or was unsure:\n\n1. **Connection name:** The form defaulted to \"Connection\". I renamed it to \"Inverter to Switchboard\" so it is identifiable. You didn't ask for a name, so rename it if you prefer another.\n2. **Direction:** The source and target were already filled in as Inverter and Switchboard. I left them alone, since they match the request. The help text says the connection is one-way, so power flow from the switchboard back to the inverter is not limited by this entry.\n3. **Max power entry:** I typed 10 into the max power field and picked the \"Fixed value 10 kW\" suggestion, rather than a sensor. The chip showed 10 kW before I submitted. I did not reopen the saved connection to confirm the stored value.\n4. **Other fields:** I left pricing and connection efficiency at their defaults because you didn't mention them.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "connection",
+    "name": "Inverter to Switchboard",
+    "endpoints": {
+      "source": {
+        "type": "connection_target",
+        "value": "Inverter"
+      },
+      "target": {
+        "type": "connection_target",
+        "value": "Switchboard"
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 10.0
+      }
+    },
+    "pricing": {
+      "price_source_target": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "none"
+      }
+    }
+  },
+  "status": "done",
+  "message": "Added a Connection named 'Inverter to Switchboard' to the Home HAEO hub. Source is Inverter, target is Switchboard, and Max power is a fixed value of 10 kW. The success dialog confirmed creation, and the hub now lists the connection device with 2 entities.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 13.1
+}

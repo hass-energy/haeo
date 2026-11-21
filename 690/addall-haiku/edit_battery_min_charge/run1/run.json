@@ -1,0 +1,85 @@
+{
+  "task": "edit_battery_min_charge",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.00942675,
+  "turns": 11,
+  "report": "I raised the Battery's Min charge level from 5% to 20% and saved it. HAEO reported \"Configuration updated successfully.\" I reopened the Battery settings and the field shows \"Fixed value 20 %\". I closed that dialog without further changes. The other battery settings were left as they were.\n\nPoints where I hesitated or was unsure:\n- **Finding the setting:** The battery is a sub-entry under the Home hub, so I opened it by clicking the \"Battery\" entry in the hub list rather than the hub's Configure button. I chose that because it is where the battery's settings sit, and it opened the right dialog.\n- **Entering the value:** The Min charge level field is a combined entry box. Typing 20 alone would have left it unclear whether the value was a fixed number or something else, so I picked the \"Fixed value 20 %\" suggestion to commit it as a fixed value. I did not check whether typing a bare number would have worked the same way.\n- **Unit:** The field is labelled in %, and the existing value was 5 %, so I kept the same unit and entered 20.\n- **Unrelated settings:** The battery's other fields (capacity, state of charge, power limits, pricing) are bound to sensors and I did not touch them. Those sensor readings look like live Sigen values, which I took as normal. I did not verify that the sensors themselves were correct.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 20.0
+      },
+      "max_charge_percentage": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "none"
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 98.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 98.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Changed the Battery's Min charge level in HAEO from 5% to 20% (fixed value) and saved. Reopened the dialog to confirm it shows 20%. Other battery settings were left as they were.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 13.5
+}

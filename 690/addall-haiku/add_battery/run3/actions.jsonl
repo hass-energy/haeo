@@ -1,0 +1,24 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.4, "command": "click", "args": ["f2e102"], "error": null, "visible_errors": 0}
+{"t": 5.1, "command": "click", "args": ["f2e424"], "error": null, "visible_errors": 0}
+{"t": 6.9, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 8.8, "command": "click", "args": ["f2e563"], "error": null, "visible_errors": 0}
+{"t": 9.2, "command": "type", "args": ["f2e563", "capacity"], "error": null, "visible_errors": 0}
+{"t": 10.8, "command": "click", "args": ["f2e688"], "error": null, "visible_errors": 0}
+{"t": 11.2, "command": "click", "args": ["f2e569"], "error": null, "visible_errors": 0}
+{"t": 11.6, "command": "type", "args": ["f2e569", "state of charge"], "error": null, "visible_errors": 0}
+{"t": 13.8, "command": "click", "args": ["f2e706"], "error": null, "visible_errors": 0}
+{"t": 14.1, "command": "click", "args": ["f2e585"], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "type", "args": ["f2e585", "5"], "error": null, "visible_errors": 0}
+{"t": 16.1, "command": "click", "args": ["f2e732"], "error": null, "visible_errors": 0}
+{"t": 16.4, "command": "click", "args": ["f2e607"], "error": null, "visible_errors": 0}
+{"t": 16.8, "command": "type", "args": ["f2e607", "ESS rated"], "error": null, "visible_errors": 0}
+{"t": 18.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 19.7, "command": "click", "args": ["f2e890"], "error": null, "visible_errors": 0}
+{"t": 20.1, "command": "click", "args": ["f2e613"], "error": null, "visible_errors": 0}
+{"t": 20.5, "command": "type", "args": ["f2e613", "ESS rated discharging"], "error": null, "visible_errors": 0}
+{"t": 21.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 23.5, "command": "click", "args": ["f2e1232"], "error": null, "visible_errors": 0}
+{"t": 25.1, "command": "click", "args": ["f2e683"], "error": null, "visible_errors": 0}
+{"t": 26.2, "command": "click", "args": ["f2e1419"], "error": null, "visible_errors": 0}
+{"t": 28.0, "command": "done", "args": ["Added a Battery element to the Home HAEO hub: connection Inverter (DC), capacity = Sigen Plant Rated Energy Capacity (32.24 kWh), state of charge = Sigen Plant Battery State of Charge, min charge level = fixed 5 %, max charge power = Sigen Plant ESS Rated Charging Power, max discharge power = Sigen Plant ESS Rated Discharging Power. Left max charge level, pricing and efficiency at defaults. The Battery device now appears under Home with 21 entities."], "error": null, "visible_errors": 0}

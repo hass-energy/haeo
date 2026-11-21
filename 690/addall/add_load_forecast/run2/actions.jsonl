@@ -1,0 +1,9 @@
+{"t": 2.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.4, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 6.1, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "click", "args": ["f2e634"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "type", "args": ["f2e487", "sigen_plant_consumed_power"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e832"], "error": null, "visible_errors": 0}
+{"t": 12.9, "command": "click", "args": ["f2e496"], "error": null, "visible_errors": 0}
+{"t": 14.4, "command": "click", "args": ["f2e855"], "error": null, "visible_errors": 0}
+{"t": 16.2, "command": "done", "args": ["Added a Load element named 'Load' on the Switchboard (AC) connection, with both Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power selected as forecast sources. It now shows as a device with 12 entities."], "error": null, "visible_errors": 0}

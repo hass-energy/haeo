@@ -1,0 +1,8 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.3, "command": "click", "args": ["f2e126"], "error": null, "visible_errors": 0}
+{"t": 5.8, "command": "type", "args": ["f2e541", "10"], "error": null, "visible_errors": 0}
+{"t": 7.1, "command": "click", "args": ["f2e571"], "error": null, "visible_errors": 0}
+{"t": 9.1, "command": "type", "args": ["f2e505", "Inverter to Switchboard"], "error": null, "visible_errors": 0}
+{"t": 10.2, "command": "click", "args": ["f2e566"], "error": null, "visible_errors": 0}
+{"t": 11.2, "command": "click", "args": ["f2e593"], "error": null, "visible_errors": 0}
+{"t": 13.1, "command": "done", "args": ["Added a connection named 'Inverter to Switchboard' to the Home HAEO hub. Source is Inverter, target is Switchboard, and max power is a fixed 10 kW. Price and efficiency were left at their defaults. The hub now lists the connection device with 2 entities. I did not reopen the connection afterwards to re-check the saved value."], "error": null, "visible_errors": 0}
