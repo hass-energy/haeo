@@ -145,7 +145,9 @@ Type into the field and pick from the list below it:
 - **Entities**: Type part of an entity's name to narrow the list, then check the ones to use.
     The list offers only entities whose unit fits the field.
     The checkbox at the top of the list checks every entity it shows, which suits forecast integrations that create one sensor per day or per array, such as Forecast.Solar or Solcast.
-    Each entity becomes a chip marked with a chart icon and showing its current value, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors) in the order you chose them.
+    An entity's icon shows how the field reads it: a chart for a forecast, and a gauge beside its current value for a sensor whose current value is used.
+    A forecast field takes both kinds, such as a consumption forecast and the live consumption sensor.
+    Each entity becomes a chip with the same icon, and HAEO [combines them](forecasts-and-sensors.md#multiple-sensors) in the order you chose them.
 - **Nothing**: Remove a field's chips with **×**, or Backspace in the empty field, for an optional field you don't need, such as an export limit.
     HAEO leaves that field out of the optimization.
 

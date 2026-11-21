@@ -30,6 +30,7 @@ from custom_components.haeo.flows.field_schema import (
     build_sectioned_input_defaults,
     build_sectioned_input_schema,
     convert_sectioned_input_to_config,
+    forecast_entities,
     validate_sectioned_input_fields,
 )
 from custom_components.haeo.flows.sections import build_common_fields
@@ -169,6 +170,7 @@ class SectionedElementSubentryFlow(ElementSubentryFlow):
             input_fields,
             get_input_field_schema_info(self.element_type, input_fields),
             build_sectioned_inclusion_map(input_fields, entity_metadata),
+            forecasts=forecast_entities(entity_metadata),
             top_level_entries=self._top_level_entries(subentry_data),
             extra_field_entries=self._section_entries(subentry_data, entity_metadata),
         )

@@ -6,7 +6,12 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.core.data.loader.extractors import EntityMetadata, extract, state_unit_conversion
+from custom_components.haeo.core.data.loader.extractors import (
+    EntityMetadata,
+    carries_forecast,
+    extract,
+    state_unit_conversion,
+)
 
 
 def extract_entity_metadata(hass: HomeAssistant, hub_entry: ConfigEntry) -> list[EntityMetadata]:
@@ -41,6 +46,7 @@ def extract_entity_metadata(hass: HomeAssistant, hub_entry: ConfigEntry) -> list
                 entity_id=state.entity_id,
                 unit_of_measurement=unit,
                 state_class=state_class if isinstance(state_class, str) else None,
+                forecast=carries_forecast(state),
             )
         )
 

@@ -8,6 +8,8 @@ import { HaeoInputSelector } from "./input-selector";
 import type { InputSelectorConfig, InputValue, SelectorHass } from "./types";
 
 const STRINGS: Record<string, string> = {
+  "input.options.current_value": "Current value",
+  "input.options.forecast": "Forecast",
   "input.options.enter_value": "{label}: enter a value",
   "input.options.fixed_value": "Fixed value {value}",
   "input.options.off": "Off",
@@ -45,6 +47,7 @@ const numberConfig: InputSelectorConfig = {
   kinds: ["entity", "constant", "none"],
   value_type: "number",
   domains: ["sensor"],
+  forecasts: [],
   entities: ["sensor.east", "sensor.west", "sensor.load"],
   unit: "kW",
 };
@@ -199,6 +202,27 @@ describe("InputField", () => {
   it("shows chosen entities as chips with their current values", () => {
     show({ value: { type: "entity", value: ["sensor.east"] } });
     expect(container.querySelector(".chip.entity")?.textContent).toBe("East solar3 kW");
+  });
+
+  it("marks entities read as forecasts with a chart, and others with a gauge and their current value", () => {
+    show({
+      config: { ...numberConfig, forecasts: ["sensor.west"] },
+      value: { type: "entity", value: ["sensor.east", "sensor.west"] },
+    });
+    const [east, west] = Array.from(container.querySelectorAll(".chip.entity"));
+    expect(east?.querySelector("[role=img]")?.getAttribute("aria-label")).toBe("Current value");
+    expect(east?.textContent).toBe("East solar3 kW");
+    expect(west?.querySelector("[role=img]")?.getAttribute("aria-label")).toBe("Forecast");
+    expect(west?.textContent).toBe("West solar");
+  });
+
+  it("lists forecasts and current values together, each marked by how the field reads it", () => {
+    show({ config: { ...numberConfig, forecasts: ["sensor.west"] } });
+    type("solar");
+    const marks = options()
+      .slice(1)
+      .map((option) => option.querySelector("[role=img]")?.getAttribute("aria-label"));
+    expect(marks).toEqual(["Current value", "Forecast"]);
   });
 
   it("replaces entities with a picked fixed value", () => {

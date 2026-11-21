@@ -1,4 +1,12 @@
-import { mdiChartLine, mdiClose, mdiMagnify, mdiNumeric, mdiToggleSwitch, mdiToggleSwitchOffOutline } from "@mdi/js";
+import {
+  mdiChartLine,
+  mdiClose,
+  mdiGauge,
+  mdiMagnify,
+  mdiNumeric,
+  mdiToggleSwitch,
+  mdiToggleSwitchOffOutline,
+} from "@mdi/js";
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
@@ -28,9 +36,13 @@ type Choice =
 
 let idCounter = 0;
 
-function Icon({ path }: { path: string }): JSX.Element {
-  return (
+function Icon({ path, label }: { path: string; label?: string }): JSX.Element {
+  return label === undefined ? (
     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={path} />
+    </svg>
+  ) : (
+    <svg class="icon" viewBox="0 0 24 24" role="img" aria-label={label}>
       <path d={path} />
     </svg>
   );
@@ -55,8 +67,9 @@ function entityValue(entityIds: string[]): InputValue {
  *
  * The field is a token input. Typing filters the entities the field offers, and a
  * typed number is offered as a fixed value above them. A chosen value becomes a
- * chip: entities show their current value, and a fixed value its unit, each with
- * its own icon, so the kind of value is visible without words.
+ * chip: a fixed value shows its unit, an entity read as a forecast a chart, and an
+ * entity read as its current value a gauge and that value, so how each loads is
+ * visible without words.
  */
 export function InputField(props: InputFieldProps): JSX.Element {
   const { config, value, hass, label, helper, required, disabled, t, onChange } = props;
@@ -73,6 +86,7 @@ export function InputField(props: InputFieldProps): JSX.Element {
   const allowsConstant = config.kinds.includes("constant");
   const empty: InputValue = config.kinds.includes("none") ? { type: "none" } : entityValue([]);
   const selected = selectedEntities(value);
+  const forecasts = useMemo(() => new Set(config.forecasts), [config]);
 
   // Sorting is the slow part, and Home Assistant replaces hass on every state change, so the
   // order is kept until the field's config changes; current states are read fresh below.
@@ -111,6 +125,15 @@ export function InputField(props: InputFieldProps): JSX.Element {
     }
     return config.unit !== undefined && config.unit !== "" ? `${constant} ${config.unit}` : String(constant);
   };
+
+  // How the field reads an entity: its forecast, or its current value, which is then shown
+  const entityKindIcon = (entity: EntityOption): JSX.Element =>
+    forecasts.has(entity.entityId) ? (
+      <Icon path={mdiChartLine} label={t("input.options.forecast")} />
+    ) : (
+      <Icon path={mdiGauge} label={t("input.options.current_value")} />
+    );
+  const entityState = (entity: EntityOption): string => (forecasts.has(entity.entityId) ? "" : entity.current);
 
   const constantIcon = (constant: number | boolean): string => {
     if (typeof constant === "boolean") {
@@ -234,9 +257,9 @@ export function InputField(props: InputFieldProps): JSX.Element {
           return (
             <span class="chip entity" key={entityId}>
               <span class="chip-body">
-                <Icon path={mdiChartLine} />
+                {entityKindIcon(entity)}
                 <span class="entity-name">{entity.name}</span>
-                {entity.current !== "" && <span class="entity-state">{entity.current}</span>}
+                {entityState(entity) !== "" && <span class="entity-state">{entityState(entity)}</span>}
               </span>
               <button
                 type="button"
@@ -319,11 +342,12 @@ export function InputField(props: InputFieldProps): JSX.Element {
                 onClick={() => choose(choice)}
               >
                 <input type="checkbox" tabIndex={-1} checked={choice.selected} aria-hidden="true" readOnly />
+                {entityKindIcon(choice.option)}
                 <span class="option-text">
                   <span class="entity-name">{choice.option.name}</span>
                   <span class="entity-id">{choice.option.entityId}</span>
                 </span>
-                <span class="entity-state">{choice.option.current}</span>
+                <span class="entity-state">{entityState(choice.option)}</span>
               </li>
             )
           )}

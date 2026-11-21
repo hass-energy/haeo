@@ -164,8 +164,9 @@ This distinction drives all downstream processing: present values repeat across 
 The system uses duck typing to identify forecast formats.
 Each integration has distinct attribute structures, so the format is recognized without configuration.
 
-`extract()` in [`extractors/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/__init__.py) tries each parser in the `PARSERS` tuple in order and reads the state with the first that recognizes it.
+`extract()` in [`extractors/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/__init__.py) tries each format in the `FORMATS` tuple in order and reads the state with the first that recognizes it.
 If none does, it reads the state's numeric value with `extract_reading()`.
+`carries_forecast()` asks the same formats whether a state is a forecast, which the config flow uses to mark the entities a time series field reads as forecasts.
 The order matters where formats overlap, which the tuple's comments explain.
 
 ### Why automatic detection?
@@ -177,7 +178,7 @@ Automatic detection reduces configuration complexity and prevents errors from mi
 
 The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/core/data/loader/extractors)) handles integration-specific forecast formats.
 
-Each parser module in `extractors/` reads one integration's format, and the `PARSERS` tuple lists every format a state can be read in.
+Each parser module in `extractors/` reads one integration's format, and the `FORMATS` tuple lists every format a state can carry a forecast in.
 The [forecasts and sensors guide](../user-guide/forecasts-and-sensors.md) describes the supported integrations for users.
 
 ### Period values and point values
@@ -239,7 +240,7 @@ Each parser module has a `Parser` class with two static methods:
 To support a new forecast integration:
 
 1. Create a parser module in `extractors/` with a `Parser` class implementing `detect()` and `extract()`
-2. Add it to the `PARSERS` tuple, before any format it could be mistaken for
+2. Add it to the `FORMATS` tuple, before any format it could be mistaken for
 3. Add valid and invalid sample states to `extractors/tests/test_data/sensors/`, which the parametrized parser tests pick up
 
 See existing parsers for implementation patterns.

@@ -59,6 +59,7 @@ export const SELECTOR_STYLES = `
 }
 .option { display: flex; align-items: center; gap: 12px; padding: 6px 12px; cursor: pointer; }
 .option.active, .option:hover { background: var(--secondary-background-color); }
+.option > .icon { color: var(--secondary-text-color); }
 .option.constant .icon { color: var(--primary-color); }
 .option.constant { font-variant-numeric: tabular-nums; }
 .option[aria-disabled="true"] { opacity: 0.4; cursor: default; }

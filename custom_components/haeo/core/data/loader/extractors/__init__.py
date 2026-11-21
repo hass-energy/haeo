@@ -40,15 +40,23 @@ type Parse = Callable[[EntityState, tzinfo, OutputType | None], RawExtracted | N
 """Read a state in one format, returning None when the state is not in that format."""
 
 
+class Format(NamedTuple):
+    """A format a state can carry a forecast in."""
+
+    detect: Callable[[EntityState], bool]
+    """Return whether a state is in this format."""
+    parse: Parse
+
+
 def _forecast_format[S](
     detect: Callable[[EntityState], TypeGuard[S]], extract: Callable[[S, tzinfo], RawExtracted]
-) -> Parse:
-    """Return a parse function for a forecast format, which reads the same whatever the input."""
+) -> Format:
+    """Return a forecast format, which reads the same whatever the input."""
 
     def parse(state: EntityState, time_zone: tzinfo, _output_type: OutputType | None) -> RawExtracted | None:
         return extract(state, time_zone) if detect(state) else None
 
-    return parse
+    return Format(detect, parse)
 
 
 def _calendar(state: EntityState, time_zone: tzinfo, output_type: OutputType | None) -> RawExtracted | None:
@@ -58,10 +66,10 @@ def _calendar(state: EntityState, time_zone: tzinfo, output_type: OutputType | N
     )
 
 
-# Every format a state can be read in, tried in order. Volcast entries also
-# carry a Solcast-style pv_estimate, so Volcast comes before Solcast.
-PARSERS: Final[tuple[Parse, ...]] = (
-    _calendar,
+# Every format a state can carry a forecast in, tried in order. Volcast entries
+# also carry a Solcast-style pv_estimate, so Volcast comes before Solcast.
+FORMATS: Final[tuple[Format, ...]] = (
+    Format(calendar_events.Parser.detect, _calendar),
     _forecast_format(aemo_nem.Parser.detect, aemo_nem.Parser.extract),
     _forecast_format(amber2mqtt.Parser.detect, amber2mqtt.Parser.extract),
     _forecast_format(amberelectric.Parser.detect, amberelectric.Parser.extract),
@@ -73,6 +81,11 @@ PARSERS: Final[tuple[Parse, ...]] = (
     _forecast_format(volcast.Parser.detect, volcast.Parser.extract),
     _forecast_format(solcast_solar.Parser.detect, solcast_solar.Parser.extract),
 )
+
+
+def carries_forecast(state: EntityState) -> bool:
+    """Return whether a state is in one of :data:`FORMATS`, so a time series input reads its forecast."""
+    return any(forecast_format.detect(state) for forecast_format in FORMATS)
 
 
 class ExtractedData[T: Sequence[tuple[float, float]] | float = Sequence[tuple[float, float]] | float](NamedTuple):
@@ -128,7 +141,7 @@ def extract_reading(state: EntityState) -> ExtractedData[float]:
 def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | None = None) -> ExtractedData:
     """Extract data from a State object and convert to base units.
 
-    The state is read in the first of :data:`PARSERS` that recognizes it,
+    The state is read in the first of :data:`FORMATS` that recognizes it,
     or as its reading when none does. Timestamps without a time zone are
     read in ``time_zone``, Home Assistant's local time zone.
 
@@ -140,7 +153,14 @@ def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | 
             injected events or a state that is not a reading.
 
     """
-    parsed = next((found for parse in PARSERS if (found := parse(state, time_zone, output_type)) is not None), None)
+    parsed = next(
+        (
+            found
+            for forecast_format in FORMATS
+            if (found := forecast_format.parse(state, time_zone, output_type)) is not None
+        ),
+        None,
+    )
     if parsed is None:
         reading = extract_reading(state)
         return ExtractedData(reading.data, reading.unit, reading.source_unit)
@@ -164,10 +184,12 @@ def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | 
 
 
 __all__ = [
-    "PARSERS",
+    "FORMATS",
     "EntityMetadata",
     "ExtractedData",
+    "Format",
     "Parse",
+    "carries_forecast",
     "extract",
     "extract_reading",
     "state_unit",

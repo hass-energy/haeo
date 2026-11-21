@@ -102,7 +102,7 @@ def test_input_selector_strings_take_the_element_placeholders(
         "selector": {"input": {"options": options}},
     }
     monkeypatch.setattr(runtime_checks, "load_translations", lambda: translations)
-    selector = InputSelector({"kinds": ["entity"], "value_type": "number", "domains": ["sensor"]})
+    selector = InputSelector({"kinds": ["entity"], "value_type": "number", "domains": ["sensor"], "forecasts": []})
     checker = TranslationChecker()
 
     checker.check_schema(("config", "step", "user"), vol.Schema({vol.Required("power"): selector}), {})

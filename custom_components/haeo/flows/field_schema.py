@@ -4,7 +4,7 @@ Every input field is an ``InputSelector``, which reports the field's value in
 the form HAEO stores: an entity list, a constant, or none.
 """
 
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Final  # noqa: TID251  # voluptuous schema dicts are Any by design
 
@@ -13,6 +13,7 @@ from homeassistant.data_entry_flow import section
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import ON_OFF_OUTPUT_TYPES
 from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
@@ -97,22 +98,45 @@ def input_kinds(field_schema: FieldSchemaInfo, field_info: AnyInputFieldInfo) ->
     return offered
 
 
+def forecast_entities(entity_metadata: Iterable[EntityMetadata]) -> frozenset[str]:
+    """Return the entities that carry a forecast."""
+    return frozenset(metadata.entity_id for metadata in entity_metadata if metadata.forecast)
+
+
+def reads_forecasts(field_info: AnyInputFieldInfo) -> bool:
+    """Return whether a field feeds a time series input, which reads an entity's forecast instead of its state."""
+    inputs = field_info.outputs.values() if field_info.outputs else (field_info,)
+    return any(input_info.time_series for input_info in inputs)
+
+
 def build_input_selector(
     field_info: AnyInputFieldInfo,
     *,
     kinds: Collection[InputKind],
     entities: Sequence[str] | None,
+    forecasts: Collection[str],
 ) -> InputSelector:
     """Build the input selector for a field.
 
     The field offers the entities in its domains, narrowed to ``entities`` when
-    given. A number field's constant takes the limits, step and unit of the
-    field's number entity, so the form and the entity accept the same values.
+    given. Of those, the ones in ``forecasts`` are listed as forecasts when the
+    field reads forecasts, so the element shows how each entity loads. A number
+    field's constant takes the limits, step and unit of the field's number
+    entity, so the form and the entity accept the same values.
     """
+    domains = entity_domains(field_info)
+    offered = set(entities) if entities is not None else None
     config: InputSelectorConfig = {
         "kinds": list(kinds),
         "value_type": "number" if is_number_field_info(field_info) else "boolean",
-        "domains": entity_domains(field_info),
+        "domains": domains,
+        "forecasts": sorted(
+            entity_id
+            for entity_id in forecasts
+            if entity_id.split(".", 1)[0] in domains and (offered is None or entity_id in offered)
+        )
+        if reads_forecasts(field_info)
+        else [],
     }
     if entities is not None:
         config["entities"] = list(entities)
@@ -139,6 +163,7 @@ def build_input_field_entries(
     *,
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: Mapping[str, list[str]],
+    forecasts: Collection[str],
 ) -> dict[str, tuple[vol.Marker, InputSelector]]:
     """Build the schema entry of each input field."""
     entries: dict[str, tuple[vol.Marker, InputSelector]] = {}
@@ -154,6 +179,7 @@ def build_input_field_entries(
                 field_info,
                 kinds=input_kinds(schema_info, field_info),
                 entities=inclusion_map.get(field_info.field_name),
+                forecasts=forecasts,
             ),
         )
     return entries
@@ -205,6 +231,7 @@ def build_sectioned_input_schema(
     field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
     inclusion_map: Mapping[str, Mapping[str, list[str]]],
     *,
+    forecasts: Collection[str],
     extra_field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]] | None = None,
     top_level_entries: Mapping[str, tuple[vol.Marker, Any]] | None = None,
 ) -> vol.Schema:
@@ -222,6 +249,7 @@ def build_sectioned_input_schema(
                 section_fields,
                 field_schema=field_schema.get(section_def.key, {}),
                 inclusion_map=inclusion_map.get(section_def.key, {}),
+                forecasts=forecasts,
             )
         )
 

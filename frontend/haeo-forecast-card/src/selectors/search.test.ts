@@ -21,6 +21,7 @@ const config: InputSelectorConfig = {
   kinds: ["entity", "constant", "none"],
   value_type: "number",
   domains: ["sensor"],
+  forecasts: [],
   entities: ["sensor.a", "sensor.b", "sensor.c"],
   min: 0,
   max: 100,
@@ -48,7 +49,12 @@ describe("offeredEntityIds", () => {
   });
 
   it("lists every entity in the field's domains when it names none", () => {
-    const byDomain: InputSelectorConfig = { kinds: config.kinds, value_type: "number", domains: ["sensor", "light"] };
+    const byDomain: InputSelectorConfig = {
+      kinds: config.kinds,
+      value_type: "number",
+      domains: ["sensor", "light"],
+      forecasts: [],
+    };
     expect(offeredEntityIds(hass, byDomain)).toEqual(["sensor.b", "light.d", "sensor.c", "sensor.a"]);
   });
 });
