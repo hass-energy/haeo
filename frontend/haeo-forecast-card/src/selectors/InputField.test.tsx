@@ -286,20 +286,24 @@ describe("InputField", () => {
     expect(onChange).toHaveBeenCalledWith({ type: "constant", value: 2 });
   });
 
-  it("checks every match with the select-all row, which shows how many there are", () => {
+  it("checks every match with the select-all row, which says how many there are", () => {
     const onChange = show();
     type("solar");
-    const all = byLabel("Select all 2");
-    expect(all.textContent).toBe("2");
-    act(() => all.click());
+    act(() => clickOption("Select all 2"));
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.east", "sensor.west"] });
   });
 
   it("unchecks every match with the select-all row when all are checked", () => {
     const onChange = show({ value: { type: "entity", value: ["sensor.east", "sensor.west", "sensor.load"] } });
     type("solar");
-    act(() => byLabel("Select all 2").click());
+    clickOption("Select all 2");
     expect(onChange).toHaveBeenCalledWith({ type: "entity", value: ["sensor.load"] });
+  });
+
+  it("offers to select all only once a search narrows the entities", () => {
+    show();
+    act(() => field().dispatchEvent(new FocusEvent("focus")));
+    expect(options().some((option) => option.textContent.startsWith("Select all"))).toBe(false);
   });
 
   it("clears the search and closes the list after a pick", () => {

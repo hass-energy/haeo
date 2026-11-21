@@ -74,10 +74,9 @@ export const SELECTOR_STYLES = `
 .option { display: flex; align-items: center; gap: 12px; padding: 6px 12px; cursor: pointer; }
 .option.active, .option:hover { background: var(--secondary-background-color); }
 .option[aria-disabled="true"] { opacity: 0.4; cursor: default; }
-.option.all { border-bottom: 1px solid var(--divider-color); }
+.option.all { border-bottom: 1px solid var(--divider-color); color: var(--primary-color); font-weight: 500; }
 .option input[type="checkbox"] { margin: 0; accent-color: var(--primary-color); pointer-events: none; }
 .option-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.count { color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
 .buses { display: flex; flex-wrap: wrap; gap: 8px; }
 .bus {
   flex: 1 1 200px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;

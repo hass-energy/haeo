@@ -328,17 +328,17 @@ export function InputField(props: InputFieldProps): JSX.Element {
               </li>
             )
           )}
-          {allowsEntity && matches.length > 1 && (
+          {/* Choosing every entity only makes sense once a search has narrowed them */}
+          {allowsEntity && query.trim() !== "" && matches.length > 1 && (
             <li
               role="option"
               class="option all"
               aria-selected={allChecked}
-              aria-label={t("input.options.select_all", { count: String(matches.length) })}
               onMouseDown={(event) => event.preventDefault()}
               onClick={toggleAll}
             >
               <input type="checkbox" tabIndex={-1} checked={allChecked} aria-hidden="true" readOnly />
-              <span class="count">{matches.length}</span>
+              <span class="option-text">{t("input.options.select_all", { count: String(matches.length) })}</span>
             </li>
           )}
           {choices.map((choice, index) =>

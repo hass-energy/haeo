@@ -168,7 +168,7 @@ Every chip and choice starts with a readout of the same size, showing the value 
 The readout's accessible label carries the full value.
 A forecast with nothing to preview, such as a calendar, shows a chart icon instead.
 The list marks entities the same way, so forecasts and current values appear side by side.
-A select-all row with the match count checks every entity the search shows, and chosen entities keep the order they were picked in.
+Once a search has narrowed the entities, a **Select all** row naming the match count checks every entity it shows, and chosen entities keep the order they were picked in.
 Words appear only as accessible labels, the **Fixed value** label beside a fixed value's readout, and the On and Off of an on/off field.
 
 Every input opens with a value, as Home Assistant's form cannot start a required field of a selector it does not know without one.
