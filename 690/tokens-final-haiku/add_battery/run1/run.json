@@ -1,0 +1,85 @@
+{
+  "task": "add_battery",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.017053139999999998,
+  "turns": 18,
+  "report": "The Sigenergy battery is now added to your Home HAEO hub. HAEO confirmed \"Created configuration for Battery\", and a Battery device with 21 entities appears under Home.\n\nSettings:\n- **Connection:** Inverter (the default, which matches how the battery is wired).\n- **Capacity:** Sigen Plant Rated Energy Capacity (32.24 kWh).\n- **State of charge:** Sigen Plant Battery State of Charge (currently 12.8 %).\n- **Min charge level:** fixed at 5 %.\n- **Max charge power:** Sigen Plant ESS Rated Charging Power (16.8 kW).\n- **Max discharge power:** Sigen Plant ESS Rated Discharging Power (19.2 kW).\n\nI left the rest at HAEO's defaults: the name \"Battery\", max charge level, salvage value, charge and discharge costs, and the efficiency and advanced sections.\n\nPoints where I hesitated or was unsure:\n- **Min charge level units:** The field took a bare number, so I checked the suggestions. It offered \"Fixed value 5 %\", and I picked that so the value is stored as a percentage.\n- **Sensor choice:** The capacity search returned only one match, and the power searches returned exactly the \"ESS rated\" sensors you named. I did not check the sensor values against the battery's real specifications.\n- **Max charge level:** You didn't mention an upper limit, so I left it empty. I did not confirm what HAEO assumes when it is blank.\n- **Battery name:** I kept the default \"Battery\" rather than naming it after the Sigenergy hardware.\n- **Verification:** I did not reopen the battery configuration after submitting to confirm that the 5 % floor and the sensor assignments were saved as entered. I relied on the success message and the device entity count.\n- **Output size:** The sensor pickers produced very large page dumps. I read the option lists from the saved files, which was slower than necessary but did not change any choices.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "battery",
+    "name": "Battery",
+    "storage": {
+      "capacity": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_rated_energy_capacity"
+        ]
+      },
+      "initial_charge_percentage": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_battery_state_of_charge"
+        ]
+      }
+    },
+    "limits": {
+      "min_charge_percentage": {
+        "type": "constant",
+        "value": 5.0
+      },
+      "max_charge_percentage": {
+        "type": "none"
+      }
+    },
+    "power_limits": {
+      "max_power_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_charging_power"
+        ]
+      },
+      "max_power_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_ess_rated_discharging_power"
+        ]
+      }
+    },
+    "pricing": {
+      "salvage_value": {
+        "type": "constant",
+        "value": 0.0
+      }
+    },
+    "efficiency": {
+      "efficiency_source_target": {
+        "type": "constant",
+        "value": 95.0
+      },
+      "efficiency_target_source": {
+        "type": "constant",
+        "value": 95.0
+      }
+    },
+    "advanced": {
+      "charge_limit_cost": {
+        "type": "constant",
+        "value": 100.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Battery element to the Home hub: connection Inverter, capacity from Sigen Plant Rated Energy Capacity (32.24 kWh), state of charge from Sigen Plant Battery State of Charge, max charge power from Sigen Plant ESS Rated Charging Power, max discharge power from Sigen Plant ESS Rated Discharging Power, and min charge level fixed at 5%. Success dialog confirmed 'Created configuration for Battery'; the Battery device now appears under Home with 21 entities.",
+  "actions": 18,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 30.1
+}

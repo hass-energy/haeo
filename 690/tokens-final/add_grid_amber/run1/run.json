@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1738135,
+  "turns": 18,
+  "report": "I added the Grid to your Home hub. It now appears in the list of parts under the hub, and HAEO showed \"Created configuration for Grid.\"\n\n- **Connection:** Switchboard.\n- **Import price:** Amber Express - Home General Price (`sensor.amber_express_home_general_price`).\n- **Export price:** Amber Express - Home Feed In Price (`sensor.amber_express_home_feed_in_price`).\n- **Import limit:** 55 kW.\n- **Export limit:** 30 kW.\n\nPoints where I hesitated or slipped:\n- **Connection choice:** The form defaulted to Inverter and offered only Inverter or Switchboard. I picked Switchboard because the grid supply normally comes in there. You didn't say which, so change it if your grid is wired to the inverter.\n- **Connection dropdown:** My first click on it didn't select anything. When I came back to it, I chose Switchboard.\n- **Default limits:** Both power limits started at 100 kW. I removed them and typed 55 and 30.\n- **Not rechecked:** I confirmed the 55 kW and 30 kW values on the form before submitting. I didn't reopen the saved Grid to check them afterwards.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid element to Home, connected to Switchboard, import price = Amber Express General Price, export price = Amber Express Feed In Price, import limit 55 kW, export limit 30 kW. Grid now appears under the hub.",
+  "actions": 17,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 28.6
+}

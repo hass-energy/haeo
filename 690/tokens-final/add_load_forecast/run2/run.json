@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1536143,
+  "turns": 13,
+  "report": "I added a Load called \"Household consumption\" to your Home hub. HAEO showed \"Created configuration for Household consumption\", and the load now appears as a device with 12 entities. I didn't open the load again to check its saved settings.\n\n- **Connection:** Switchboard.\n- **Forecast field:** I selected both `sensor.sigen_plant_consumed_power_forecast` (the forecast) and `sensor.sigen_plant_consumed_power` (the current consumed power). The field accepts several sensors, and both are in it.\n\nPoints where I hesitated or slipped:\n- **Connection choice:** The form defaulted to Inverter. I chose Switchboard because household consumption normally sits on the switchboard, but nothing on the page said which was right.\n- **Current sensor:** The form has no separate field for it. I put it in the same Forecast field as the forecast sensor. I'm not sure how HAEO combines the two sensors.\n- **Name:** The form pre-filled \"Load\". I renamed it \"Household consumption\", which was my own choice.\n- **Mistake:** I clicked the Connection dropdown before the Forecast field. That did nothing harmful, but it was an unnecessary step.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household consumption",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Household consumption' connected to Switchboard, with forecast sensors Sigen Plant Consumed Power Forecast and Sigen Plant Consumed Power. It now appears in the hub with 12 entities.",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.8
+}

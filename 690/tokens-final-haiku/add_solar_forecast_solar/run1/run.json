@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.01042748,
+  "turns": 9,
+  "report": "I added a Solar element to your Home hub. It's named \"Solar\", connected to the Inverter, and uses 32 Forecast.Solar energy production sensors. The Solar device now appears under the hub with 4 entities. I did not open the Solar device afterwards to check those 4 entities or the forecast values.\n\n**What I selected:** 8 sensors for each direction, covering today, tomorrow, the day after tomorrow, and 3 to 7 days out. I got there by typing \"energy_production\" into the Forecast picker, which narrowed the list to 32, and then choosing \"Select all\". I left Curtailment at its default.\n\nPoints where I hesitated or might have made a mistake:\n\n- **South sensors look different.** The south sensors are named \"South solar prediction forecast\" while the other three directions say \"solar production forecast\". Their entity IDs follow the same `energy_production_*_south` pattern, and I treated them as Forecast.Solar. I did not confirm this against the integration, so if they come from another source, that part of the selection is wrong.\n- **Solcast and Sigen sensors excluded.** The list also had Solcast PV Forecast and Sigen Plant sensors. I left them out because they are not Forecast.Solar sensors. I didn't check whether Solcast also covers your roof, so it could be worth considering separately.\n- **\"Every day it covers\" was read loosely.** I included the \"today\" sensors, which are partly elapsed by now. There was no separate \"d1\" sensor, since \"tomorrow\" covers that day, so I did not look for one.\n- **Solar name.** I kept the default name \"Solar\" without thinking about whether a different name would be clearer.\n- **Forecast field.** The picker lets you add many sensors at once, but I did not know whether HAEO treats them as separate forecasts that get summed or as a single series. I assumed it sums them per direction.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added a Solar element to the Home HAEO hub, named 'Solar', connected to the Inverter, with all 32 Forecast.Solar energy production sensors (east, north, south, west; today, tomorrow, day after tomorrow, and 3 to 7 days out). The Solar device now appears under the hub with 4 entities.",
+  "actions": 6,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.4
+}

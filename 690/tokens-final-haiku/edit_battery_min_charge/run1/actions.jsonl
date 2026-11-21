@@ -1,0 +1,17 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 5.0, "command": "click", "args": ["f2e182"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "click", "args": ["f2e476"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e802"], "error": null, "visible_errors": 0}
+{"t": 10.3, "command": "click", "args": ["f2e469"], "error": null, "visible_errors": 0}
+{"t": 13.0, "command": "click", "args": ["f2e917"], "error": null, "visible_errors": 0}
+{"t": 18.5, "command": "click", "args": ["f2e893"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 20.8, "command": "click", "args": ["f2e1306"], "error": null, "visible_errors": 0}
+{"t": 22.1, "command": "type", "args": ["f2e1309", "20"], "error": null, "visible_errors": 0}
+{"t": 23.4, "command": "click", "args": ["f2e1427"], "error": null, "visible_errors": 0}
+{"t": 24.6, "command": "click", "args": ["f2e1418"], "error": null, "visible_errors": 0}
+{"t": 26.3, "command": "click", "args": ["f2e1447"], "error": null, "visible_errors": 0}
+{"t": 26.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 28.1, "command": "click", "args": ["f2e917"], "error": null, "visible_errors": 0}
+{"t": 30.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 31.7, "command": "click", "args": ["f2e1457"], "error": null, "visible_errors": 0}
+{"t": 33.0, "command": "done", "args": ["Raised the Battery's Min charge level from 5% to 20% in the HAEO Battery configuration (Limits > Min charge level, Fixed value 20 %) and submitted. HAEO confirmed 'Configuration updated successfully', and reopening the dialog shows 20 %. Nothing else was changed."], "error": null, "visible_errors": 0}

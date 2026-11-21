@@ -1,0 +1,40 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": false,
+  "cost_usd": 0.00801735,
+  "turns": 11,
+  "report": "I added the \"Pool pump\" load to the Home hub as a constant 0.8 kW load. HAEO confirmed \"Created configuration for Pool pump\", and a new Pool pump device with 12 entities now appears under Home.\n\nSettings I chose:\n- **Name:** Pool pump\n- **Connection:** Inverter (the default, same as the existing house Load)\n- **Forecast:** Fixed value 0.8 kW, picked from the suggestion that appeared when I typed 0.8 (not a sensor)\n- **Shedding:** left collapsed at its default\n\nWhere I hesitated or may have gone wrong:\n- **Connection choice:** The form offered Inverter or Switchboard. I kept Inverter because the existing house Load uses it, but I did not confirm that this is the right side for a mains pump. If the pump sits on the house bus rather than behind the inverter, this would need to change to Switchboard.\n- **Units:** The picker displayed \"0.8 kW\", so I took the unit as kW. I did not check the entity values after creation.\n- **Shedding:** I did not look at the Shedding section. You didn't mention whether the pump can be switched off, so I left it at the default.\n- **Dialog timing:** My first click on \"Load\" showed no visible change in the accessibility tree. A screenshot showed the dialog had opened, so I only checked it that way.",
+  "driver_error": null,
+  "problems": [
+    "$.connection.value: expected 'Switchboard', found 'Inverter'"
+  ],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 6,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 22.2
+}

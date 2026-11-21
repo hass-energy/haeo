@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1045688,
+  "turns": 12,
+  "report": "I added a policy named \"Battery wear\" to the Home hub. It charges $0.01/kWh for any energy leaving the Battery, whichever element receives it. It saved with a \"Created configuration for Policies\" message, and a new Policies device now appears under the hub.\n\nThe settings are:\n- **Source:** Battery.\n- **Target:** Any.\n- **Price:** a fixed value of 0.01 $/kWh.\n- **Enabled:** yes.\n\nI only checked that the policy saved. I didn't run an optimisation to confirm it changes the plan.\n\nPoints where I hesitated or wasn't sure:\n- **Price sign and direction:** I assumed a positive price on a Battery-to-Any policy means a cost on discharge. The form didn't say so, and I didn't check the policy afterwards.\n- **Target \"Any\":** I left it on Any to cover \"wherever that energy goes\". I couldn't tell whether that also counts energy moving from the Battery to the Battery itself.\n- **Policy name:** I chose \"Battery wear\" myself, since you didn't give one.\n- **Price entry:** typing 0.01 only worked after I clicked the \"Fixed value 0.01 $/kWh\" option the field offered.\n- **Delay:** I was slow to give you a status update partway through.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a Policy named 'Battery wear' (enabled): source = Battery, target = Any, price = 0.01 $/kWh. It saved and a Policies device now appears under the Home hub.",
+  "actions": 9,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 17.6
+}

@@ -1,0 +1,18 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.4, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 5.3, "command": "click", "args": ["f2e448"], "error": null, "visible_errors": 0}
+{"t": 6.5, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 7.8, "command": "click", "args": ["f2e466"], "error": null, "visible_errors": 0}
+{"t": 8.9, "command": "click", "args": ["f2e501"], "error": null, "visible_errors": 0}
+{"t": 10.0, "command": "click", "args": ["f2e474"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e518"], "error": null, "visible_errors": 0}
+{"t": 12.3, "command": "click", "args": ["f2e478"], "error": null, "visible_errors": 0}
+{"t": 14.0, "command": "click", "args": ["f2e549"], "error": null, "visible_errors": 0}
+{"t": 15.6, "command": "type", "args": ["f2e556", "55"], "error": null, "visible_errors": 0}
+{"t": 16.7, "command": "click", "args": ["f2e578"], "error": null, "visible_errors": 0}
+{"t": 18.1, "command": "click", "args": ["f2e569"], "error": null, "visible_errors": 0}
+{"t": 19.6, "command": "type", "args": ["f2e572", "30"], "error": null, "visible_errors": 0}
+{"t": 20.7, "command": "click", "args": ["f2e798"], "error": null, "visible_errors": 0}
+{"t": 22.2, "command": "click", "args": ["f2e483"], "error": null, "visible_errors": 0}
+{"t": 23.4, "command": "click", "args": ["f2e817"], "error": null, "visible_errors": 0}
+{"t": 25.6, "command": "done", "args": ["Added a Grid element to the Home hub. Connection: Switchboard. Import price: Amber Express - Home General Price (0.179 $/kWh). Export price: Amber Express - Home Feed In Price (0.0798 $/kWh). Import limit: 55 kW. Export limit: 30 kW. Name left as 'Grid'. The page confirmed 'Created configuration for Grid' and Grid now appears under Home with 12 entities."], "error": null, "visible_errors": 0}

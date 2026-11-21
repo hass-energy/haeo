@@ -1,0 +1,9 @@
+{"t": 1.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "click", "args": ["f2e"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 6.7, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 8.5, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 10.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 12.2, "command": "type", "args": ["f2e475", "solcast"], "error": null, "visible_errors": 0}
+{"t": 14.8, "command": "click", "args": ["f2e487"], "error": null, "visible_errors": 0}
+{"t": 16.7, "command": "click", "args": ["f2e484"], "error": null, "visible_errors": 0}
+{"t": 18.0, "command": "click", "args": ["f2e538"], "error": null, "visible_errors": 0}

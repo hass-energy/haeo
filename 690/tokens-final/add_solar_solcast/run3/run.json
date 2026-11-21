@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.1515757,
+  "turns": 13,
+  "report": "I added a Solar element to the Home hub, connected to the Inverter. Its forecast uses the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. HAEO showed \"Created configuration for Solar\", and Solar now appears in the hub with 1 device and 4 entities.\n\nI didn't open the Curtailment section, so those settings are untouched.\n\nPoints where I hesitated or made a mistake:\n- **Forecast picker:** It listed many similar \"solar production forecast\" sensors for the East, North, South and West arrays. I picked only the three whose names start with \"Solcast PV Forecast\".\n- **Connection:** I left it on its default, Inverter, without opening the dropdown to check the other choice (Switchboard). It matched your description of the panels feeding the inverter.\n- **Re-typing the search:** The picker cleared my search text after each selection, so I typed \"solcast\" again before picking each sensor. This was a minor inefficiency, not an error.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element connected to Inverter with the three Solcast sensors (today, tomorrow, day 3) as forecast. It now appears in the hub with 4 entities.",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.5
+}

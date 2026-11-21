@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.13895780000000002,
+  "turns": 13,
+  "report": "I added a policy called \"Battery wear\" that charges 0.01 $/kWh (1 cent) for energy discharged from the Battery, whatever it goes to. I reopened it afterwards: the source is Battery and the price is 0.01 $/kWh. The policy is enabled.\n\nI didn't run the optimizer, so I haven't seen the cost show up in a plan.\n\n- **Hesitation:** I wasn't sure whether to use the Policy button or the Battery element's own settings. I chose Policy because the Add policy form has a price per kWh and a source/target choice.\n- **Target:** I left Target on \"Any\" without clicking it, because it looked like the default. I couldn't see which option was highlighted. After saving, no target elements were listed, so it should mean any destination.\n- **Name:** The new device shows up as \"Policies\", not \"Battery wear\". The policy inside it has the name I gave it.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery wear",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Added a HAEO policy 'Battery wear': source = Battery, target = Any, price 0.01 $/kWh, enabled.",
+  "actions": 12,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.0
+}

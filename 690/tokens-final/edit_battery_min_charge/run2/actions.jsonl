@@ -1,0 +1,7 @@
+{"t": 2.7, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.6, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "click", "args": ["f2e560"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "type", "args": ["f2e563", "20"], "error": null, "visible_errors": 0}
+{"t": 9.6, "command": "click", "args": ["f2e681"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e672"], "error": null, "visible_errors": 0}
+{"t": 12.5, "command": "done", "args": ["Battery min charge level changed from 5% to 20%; HAEO confirmed the configuration was updated."], "error": null, "visible_errors": 0}

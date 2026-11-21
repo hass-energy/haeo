@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.00621555,
+  "turns": 10,
+  "report": "I added the rooftop solar to HAEO as a Solar part under the Home hub, using the Solcast PV forecast.\n\n- **Name:** Solar (default, left as is).\n- **Connection:** Inverter, since the panels feed the inverter.\n- **Forecast:** all three Solcast sensors: `sensor.solcast_pv_forecast_forecast_today`, `sensor.solcast_pv_forecast_forecast_tomorrow` and `sensor.solcast_pv_forecast_forecast_day_3`.\n- **Curtailment:** left at its default, since you didn't mention it.\n\nThe success dialog reported \"Created configuration for Solar\", and the Home hub now lists a Solar entry with 4 entities.\n\nPoints where I hesitated or was unsure:\n- **Accidental bad click:** my first click command used an invalid ref (`f2e`) and errored. I then clicked the Solar button, which worked. No change was made from the failed command.\n- **Connection default:** I accepted the pre-filled \"Inverter\" without changing it. It matches what you described, but I didn't check the other options.\n- **Forecast sensor choice:** I selected all three Solcast day sensors, as you asked. I didn't confirm how HAEO combines the \"today\" sensor, which may already include energy produced earlier in the day, or whether the three sensors overlap. You may want to check the forecast in HAEO once it has run.\n- **Curtailment:** I skipped it without opening it. I don't know whether it needs a value for solar to work well.\n- **Not verified in Home Assistant:** I did not check the new entities' states or confirm that the optimizer picked up the forecast.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 6,
+  "looks": 2,
+  "screenshots": 1,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 22.6
+}

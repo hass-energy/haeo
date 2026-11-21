@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1051977,
+  "turns": 12,
+  "report": "I added a Solar element to HAEO and connected it to the Inverter. It uses all three Solcast forecast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. HAEO said \"Created configuration for Solar\", and Solar now appears in the Home hub's list of parts.\n\nI left the name as the default \"Solar\" and didn't open the Curtailment section.\n\nPoints where I hesitated or slipped:\n- **Forecast picker:** It closed after each pick, so I had to reopen it and search \"solcast\" twice to add the other two sensors. I confirmed all three were selected before submitting.\n- **Wrong-looking sensors:** The list also held many similar-looking sensors (East, North, South and West production forecasts, plus Sigen Plant sensors). I ignored them because you asked for Solcast.\n- **Connection:** It was already set to Inverter, so I left it. I didn't check whether Switchboard might also be a sensible choice, since you said the panels feed the inverter.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element connected to Inverter with the three Solcast forecast sensors (today, tomorrow, day 3); it now shows in the hub list.",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 20.3
+}

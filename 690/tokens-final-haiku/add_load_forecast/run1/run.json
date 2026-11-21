@@ -1,0 +1,41 @@
+{
+  "task": "add_load_forecast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.012492570000000001,
+  "turns": 16,
+  "report": "I added a load called \"Household\" to the Home hub. HAEO confirmed \"Created configuration for Household\", and the entity count went from 49 to 61.\n\n- **Name:** Household (I changed it from the default \"Load\").\n- **Connection:** Switchboard. Household consumption draws from the home bus that Grid, Inverter, Solar and Battery all meet at, so I chose it over Inverter.\n- **Forecast:** `sensor.sigen_plant_consumed_power_forecast` and `sensor.sigen_plant_consumed_power` (the current reading).\n- **Shedding:** left at the default (Off), with no consumption cost set.\n\nI did not reopen the saved load to check the stored sensors.\n\nPoints where I hesitated or was unsure:\n\n1. **Current consumed power sensor:** The form has no separate field for a current reading. The only sensor input is the Forecast list, so I put the current sensor there alongside the forecast. I don't know whether HAEO treats a current-value sensor in that list as a forecast, or how it combines two sensors (summing, averaging, or taking one). If it blends them, the load could be double-counted or skewed. The current sensor may need a different field, or may need to be removed; please check how HAEO uses it.\n2. **Connection choice:** Switchboard vs Inverter was my judgement, not something the interface told me. I chose Switchboard because it is the home-side node where household consumption sits.\n3. **Name:** I renamed the load from the default \"Load\" to \"Household\". You did not specify a name.\n4. **Shedding and cost:** I left both at their defaults without deciding whether household load should be sheddable or carry a consumption cost. I didn't know what the right values were.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Household",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.sigen_plant_consumed_power_forecast",
+          "sensor.sigen_plant_consumed_power"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load named 'Household' under the Home hub, connected to Switchboard, with forecast sensors sensor.sigen_plant_consumed_power_forecast and sensor.sigen_plant_consumed_power in the Forecast field. HAEO reported 'Created configuration for Household', and entity count went from 49 to 61. Shedding was left at its default (Off) and no consumption cost was set.",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 30.2
+}

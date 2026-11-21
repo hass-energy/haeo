@@ -1,0 +1,71 @@
+{
+  "task": "add_solar_forecast_solar",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.1035035,
+  "turns": 11,
+  "report": "I added a Solar element to the Home hub, connected to the Inverter, with all 32 Forecast.Solar sensors as its forecast. Home Assistant showed \"Created configuration for Solar.\"\n\n- **Sensors:** The 32 are eight per direction (east, north, south, west): today, tomorrow, the day after tomorrow, and 3 to 7 days from now. Before submitting, the field showed 32 selected entries.\n- **Left out:** Solcast and Sigen sensors were also in the list, and I didn't select them.\n- **Not re-checked:** I didn't reopen the saved Solar element to confirm the sensors had stuck.\n- **Left alone:** I didn't touch the Curtailment section.\n\nPoints where I hesitated or was unsure:\n- **Connection:** The Connection field already defaulted to Inverter, which matches your setup, so I left it. It also offered Switchboard.\n- **South sensors:** The South sensors are named \"solar prediction forecast\" rather than \"production forecast\". I included them because their entity IDs follow the same `energy_production_*_south` pattern.\n- **Selection method:** I typed `energy_production_` into the search to narrow the list to exactly those sensors, then used \"Select all\". I'm assuming it only selected the filtered 32 rather than all 41, and the count of 32 removable entries supports that.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.energy_production_d3_east",
+          "sensor.energy_production_d4_east",
+          "sensor.energy_production_d5_east",
+          "sensor.energy_production_d6_east",
+          "sensor.energy_production_d7_east",
+          "sensor.energy_production_d2_east",
+          "sensor.energy_production_today_east",
+          "sensor.energy_production_tomorrow_east",
+          "sensor.energy_production_d3_north",
+          "sensor.energy_production_d4_north",
+          "sensor.energy_production_d5_north",
+          "sensor.energy_production_d6_north",
+          "sensor.energy_production_d7_north",
+          "sensor.energy_production_d2_north",
+          "sensor.energy_production_today_north",
+          "sensor.energy_production_tomorrow_north",
+          "sensor.energy_production_d3_south",
+          "sensor.energy_production_d4_south",
+          "sensor.energy_production_d5_south",
+          "sensor.energy_production_d6_south",
+          "sensor.energy_production_d7_south",
+          "sensor.energy_production_d2_south",
+          "sensor.energy_production_today_south",
+          "sensor.energy_production_tomorrow_south",
+          "sensor.energy_production_d3_west",
+          "sensor.energy_production_d4_west",
+          "sensor.energy_production_d5_west",
+          "sensor.energy_production_d6_west",
+          "sensor.energy_production_d7_west",
+          "sensor.energy_production_d2_west",
+          "sensor.energy_production_today_west",
+          "sensor.energy_production_tomorrow_west"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element connected to Inverter with all 32 Forecast.Solar sensors (east, north, south, west; 8 each).",
+  "actions": 6,
+  "looks": 4,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 21.6
+}

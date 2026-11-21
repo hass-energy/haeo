@@ -1,0 +1,19 @@
+{"t": 1.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.2, "command": "click", "args": ["f2e105"], "error": null, "visible_errors": 0}
+{"t": 6.4, "command": "click", "args": ["f2e448"], "error": null, "visible_errors": 0}
+{"t": 8.0, "command": "click", "args": ["f2e491"], "error": null, "visible_errors": 0}
+{"t": 8.4, "command": "click", "args": ["f2e466"], "error": null, "visible_errors": 0}
+{"t": 9.8, "command": "click", "args": ["f2e501"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e474"], "error": null, "visible_errors": 0}
+{"t": 12.0, "command": "click", "args": ["f2e518"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "click", "args": ["f2e478"], "error": null, "visible_errors": 0}
+{"t": 14.9, "command": "click", "args": ["f2e553"], "error": null, "visible_errors": 0}
+{"t": 16.2, "command": "type", "args": ["f2e556", "55"], "error": null, "visible_errors": 0}
+{"t": 17.4, "command": "click", "args": ["f2e781"], "error": null, "visible_errors": 0}
+{"t": 18.7, "command": "click", "args": ["f2e569"], "error": null, "visible_errors": 0}
+{"t": 19.9, "command": "type", "args": ["f2e572", "30"], "error": null, "visible_errors": 0}
+{"t": 21.1, "command": "click", "args": ["f2e1001"], "error": null, "visible_errors": 0}
+{"t": 22.3, "command": "screenshot", "args": [], "error": null, "visible_errors": 0}
+{"t": 24.9, "command": "click", "args": ["f2e483"], "error": null, "visible_errors": 0}
+{"t": 26.1, "command": "click", "args": ["f2e1020"], "error": null, "visible_errors": 0}
+{"t": 27.7, "command": "done", "args": ["Added the Grid element to the Home hub. Connection: Switchboard. Import price: Amber Express - Home General Price (sensor.amber_express_home_general_price). Export price: Amber Express - Home Feed In Price (sensor.amber_express_home_feed_in_price). Import limit 55 kW, export limit 30 kW. The success dialog confirmed 'Created configuration for Grid', and a Grid device with 12 entities now appears under Home."], "error": null, "visible_errors": 0}

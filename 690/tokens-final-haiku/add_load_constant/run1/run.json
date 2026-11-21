@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.00675795,
+  "turns": 11,
+  "report": "I added \"Pool pump\" as a new Load on the Home hub. It has a fixed value of 0.8 kW, and the integration page now lists a \"Pool pump\" device with 12 entities next to the existing Load.\n\nPoints where I hesitated or was unsure:\n\n- **Connection:** The form defaulted to Inverter, and I changed it to Switchboard. A pool pump is an AC appliance on the house side, so I reasoned it belongs on the same bus as the other house loads. I did not check how the existing Load is connected, so this is my judgement rather than something I confirmed.\n- **Forecast:** I entered 0.8 and picked the \"Fixed value 0.8 kW\" suggestion rather than a sensor. The form did not show a unit field, so I took the kW label on the suggestion as the unit. The pump runs all the time, so a constant seemed right over a sensor.\n- **Shedding:** I left the Shedding section at its default and did not open it. You did not ask about shedding, and I did not want to make a priority choice for you.\n- **Verification:** I confirmed the result from the integration page (the new device and entity count), but I did not open the new device's entities to check the stored value of 0.8 kW.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a load named 'Pool pump' to the Home hub. It uses a fixed value of 0.8 kW, connected to the Switchboard. The integration page now lists a 'Pool pump' device of type Load with 12 entities, alongside the existing Load.",
+  "actions": 8,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 18.2
+}

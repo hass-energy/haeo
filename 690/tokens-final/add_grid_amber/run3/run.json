@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.16031969999999998,
+  "turns": 16,
+  "report": "The Grid is now added to HAEO. HAEO showed \"Created configuration for Grid.\" I didn't reopen the Grid afterwards to check the saved values.\n\n- **Connection:** Switchboard.\n- **Import price:** Amber Express - Home General Price.\n- **Export price:** Amber Express - Home Feed In Price.\n- **Import limit:** 55 kW.\n- **Export limit:** 30 kW.\n\nPoints where I hesitated or slipped:\n- **Connection choice:** the form defaulted to Inverter. I chose Switchboard because the grid normally feeds the switchboard, but you didn't say which one, so that is my guess.\n- **Dropdown didn't register:** my first click on the Connection dropdown only opened it, and it closed without a selection. I reopened it and picked Switchboard on the second try.\n- **Default limits:** both power limits started at 100 kW. I removed those and typed 55 and 30.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added Grid connected to Switchboard, import price Amber general price, export price Amber feed-in price, import limit 55 kW, export limit 30 kW.",
+  "actions": 17,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.3
+}

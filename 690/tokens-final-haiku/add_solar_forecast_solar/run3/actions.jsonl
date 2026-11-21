@@ -1,0 +1,7 @@
+{"t": 2.3, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.9, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 5.3, "command": "click", "args": ["f2e466"], "error": null, "visible_errors": 0}
+{"t": 9.3, "command": "type", "args": ["f2e466", "energy_production"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "click", "args": ["f2e686"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "click", "args": ["f2e475"], "error": null, "visible_errors": 0}
+{"t": 14.3, "command": "click", "args": ["f2e982"], "error": null, "visible_errors": 0}

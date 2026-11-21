@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.0955924,
+  "turns": 12,
+  "report": "I added \"Pool pump\" to the Home hub as its own load. I set it to a fixed 0.8 kW and connected it to the Switchboard. HAEO showed \"Created configuration for Pool pump\", and the name now appears on the integration page. I didn't open the new load to check the saved values.\n\nPoints where I hesitated or made a mistake:\n- **Connection choice:** The form offered only Inverter or Switchboard, and the Load form defaulted to Inverter. I chose Switchboard because a pool pump is a household load. I don't know where your existing Load is connected, so I couldn't match it.\n- **Forecast field reset:** My first 0.8 kW entry was cleared when I changed the connection dropdown. I entered it again and picked \"Fixed value 0.8 kW\", which showed as a chip.\n- **Stale reference:** I clicked an old reference once after the page had changed it. That click did nothing, and I redid it with the new one.\n- **Screen refresh:** After my first click on \"Load\", the page looked unchanged until I waited a moment. The dialog was just slow to appear.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added load 'Pool pump' with fixed forecast 0.8 kW, connected to Switchboard; it appears under the Home hub.",
+  "actions": 10,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 1,
+  "errors_shown": 0,
+  "seconds": 25.0
+}

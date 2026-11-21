@@ -1,0 +1,50 @@
+{
+  "task": "add_grid_amber",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.01261582,
+  "turns": 18,
+  "report": "Your grid connection is added to HAEO under the Home hub. The new \"Grid\" device has 12 entities.\n\nWhat I set:\n- **Connection:** Switchboard. The dropdown offered only Inverter or Switchboard. I picked Switchboard because the grid sits on the main bus, not behind the inverter.\n- **Import price:** Amber Express - Home General Price (`sensor.amber_express_home_general_price`).\n- **Export price:** Amber Express - Home Feed In Price (`sensor.amber_express_home_feed_in_price`).\n- **Import limit:** 55 kW.\n- **Export limit:** 30 kW.\n- **Name:** left as the default \"Grid\".\n\nI did not reopen the saved grid to confirm the stored values; I checked the form before submitting and the success dialog said \"Created configuration for Grid.\"\n\nPoints where I hesitated or was unsure:\n1. **Connection choice:** The task didn't name a connection point, and the only options were Inverter and Switchboard. I chose Switchboard on the assumption that the grid meets the house at the switchboard. If your wiring meets the inverter first, this should be Inverter.\n2. **Limit fields:** The power-limit fields defaulted to a fixed 100 kW on both sides. I removed the export default and typed the new values, but I did not check the import limit's stored unit (kW was shown in the chip, so I believe it is right).\n3. **Price sources:** The picker listed two Amber sensors. I matched \"general\" to import and \"feed-in\" to export from the names, which fits your description.\n4. **No verification after save:** I didn't reopen the Grid configuration to confirm the saved prices and limits. That is the first thing I'd check if the numbers look wrong in the dashboard.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "grid",
+    "name": "Grid",
+    "pricing": {
+      "price_source_target": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_general_price"
+        ]
+      },
+      "price_target_source": {
+        "type": "entity",
+        "value": [
+          "sensor.amber_express_home_feed_in_price"
+        ]
+      }
+    },
+    "power_limits": {
+      "max_power_source_target": {
+        "type": "constant",
+        "value": 55.0
+      },
+      "max_power_target_source": {
+        "type": "constant",
+        "value": 30.0
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "unfinished",
+  "message": "",
+  "actions": 16,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 26.9
+}

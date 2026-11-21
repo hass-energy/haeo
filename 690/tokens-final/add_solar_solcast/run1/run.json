@@ -1,0 +1,42 @@
+{
+  "task": "add_solar_solcast",
+  "repeat": 1,
+  "success": true,
+  "cost_usd": 0.1456469,
+  "turns": 13,
+  "report": "I added a Solar element to the Home hub and connected it to the Inverter. For its forecast I picked the three Solcast sensors: Forecast Today, Forecast Tomorrow and Forecast Day 3. Solar now appears in the hub list with 1 device and 4 entities, and the entity count went from 56 to 60. I didn't open the new entities or check their values.\n\nI left the default name \"Solar\", and I left the optional Curtailment section closed and unchanged.\n\nPoints where I hesitated or made a mistake:\n- **Forecast picker:** It closed after each pick. The first time, I didn't expect that, so I had to search \"solcast\" again for each of the other two sensors.\n- **Similar-looking sensors:** The list also held many `energy_production_*` sensors (East, North, South and West arrays) and Sigen plant sensors. I ignored them, since you asked for Solcast.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "solar",
+    "name": "Solar",
+    "forecast": {
+      "forecast": {
+        "type": "entity",
+        "value": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ]
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": true
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Inverter"
+    }
+  },
+  "status": "done",
+  "message": "Added Solar element to Home, connected to Inverter, with forecast sensors Solcast PV Forecast Today, Tomorrow and Day 3. Solar appears in the hub with 4 entities.",
+  "actions": 9,
+  "looks": 2,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.0
+}

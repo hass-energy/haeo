@@ -1,0 +1,13 @@
+{"t": 2.6, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 4.2, "command": "click", "args": ["f2e108"], "error": null, "visible_errors": 0}
+{"t": 7.9, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 10.7, "command": "type", "args": ["f2e490", "Pool pump"], "error": null, "visible_errors": 0}
+{"t": 11.1, "command": "type", "args": ["f2e513", "0.8"], "error": null, "visible_errors": 0}
+{"t": 11.5, "command": "click", "args": ["f2e495"], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "click", "args": ["f2e535"], "error": null, "visible_errors": 0}
+{"t": 15.2, "command": "type", "args": ["f2e513", "0.8"], "error": null, "visible_errors": 0}
+{"t": 18.6, "command": "click", "args": ["f2e526"], "error": "Locator.click: Timeout 3000ms exceeded.", "visible_errors": 0}
+{"t": 20.4, "command": "click", "args": ["f2e538"], "error": null, "visible_errors": 0}
+{"t": 21.9, "command": "click", "args": ["f2e522"], "error": null, "visible_errors": 0}
+{"t": 23.6, "command": "click", "args": ["f2e557"], "error": null, "visible_errors": 0}
+{"t": 25.0, "command": "done", "args": ["Added load 'Pool pump' with fixed forecast 0.8 kW, connected to Switchboard; it appears under the Home hub."], "error": null, "visible_errors": 0}

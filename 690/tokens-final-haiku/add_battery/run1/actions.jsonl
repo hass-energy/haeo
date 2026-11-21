@@ -1,0 +1,20 @@
+{"t": 2.2, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.7, "command": "click", "args": ["f2e117"], "error": null, "visible_errors": 0}
+{"t": 5.9, "command": "click", "args": ["f2e466"], "error": null, "visible_errors": 0}
+{"t": 6.3, "command": "type", "args": ["f2e466", "capacity"], "error": null, "visible_errors": 0}
+{"t": 7.9, "command": "click", "args": ["f2e603"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "click", "args": ["f2e474"], "error": null, "visible_errors": 0}
+{"t": 8.7, "command": "type", "args": ["f2e474", "state of charge"], "error": null, "visible_errors": 0}
+{"t": 10.9, "command": "click", "args": ["f2e618"], "error": null, "visible_errors": 0}
+{"t": 11.4, "command": "click", "args": ["f2e518"], "error": null, "visible_errors": 0}
+{"t": 11.8, "command": "type", "args": ["f2e518", "ESS rated"], "error": null, "visible_errors": 0}
+{"t": 15.7, "command": "click", "args": ["f2e725"], "error": null, "visible_errors": 0}
+{"t": 17.0, "command": "click", "args": ["f2e526"], "error": null, "visible_errors": 0}
+{"t": 17.4, "command": "type", "args": ["f2e526", "ESS rated discharging"], "error": null, "visible_errors": 0}
+{"t": 20.1, "command": "click", "args": ["f2e948"], "error": null, "visible_errors": 0}
+{"t": 21.9, "command": "click", "args": ["f2e492"], "error": null, "visible_errors": 0}
+{"t": 22.2, "command": "type", "args": ["f2e492", "5"], "error": null, "visible_errors": 0}
+{"t": 23.9, "command": "click", "args": ["f2e1073"], "error": null, "visible_errors": 0}
+{"t": 26.1, "command": "click", "args": ["f2e599"], "error": null, "visible_errors": 0}
+{"t": 27.8, "command": "click", "args": ["f2e1092"], "error": null, "visible_errors": 0}
+{"t": 30.1, "command": "done", "args": ["Added a Battery element to the Home hub: connection Inverter, capacity from Sigen Plant Rated Energy Capacity (32.24 kWh), state of charge from Sigen Plant Battery State of Charge, max charge power from Sigen Plant ESS Rated Charging Power, max discharge power from Sigen Plant ESS Rated Discharging Power, and min charge level fixed at 5%. Success dialog confirmed 'Created configuration for Battery'; the Battery device now appears under Home with 21 entities."], "error": null, "visible_errors": 0}

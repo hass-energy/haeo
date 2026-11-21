@@ -1,0 +1,38 @@
+{
+  "task": "add_policy_battery_wear",
+  "repeat": 3,
+  "success": true,
+  "cost_usd": 0.01415485,
+  "turns": 15,
+  "report": "I set the battery's discharge cost to $0.01/kWh and saved it. HAEO confirmed \"Configuration updated successfully.\" There is a possible double-count that I could not resolve from the UI (see below).\n\n**What I did**\n- Opened the Battery element under the Home hub, went to Pricing, and set **Discharge cost** to a fixed value of 0.01 $/kWh.\n- Submitted the form.\n- HAEO then showed a new **Policies** entry with one policy, \"Battery discharge cost\": Source = Battery element, Target = Any, Price = 0.01 $/kWh. I opened it to look and closed it without changes.\n\nThat policy is what makes the cost apply wherever the battery's energy goes, since its target is \"Any.\"\n\n**Open issue: possible double-count**\n- The battery's own Discharge cost field and the auto-created policy both show 0.01.\n- If HAEO applies both, each discharged kWh would be charged $0.02 instead of $0.01.\n- I could not tell from the UI which one HAEO uses. I left both in place rather than delete something I don't understand. Check the optimizer's results or the policy's effect before relying on this.\n\n**Points where I hesitated, was unsure, or made a mistake**\n- I was unsure whether the battery's Discharge cost field alone covers all discharge destinations. I chose it because it sits on the battery itself, and the policy HAEO created later confirms the \"any target\" behaviour.\n- The policy appeared without my asking for it. I did not expect HAEO to create a second object from a single field, and that is where the double-count risk comes from.\n- I did not confirm the units beyond the \"$/kWh\" label HAEO displays. I assumed the field takes $/kWh, as the other price sensors do.\n- I did not verify the optimizer's actual behaviour (for example, by checking a plan's cost), so the result is confirmed only as saved configuration.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "policy",
+    "name": "Policies",
+    "rules": [
+      {
+        "name": "Battery discharge cost",
+        "enabled": {
+          "type": "constant",
+          "value": true
+        },
+        "price": {
+          "type": "constant",
+          "value": 0.01
+        },
+        "source": [
+          "Battery"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "message": "Set the Battery's Discharge cost to 0.01 $/kWh (fixed value) on the Home hub's Battery element and saved; HAEO confirmed 'Configuration updated successfully'. HAEO also created a Policy named 'Battery discharge cost' (Source: Battery element, Target: Any, Price 0.01 $/kWh), which is what applies the cost wherever the battery's energy goes. I did not edit or delete that policy. Possible double-count: both the battery field and the auto-created policy are at 0.01, so a discharged kWh may be charged 0.02 if both are applied; I could not verify from the UI which one HAEO uses.",
+  "actions": 11,
+  "looks": 1,
+  "screenshots": 1,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 30.9
+}

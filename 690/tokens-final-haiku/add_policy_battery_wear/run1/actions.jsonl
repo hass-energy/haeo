@@ -1,0 +1,19 @@
+{"t": 2.8, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 6.0, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 8.3, "command": "type", "args": ["f2e657", "0.01"], "error": null, "visible_errors": 0}
+{"t": 9.5, "command": "click", "args": ["f2e676"], "error": null, "visible_errors": 0}
+{"t": 11.8, "command": "click", "args": ["f2e672"], "error": null, "visible_errors": 0}
+{"t": 13.2, "command": "click", "args": ["f2e696"], "error": null, "visible_errors": 0}
+{"t": 13.4, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 15.9, "command": "click", "args": ["f2e701"], "error": null, "visible_errors": 0}
+{"t": 17.7, "command": "click", "args": ["f2e774"], "error": null, "visible_errors": 0}
+{"t": 20.2, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 21.4, "command": "click", "args": ["f2e782"], "error": null, "visible_errors": 0}
+{"t": 27.8, "command": "click", "args": ["f2e754"], "error": null, "visible_errors": 0}
+{"t": 28.2, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 29.6, "command": "click", "args": ["f2e171"], "error": null, "visible_errors": 0}
+{"t": 34.7, "command": "click", "args": ["f2e1088"], "error": null, "visible_errors": 0}
+{"t": 36.2, "command": "press", "args": ["Escape"], "error": null, "visible_errors": 0}
+{"t": 37.5, "command": "click", "args": ["f2e1106"], "error": null, "visible_errors": 0}
+{"t": 38.6, "command": "click", "args": ["f2e1130"], "error": null, "visible_errors": 0}
+{"t": 42.1, "command": "done", "args": ["Battery wear cost is set: every kWh discharged from the Battery now costs 0.01 $/kWh, via the HAEO Policy 'Battery discharge cost' (Source: Battery, Target: Any, Price: 0.01 $/kWh). I first set the Battery element's own Discharge cost to 0.01, which created that policy; to avoid counting the cost twice, I cleared the Battery's Discharge cost field. The Policies element still exists with its 2 entities. Not re-verified after the clear: the policy's exact fields (I checked them before clearing the battery field)."], "error": null, "visible_errors": 0}

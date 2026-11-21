@@ -1,0 +1,38 @@
+{
+  "task": "add_load_constant",
+  "repeat": 2,
+  "success": true,
+  "cost_usd": 0.1122206,
+  "turns": 12,
+  "report": "I added \"Pool pump\" to the Home hub as a Load with a fixed 0.8 kW forecast. After I submitted it, HAEO showed \"Created configuration for Pool pump.\" The hub list now includes it, with 12 entities.\n\nI connected it to the Switchboard and left \"Allow shedding\" off, which was the default. That means HAEO won't switch the pump off to save money, which matches a pump that runs all the time.\n\nPoints where I hesitated or made a mistake:\n- **Connection choice:** The form defaulted to Inverter, with Switchboard as the only other option. I picked Switchboard because it seemed the right place for a household AC load. I couldn't confirm how the existing \"Load\" is connected, so this is a judgement call.\n- **Parallel commands:** I ran two commands at once early on, and the connection dropdown and forecast field interfered with each other. I redid both steps one at a time. The saved result has the right values.\n- **Unchecked sections:** I opened the Shedding section only to check its defaults. I didn't touch the optional \"Consumption cost\" field.",
+  "driver_error": null,
+  "problems": [],
+  "result_data": {
+    "element_type": "load",
+    "name": "Pool pump",
+    "forecast": {
+      "forecast": {
+        "type": "constant",
+        "value": 0.8
+      }
+    },
+    "curtailment": {
+      "curtailment": {
+        "type": "constant",
+        "value": false
+      }
+    },
+    "connection": {
+      "type": "connection_target",
+      "value": "Switchboard"
+    }
+  },
+  "status": "done",
+  "message": "Added a Load element named 'Pool pump' with a fixed forecast of 0.8 kW, connected to Switchboard, shedding off. It now appears under Home (12 entities).",
+  "actions": 10,
+  "looks": 1,
+  "screenshots": 0,
+  "failed_commands": 0,
+  "errors_shown": 0,
+  "seconds": 19.3
+}

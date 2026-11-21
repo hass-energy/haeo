@@ -1,0 +1,8 @@
+{"t": 2.1, "command": "look", "args": [], "error": null, "visible_errors": 0}
+{"t": 3.3, "command": "click", "args": ["f2e114"], "error": null, "visible_errors": 0}
+{"t": 4.8, "command": "click", "args": ["f2e466"], "error": null, "visible_errors": 0}
+{"t": 10.6, "command": "type", "args": ["f2e466", "energy_production"], "error": null, "visible_errors": 0}
+{"t": 12.4, "command": "click", "args": ["f2e686"], "error": null, "visible_errors": 0}
+{"t": 14.5, "command": "click", "args": ["f2e475"], "error": null, "visible_errors": 0}
+{"t": 15.7, "command": "click", "args": ["f2e982"], "error": null, "visible_errors": 0}
+{"t": 17.4, "command": "done", "args": ["Added a Solar element to the Home HAEO hub, named 'Solar', connected to the Inverter, with all 32 Forecast.Solar energy production sensors (east, north, south, west; today, tomorrow, day after tomorrow, and 3 to 7 days out). The Solar device now appears under the hub with 4 entities."], "error": null, "visible_errors": 0}
