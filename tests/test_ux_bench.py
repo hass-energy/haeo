@@ -70,6 +70,14 @@ def test_task_is_consistent(task: Task) -> None:
 
 
 @pytest.mark.parametrize("task", ALL_TASKS, ids=lambda task: task["id"])
+def test_task_runs_in_its_mode(task: Task) -> None:
+    """A task marked advanced runs on a hub in advanced mode, and any other outside it."""
+    advanced = hub_config(task)["advanced"]
+    assert isinstance(advanced, dict)
+    assert advanced["advanced_mode"] is task.get("advanced", False)
+
+
+@pytest.mark.parametrize("task", ALL_TASKS, ids=lambda task: task["id"])
 def test_world_has_every_entity_the_task_expects(task: Task) -> None:
     """Every entity a task expects the agent to pick exists in its scenario's world."""
     entity_ids = {str(state["entity_id"]) for state in world_states(task)}
@@ -145,6 +153,26 @@ def test_evaluate_add_passes() -> None:
 def test_evaluate_add_fails(after: Subentries) -> None:
     """A missing, wrong, duplicated, or collateral change fails."""
     assert evaluate(ADD_TASK, BEFORE, after)["success"] is False
+
+
+def test_evaluate_treats_a_stored_none_as_a_missing_field() -> None:
+    """Re-saving a subentry that writes none where a field was missing changes nothing."""
+    after = {**BEFORE, "new": PUMP, "bat": _sub("battery", "Battery", {"min": 5, "salvage": {"type": "none"}})}
+    assert evaluate(ADD_TASK, BEFORE, after)["success"] is True
+
+
+@pytest.mark.parametrize(
+    ("level", "success"),
+    [
+        pytest.param({"type": "none"}, True, id="stored-none"),
+        pytest.param({"type": "constant", "value": 24.0}, False, id="set"),
+    ],
+)
+def test_evaluate_matches_an_absent_field_stored_as_none(level: JsonValueType, *, success: bool) -> None:
+    """A field the task expects left empty may be stored as none, but not with a value."""
+    task: Task = {**ADD_TASK, "expect": {**ADD_TASK["expect"], "data": {"forecast": 1.0, "level": {"$absent": True}}}}
+    after = {**BEFORE, "new": _sub("load", "Pump", {"forecast": 1.0, "level": level})}
+    assert evaluate(task, BEFORE, after)["success"] is success
 
 
 def test_evaluate_edit() -> None:

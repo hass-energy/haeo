@@ -64,7 +64,7 @@ class NodeSubentryFlowHandler(ElementSubentryFlow):
             build_section_schema(
                 sections,
                 field_entries,
-                top_level_entries=build_common_fields(include_connection=False),
+                top_level_entries=build_common_fields(),
             )
         )
 

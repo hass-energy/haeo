@@ -1,0 +1,32 @@
+{
+  "advanced": true,
+  "expect": {
+    "data": {
+      "endpoints": {
+        "source": {
+          "type": "connection_target",
+          "value": "Inverter"
+        },
+        "target": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        }
+      },
+      "segments": [
+        {
+          "max_power": {
+            "type": "constant",
+            "value": 10.0
+          },
+          "segment_type": "power_limit"
+        }
+      ]
+    },
+    "element_type": "connection",
+    "kind": "add"
+  },
+  "goal": "The cable from your inverter to the switchboard is rated for at most 10 kW from the inverter to the switchboard. Add a connection to HAEO from the Inverter to the Switchboard with that limit.",
+  "id": "add_connection_raw",
+  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar", "Load"],
+  "scenario": "scenario6"
+}

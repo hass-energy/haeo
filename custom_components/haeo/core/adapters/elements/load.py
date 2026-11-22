@@ -84,6 +84,8 @@ class LoadAdapter:
     can_source: bool = False
     can_sink: bool = True
     switchboard: bool = False
+    dc: bool = False
+    dc_bus: bool = False
     device_names: frozenset[LoadDeviceName] = LOAD_DEVICE_NAMES
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_LOADS})
 

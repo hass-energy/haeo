@@ -17,7 +17,7 @@ from custom_components.haeo.core.data.loader.extractors.haeo import Interpolatio
 from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo, list_item_placeholders
 from custom_components.haeo.entities.input_attributes import held_reading_attributes
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
@@ -107,17 +107,7 @@ class HaeoInputNumber(NumberEntity):
 
         placeholders = build_translation_placeholders(subentry)
 
-        # For list item fields, add the item's name as a placeholder
-        if len(self._field_path) > 1:
-            list_key, index_str, *_ = self._field_path
-            try:
-                items = subentry.data.get(list_key)
-                if isinstance(items, (list, tuple)):
-                    item = items[int(index_str)]
-                    if isinstance(item, Mapping) and "name" in item:
-                        placeholders["rule_name"] = str(item["name"])
-            except (ValueError, IndexError, KeyError):
-                pass
+        placeholders.update(list_item_placeholders(subentry.data, self._field_path))
 
         self._attr_translation_placeholders = placeholders
 

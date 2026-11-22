@@ -90,6 +90,25 @@ async def test_build_inclusion_map_includes_compatible_units(
     assert inclusion_map["field"] == ["sensor.compatible"]
 
 
+def test_build_inclusion_map_offers_only_entities_in_the_field_domains() -> None:
+    """A field with a unit offers only compatible entities in its domains; one without a unit is left out."""
+    entity_metadata = [
+        EntityMetadata(entity_id="sensor.mode", unit_of_measurement=None),
+        EntityMetadata(entity_id="sensor.power", unit_of_measurement="kW"),
+        EntityMetadata(entity_id="binary_sensor.plugged_in", unit_of_measurement=None),
+        EntityMetadata(entity_id="number.power_limit", unit_of_measurement="kW"),
+        EntityMetadata(entity_id="switch.charger", unit_of_measurement=None),
+        EntityMetadata(entity_id="climate.heater", unit_of_measurement="kW"),
+        EntityMetadata(entity_id="light.porch", unit_of_measurement=None),
+    ]
+
+    inclusion_map = build_inclusion_map(
+        {"power": _field("power", OutputType.POWER), "status": _field("status", OutputType.STATUS)}, entity_metadata
+    )
+
+    assert inclusion_map == {"power": ["sensor.power", "number.power_limit"]}
+
+
 @pytest.mark.parametrize(
     ("time_series", "expected"),
     [

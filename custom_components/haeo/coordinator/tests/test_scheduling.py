@@ -817,7 +817,7 @@ async def test_horizon_roll_applies_every_reloaded_input_in_one_optimization(
     rolled = tuple(t + 300.0 for t in horizon_manager.get_forecast_timestamps())
     with (
         patch.object(horizon_manager, "get_forecast_timestamps", return_value=rolled),
-        patch.object(coordinator, "_load_from_input_stores", return_value=dict.fromkeys(updaters)),
+        patch.object(coordinator, "loaded_configs", return_value=dict.fromkeys(updaters)),
     ):
         horizon_manager._async_scheduled_update(dt_util.utcnow())
         await hass.async_block_till_done()

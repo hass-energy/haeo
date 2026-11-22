@@ -21,6 +21,7 @@ from custom_components.haeo.core.schema.elements.battery import (
 from custom_components.haeo.core.schema.elements.battery_section import CONF_INITIAL_CHARGE, BatterySectionConfigData
 from custom_components.haeo.core.schema.elements.buffer import KIND_RESERVE, BufferConfigData
 from custom_components.haeo.core.schema.elements.connection import (
+    CONF_SEGMENTS,
     CONF_SOURCE,
     CONF_TARGET,
     SECTION_ENDPOINTS,
@@ -255,9 +256,7 @@ def _connection(name: str, source: str, target: str) -> ConnectionConfigData:
             CONF_SOURCE: as_connection_target(source),
             CONF_TARGET: as_connection_target(target),
         },
-        SECTION_POWER_LIMITS: {},
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
+        CONF_SEGMENTS: [],
     }
 
 

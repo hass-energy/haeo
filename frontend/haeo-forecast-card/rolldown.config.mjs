@@ -35,8 +35,8 @@ const browserTreeshake = {
   },
 };
 
-// Each card is built as its own independent bundle and registered as its own
-// Home Assistant Lovelace resource, so a stale or missing copy of one card can
+// Each card, and the config flow selectors, is built as its own independent bundle
+// and registered as its own Home Assistant frontend module, so a stale or missing copy of one card can
 // never break registration of the other.
 //
 // Within a card bundle, the registered entry is a tiny element that calls
@@ -74,6 +74,20 @@ export default defineConfig([
       sourcemap: false,
       minify: true,
       codeSplitting: true,
+    },
+  },
+  {
+    input: resolve(rootDir, "src/selectors-entry.ts"),
+    platform: "browser",
+    treeshake: browserTreeshake,
+    output: {
+      dir: outDir,
+      format: "esm",
+      entryFileNames: "haeo-selectors.min.js",
+      chunkFileNames: "haeo-selectors.[name].js",
+      sourcemap: false,
+      minify: true,
+      codeSplitting: false,
     },
   },
   {

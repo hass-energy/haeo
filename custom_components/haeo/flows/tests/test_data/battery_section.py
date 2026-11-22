@@ -8,8 +8,7 @@ from custom_components.haeo.core.schema.elements.battery_section import (
     SECTION_STORAGE,
 )
 
-# Test data for battery_section flow - single-step with choose selector
-# config: Contains all field values in choose selector format
+# Each config is both what the battery_section form submits and what its subentry stores
 VALID_DATA = [
     {
         "description": "Battery section with sensor entities",

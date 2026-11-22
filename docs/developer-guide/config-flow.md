@@ -137,32 +137,74 @@ An element that applies its own prices, forecasts, limits, or efficiencies on it
 Existing configurations that already connect to a `NEVER` element are reported through the `invalid_connection_endpoints` repair issue.
 `find_invalid_connection_endpoints()` in `validation.py` reads endpoints from the model connections each adapter produces, so it checks every element type the same way.
 
-## ChooseSelector config flow pattern
+## Input selector
 
-Element types use a sectioned configuration flow with Home Assistant's `ChooseSelector`.
-This selector provides a dropdown letting users pick between different input methods for each field.
+Every input field of an element form is an `InputSelector` (selector type `haeo_input`), defined in [`flows/input_selector.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/input_selector.py).
+Home Assistant renders a selector of type `X` as the custom element `ha-selector-X`, so the form shows `ha-selector-haeo_input` from HAEO's selector bundle, which the integration loads into the frontend beside its cards.
+The element's source is in [`frontend/haeo-forecast-card/src/selectors/`](https://github.com/hass-energy/haeo/tree/main/frontend/haeo-forecast-card/src/selectors).
 
-### Input options
+### What the field stores
 
-Each configurable field uses a `ChooseSelector` with these options:
+The element reports each value in the form HAEO stores, so the flow saves what it receives:
 
-| Choice   | Description                              | Storage format                       |
-| -------- | ---------------------------------------- | ------------------------------------ |
-| Entity   | Value comes from Home Assistant sensors  | `{"type": "entity", "value": [...]}` |
-| Constant | User enters a fixed value directly       | `{"type": "constant", "value": ...}` |
-| None     | Field is not used (optional fields only) | `{"type": "none"}`                   |
+| Value         | Storage format                       |
+| ------------- | ------------------------------------ |
+| Entities      | `{"type": "entity", "value": [...]}` |
+| A fixed value | `{"type": "constant", "value": ...}` |
+| Nothing       | `{"type": "none"}`                   |
 
-Required fields offer "Entity" and "Constant" choices.
-Optional fields also include "None" to skip the constraint entirely.
+The selector config lists the kinds a field accepts, whether its fixed value is a number or on/off, the number's limits and unit (taken from the field's number entity), and the entities it offers.
+A field offers the entities in its domains, or only the compatible ones that `build_inclusion_map()` lists for a field with a unit, a calendar, or a meter.
+The config's `forecasts` maps the offered entities a field feeding a time series reads as forecasts, which are those `carries_forecast()` recognizes, to a preview of each from now; it is empty for a scalar field, which reads every entity's current value.
+`extract_entity_metadata()` builds the previews with `forecast_preview()` from the same extraction that finds each entity's unit, so the sparklines show what the loaders read.
+`InputSelector.__call__` validates a submitted value, rejecting entities the field does not offer, and turns an empty entity list into none.
+Whether a required field has a value is checked by the flow instead, so the error can name its section.
 
-### Sectioned flow
+### How the field behaves
 
-Most elements configure all inputs in a single step:
+The element is a token input with no instructional text.
+Typing filters the offered entities, and a typed number is offered as a fixed value above them, disabled when it is outside the field's range.
+Every chip and choice starts with a readout of the same size, showing the value it gives: a forecast's sparkline, the current value of an entity read as its current value, or the fixed value on a tint, with values rounded to fit and their unit beneath.
+The readout's accessible label carries the full value.
+A forecast with nothing to preview, such as a calendar, shows a chart icon instead.
+The list marks entities the same way, so forecasts and current values appear side by side.
+The list offers what can still be added: picking an entity adds it as a chip, and chosen entities leave the list until their chip is removed.
+An **Add all** row naming the count adds every entity the list shows, and chosen entities keep the order they were added in.
+Words appear only as accessible labels, the **Fixed value** label beside a fixed value's readout, and the On and Off of an on/off field.
 
-1. User enters element name and connection target
-2. For each input field, user selects "Entity", "Constant", or "None"
-3. Based on selection, user either picks entities from a dropdown or enters a constant value inline
-4. Submit creates the element with all configuration
+A field feeding one time series input carries a `preview` config: the hub's entry ID, the field's output type, and whether its values sit at boundaries.
+With those and the chosen entities, the element calls the `haeo/input_preview` websocket command in `websocket.py`, which runs `load_fused_sensors()`, the loader's own step for time series inputs, on the hub's horizon.
+The element draws the result under the chips: the value for now in a readout, then the combined forecast against time, with its range in the accessible label.
+
+Every input opens with a value, as Home Assistant's form cannot start a required field of a selector it does not know without one.
+An existing element's field opens with what it stores, and `{"type": "none"}` when it stores nothing, so saving its form unchanged changes nothing; a new element's field opens with its default.
+
+The element's labels live in `en.json` under `selector.input.options`.
+It reads them with `hass.localize` and fills their placeholders itself, and `InputSelector.translation_strings()` lists each label with those placeholders so the translation tests check them.
+
+### Connection selector
+
+An element's connection field is a `ConnectionSelector` (selector type `haeo_connection`), defined in [`flows/connection_selector.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/connection_selector.py) and rendered by `ha-selector-haeo_connection` from the same bundle.
+It shows each element the new one can connect to as a bus, with the elements already connected to it, and the new element on the chosen bus.
+A bus is marked with its kind only when HAEO knows it: a target whose adapter has `dc_bus` set, such as an inverter, is a DC bus, and outside advanced mode the only element that can be the switchboard is the hub's own, the home's AC bus.
+In advanced mode, junctions and nodes are the user's own and may be either, so they are shown by their element's icon.
+A new element connects by default to a bus of its kind (DC when its adapter's `dc` attribute says its equipment is DC, such as a battery or solar panels, and AC otherwise), then to a bus of unknown kind, and only then to one of the other kind.
+
+### Connection path selector
+
+A connection element's endpoints and segments are one field, a `ConnectionPathSelector` (selector type `haeo_connection_path`) in [`flows/connection_path_selector.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/connection_path_selector.py), rendered by `ha-selector-haeo_connection_path`.
+It shows the connection as a chain from the source, through each segment in the order it applies, to the target, with a **+** on each link to insert a segment and controls on each segment to move or remove it.
+Its config lists the elements that can be endpoints and, for each kind of segment, the field it sets and that field's input selector config, so each segment edits its value with the same element as any other input.
+The selector validates the endpoints and each segment's value, and the flow saves them as the connection's `endpoints` and ordered `segments`.
+
+The segments are a list field: `ListFieldHints` on the schema names `segment_type` as the list's `kind_key`, and `kind_fields` gives each kind's one field, so each segment gets an input entity for its own field only.
+
+### Policy rules selector
+
+The policy element's rules are one field, a `PolicyRulesSelector` (selector type `haeo_policy_rules`) in [`flows/policy_rules_selector.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/policy_rules_selector.py), rendered by `ha-selector-haeo_policy_rules`.
+Adding a policy and reconfiguring the policies open the same form listing every rule as a card, adding with a new rule at the end.
+Its config lists the elements each end can name (by whether they source or sink power), the price input's config, and the patterns elements' own price fields stand for, so a card for such a rule shows the element that owns it.
+The selector validates endpoints and prices, and the flow checks names and duplicate patterns across rules.
 
 ### UI sections
 
@@ -174,34 +216,27 @@ When using sections, translation strings for labels must live under
 The name and connection fields are top-level form fields, so their labels live under `step.<step_id>.data`.
 
 The Home Assistant frontend only shows errors keyed by `base` or by a top-level form field, not by a field inside a section.
-`validate_sectioned_choose_fields()` therefore keys each error by its section, which shows it above that section.
+`validate_sectioned_input_fields()` therefore keys each error by its section, which shows it above that section.
 An error keyed by a field inside a section would re-show the form with no visible message.
 
 ### Implementation pattern
 
-The ChooseSelector utilities are in [`flows/field_schema.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/field_schema.py):
+The form helpers are in [`flows/field_schema.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/flows/field_schema.py):
 
-- `build_choose_schema_entry()`: Creates the ChooseSelector with entity/constant/none options
-- `build_choose_selector()`: Builds the selector with proper choice ordering
-- `get_preferred_choice()`: Determines which choice comes first from the value the form shows, or the field's defaults when it shows none
-- `get_choose_default()`: Provides default values for the nested selector
-- `convert_choose_data_to_config()`: Converts ChooseSelector output to final config format
-- `preprocess_sectioned_choose_input()`: Normalizes sectioned ChooseSelector input
-- `validate_sectioned_choose_fields()`: Validates sectioned choose fields before conversion
-- `convert_sectioned_choose_data_to_config()`: Converts sectioned ChooseSelector data into sectioned config
+- `build_input_selector()`: Builds a field's selector from its field info, kinds and offered entities
+- `build_sectioned_input_schema()`: Builds the sectioned form with an input selector per field
+- `build_sectioned_input_defaults()`: Gives every input the value it opens with, using `get_input_default()`
+- `validate_sectioned_input_fields()`: Reports a required field submitted without a value, keyed by its section
+- `convert_sectioned_input_to_config()`: Returns the submitted sections as config
 
-The choice ordering in `ChooseSelector` determines the pre-selected option, and Home Assistant applies a field's suggested value to the first choice only.
-Every choose field therefore follows one rule: the first choice is the one holding the value the form shows.
-A form shows the stored values when it opens and the submitted input when it is shown again with an error, and its flow passes those same values to `get_preferred_choice()`.
-That function reads both forms of a value: a stored entity, constant, or none, and a submitted list of entity IDs, number, or nothing.
-Element forms, the pricing fields they surface from policy rules, and the policy rule price all build their selectors this way.
+Element forms, the pricing fields they surface from policy rules, and the policy rule price all build their inputs this way.
 
 ### Entity creation
 
-HAEO creates an input entity (number or switch) for every field configured with "Entity" or "Constant".
-A constant field's entity is editable, so its value can be adjusted at runtime without reconfiguring the element.
+HAEO creates an input entity (number or switch) for every field set to entities or a fixed value.
+A fixed value's entity is editable, so its value can be adjusted at runtime without reconfiguring the element.
 An entity field's entity is driven by its source sensors and shows the value HAEO loaded from them.
-Fields configured with "None" get no input entity.
+Fields left without a value get no input entity.
 
 ## Field schema system
 
@@ -231,7 +266,7 @@ Each element type has two TypedDict definitions in `core/schema/elements/<elemen
 **Data mode** (`*ConfigData`): What the adapters and optimizer use
 
 - Each input field holds its loaded value: a float, a bool, or a NumPy array over the horizon
-- A field configured as "None" takes its field's default, such as 100% efficiency, or is left out when it has none
+- A field left without a value takes its field's default, such as 100% efficiency, or is left out when it has none
 
 `GridConfigSchema` and `GridConfigData` in [`core/schema/elements/grid.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/schema/elements/grid.py) are a small example of the pair.
 `is_element_config_schema()` in [`core/schema/elements/conformance.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/schema/elements/conformance.py) checks that stored data conforms to its element type's schema.
@@ -257,8 +292,8 @@ A new kind of field is usually a new `OutputType` or a new hint attribute rather
 
 The schema system integrates with data loading:
 
-1. The user picks "Entity", "Constant", or "None" for each field, and the config flow stores the schema value (Schema mode)
-2. `validate_sectioned_choose_fields()` checks the input before it is stored
+1. The user sets each field to entities, a fixed value, or nothing, and the config flow stores the schema value (Schema mode)
+2. `validate_sectioned_input_fields()` checks the input before it is stored
 3. At setup, each entity or constant field gets an input store, which resolves its value with `resolve_field` as its field hint directs
 4. The coordinator assembles each element's Data mode config from the stores' resolved values with `load_element_config_from_values`
 5. Adapters receive the Data mode config and create model elements

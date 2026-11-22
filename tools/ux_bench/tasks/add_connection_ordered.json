@@ -1,0 +1,39 @@
+{
+  "advanced": true,
+  "expect": {
+    "data": {
+      "endpoints": {
+        "source": {
+          "type": "connection_target",
+          "value": "Inverter"
+        },
+        "target": {
+          "type": "connection_target",
+          "value": "Switchboard"
+        }
+      },
+      "segments": [
+        {
+          "efficiency": {
+            "type": "constant",
+            "value": 96.0
+          },
+          "segment_type": "efficiency"
+        },
+        {
+          "max_power": {
+            "type": "constant",
+            "value": 8.0
+          },
+          "segment_type": "power_limit"
+        }
+      ]
+    },
+    "element_type": "connection",
+    "kind": "add"
+  },
+  "goal": "Power from your inverter reaches the switchboard through a transformer that loses 4% of it. The switchboard side of the transformer is fused at 8 kW, so no more than 8 kW may arrive at the switchboard. Add a connection to HAEO from the Inverter to the Switchboard that models this.",
+  "id": "add_connection_ordered",
+  "participants": ["Grid", "Inverter", "Switchboard", "Battery", "Solar", "Load"],
+  "scenario": "scenario6"
+}

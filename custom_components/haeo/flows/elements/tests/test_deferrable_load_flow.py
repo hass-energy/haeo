@@ -9,7 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo.core.const import CONF_NAME
-from custom_components.haeo.core.schema import as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
@@ -32,9 +32,9 @@ def _user_input(**overrides: object) -> dict[str, object]:
     data: dict[str, object] = {
         CONF_NAME: "Pool Pump",
         CONF_CONNECTION: "TestNode",
-        SECTION_SCHEDULE: {CONF_WINDOW_CALENDAR: ["calendar.pool_pump"]},
-        SECTION_PRICING: {CONF_DEFICIT_PRICE: 10.0, CONF_OVERAGE_PRICE: 0.0},
-        SECTION_POWER: {CONF_MAX_POWER: 1.5},
+        SECTION_SCHEDULE: {CONF_WINDOW_CALENDAR: as_entity_value(["calendar.pool_pump"])},
+        SECTION_PRICING: {CONF_DEFICIT_PRICE: as_constant_value(10.0), CONF_OVERAGE_PRICE: as_constant_value(0.0)},
+        SECTION_POWER: {CONF_MAX_POWER: as_constant_value(1.5)},
     }
     data.update(overrides)
     return data
@@ -44,7 +44,7 @@ async def test_user_step_creates_entry_with_calendar(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Submitting stores the calendar schema value and constants."""
+    """Submitting stores the calendar and constants as submitted."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -54,9 +54,10 @@ async def test_user_step_creates_entry_with_calendar(
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
     data = flow.async_create_entry.call_args.kwargs["data"]
-    assert data[SECTION_SCHEDULE][CONF_WINDOW_CALENDAR] == as_entity_value(["calendar.pool_pump"])
-    assert data[SECTION_PRICING][CONF_DEFICIT_PRICE] == as_constant_value(10.0)
-    assert data[SECTION_POWER][CONF_MAX_POWER] == as_constant_value(1.5)
+    user_input = _user_input()
+    assert {section: data[section] for section in (SECTION_SCHEDULE, SECTION_PRICING, SECTION_POWER)} == {
+        section: user_input[section] for section in (SECTION_SCHEDULE, SECTION_PRICING, SECTION_POWER)
+    }
 
 
 async def test_missing_calendar_is_an_error(
@@ -68,7 +69,7 @@ async def test_missing_calendar_is_an_error(
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    result = await flow.async_step_user(user_input=_user_input(schedule={CONF_WINDOW_CALENDAR: None}))
+    result = await flow.async_step_user(user_input=_user_input(schedule={CONF_WINDOW_CALENDAR: as_none_value()}))
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {SECTION_SCHEDULE: "required"}

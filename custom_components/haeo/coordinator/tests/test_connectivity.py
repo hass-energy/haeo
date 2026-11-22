@@ -11,6 +11,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, C
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import (
+    CONF_SEGMENTS,
     CONF_SOURCE,
     CONF_TARGET,
     SECTION_ENDPOINTS,
@@ -23,7 +24,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
-    SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
@@ -123,9 +123,7 @@ async def test_evaluate_network_connectivity_resolves_issue(
             CONF_SOURCE: as_connection_target("Node A"),
             CONF_TARGET: as_connection_target("Node B"),
         },
-        SECTION_POWER_LIMITS: {},
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
+        CONF_SEGMENTS: [],
     }
     participants["A to B"] = connection
 
@@ -162,9 +160,7 @@ async def test_evaluate_network_connectivity_flags_closed_endpoints(
             CONF_SOURCE: as_connection_target("Grid"),
             CONF_TARGET: as_connection_target("Node A"),
         },
-        SECTION_POWER_LIMITS: {},
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
+        CONF_SEGMENTS: [],
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Grid": grid, "Bypass": bypass}
     issue_id = f"invalid_connection_endpoints_{config_entry.entry_id}"

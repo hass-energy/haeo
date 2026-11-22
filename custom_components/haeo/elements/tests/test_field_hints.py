@@ -45,6 +45,26 @@ def test_build_list_input_fields_creates_entities_for_all_items() -> None:
     assert "price" in result["rules.1"]
 
 
+def test_build_list_input_fields_gives_each_item_the_fields_of_its_kind() -> None:
+    """A list whose items have kinds gives each item only its kind's fields, whatever else it holds."""
+    hints = ListFieldHints(
+        fields={
+            "max_power": FieldHint(output_type=OutputType.POWER_LIMIT),
+            "price": FieldHint(output_type=OutputType.PRICE),
+        },
+        kind_key="segment_type",
+        kind_fields={"power_limit": ("max_power",), "pricing": ("price",)},
+    )
+    items = [{"segment_type": "pricing", "max_power": 1.0}, {"segment_type": "power_limit"}, {"segment_type": "other"}]
+
+    result = build_list_input_fields("connection", "segments", hints, items)
+
+    assert {section: list(fields) for section, fields in result.items()} == {
+        "segments.0": ["price"],
+        "segments.1": ["max_power"],
+    }
+
+
 def test_build_list_input_fields_empty_list() -> None:
     """Empty item list produces empty result."""
     hints = ListFieldHints(fields={"price": FieldHint(output_type=OutputType.PRICE)})

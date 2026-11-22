@@ -22,10 +22,10 @@ A battery in HAEO represents:
 ### Configuration process
 
 Battery configuration uses a sectioned flow where you enter the name, connection, and configure each input field.
-For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
+Each [input field](../configuration.md#input-fields) takes an entity, a fixed value, or, for optional fields, is left not set.
 
-Each field you configure creates an input entity; those set to "Constant" can be adjusted at runtime without reconfiguring.
-Optional fields set to "None" are omitted from the optimization entirely.
+Each field you set creates an [input entity](#input-entities); those set to a fixed value can be adjusted at runtime without reconfiguring.
+Optional fields left not set are omitted from the optimization entirely.
 
 ## Configuration fields
 
@@ -69,7 +69,7 @@ The optimizer uses this value when calculating state of charge.
 
 ### Current charge percentage
 
-Select the Home Assistant sensor that reports the battery's current SOC.
+Choose the Home Assistant sensor that reports the battery's current SOC.
 HAEO expects values between 0 and 100.
 
 ### Min and max charge percentage
@@ -188,7 +188,7 @@ Their IDs combine the battery's name with the entity's name, so a battery named 
 | `number.{name}_charge_cost`          | \$/kWh   | Charge cost (if configured)          |
 | `number.{name}_discharge_cost`       | \$/kWh   | Discharge cost (if configured)       |
 
-A field set to "Constant" can be adjusted from its input entity at runtime.
+A field set to a fixed value can be adjusted from its input entity at runtime.
 A field linked to sensors shows the values HAEO reads from them.
 
 The charge and discharge cost inputs are surfaced from the [policy](../../walkthroughs/power-policies.md) rules they create.

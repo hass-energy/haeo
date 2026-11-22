@@ -64,6 +64,7 @@ from custom_components.haeo.util import (
     network_subentry,
     remove_deleted_elements_rules,
 )
+from custom_components.haeo.websocket import async_register_websocket_commands
 
 from . import migrations as _migrations
 
@@ -103,10 +104,11 @@ CARD_STATIC_DIR = Path(__file__).parent / STATIC_CARD_STATIC_DIR
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     """Set up the HAEO integration.
 
-    Registers domain-level services that are available even before any config entries are loaded.
+    Registers domain-level services and websocket commands that are available even before any config entries are loaded.
     """
     await _async_register_static_frontend_resources(hass)
     await async_setup_services(hass)
+    async_register_websocket_commands(hass)
     return True
 
 
@@ -124,10 +126,10 @@ def card_static_url(static_dir: Path) -> str:
 
 
 async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None:
-    """Register static frontend resources used by custom Lovelace cards.
+    """Register HAEO's frontend bundles: its Lovelace cards and the input selector its config flows show.
 
-    Each card bundle is registered as its own independent Lovelace resource so
-    a stale or missing copy of one card cannot break registration of another.
+    Each bundle is registered as its own frontend module so a stale or missing
+    copy of one cannot break registration of another.
     """
     # Some test/headless contexts do not initialize the HTTP component.
     # Use getattr instead of direct access so static registration can be skipped safely.
@@ -148,7 +150,7 @@ async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None
     await http.async_register_static_paths([StaticPathConfig(static_url, str(CARD_STATIC_DIR), cache_headers=True)])
 
     async def _register_card_urls(hass: HomeAssistant, _component: str) -> None:
-        """Register each available card bundle as a Lovelace resource."""
+        """Register each available bundle as a frontend module."""
         for name in available_bundles:
             add_extra_js_url(hass, f"{static_url}/{name}")
 

@@ -6,14 +6,14 @@ from unittest.mock import Mock
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, section
-from homeassistant.helpers.selector import ChooseSelector, SelectSelector
+from homeassistant.helpers.selector import SelectSelector
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 import voluptuous as vol
 
 from conftest import add_participant
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import as_constant_value, as_none_value
+from custom_components.haeo.core.schema import SchemaValue, as_constant_value, as_none_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.buffer import (
     BUFFER_KINDS,
@@ -31,8 +31,10 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_PRICING,
     SECTION_REQUIREMENT,
 )
-from custom_components.haeo.flows.conftest import create_flow
-from custom_components.haeo.flows.field_schema import CHOICE_NONE
+from custom_components.haeo.flows.buffer_preview_selector import BufferPreviewSelector
+from custom_components.haeo.flows.conftest import create_flow, section_suggested_values
+from custom_components.haeo.flows.elements.buffer import CONF_PREVIEW
+from custom_components.haeo.flows.input_selector import InputSelector
 
 
 def _add_elements(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -49,13 +51,15 @@ def _add_elements(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
         add_participant(hass, hub_entry, name, element_type)
 
 
-def _user_input(kind: str = KIND_RESERVE, level: object = 20.0, **participants: list[str]) -> dict[str, object]:
+def _user_input(
+    kind: str = KIND_RESERVE, level: SchemaValue | None = None, **participants: list[str]
+) -> dict[str, object]:
     return {
         CONF_NAME: "Backup",
         CONF_KIND: kind,
         SECTION_PARTICIPANTS: participants,
-        SECTION_REQUIREMENT: {CONF_WINDOW: 12.0, CONF_LEVEL: level},
-        SECTION_PRICING: {CONF_SHORTFALL_COST: 0.05},
+        SECTION_REQUIREMENT: {CONF_WINDOW: as_constant_value(12.0), CONF_LEVEL: level or as_constant_value(20.0)},
+        SECTION_PRICING: {CONF_SHORTFALL_COST: as_constant_value(0.05)},
     }
 
 
@@ -146,8 +150,8 @@ async def test_kind_select_offers_both_kinds_and_defaults_to_reserve(
     assert kind_key.description == {"suggested_value": KIND_RESERVE}
 
 
-async def test_level_offers_none_choice(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """The level is optional, so its selector offers the None choice."""
+async def test_only_the_level_may_be_left_unset(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """The level is optional, so its selector offers leaving it unset, while the window's does not."""
     _add_elements(hass, hub_entry)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
@@ -155,9 +159,10 @@ async def test_level_offers_none_choice(hass: HomeAssistant, hub_entry: MockConf
 
     level = _section_field(result["data_schema"], SECTION_REQUIREMENT, CONF_LEVEL)
     window = _section_field(result["data_schema"], SECTION_REQUIREMENT, CONF_WINDOW)
-    assert isinstance(level, ChooseSelector)
-    assert CHOICE_NONE in level.config["choices"]
-    assert not isinstance(window, ChooseSelector) or CHOICE_NONE not in window.config["choices"]
+    assert isinstance(level, InputSelector)
+    assert isinstance(window, InputSelector)
+    assert "none" in level.config["kinds"]
+    assert "none" not in window.config["kinds"]
 
 
 @pytest.mark.parametrize("kind", BUFFER_KINDS)
@@ -173,14 +178,14 @@ async def test_buffer_needs_a_battery(hass: HomeAssistant, hub_entry: MockConfig
 
 
 @pytest.mark.parametrize(
-    ("level", "expected_level"),
+    "level",
     [
-        pytest.param(20.0, as_constant_value(20.0), id="constant"),
-        pytest.param("", as_none_value(), id="none"),
+        pytest.param(as_constant_value(20.0), id="constant"),
+        pytest.param(as_none_value(), id="none"),
     ],
 )
 async def test_create_stores_kind_and_level(
-    hass: HomeAssistant, hub_entry: MockConfigEntry, level: object, expected_level: object
+    hass: HomeAssistant, hub_entry: MockConfigEntry, level: SchemaValue
 ) -> None:
     """Creating a buffer stores its kind and its level, which may be left unset."""
     _add_elements(hass, hub_entry)
@@ -193,11 +198,11 @@ async def test_create_stores_kind_and_level(
     assert data[CONF_ELEMENT_TYPE] == ELEMENT_TYPE
     assert data[CONF_KIND] == KIND_HEADROOM
     assert data[SECTION_PARTICIPANTS] == {CONF_STORAGE: ["Battery"]}
-    assert data[SECTION_REQUIREMENT] == {CONF_WINDOW: as_constant_value(12.0), CONF_LEVEL: expected_level}
+    assert data[SECTION_REQUIREMENT] == {CONF_WINDOW: as_constant_value(12.0), CONF_LEVEL: level}
 
 
 async def test_reconfigure_keeps_kind_and_participants(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Reconfiguring prefills the stored kind and participants and stores the inputs as schema values."""
+    """Reconfiguring prefills the stored kind, participants and inputs, and stores the submitted values."""
     _add_elements(hass, hub_entry)
     subentry = _add_buffer(
         hass,
@@ -219,6 +224,7 @@ async def test_reconfigure_keeps_kind_and_participants(hass: HomeAssistant, hub_
     schema = form["data_schema"]
     kind_key = _schema_key(schema, CONF_KIND)
     participants = _section_fields(schema, SECTION_PARTICIPANTS)
+    requirement = section_suggested_values(form, SECTION_REQUIREMENT)
     await flow.async_step_reconfigure(
         user_input=_user_input(KIND_HEADROOM, loads=["House"], generation=["Solar"], storage=["Battery"])
     )
@@ -229,7 +235,29 @@ async def test_reconfigure_keeps_kind_and_participants(hass: HomeAssistant, hub_
         CONF_GENERATION: {"suggested_value": []},
         CONF_STORAGE: {"suggested_value": ["Battery"]},
     }
+    assert requirement == {CONF_WINDOW: as_constant_value(6.0), CONF_LEVEL: as_constant_value(90.0)}
     data = flow.async_update_and_abort.call_args.kwargs["data"]
     assert data[CONF_KIND] == KIND_HEADROOM
     assert data[SECTION_PARTICIPANTS] == {CONF_LOADS: ["House"], CONF_GENERATION: ["Solar"], CONF_STORAGE: ["Battery"]}
     assert data[SECTION_REQUIREMENT] == {CONF_WINDOW: as_constant_value(12.0), CONF_LEVEL: as_constant_value(20.0)}
+
+
+async def test_preview_follows_the_fields_it_plans_from_and_is_not_stored(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """The preview is the form's last field, plans in place of the buffer being reconfigured, and holds no config."""
+    _add_elements(hass, hub_entry)
+    subentry = _add_buffer(hass, hub_entry, {**_user_input(storage=["Battery"]), CONF_NAME: "Outage"})
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT})
+
+    form = await flow.async_step_reconfigure(user_input=None)
+    await flow.async_step_reconfigure(user_input={**_user_input(storage=["Battery"]), CONF_PREVIEW: None})
+
+    fields = list(form["data_schema"].schema.items())
+    assert str(fields[-1][0]) == CONF_PREVIEW
+    assert isinstance(fields[-1][1], BufferPreviewSelector)
+    assert fields[-1][1].config == {"entry_id": hub_entry.entry_id, "replaces": "Outage"}
+    assert CONF_PREVIEW not in flow.async_update_and_abort.call_args.kwargs["data"]

@@ -152,7 +152,8 @@ def build_list_input_fields(
     """Transform a list config field into per-item InputFieldInfo groups.
 
     Each item in the list that contains hinted fields gets its own section
-    in the result, keyed as ``"{list_key}.{index}"``.  The field path for
+    in the result, keyed as ``"{list_key}.{index}"``, holding the hinted
+    fields of its kind (see ``ListFieldHints.item_fields``).  The field path for
     entity creation and config loading becomes
     ``(list_key, str(index), field_name)``.
 
@@ -172,7 +173,7 @@ def build_list_input_fields(
         if not isinstance(item, Mapping):
             continue
         section: dict[str, AnyInputFieldInfo] = {}
-        for field_name, hint in list_hints.fields.items():
+        for field_name, hint in list_hints.item_fields(item).items():
             translation_key = f"{element_type}_{field_name}"
             section[field_name] = _build_field_info(field_name, hint, translation_key)
 

@@ -16,7 +16,7 @@ from conftest import add_participant
 from custom_components.haeo import async_update_listener
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.constant_value import ConstantValue
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.battery import (
@@ -50,22 +50,14 @@ from custom_components.haeo.core.schema.elements.load import (
 )
 from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.load import SURFACED_PRICE_HINTS as LOAD_SURFACED_PRICE_HINTS
-from custom_components.haeo.core.schema.elements.policy import (
-    CONF_ENABLED,
-    CONF_PRICE,
-    CONF_RULE_NAME,
-    CONF_RULES,
-    CONF_SOURCE,
-    CONF_TARGET,
-    PolicyRuleConfig,
-)
+from custom_components.haeo.core.schema.elements.policy import CONF_RULES, PolicyRuleConfig
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.entity_value import EntityValue
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_surfaced_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
-from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY, CHOICE_NONE
+from custom_components.haeo.flows.field_schema import selector_context
 from custom_components.haeo.flows.surfaced_policy import (
     POLICIES_TITLE,
     build_surfaced_defaults,
@@ -74,7 +66,6 @@ from custom_components.haeo.flows.surfaced_policy import (
     form_value_to_price,
     get_policy_rules,
     get_surfaced_prices,
-    price_to_form_value,
     save_surfaced_rule,
 )
 from custom_components.haeo.util import remove_deleted_elements_rules
@@ -153,35 +144,19 @@ def test_get_policy_rules_returns_rules(
     assert result[0]["name"] == "test"
 
 
-# --- price_to_form_value / form_value_to_price round-trip tests ---
-
-
-@pytest.mark.parametrize(
-    ("price", "expected_form_value"),
-    [
-        pytest.param(None, None, id="none"),
-        pytest.param(as_constant_value(0.5), 0.5, id="constant"),
-        pytest.param(as_entity_value(["sensor.price"]), ["sensor.price"], id="entity"),
-    ],
-)
-def test_price_to_form_value(price: EntityValue | ConstantValue | None, expected_form_value: object) -> None:
-    """Converts stored prices to form field values."""
-    assert price_to_form_value(price) == expected_form_value
+# --- form_value_to_price tests ---
 
 
 @pytest.mark.parametrize(
     ("form_value", "expected_price"),
     [
-        pytest.param(None, None, id="none"),
-        pytest.param("", None, id="empty_string"),
-        pytest.param([], None, id="empty_list"),
-        pytest.param(0.5, as_constant_value(0.5), id="float"),
-        pytest.param(1, as_constant_value(1.0), id="int"),
-        pytest.param(["sensor.price"], as_entity_value(["sensor.price"]), id="entity_list"),
+        pytest.param(as_none_value(), None, id="none"),
+        pytest.param(as_constant_value(0.5), as_constant_value(0.5), id="constant"),
+        pytest.param(as_entity_value(["sensor.price"]), as_entity_value(["sensor.price"]), id="entity"),
     ],
 )
 def test_form_value_to_price(form_value: object, expected_price: EntityValue | ConstantValue | None) -> None:
-    """Converts form field values back to stored prices."""
+    """A submitted entity or constant is the price; none sets no price."""
     assert form_value_to_price(form_value) == expected_price
 
 
@@ -377,8 +352,8 @@ def test_defaults_for_new_element(
     """New elements get spec default values."""
     surfaced_fields = get_surfaced_input_fields(BATTERY_ELEMENT_TYPE)
     defaults = build_surfaced_defaults(hub_entry, None, BATTERY_SURFACED_PRICE_HINTS, surfaced_fields)
-    assert defaults[CONF_CHARGE_COST] == -0.001
-    assert defaults[CONF_DISCHARGE_COST] == 0.0
+    assert defaults[CONF_CHARGE_COST] == as_constant_value(-0.001)
+    assert defaults[CONF_DISCHARGE_COST] == as_constant_value(0.0)
 
 
 def test_defaults_for_existing_element_with_rules(
@@ -397,19 +372,18 @@ def test_defaults_for_existing_element_with_rules(
     defaults = build_surfaced_defaults(
         hub_entry, "Battery", BATTERY_SURFACED_PRICE_HINTS, get_surfaced_input_fields(BATTERY_ELEMENT_TYPE)
     )
-    assert defaults[CONF_CHARGE_COST] == 0.5
-    assert defaults[CONF_DISCHARGE_COST] == ["sensor.cost"]
+    assert defaults[CONF_CHARGE_COST] == as_constant_value(0.5)
+    assert defaults[CONF_DISCHARGE_COST] == as_entity_value(["sensor.cost"])
 
 
 def test_defaults_for_existing_element_without_rules(
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Existing elements without matching rules default to none."""
+    """Existing elements without matching rules open with none."""
     defaults = build_surfaced_defaults(
         hub_entry, "Battery", BATTERY_SURFACED_PRICE_HINTS, get_surfaced_input_fields(BATTERY_ELEMENT_TYPE)
     )
-    assert CONF_CHARGE_COST not in defaults
-    assert CONF_DISCHARGE_COST not in defaults
+    assert defaults == {CONF_CHARGE_COST: as_none_value(), CONF_DISCHARGE_COST: as_none_value()}
 
 
 # --- Battery flow integration tests ---
@@ -422,7 +396,7 @@ def _wrap_battery_input(user_input: Mapping[str, object]) -> dict[str, object]:
     for key in (CONF_SALVAGE_VALUE, CONF_CHARGE_COST, CONF_DISCHARGE_COST):
         if key in user_input:
             pricing[key] = user_input[key]
-    pricing.setdefault(CONF_SALVAGE_VALUE, 0.0)
+    pricing.setdefault(CONF_SALVAGE_VALUE, as_constant_value(0.0))
 
     return {
         **common,
@@ -445,7 +419,7 @@ def _wrap_battery_input(user_input: Mapping[str, object]) -> dict[str, object]:
             for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE)
             if key in user_input
         },
-        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: 100.0},
+        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
     }
 
 
@@ -453,15 +427,15 @@ def _base_battery_input() -> dict[str, object]:
     """Return minimal valid battery input."""
     return {
         CONF_NAME: "Test Battery",
-        CONF_CONNECTION: "main_bus",
-        CONF_CAPACITY: 10.0,
-        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
-        CONF_MIN_CHARGE_PERCENTAGE: None,
-        CONF_MAX_CHARGE_PERCENTAGE: None,
-        CONF_EFFICIENCY_SOURCE_TARGET: 0.95,
-        CONF_EFFICIENCY_TARGET_SOURCE: 0.95,
-        CONF_MAX_POWER_TARGET_SOURCE: 5.0,
-        CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+        CONF_CONNECTION: as_connection_target("main_bus"),
+        CONF_CAPACITY: as_constant_value(10.0),
+        CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
+        CONF_MIN_CHARGE_PERCENTAGE: as_none_value(),
+        CONF_MAX_CHARGE_PERCENTAGE: as_none_value(),
+        CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
+        CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
+        CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
+        CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
     }
 
 
@@ -477,8 +451,8 @@ async def test_battery_flow_creates_surfaced_rules(
     )
 
     user_input = _base_battery_input()
-    user_input[CONF_CHARGE_COST] = 0.05
-    user_input[CONF_DISCHARGE_COST] = 0.02
+    user_input[CONF_CHARGE_COST] = as_constant_value(0.05)
+    user_input[CONF_DISCHARGE_COST] = as_constant_value(0.02)
 
     result = await flow.async_step_user(user_input=_wrap_battery_input(user_input))
     assert result.get("type") == FlowResultType.CREATE_ENTRY
@@ -506,8 +480,8 @@ async def test_battery_rename_moves_surfaced_rules_to_new_name(
     """Renaming a battery while changing its charge cost updates its rule rather than adding one."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     user_input = _base_battery_input()
-    user_input[CONF_CHARGE_COST] = 0.05
-    user_input[CONF_DISCHARGE_COST] = 0.02
+    user_input[CONF_CHARGE_COST] = as_constant_value(0.05)
+    user_input[CONF_DISCHARGE_COST] = as_constant_value(0.02)
     flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
     flow.async_create_entry = Mock()
     await flow.async_step_user(user_input=_wrap_battery_input(user_input))
@@ -522,7 +496,7 @@ async def test_battery_rename_moves_surfaced_rules_to_new_name(
     flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
     flow.context = {"source": SOURCE_RECONFIGURE, "subentry_id": battery.subentry_id}
     user_input[CONF_NAME] = "Renamed Battery"
-    user_input[CONF_CHARGE_COST] = 0.07
+    user_input[CONF_CHARGE_COST] = as_constant_value(0.07)
     result = await flow.async_step_reconfigure(user_input=_wrap_battery_input(user_input))
 
     assert result.get("type") == FlowResultType.ABORT
@@ -543,8 +517,8 @@ async def test_deleted_battery_takes_its_rules_so_a_recreated_one_starts_without
     hub_entry.runtime_data = None
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     user_input = _base_battery_input()
-    user_input[CONF_CHARGE_COST] = 0.05
-    user_input[CONF_DISCHARGE_COST] = 0.02
+    user_input[CONF_CHARGE_COST] = as_constant_value(0.05)
+    user_input[CONF_DISCHARGE_COST] = as_constant_value(0.02)
 
     async def create_battery() -> ConfigSubentry:
         flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
@@ -567,17 +541,14 @@ async def test_deleted_battery_takes_its_rules_so_a_recreated_one_starts_without
     await hass.async_block_till_done()
 
     assert _get_rules(hub_entry) == []
-    assert (
-        build_surfaced_defaults(
-            hub_entry,
-            "Test Battery",
-            BATTERY_SURFACED_PRICE_HINTS,
-            get_surfaced_input_fields(BATTERY_ELEMENT_TYPE),
-        )
-        == {}
-    )
+    assert build_surfaced_defaults(
+        hub_entry,
+        "Test Battery",
+        BATTERY_SURFACED_PRICE_HINTS,
+        get_surfaced_input_fields(BATTERY_ELEMENT_TYPE),
+    ) == {CONF_CHARGE_COST: as_none_value(), CONF_DISCHARGE_COST: as_none_value()}
 
-    user_input[CONF_CHARGE_COST] = 0.07
+    user_input[CONF_CHARGE_COST] = as_constant_value(0.07)
     await create_battery()
     await hass.async_block_till_done()
 
@@ -588,31 +559,25 @@ async def test_deleted_battery_takes_its_rules_so_a_recreated_one_starts_without
     ]
 
 
-async def test_battery_flow_new_element_always_applies_defaults(
+async def test_battery_flow_new_element_without_prices_creates_no_rules(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """New battery always gets default rules even if frontend sends 'none' values."""
+    """A new battery submitted with no charge or discharge cost gets no rules for them."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
     flow.async_create_entry = Mock(
         return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
     )
 
-    # Even with explicit "none" choice, new elements get defaults applied
     user_input = _base_battery_input()
-    user_input[CONF_CHARGE_COST] = ""
-    user_input[CONF_DISCHARGE_COST] = ""
+    user_input[CONF_CHARGE_COST] = as_none_value()
+    user_input[CONF_DISCHARGE_COST] = as_none_value()
 
     result = await flow.async_step_user(user_input=_wrap_battery_input(user_input))
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    rules = _get_rules(hub_entry)
-    assert len(rules) == 2
-    charge_rule = next(r for r in rules if "charge" in r["name"].lower())
-    assert charge_rule["price"] == as_constant_value(-0.001)
-    discharge_rule = next(r for r in rules if "discharge" in r["name"].lower())
-    assert discharge_rule["price"] == as_constant_value(0.0)
+    assert _get_rules(hub_entry) == []
 
 
 async def test_battery_flow_applies_defaults_when_fields_absent(
@@ -644,40 +609,6 @@ async def test_battery_flow_applies_defaults_when_fields_absent(
     assert discharge_rule["price"] == as_constant_value(0.0)
 
 
-async def test_battery_flow_applies_defaults_when_fields_none(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Battery flow applies defaults when frontend submits None for pricing fields.
-
-    This covers the case where the HA frontend includes the field key in the
-    section data but with a None value (e.g. ChooseSelector couldn't render a
-    negative suggested value so the constant field was empty on submit).
-    """
-    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
-    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
-    )
-
-    # Include fields with None - simulates frontend submitting empty constant
-    user_input = _base_battery_input()
-    user_input[CONF_CHARGE_COST] = None
-    user_input[CONF_DISCHARGE_COST] = None
-
-    result = await flow.async_step_user(user_input=_wrap_battery_input(user_input))
-    assert result.get("type") == FlowResultType.CREATE_ENTRY
-
-    rules = _get_rules(hub_entry)
-    assert len(rules) == 2
-
-    charge_rule = next(r for r in rules if "charge" in r["name"].lower())
-    assert charge_rule["price"] == as_constant_value(-0.001)
-
-    discharge_rule = next(r for r in rules if "discharge" in r["name"].lower())
-    assert discharge_rule["price"] == as_constant_value(0.0)
-
-
 async def test_battery_flow_excludes_surfaced_fields_from_config(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
@@ -690,8 +621,8 @@ async def test_battery_flow_excludes_surfaced_fields_from_config(
     )
 
     user_input = _base_battery_input()
-    user_input[CONF_CHARGE_COST] = 0.05
-    user_input[CONF_DISCHARGE_COST] = 0.02
+    user_input[CONF_CHARGE_COST] = as_constant_value(0.05)
+    user_input[CONF_DISCHARGE_COST] = as_constant_value(0.02)
 
     await flow.async_step_user(user_input=_wrap_battery_input(user_input))
 
@@ -713,8 +644,7 @@ async def test_battery_flow_entity_cost_creates_entity_rule(
     )
 
     user_input = _base_battery_input()
-    user_input[CONF_CHARGE_COST] = ["sensor.cost"]
-    user_input[CONF_DISCHARGE_COST] = ""  # New element: default applied
+    user_input[CONF_CHARGE_COST] = as_entity_value(["sensor.cost"])
 
     await flow.async_step_user(user_input=_wrap_battery_input(user_input))
 
@@ -757,10 +687,10 @@ async def test_load_flow_creates_consumption_cost_rule(
     user_input = _wrap_load_input(
         {
             CONF_NAME: "Test Load",
-            CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: ["sensor.load_forecast"],
-            CONF_CURTAILMENT: False,
-            CONF_CONSUMPTION_COST: 0.15,
+            CONF_CONNECTION: as_connection_target("main_bus"),
+            CONF_FORECAST: as_entity_value(["sensor.load_forecast"]),
+            CONF_CURTAILMENT: as_constant_value(value=False),
+            CONF_CONSUMPTION_COST: as_constant_value(0.15),
         }
     )
     result = await flow.async_step_user(user_input=user_input)
@@ -787,10 +717,10 @@ async def test_load_flow_new_element_without_consumption_cost_creates_no_rule(
     user_input = _wrap_load_input(
         {
             CONF_NAME: "Test Load",
-            CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: ["sensor.load_forecast"],
-            CONF_CURTAILMENT: False,
-            CONF_CONSUMPTION_COST: "",  # No default: no rule created
+            CONF_CONNECTION: as_connection_target("main_bus"),
+            CONF_FORECAST: as_entity_value(["sensor.load_forecast"]),
+            CONF_CURTAILMENT: as_constant_value(value=False),
+            CONF_CONSUMPTION_COST: as_none_value(),
         }
     )
     result = await flow.async_step_user(user_input=user_input)
@@ -855,7 +785,7 @@ def test_defaults_negate_load_consumption_cost_preserves_entity_selection(
         get_surfaced_input_fields(LOAD_ELEMENT_TYPE),
     )
 
-    assert defaults[CONF_CONSUMPTION_COST] == ["sensor.cost"]
+    assert defaults[CONF_CONSUMPTION_COST] == as_entity_value(["sensor.cost"])
 
 
 def test_defaults_negate_load_consumption_cost(
@@ -873,7 +803,7 @@ def test_defaults_negate_load_consumption_cost(
     defaults = build_surfaced_defaults(
         hub_entry, "Test Load", LOAD_SURFACED_PRICE_HINTS, get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
     )
-    assert defaults[CONF_CONSUMPTION_COST] == 0.15
+    assert defaults[CONF_CONSUMPTION_COST] == as_constant_value(0.15)
 
 
 async def test_load_flow_excludes_surfaced_fields_from_config(
@@ -888,10 +818,10 @@ async def test_load_flow_excludes_surfaced_fields_from_config(
     user_input = _wrap_load_input(
         {
             CONF_NAME: "Test Load",
-            CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: ["sensor.load_forecast"],
-            CONF_CURTAILMENT: False,
-            CONF_CONSUMPTION_COST: 0.15,
+            CONF_CONNECTION: as_connection_target("main_bus"),
+            CONF_FORECAST: as_entity_value(["sensor.load_forecast"]),
+            CONF_CURTAILMENT: as_constant_value(value=False),
+            CONF_CONSUMPTION_COST: as_constant_value(0.15),
         }
     )
     await flow.async_step_user(user_input=user_input)
@@ -902,61 +832,6 @@ async def test_load_flow_excludes_surfaced_fields_from_config(
 
 
 # --- Policy flow duplicate prevention tests ---
-
-
-async def test_policy_flow_blocks_duplicate_rule(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Policy flow prevents creating rules with the same source/target as an existing rule."""
-    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, "MyBattery", str(BATTERY_ELEMENT_TYPE))
-
-    # Add an existing rule with * → MyBattery
-    _add_policy_subentry(
-        hass,
-        hub_entry,
-        [{"name": "existing", "target": ["MyBattery"], "price": as_constant_value(0.1)}],
-    )
-
-    flow = create_flow(hass, hub_entry, POLICY_ELEMENT_TYPE)
-
-    # Try to create a rule with the same pattern
-    result = await flow.async_step_user(
-        user_input={
-            CONF_RULE_NAME: "duplicate",
-            CONF_ENABLED: True,
-            CONF_SOURCE: [],
-            CONF_TARGET: ["MyBattery"],
-            CONF_PRICE: 0.2,
-        }
-    )
-    assert result.get("type") == FlowResultType.FORM
-    errors = result.get("errors", {})
-    assert errors.get("base") == "duplicate_rule"
-
-
-async def test_policy_flow_allows_unique_pattern(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Policy flow allows rules with a unique source/target pattern."""
-    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, "MyBattery", str(BATTERY_ELEMENT_TYPE))
-
-    flow = create_flow(hass, hub_entry, POLICY_ELEMENT_TYPE)
-    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Policies", "data": {}})
-
-    result = await flow.async_step_user(
-        user_input={
-            CONF_RULE_NAME: "normal rule",
-            CONF_ENABLED: True,
-            CONF_SOURCE: ["main_bus"],
-            CONF_TARGET: ["MyBattery"],
-            CONF_PRICE: 0.1,
-        }
-    )
-    assert result.get("type") == FlowResultType.CREATE_ENTRY
 
 
 def test_build_surfaced_schema_entries_includes_compatible_price_entities(
@@ -981,14 +856,11 @@ def test_build_surfaced_schema_entries_includes_compatible_price_entities(
     _, selector = build_surfaced_schema_entries(
         hass,
         surfaced_fields,
-        extract_entity_metadata(hass, hub_entry),
-        None,
+        selector_context(hub_entry.entry_id, extract_entity_metadata(hass, hub_entry)),
     )[CONF_CONSUMPTION_COST]
 
-    entity_choice = selector.config["choices"][CHOICE_ENTITY]
-    include_entities = entity_choice["selector"]["entity"].get("include_entities")
+    include_entities = selector.config.get("entities", [])
 
-    assert include_entities is not None
     assert "sensor.import_price" in include_entities
     assert "sensor.export_price" in include_entities
     assert "sensor.wholesale_price" in include_entities
@@ -996,13 +868,13 @@ def test_build_surfaced_schema_entries_includes_compatible_price_entities(
     assert haeo_number.entity_id not in include_entities
 
 
-# --- Tests for the first choice of a surfaced price following the value the form shows ---
+# --- Tests for the charge cost a shown battery form holds ---
 
-# Each choice of a surfaced price, as submitted
+# Each kind of surfaced price, as submitted
 _CHARGE_COSTS: dict[str, object] = {
-    CHOICE_ENTITY: ["sensor.charge_cost"],
-    CHOICE_CONSTANT: 0.05,
-    CHOICE_NONE: None,
+    "entity": as_entity_value(["sensor.charge_cost"]),
+    "constant": as_constant_value(0.05),
+    "none": as_none_value(),
 }
 
 
@@ -1030,51 +902,47 @@ async def _add_battery_with_charge_cost(
     return battery
 
 
-def _charge_cost_first_choice(form: Mapping[str, object]) -> str:
-    """Return the first choice of the charge cost selector in a shown battery form."""
+def _shown_charge_cost(form: Mapping[str, object]) -> object:
+    """Return the charge cost a shown battery form suggests."""
     data_schema = form["data_schema"]
     assert isinstance(data_schema, vol.Schema)
     pricing = data_schema.schema[SECTION_PRICING].schema.schema
-    selector = next(selector for marker, selector in pricing.items() if str(marker) == CONF_CHARGE_COST)
-    return next(iter(selector.config["choices"]))
+    marker = next(marker for marker in pricing if str(marker) == CONF_CHARGE_COST)
+    return marker.description["suggested_value"]
 
 
-@pytest.mark.parametrize("choice", list(_CHARGE_COSTS))
-async def test_battery_form_opens_on_the_stored_charge_cost_choice(
+@pytest.mark.parametrize("kind", list(_CHARGE_COSTS))
+async def test_battery_form_opens_with_the_stored_charge_cost(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    choice: str,
+    kind: str,
 ) -> None:
-    """Reopening a battery shows its charge cost in the choice that holds it."""
-    battery = await _add_battery_with_charge_cost(hass, hub_entry, _CHARGE_COSTS[choice])
+    """Reopening a battery shows the charge cost saved on it."""
+    battery = await _add_battery_with_charge_cost(hass, hub_entry, _CHARGE_COSTS[kind])
     flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
     flow.context = {"source": SOURCE_RECONFIGURE, "subentry_id": battery.subentry_id}
 
     form = await flow.async_step_reconfigure(user_input=None)
 
-    assert _charge_cost_first_choice(form) == choice
+    assert _shown_charge_cost(form) == _CHARGE_COSTS[kind]
 
 
-@pytest.mark.parametrize(
-    ("stored_choice", "submitted_choice"),
-    [(stored, submitted) for stored in _CHARGE_COSTS for submitted in _CHARGE_COSTS if stored != submitted],
-)
-async def test_reshown_battery_form_keeps_the_submitted_charge_cost_choice(
+@pytest.mark.parametrize("kind", list(_CHARGE_COSTS))
+async def test_reshown_battery_form_keeps_the_submitted_charge_cost(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    stored_choice: str,
-    submitted_choice: str,
+    kind: str,
 ) -> None:
-    """A battery form re-shown with an error shows the submitted charge cost in the choice that holds it."""
-    battery = await _add_battery_with_charge_cost(hass, hub_entry, _CHARGE_COSTS[stored_choice])
+    """A battery form re-shown with an error shows the charge cost that was submitted, not the stored one."""
+    battery = await _add_battery_with_charge_cost(hass, hub_entry, as_constant_value(0.07))
     flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
     flow.context = {"source": SOURCE_RECONFIGURE, "subentry_id": battery.subentry_id}
 
     form = await flow.async_step_reconfigure(
         user_input=_wrap_battery_input(
-            {**_base_battery_input(), CONF_NAME: "main_bus", CONF_CHARGE_COST: _CHARGE_COSTS[submitted_choice]}
+            {**_base_battery_input(), CONF_NAME: "main_bus", CONF_CHARGE_COST: _CHARGE_COSTS[kind]}
         )
     )
 
     assert form.get("errors") == {CONF_NAME: "name_exists"}
-    assert _charge_cost_first_choice(form) == submitted_choice
+    assert _shown_charge_cost(form) == _CHARGE_COSTS[kind]

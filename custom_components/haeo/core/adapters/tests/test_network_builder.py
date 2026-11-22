@@ -14,7 +14,7 @@ from custom_components.haeo.core.model.elements.segments import EfficiencySegmen
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
-from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
+from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData, SegmentData
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
 from custom_components.haeo.core.schema.elements.policy import PolicyConfigData, PolicyRuleData
@@ -34,14 +34,17 @@ def _node(name: str, *, is_source: bool, is_sink: bool) -> NodeConfigData:
 def _line(
     *, max_power: float = 5.0, price: float | None = None, efficiency: float | None = None
 ) -> ConnectionConfigData:
-    """Return a connection carrying power from the source to the sink."""
+    """Return a connection carrying power from the source to the sink, through a limit and any price and losses."""
+    segments: list[SegmentData] = [{"segment_type": "power_limit", "max_power": max_power}]
+    if price is not None:
+        segments.append({"segment_type": "pricing", "price": price})
+    if efficiency is not None:
+        segments.append({"segment_type": "efficiency", "efficiency": efficiency})
     config: ConnectionConfigData = {
         "element_type": ElementType.CONNECTION,
         "name": LINE,
         "endpoints": {"source": as_connection_target(SOURCE), "target": as_connection_target(SINK)},
-        "power_limits": {"max_power_source_target": max_power},
-        "pricing": {} if price is None else {"price_source_target": price},
-        "efficiency": {} if efficiency is None else {"efficiency_source_target": efficiency},
+        "segments": segments,
     }
     return config
 
@@ -100,20 +103,25 @@ def _battery_network(**battery: float) -> dict[str, ElementConfigData]:
     return {SINK: _node(SINK, is_source=False, is_sink=True), BATTERY: _battery(**battery)}
 
 
-def _line_segment[T](network: Network, segment_type: type[T], name: str) -> T:
-    """Return a segment of the line's model connection."""
+def _line_segment[T](network: Network, segment_type: type[T]) -> T:
+    """Return the line's model connection's segment of a type."""
     line = network.elements[LINE]
     assert isinstance(line, Connection)
-    segment = line.segments[name]
-    assert isinstance(segment, segment_type)
-    return segment
+    return next(segment for segment in line.segments.values() if isinstance(segment, segment_type))
 
 
 def _line_max_power(network: Network) -> list[float]:
     """Return the line's power limit in each period."""
-    max_power = _line_segment(network, PowerLimitSegment, "power_limit").max_power
+    max_power = _line_segment(network, PowerLimitSegment).max_power
     assert max_power is not None
     return np.ravel(max_power).tolist()
+
+
+def _line_efficiency(network: Network) -> list[float]:
+    """Return the line's efficiency in each period."""
+    efficiency = _line_segment(network, EfficiencySegment).efficiency
+    assert efficiency is not None
+    return np.ravel(efficiency).tolist()
 
 
 def _model_battery(network: Network) -> Battery:
@@ -162,11 +170,11 @@ def _policy_price(network: Network) -> float:
         pytest.param(
             _line_network(_line(efficiency=0.95)),
             LINE,
-            _line(),
-            lambda network: _line_segment(network, EfficiencySegment, "efficiency").efficiency,
+            _line(efficiency=0.9),
+            _line_efficiency,
             pytest.approx([0.95]),
-            None,
-            id="connection_efficiency_cleared",
+            pytest.approx([0.9]),
+            id="connection_efficiency",
         ),
         pytest.param(
             _battery_network(),

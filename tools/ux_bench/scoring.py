@@ -5,6 +5,9 @@ rules in the hub's single policy subentry. A policy change counts as part of the
 element's own change when every rule it adds or removes names that element, by
 its old or new title, as a source or target; any other change to a subentry the task did not ask for fails
 the run.
+
+A field stored as ``{"type": "none"}`` and a field left out mean the same to
+HAEO, so subentries are compared with none fields removed.
 """
 
 from __future__ import annotations
@@ -47,6 +50,20 @@ def plain(value: object) -> JsonValueType:
     if value is None or isinstance(value, str | int | float | bool):
         return value
     return str(value)
+
+
+def _without_none(value: JsonValueType) -> JsonValueType:
+    """Drop the fields of an object, at any depth, that are stored as none."""
+    if isinstance(value, dict):
+        return {key: _without_none(item) for key, item in value.items() if item != {"type": "none"}}
+    if isinstance(value, list):
+        return [_without_none(item) for item in value]
+    return value
+
+
+def _meaning(subentry: Subentry) -> JsonValueType:
+    """Return what a subentry configures, for telling a real change from a change of form."""
+    return {"type": subentry["type"], "title": subentry["title"], "data": _without_none(subentry["data"])}
 
 
 def _rules(subentry: Subentry | None) -> list[JsonValueType]:
@@ -93,7 +110,9 @@ def evaluate(task: Task, before: Subentries, after: Subentries) -> Outcome:
     changed = [
         subentry_id
         for subentry_id in before
-        if subentry_id in after and subentry_id not in shared and before[subentry_id] != after[subentry_id]
+        if subentry_id in after
+        and subentry_id not in shared
+        and _meaning(before[subentry_id]) != _meaning(after[subentry_id])
     ]
     problems: list[str] = []
     target: str | None = None
@@ -129,7 +148,7 @@ def evaluate(task: Task, before: Subentries, after: Subentries) -> Outcome:
     if target is not None:
         if expect["kind"] == "add" and "title" in expect and after[target]["title"] != expect["title"]:
             problems.append(f"Expected the title {expect['title']!r}, found {after[target]['title']!r}")
-        problems.extend(mismatches(expect["data"], after[target]["data"]))
+        problems.extend(mismatches(expect["data"], _without_none(after[target]["data"])))
     for subentry_id in unintended:
         sub = after.get(subentry_id) or before[subentry_id]
         problems.append(f"Unintended change to {sub['type']} {sub['title']!r}")

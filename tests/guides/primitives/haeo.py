@@ -3,8 +3,8 @@
 High-level functions that add elements to an HAEO network.
 Each function is decorated with @guide_step for automatic screenshot naming.
 
-Field values are typed as EntityInput or ConstantInput to match
-the ChooseSelector pattern used in config flows. Parameter names
+Field values are typed as EntityInput or ConstantInput, the two
+values an input field takes. Parameter names
 match the schema field name constants (e.g. CONF_CAPACITY), and
 display labels are loaded from translations/en.json at runtime.
 
@@ -19,8 +19,7 @@ import functools
 import json
 import logging
 from pathlib import Path
-import types
-from typing import TYPE_CHECKING, get_args
+from typing import TYPE_CHECKING
 
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
@@ -68,7 +67,7 @@ from .ha_page import DEFAULT_TIMEOUT, SEARCH_TIMEOUT
 if TYPE_CHECKING:
     from homeassistant.util.json import JsonObjectType, JsonValueType
 
-    from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldGroups
+    from custom_components.haeo.elements.input_fields import InputFieldGroups
 
     from .ha_page import HAPage
 
@@ -80,7 +79,7 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class EntityInput:
-    """Entity value for ChooseSelector fields.
+    """Entity value for an input field.
 
     Attributes:
         search_term: Text to search for in the entity picker dialog.
@@ -94,7 +93,7 @@ class EntityInput:
 
 @dataclass(frozen=True, slots=True)
 class ConstantInput:
-    """Constant value for ChooseSelector fields.
+    """Fixed number for an input field.
 
     Attributes:
         value: The numeric constant value.
@@ -140,6 +139,12 @@ def _subentry(element_type: str) -> JsonObjectType:
     """Get config subentry translations for an element type."""
     subentries = _json_dict(_load_translations()["config_subentries"])
     return _json_dict(subentries[element_type])
+
+
+def _selector_options(selector: str) -> JsonObjectType:
+    """Get the labels of one of HAEO's selector elements."""
+    selectors = _json_dict(_load_translations()["selector"])
+    return _json_dict(_json_dict(selectors[selector])["options"])
 
 
 def _step_user(element_type: str) -> JsonObjectType:
@@ -205,33 +210,6 @@ def _buffer_kind_label(kind: BufferKind) -> str:
 # region: Schema-driven field filling
 
 
-def _has_none_value(value_type: object) -> bool:
-    """Check if NoneValue is part of a union type annotation."""
-    if isinstance(value_type, types.UnionType):
-        # Avoid circular import with schema module
-        from custom_components.haeo.core.schema import NoneValue  # noqa: PLC0415
-
-        return NoneValue in get_args(value_type)
-    return False
-
-
-def _get_default_mode(field_info: AnyInputFieldInfo, value_type: object) -> str | None:
-    """Determine the ChooseSelector's default mode for a field.
-
-    The default mode controls whether a mode switch is needed before
-    filling the field. Returns "Entity", "Constant", or None.
-
-    - Fields with explicit default_mode in their FieldHint use that mode.
-    - Fields whose type includes NoneValue default to None (no selection).
-    - All other fields default to Entity (first available choice).
-    """
-    if field_info.defaults and field_info.defaults.mode:
-        return "Entity" if field_info.defaults.mode == "entity" else "Constant"
-    if _has_none_value(value_type):
-        return None
-    return "Entity"
-
-
 def _find_section(input_fields: InputFieldGroups, field_name: str) -> str:
     """Find the section key that contains a field."""
     for section_key, fields in input_fields.items():
@@ -241,33 +219,16 @@ def _find_section(input_fields: InputFieldGroups, field_name: str) -> str:
     raise KeyError(msg)
 
 
-def _fill_choose_field(
-    page: HAPage,
-    label: str,
-    value: FieldInput,
-    default_mode: str | None,
-) -> None:
-    """Fill a ChooseSelector field based on value type.
-
-    Switches the ChooseSelector mode if needed, then fills the field
-    with the appropriate entity or constant value.
-    """
+def _fill_input_field(page: HAPage, label: str, value: FieldInput) -> None:
+    """Fill a HAEO input field with entities or a fixed number."""
     match value:
         case EntityInput():
-            if default_mode != "Entity":
-                page.choose_select_option(label, "Entity")
-            page.choose_entity(label, value.search_term, value.display_name)
+            page.input_entity(label, value.search_term, value.display_name)
         case ConstantInput():
-            if default_mode != "Constant":
-                page.choose_select_option(label, "Constant")
-            page.choose_constant(label, str(value.value))
+            page.input_constant(label, str(value.value))
         case list():
-            first = value[0]
-            if default_mode != "Entity":
-                page.choose_select_option(label, "Entity")
-            page.choose_entity(label, first.search_term, first.display_name)
-            for entity in value[1:]:
-                page.choose_add_entity(label, entity.search_term, entity.display_name)
+            for entity in value:
+                page.input_entity(label, entity.search_term, entity.display_name)
 
 
 def _fill_element_fields(
@@ -277,20 +238,18 @@ def _fill_element_fields(
     *,
     collapsed_sections: frozenset[str] = frozenset(),
 ) -> None:
-    """Fill all ChooseSelector fields for an element form.
+    """Fill the input fields of an element form.
 
-    Looks up display labels from translations and determines the
-    default ChooseSelector mode from the element schema metadata.
-    Automatically expands collapsed sections when accessing their fields.
+    Looks up display labels from translations and expands collapsed
+    sections when accessing their fields.
 
     Fields must be ordered by section (matching the form's top-to-bottom
     layout) to ensure correct section expansion behavior.
     """
     # Avoid circular import with elements module
-    from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields  # noqa: PLC0415
+    from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
 
     input_fields = get_input_fields(element_type)
-    field_schema = get_input_field_schema_info(element_type, input_fields)
     expanded: set[str] = set()
 
     for field_name, field_value in fields.items():
@@ -301,11 +260,7 @@ def _fill_element_fields(
             page.expand_section(_section_name(element_type, section_key))
             expanded.add(section_key)
 
-        label = _field_label(element_type, section_key, field_name)
-        field_info = input_fields[section_key][field_name]
-        value_type = field_schema[section_key][field_name].value_type
-        default_mode = _get_default_mode(field_info, value_type)
-        _fill_choose_field(page, label, field_value, default_mode)
+        _fill_input_field(page, _field_label(element_type, section_key, field_name), field_value)
 
 
 # endregion
@@ -350,6 +305,9 @@ def add_integration(page: HAPage, *, network_name: str) -> None:
     # arrives cancels the setup task.
     page.close_success_dialog()
 
+    # The success dialog asks for a refresh, which loads HAEO's input selector into the page
+    page.goto(page.page.url)
+
     page.navigate_to_integration("HAEO")
 
     _LOGGER.info("HAEO integration added")
@@ -372,7 +330,7 @@ def add_inverter(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     _fill_element_fields(
         page,
@@ -411,7 +369,7 @@ def add_battery(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     # Build fields dict in section order: storage → limits → power_limits
     fields: dict[str, FieldInput] = {
@@ -457,7 +415,7 @@ def add_solar(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     _fill_element_fields(
         page,
@@ -492,7 +450,7 @@ def add_grid(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     # Build fields dict in section order: pricing → power_limits
     fields: dict[str, FieldInput] = {
@@ -534,7 +492,7 @@ def add_load(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     _fill_element_fields(
         page,
@@ -665,7 +623,7 @@ def add_ev(
     page.wait_for_dialog(_dialog_title(et))
 
     page.fill_textbox(_name_label(et), name)
-    page.select_combobox(_connection_label(et), connection)
+    page.select_connection(_connection_label(et), connection)
 
     # Vehicle and charging sections are expanded by default
     fields: dict[str, FieldInput] = {
@@ -736,13 +694,10 @@ def add_policies(
 ) -> None:
     """Add a policy rule via the Policies subentry flow.
 
-    Works for both the first rule (creates subentry) and subsequent
-    rules (appends to existing subentry).
-
-    Source and target use a ChooseSelector with Any/Nodes choices.
-    When nodes are specified, the nested dropdown multi-select is used.
-    Pass a string for a single node, a list for multiple nodes, or None for "Any".
-    Price uses a ChooseSelector with Constant/Entity/None choices.
+    Adding a policy opens the rules editor with every stored rule and a new one
+    at the end, which this fills in: its name, the elements on each end (any
+    element when None), and a fixed price. Pass a string for one element or a
+    list for several.
     """
     et = "policy"
     _LOGGER.info("Adding policy rule: %s", name)
@@ -750,20 +705,13 @@ def add_policies(
     page.click_button(_button_label(et), first=True)
     page.wait_for_dialog(_dialog_title(et))
 
-    step_data = _json_dict(_step_user(et)["data"])
-    page.fill_textbox(_json_str(step_data["name"]), name)
-
-    if source is not None:
-        nodes = [source] if isinstance(source, str) else source
-        page.choose_select_option(_json_str(step_data["source"]), "Elements")
-        page.choose_dropdown_multi(_json_str(step_data["source"]), nodes)
-    if target is not None:
-        nodes = [target] if isinstance(target, str) else target
-        page.choose_select_option(_json_str(step_data["target"]), "Elements")
-        page.choose_dropdown_multi(_json_str(step_data["target"]), nodes)
-    if price is not None:
-        page.choose_select_option(_json_str(step_data["price"]), "Constant")
-        page.choose_constant(_json_str(step_data["price"]), str(price))
+    page.fill_new_policy_rule(
+        name=name,
+        sources=[] if source is None else [source] if isinstance(source, str) else source,
+        targets=[] if target is None else [target] if isinstance(target, str) else target,
+        price=None if price is None else str(price),
+        labels={key: _json_str(label) for key, label in _selector_options("policy_rules").items()},
+    )
 
     with page.expect_config_reload():
         page.submit()

@@ -459,7 +459,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         Must be called after the coordinator is created but before any optimizations.
         This is called from async_setup_entry after all input entities are loaded.
         """
-        loaded_configs = self._load_from_input_stores()
+        loaded_configs = self.loaded_configs()
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
 
@@ -753,7 +753,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             if store.time_series and store.available
         )
 
-    def _load_from_input_stores(self) -> dict[str, ElementConfigData]:
+    @property
+    def relax_infeasible(self) -> bool:
+        """Return whether an infeasible plan is relaxed rather than failing."""
+        return self._relax_infeasible
+
+    def loaded_configs(self) -> dict[str, ElementConfigData]:
         """Assemble every element's config from the resolved values of its input stores."""
         forecast_times = self._runtime_data.horizon_manager.get_forecast_timestamps()
         field_values: dict[str, dict[InputFieldPath, InputValue | None]] = {}
@@ -894,7 +899,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             horizon_manager=horizon_manager,
         )
         degraded = self._check_inputs(context)
-        loaded_configs = self._load_from_input_stores()
+        loaded_configs = self.loaded_configs()
 
         _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 

@@ -7,7 +7,7 @@ This plugin checks the same things, plus subentry flows, selector options,
 entity names, and enum sensor states, as each one is shown during a test:
 
 - Flow forms: section names, field labels, selector options, and errors
-- Flow aborts
+- Flow aborts, and the descriptions of created entries
 - Repair issues, and the steps of their fix flows
 - Home Assistant errors raised with a HAEO translation key
 - Entity names and enum sensor states
@@ -20,6 +20,7 @@ from functools import cache
 import json
 from pathlib import Path
 import string
+from typing import Protocol, runtime_checkable
 
 from homeassistant.components.repairs import RepairsFlow
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
@@ -107,7 +108,11 @@ class TranslationChecker:
         """
         for path, validator in form_labels(schema).items():
             self.require((*step, *path), placeholders)
-            if isinstance(validator, Selector):
+            if isinstance(validator, SelectorWithOwnStrings):
+                # HAEO's selector elements fill in their strings' placeholders themselves
+                for selector_path, supplied in validator.translation_strings():
+                    self.require(selector_path, dict.fromkeys(supplied, ""))
+            elif isinstance(validator, Selector):
                 for selector_path in selector_translation_paths(validator):
                     self.require(selector_path)
 
@@ -146,6 +151,13 @@ def form_labels(schema: vol.Schema) -> dict[TranslationPath, object]:
         else:
             labels[("data", name)] = validator
     return labels
+
+
+@runtime_checkable
+class SelectorWithOwnStrings(Protocol):
+    """A HAEO selector whose element shows strings of its own, listing each with the placeholders it fills in."""
+
+    translation_strings: Callable[[], Iterator[tuple[TranslationPath, tuple[str, ...]]]]
 
 
 def selector_translation_paths(selector: Selector[Mapping[str, object]]) -> Iterator[TranslationPath]:
@@ -201,6 +213,7 @@ def check_translations(monkeypatch: pytest.MonkeyPatch) -> Generator[Translation
 
     original_show_form = FlowHandler.async_show_form
     original_abort = FlowHandler.async_abort
+    original_create_entry = FlowHandler.async_create_entry
     original_issue = ir.IssueRegistry.async_get_or_create
     original_error_init = HomeAssistantError.__init__
     original_added = Entity.async_internal_added_to_hass
@@ -216,6 +229,18 @@ def check_translations(monkeypatch: pytest.MonkeyPatch) -> Generator[Translation
         if is_haeo_flow(self) and (found := flow_strings(self, result.get("description_placeholders"))) is not None:
             prefix, placeholders = found
             checker.require((*prefix, "abort", str(result.get("reason"))), placeholders)
+        return result
+
+    def create_entry(self: FlowHandler, **kwargs: object) -> FlowResult:
+        result = original_create_entry(self, **kwargs)  # type: ignore[arg-type] (keyword arguments pass through unchanged)
+        description = result.get("description")
+        if (
+            is_haeo_flow(self)
+            and description is not None
+            and (found := flow_strings(self, result.get("description_placeholders"))) is not None
+        ):
+            prefix, placeholders = found
+            checker.require((*prefix, "create_entry", str(description)), placeholders)
         return result
 
     def get_or_create_issue(self: ir.IssueRegistry, domain: str, issue_id: str, **kwargs: object) -> ir.IssueEntry:
@@ -249,6 +274,7 @@ def check_translations(monkeypatch: pytest.MonkeyPatch) -> Generator[Translation
     patches: dict[tuple[type, str], Callable[..., object]] = {
         (FlowHandler, "async_show_form"): show_form,
         (FlowHandler, "async_abort"): abort,
+        (FlowHandler, "async_create_entry"): create_entry,
         (ir.IssueRegistry, "async_get_or_create"): get_or_create_issue,
         (HomeAssistantError, "__init__"): error_init,
         (Entity, "async_internal_added_to_hass"): added_to_hass,

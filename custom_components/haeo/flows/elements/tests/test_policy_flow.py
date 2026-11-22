@@ -7,48 +7,32 @@ from homeassistant.config_entries import ConfigSubentry, SubentryFlowResult
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.selector import ChooseSelectorConfig, Selector
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-import voluptuous as vol
 
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value
+from custom_components.haeo.core.schema.constant_value import as_constant_value
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.inverter import ELEMENT_TYPE as INVERTER_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
 from custom_components.haeo.core.schema.elements.node import ELEMENT_TYPE as NODE_ELEMENT_TYPE
-from custom_components.haeo.core.schema.elements.policy import (
-    CONF_ENABLED,
-    CONF_PRICE,
-    CONF_RULE_NAME,
-    CONF_RULES,
-    CONF_SOURCE,
-    CONF_TARGET,
-    PolicyConfigData,
-    PolicyRuleConfig,
-)
+from custom_components.haeo.core.schema.elements.policy import CONF_RULES, PolicyConfigData, PolicyRuleConfig
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_ELEMENT_TYPE
-from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value
-from custom_components.haeo.flows.elements.policy import (
-    ACTION_DELETE,
-    ACTION_EDIT,
-    CHOICE_ELEMENTS,
-    CONF_ACTION,
-    CONF_RULE,
-    PolicySubentryFlowHandler,
-)
-from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY, CHOICE_NONE
-from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE, find_policy_subentry
+from custom_components.haeo.core.schema.entity_value import as_entity_value
+from custom_components.haeo.core.schema.none_value import as_none_value
+from custom_components.haeo.flows.elements.policy import PolicySubentryFlowHandler
+from custom_components.haeo.flows.policy_rules_selector import PolicyRulesSelector, PolicyRuleValue
+from custom_components.haeo.flows.surfaced_policy import POLICIES_TITLE
 
 
 @pytest.fixture
 def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
-    """Create a hub config entry with some participant subentries."""
+    """Create a hub config entry with node participants that source, sink, or both."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
@@ -56,29 +40,37 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         entry_id="test_hub_id",
     )
     entry.add_to_hass(hass)
-
-    nodes = [
+    for name, is_source, is_sink in (
         ("Solar", True, False),
         ("Grid", True, True),
         ("Battery", True, True),
         ("Load", False, True),
-    ]
-    for name, is_source, is_sink in nodes:
-        subentry = ConfigSubentry(
-            data=MappingProxyType(
-                {
-                    CONF_ELEMENT_TYPE: NODE_ELEMENT_TYPE,
-                    CONF_NAME: name,
-                    SECTION_ROLE: {CONF_IS_SOURCE: is_source, CONF_IS_SINK: is_sink},
-                }
-            ),
-            subentry_type=NODE_ELEMENT_TYPE,
-            title=name,
-            unique_id=None,
+    ):
+        _add_element(
+            hass,
+            entry,
+            name,
+            NODE_ELEMENT_TYPE,
+            {SECTION_ROLE: {CONF_IS_SOURCE: is_source, CONF_IS_SINK: is_sink}},
         )
-        hass.config_entries.async_add_subentry(entry, subentry)
-
     return entry
+
+
+def _add_element(
+    hass: HomeAssistant, entry: MockConfigEntry, name: str, element_type: str, data: dict[str, object] | None = None
+) -> ConfigSubentry:
+    subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: name, **(data or {})}),
+        subentry_type=element_type,
+        title=name,
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, subentry)
+    return subentry
+
+
+def _add_policies(hass: HomeAssistant, entry: MockConfigEntry, rules: list[PolicyRuleConfig]) -> ConfigSubentry:
+    return _add_element(hass, entry, POLICIES_TITLE, POLICY_ELEMENT_TYPE, {CONF_RULES: rules})
 
 
 def _create_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> PolicySubentryFlowHandler:
@@ -86,64 +78,259 @@ def _create_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> PolicySuben
     flow = PolicySubentryFlowHandler()
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, POLICY_ELEMENT_TYPE)
+    flow.context = {"source": "user"}
     return flow
 
 
-def _make_policy_subentry(rules: list[PolicyRuleConfig]) -> ConfigSubentry:
-    """Create a policy subentry with the provided rules."""
-    data = MappingProxyType(
-        {
-            CONF_ELEMENT_TYPE: POLICY_ELEMENT_TYPE,
-            CONF_NAME: POLICIES_TITLE,
-            CONF_RULES: rules,
+def _reconfigure_flow(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, subentry: ConfigSubentry
+) -> PolicySubentryFlowHandler:
+    flow = _create_flow(hass, hub_entry)
+    flow.context = {"subentry_id": subentry.subentry_id, "source": "reconfigure"}
+    flow._get_reconfigure_subentry = Mock(return_value=subentry)
+    return flow
+
+
+def _rule(
+    name: str,
+    *,
+    source: list[str] | None = None,
+    target: list[str] | None = None,
+    price: object = None,
+    enabled: bool = True,
+) -> PolicyRuleValue:
+    """Return a rule as the rules element submits it."""
+    return {
+        "name": name,
+        "enabled": enabled,
+        "source": source or [],
+        "target": target or [],
+        "price": as_constant_value(0.02) if price is None else price,  # type: ignore[typeddict-item]
+    }
+
+
+def _shown_rules(result: SubentryFlowResult) -> list[PolicyRuleValue]:
+    """Return the rules a shown form opens with."""
+    data_schema = result.get("data_schema")
+    assert data_schema is not None
+    key = next(key for key in data_schema.schema if key.schema == CONF_RULES)
+    return key.description["suggested_value"]
+
+
+def _selector(result: SubentryFlowResult) -> PolicyRulesSelector:
+    data_schema = result.get("data_schema")
+    assert data_schema is not None
+    selector = next(selector for key, selector in data_schema.schema.items() if key.schema == CONF_RULES)
+    assert isinstance(selector, PolicyRulesSelector)
+    return selector
+
+
+ON = as_constant_value(value=True)
+SOLAR_EXPORT: PolicyRuleConfig = {
+    "name": "Solar Export",
+    "enabled": as_constant_value(value=True),
+    "source": ["Solar"],
+    "target": ["Grid"],
+    "price": as_constant_value(0.02),
+}
+GRID_CHARGE: PolicyRuleConfig = {
+    "name": "Grid Charge",
+    "enabled": as_constant_value(value=False),
+    "source": ["Grid"],
+    "price": as_entity_value(["sensor.grid_price"]),
+}
+
+
+async def test_adding_the_first_rule_opens_a_new_rule_and_creates_the_policies(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """With no policies yet, the form opens with one blank rule, and saving it creates the Policies subentry."""
+    flow = _create_flow(hass, hub_entry)
+
+    shown = await flow.async_step_user(user_input=None)
+
+    assert shown.get("step_id") == "user"
+    assert _shown_rules(shown) == [
+        {"name": "Rule 1", "enabled": True, "source": [], "target": [], "price": as_none_value()}
+    ]
+
+    result = await flow.async_step_user(
+        user_input={CONF_RULES: [_rule("Solar Export", source=["Solar"], target=["Grid"])]}
+    )
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    assert result.get("data") == {
+        CONF_ELEMENT_TYPE: POLICY_ELEMENT_TYPE,
+        CONF_NAME: POLICIES_TITLE,
+        CONF_RULES: [SOLAR_EXPORT],
+    }
+
+
+async def test_adding_a_rule_opens_the_stored_rules_with_a_new_one_and_saves_into_the_policies(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """With policies already stored, adding opens them all plus a new rule, and saves into the one subentry."""
+    _add_policies(hass, hub_entry, [SOLAR_EXPORT, {**GRID_CHARGE, "name": "Rule 2"}])
+    flow = _create_flow(hass, hub_entry)
+
+    shown = await flow.async_step_user(user_input=None)
+
+    assert [rule["name"] for rule in _shown_rules(shown)] == ["Solar Export", "Rule 2", "Rule 3"]
+
+    result = await flow.async_step_user(
+        user_input={
+            CONF_RULES: [
+                _rule("Solar Export", source=["Solar"], target=["Grid"]),
+                _rule("Battery Wear", source=["Battery"], price=as_constant_value(0.01)),
+            ]
         }
     )
-    return ConfigSubentry(
-        data=data,
-        subentry_type=POLICY_ELEMENT_TYPE,
-        title=POLICIES_TITLE,
-        unique_id=None,
-    )
+
+    assert result.get("type") == FlowResultType.ABORT
+    policies = [sub for sub in hub_entry.subentries.values() if sub.subentry_type == POLICY_ELEMENT_TYPE]
+    assert len(policies) == 1
+    assert [rule["name"] for rule in policies[0].data[CONF_RULES]] == ["Solar Export", "Battery Wear"]
 
 
-def _get_suggested_value(result: SubentryFlowResult, field_name: str) -> object:
-    """Extract the suggested_value for a field from a flow result's data_schema."""
-    data_schema = result.get("data_schema")
-    assert data_schema is not None
-    for key in data_schema.schema:
-        if getattr(key, "schema", None) == field_name:
-            desc = getattr(key, "description", None)
-            if desc is not None:
-                return desc.get("suggested_value")
-    return None
+async def test_reconfigure_opens_the_stored_rules_as_the_editor_shows_them(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """Each stored rule opens with its on state as a bool, its ends as lists, empty for any, and its price."""
+    subentry = _add_policies(hass, hub_entry, [SOLAR_EXPORT, GRID_CHARGE])
+
+    shown = await _reconfigure_flow(hass, hub_entry, subentry).async_step_reconfigure(user_input=None)
+
+    assert shown.get("step_id") == "reconfigure"
+    assert _shown_rules(shown) == [
+        _rule("Solar Export", source=["Solar"], target=["Grid"]),
+        _rule("Grid Charge", source=["Grid"], price=as_entity_value(["sensor.grid_price"]), enabled=False),
+    ]
 
 
-def _get_selector(result: SubentryFlowResult, field_name: str) -> Selector[ChooseSelectorConfig] | None:
-    """Extract selector instance for a field from a flow result's data_schema."""
-    data_schema = result.get("data_schema")
-    assert data_schema is not None
-    for key, selector in data_schema.schema.items():
-        if getattr(key, "schema", None) == field_name:
-            return selector
-    return None
-
-
-def _get_entity_include_entities(selector: Selector[ChooseSelectorConfig]) -> list[str] | None:
-    """Extract include_entities from the entity branch of a choose selector."""
-    entity_choice = selector.config["choices"][CHOICE_ENTITY]
-    entity_selector = entity_choice["selector"]
-    assert isinstance(entity_selector, dict)
-    entity_config = entity_selector["entity"]
-    included = entity_config.get("include_entities")
-    return list(included) if included is not None else None
-
-
-async def test_build_price_selector_includes_compatible_price_entities(
+@pytest.mark.parametrize(
+    ("submitted", "stored"),
+    [
+        pytest.param(
+            [_rule("Solar Export", source=["Solar"], target=["Grid"], enabled=False)],
+            [{**SOLAR_EXPORT, "enabled": as_constant_value(value=False)}],
+            id="turned_off_and_one_removed",
+        ),
+        pytest.param(
+            [_rule("Export", target=["Grid"]), _rule("Grid Charge", source=["Grid"], price=as_constant_value(0.5))],
+            [
+                {
+                    "name": "Export",
+                    "enabled": as_constant_value(value=True),
+                    "target": ["Grid"],
+                    "price": as_constant_value(0.02),
+                },
+                {
+                    "name": "Grid Charge",
+                    "enabled": as_constant_value(value=True),
+                    "source": ["Grid"],
+                    "price": as_constant_value(0.5),
+                },
+            ],
+            id="edited_with_an_end_left_any",
+        ),
+        pytest.param([], [], id="all_removed"),
+    ],
+)
+async def test_reconfigure_saves_the_rules_as_edited(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    entity_registry: er.EntityRegistry,
+    submitted: list[PolicyRuleValue],
+    stored: list[PolicyRuleConfig],
 ) -> None:
-    """Price entity picker includes price-compatible sensors across energy scales."""
+    """Saving stores each rule's on state as a constant and leaves out an end naming no elements."""
+    subentry = _add_policies(hass, hub_entry, [SOLAR_EXPORT, GRID_CHARGE])
+
+    result = await _reconfigure_flow(hass, hub_entry, subentry).async_step_reconfigure(
+        user_input={CONF_RULES: submitted}
+    )
+
+    assert result.get("type") == FlowResultType.ABORT
+    assert hub_entry.subentries[subentry.subentry_id].data[CONF_RULES] == stored
+
+
+@pytest.mark.parametrize(
+    ("rules", "error"),
+    [
+        pytest.param([_rule("")], "missing_name", id="no_name"),
+        pytest.param([_rule("A", source=["Solar"]), _rule("A", source=["Grid"])], "name_exists", id="same_name"),
+        pytest.param([_rule("A", source=["Grid"], target=["Grid"])], "source_target_same", id="same_ends"),
+        pytest.param(
+            [_rule("A", source=["Solar", "Grid"]), _rule("B", source=["Grid", "Solar"])],
+            "duplicate_rule",
+            id="same_pattern",
+        ),
+        pytest.param([_rule("A", price=as_none_value())], "required", id="no_price"),
+        pytest.param([], "no_rules", id="no_first_rule"),
+    ],
+)
+async def test_a_rule_that_cannot_be_saved_is_shown_again_with_the_error(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, rules: list[PolicyRuleValue], error: str
+) -> None:
+    """A problem with any rule keeps the form open on the submitted rules, naming the problem."""
+    result = await _create_flow(hass, hub_entry).async_step_user(user_input={CONF_RULES: rules})
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("errors") == {CONF_RULES: error}
+    assert _shown_rules(result) == rules
+
+
+async def test_a_stored_rule_naming_what_is_gone_can_still_be_saved(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """A rule naming a deleted element or a sensor no longer offered stays offered, so it doesn't block the form."""
+    stale: PolicyRuleConfig = {
+        "name": "Old",
+        "enabled": ON,
+        "source": ["Old battery"],
+        "price": as_entity_value(["sensor.gone"]),
+    }
+    subentry = _add_policies(hass, hub_entry, [stale])
+
+    result = await _reconfigure_flow(hass, hub_entry, subentry).async_step_reconfigure()
+
+    assert _selector(result)(_shown_rules(result)) == _shown_rules(result)
+
+
+async def test_the_editor_offers_sources_and_targets_by_role(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Sources are elements that can source power and targets those that can sink it; others are left out."""
+    _add_element(hass, hub_entry, "My Load", LOAD_ELEMENT_TYPE)
+    _add_element(hass, hub_entry, "My Solar", SOLAR_ELEMENT_TYPE)
+    _add_element(hass, hub_entry, "Inverter", INVERTER_ELEMENT_TYPE)
+    _add_element(
+        hass, hub_entry, "Switchboard", NODE_ELEMENT_TYPE, {SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False}}
+    )
+    _add_element(hass, hub_entry, "Broken", "not-a-real-type")
+
+    config = _selector(await _create_flow(hass, hub_entry).async_step_user(user_input=None)).config
+
+    assert [element["name"] for element in config["sources"]] == ["Solar", "Grid", "Battery", "My Solar"]
+    assert [element["name"] for element in config["targets"]] == ["Grid", "Battery", "Load", "My Load"]
+    assert config["sources"][3] == {"name": "My Solar", "element_type": SOLAR_ELEMENT_TYPE}
+
+
+async def test_the_editor_marks_each_rule_an_elements_own_price_stands_for(
+    hass: HomeAssistant, hub_entry: MockConfigEntry
+) -> None:
+    """Each element's surfaced price fields give the rule pattern they stand for, with the element owning it."""
+    _add_element(hass, hub_entry, "Home Battery", BATTERY_ELEMENT_TYPE)
+
+    config = _selector(await _create_flow(hass, hub_entry).async_step_user(user_input=None)).config
+
+    assert config["surfaced"] == [
+        {"owner": "Home Battery", "owner_type": BATTERY_ELEMENT_TYPE, "source": None, "target": ["Home Battery"]},
+        {"owner": "Home Battery", "owner_type": BATTERY_ELEMENT_TYPE, "source": ["Home Battery"], "target": None},
+    ]
+
+
+async def test_rule_price_offers_compatible_price_entities_and_a_constant(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, entity_registry: er.EntityRegistry
+) -> None:
+    """The price takes entities or a constant, offering price sensors at any energy scale but not HAEO's own."""
     haeo_number = entity_registry.async_get_or_create(
         domain="number",
         platform=DOMAIN,
@@ -153,1195 +340,15 @@ async def test_build_price_selector_includes_compatible_price_entities(
     )
     hass.states.async_set("sensor.import_price", "0.25", {"unit_of_measurement": "$/kWh"})
     hass.states.async_set("sensor.export_price", "0.05", {"unit_of_measurement": "€/MWh"})
-    hass.states.async_set("sensor.wholesale_price", "0.001", {"unit_of_measurement": "AUD/Wh"})
     hass.states.async_set("sensor.power_only", "5", {"unit_of_measurement": "kW"})
 
-    flow = _create_flow(hass, hub_entry)
-    include_entities = _get_entity_include_entities(flow._build_price_selector(None))
-
-    assert include_entities is not None
-    assert "sensor.import_price" in include_entities
-    assert "sensor.export_price" in include_entities
-    assert "sensor.wholesale_price" in include_entities
-    assert "sensor.power_only" not in include_entities
-    assert haeo_number.entity_id not in include_entities
-
-
-# --- User step (adding a policy rule) ---
-
-
-async def test_user_step_shows_form(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """First call to async_step_user shows the rule form."""
-    flow = _create_flow(hass, hub_entry)
-
-    result = await flow.async_step_user(user_input=None)
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "user"
-
-
-async def test_user_step_creates_entry_when_none_exists(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Submitting a rule when no policy subentry exists creates one."""
-    flow = _create_flow(hass, hub_entry)
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": POLICIES_TITLE, "data": {}},
-    )
-
-    result = await flow.async_step_user(
-        user_input={
-            CONF_RULE_NAME: "Solar Export",
-            CONF_ENABLED: True,
-            CONF_SOURCE: ["Solar"],
-            CONF_TARGET: ["Grid"],
-            CONF_PRICE: 0.02,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.CREATE_ENTRY
-    created_data = flow.async_create_entry.call_args.kwargs["data"]
-    assert created_data[CONF_ELEMENT_TYPE] == POLICY_ELEMENT_TYPE
-    assert len(created_data[CONF_RULES]) == 1
-    assert created_data[CONF_RULES][0]["name"] == "Solar Export"
-    assert created_data[CONF_RULES][0]["source"] == ["Solar"]
-    assert created_data[CONF_RULES][0]["price"] == as_constant_value(0.02)
-
-
-async def test_user_step_appends_to_existing_subentry(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Submitting a rule when a policy subentry exists appends to it."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.async_update_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
-    )
-
-    result = await flow.async_step_user(
-        user_input={
-            CONF_RULE_NAME: "Grid Charge",
-            CONF_ENABLED: True,
-            CONF_SOURCE: ["Grid"],
-            CONF_TARGET: ["Battery"],
-            CONF_PRICE: 0.05,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.ABORT
-    update_data = flow.async_update_and_abort.call_args.kwargs["data"]
-    assert len(update_data[CONF_RULES]) == 2
-    assert update_data[CONF_RULES][0]["name"] == "Solar Export"
-    assert update_data[CONF_RULES][1]["name"] == "Grid Charge"
-
-
-async def test_user_step_saves_a_new_rule_into_the_existing_subentry(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Adding a rule through the shared save path updates the one policy subentry rather than adding another."""
-    existing = _make_policy_subentry(
-        [{"name": "Solar Export", "enabled": True, "source": ["Solar"], "price": as_constant_value(0.02)}]
-    )
-    hass.config_entries.async_add_subentry(hub_entry, existing)
-
-    result = await _create_flow(hass, hub_entry).async_step_user(
-        user_input={CONF_RULE_NAME: "Grid Charge", CONF_ENABLED: True, CONF_SOURCE: ["Grid"], CONF_PRICE: 0.05}
-    )
-
-    assert result.get("type") == FlowResultType.ABORT
-    policies = [s for s in hub_entry.subentries.values() if s.subentry_type == POLICY_ELEMENT_TYPE]
-    assert policies == [find_policy_subentry(hub_entry)]
-    assert [rule["name"] for rule in policies[0].data[CONF_RULES]] == ["Solar Export", "Grid Charge"]
-
-
-async def test_user_step_any_defaults(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Source/target defaulting to 'any' omits them from stored config."""
-    flow = _create_flow(hass, hub_entry)
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": POLICIES_TITLE, "data": {}},
-    )
-
-    await flow.async_step_user(
-        user_input={
-            CONF_RULE_NAME: "Global Policy",
-            CONF_ENABLED: True,
-            CONF_SOURCE: "",
-            CONF_TARGET: "",
-            CONF_PRICE: 0.05,
-        }
-    )
-
-    created_data = flow.async_create_entry.call_args.kwargs["data"]
-    rule = created_data[CONF_RULES][0]
-    assert "source" not in rule
-    assert "target" not in rule
-
-
-async def test_user_step_rejects_missing_name(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Submitting a rule without a name shows an error."""
-    flow = _create_flow(hass, hub_entry)
-
-    result = await flow.async_step_user(
-        user_input={
-            CONF_RULE_NAME: "",
-            CONF_SOURCE: ["Solar"],
-            CONF_TARGET: ["Grid"],
-        }
-    )
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {CONF_RULE_NAME: "missing_name"}
-
-
-async def test_user_step_rejects_same_source_target(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Submitting source == target (non-wildcard) shows an error."""
-    flow = _create_flow(hass, hub_entry)
-
-    result = await flow.async_step_user(
-        user_input={
-            CONF_RULE_NAME: "Self Loop",
-            CONF_SOURCE: ["Solar"],
-            CONF_TARGET: ["Solar"],
-        }
-    )
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {"base": "source_target_same"}
-
-
-# --- Reconfigure step (manage existing rules) ---
-
-
-async def test_reconfigure_shows_form(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Reconfigure loads existing rules and shows the selection form."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-
-    result = await flow.async_step_reconfigure(user_input=None)
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure"
-
-
-async def test_reconfigure_aborts_when_empty(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Reconfigure with no rules aborts."""
-    subentry = _make_policy_subentry([])
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-
-    result = await flow.async_step_reconfigure(user_input=None)
-
-    assert result.get("type") == FlowResultType.ABORT
-    assert result.get("reason") == "no_rules"
-
-
-async def test_reconfigure_edit_shows_edit_form(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Selecting edit navigates to the edit_rule step."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-
-    await flow.async_step_reconfigure(user_input=None)
-
-    result = await flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "0",
-            CONF_ACTION: ACTION_EDIT,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "edit_rule"
-
-
-async def test_reconfigure_delete_updates_subentry(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Selecting delete removes the rule and saves."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-        {
-            "name": "Grid Charge",
-            "enabled": True,
-            "source": ["Grid"],
-            "target": ["Battery"],
-            "price": as_constant_value(0.05),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow.async_update_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
-    )
-
-    await flow.async_step_reconfigure(user_input=None)
-
-    result = await flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "0",
-            CONF_ACTION: ACTION_DELETE,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.ABORT
-    update_data = flow.async_update_and_abort.call_args.kwargs["data"]
-    assert len(update_data[CONF_RULES]) == 1
-    assert update_data[CONF_RULES][0]["name"] == "Grid Charge"
-
-
-# --- Edit rule step ---
-
-
-async def test_edit_rule_updates_and_saves(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Editing a rule updates it and saves the subentry."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow.async_update_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
-    )
-
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "0",
-            CONF_ACTION: ACTION_EDIT,
-        }
-    )
-
-    result = await flow.async_step_edit_rule(
-        user_input={
-            CONF_RULE_NAME: "Solar Export Updated",
-            CONF_ENABLED: True,
-            CONF_SOURCE: ["Solar"],
-            CONF_TARGET: ["Grid"],
-            CONF_PRICE: 0.03,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.ABORT
-    update_data = flow.async_update_and_abort.call_args.kwargs["data"]
-    assert update_data[CONF_RULES][0]["name"] == "Solar Export Updated"
-    assert update_data[CONF_RULES][0]["price"] == as_constant_value(0.03)
-
-
-async def test_edit_rule_preserves_source_target_when_omitted_from_submission(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Editing a rule without source/target keeps the existing endpoint values."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow.async_update_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
-    )
-
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "0",
-            CONF_ACTION: ACTION_EDIT,
-        }
-    )
-
-    result = await flow.async_step_edit_rule(
-        user_input={
-            CONF_RULE_NAME: "Solar Export Updated",
-            CONF_ENABLED: True,
-            CONF_PRICE: 0.03,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.ABORT
-    update_data = flow.async_update_and_abort.call_args.kwargs["data"]
-    assert update_data[CONF_RULES][0]["source"] == ["Solar"]
-    assert update_data[CONF_RULES][0]["target"] == ["Grid"]
-    assert update_data[CONF_RULES][0]["price"] == as_constant_value(0.03)
-
-
-async def test_edit_rule_updates_only_selected_rule_without_losing_others(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Editing one rule preserves all other rules and total rule count."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Rule A",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-        {
-            "name": "Rule B",
-            "enabled": True,
-            "source": ["Grid"],
-            "target": ["Battery"],
-            "price": as_constant_value(0.05),
-        },
-        {
-            "name": "Rule C",
-            "enabled": True,
-            "source": ["Battery"],
-            "target": ["Load"],
-            "price": as_constant_value(0.01),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow.async_update_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
-    )
-
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "1",
-            CONF_ACTION: ACTION_EDIT,
-        }
-    )
-
-    result = await flow.async_step_edit_rule(
-        user_input={
-            CONF_RULE_NAME: "Rule B Updated",
-            CONF_ENABLED: True,
-            CONF_PRICE: 0.07,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.ABORT
-    update_data = flow.async_update_and_abort.call_args.kwargs["data"]
-    rules = update_data[CONF_RULES]
-    assert len(rules) == 3
-    assert rules[0] == existing_rules[0]
-    assert rules[2] == existing_rules[2]
-    assert rules[1]["name"] == "Rule B Updated"
-    assert rules[1]["source"] == ["Grid"]
-    assert rules[1]["target"] == ["Battery"]
-    assert rules[1]["price"] == as_constant_value(0.07)
-
-
-async def test_edit_rule_rejects_duplicate_name(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Editing a rule to a name that already exists shows an error."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-        {
-            "name": "Grid Charge",
-            "enabled": True,
-            "source": ["Grid"],
-            "target": ["Battery"],
-            "price": as_constant_value(0.05),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "0",
-            CONF_ACTION: ACTION_EDIT,
-        }
-    )
-
-    result = await flow.async_step_edit_rule(
-        user_input={
-            CONF_RULE_NAME: "Grid Charge",
-            CONF_SOURCE: ["Solar"],
-            CONF_TARGET: ["Grid"],
-        }
-    )
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {CONF_RULE_NAME: "name_exists"}
-
-
-async def test_edit_rule_saved_values_restore_when_reopened(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Saved rule edits appear as defaults when opening edit again."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    # First edit/save pass
-    save_flow = _create_flow(hass, hub_entry)
-    save_flow.context = {"subentry_id": subentry.subentry_id}
-    save_flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    save_flow.async_update_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
-    )
-
-    await save_flow.async_step_reconfigure(user_input=None)
-    await save_flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "0",
-            CONF_ACTION: ACTION_EDIT,
-        }
-    )
-    await save_flow.async_step_edit_rule(
-        user_input={
-            CONF_RULE_NAME: "Solar Export Updated",
-            CONF_ENABLED: True,
-            CONF_SOURCE: ["Solar"],
-            CONF_TARGET: ["Battery"],
-            CONF_PRICE: 0.06,
-        }
-    )
-
-    saved_data = save_flow.async_update_and_abort.call_args.kwargs["data"]
-    saved_subentry = _make_policy_subentry(saved_data[CONF_RULES])
-    hass.config_entries.async_add_subentry(hub_entry, saved_subentry)
-
-    # Re-open edit using saved values
-    reopen_flow = _create_flow(hass, hub_entry)
-    reopen_flow.context = {"subentry_id": saved_subentry.subentry_id}
-    reopen_flow._get_reconfigure_subentry = Mock(return_value=saved_subentry)
-    reopen_flow._get_subentry = Mock(return_value=saved_subentry)
-
-    await reopen_flow.async_step_reconfigure(user_input=None)
-    await reopen_flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "0",
-            CONF_ACTION: ACTION_EDIT,
-        }
-    )
-    reopen_result = await reopen_flow.async_step_edit_rule(user_input=None)
-
-    assert _get_suggested_value(reopen_result, CONF_RULE_NAME) == "Solar Export Updated"
-    assert _get_suggested_value(reopen_result, CONF_SOURCE) == ["Solar"]
-    assert _get_suggested_value(reopen_result, CONF_TARGET) == ["Battery"]
-    assert _get_suggested_value(reopen_result, CONF_PRICE) == 0.06
-
-
-async def test_edit_rule_rejects_duplicate_name_preserves_omitted_source_target_defaults(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Validation errors keep previous source/target defaults when omitted from submission."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-        {
-            "name": "Grid Charge",
-            "enabled": True,
-            "source": ["Grid"],
-            "target": ["Battery"],
-            "price": as_constant_value(0.05),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "0",
-            CONF_ACTION: ACTION_EDIT,
-        }
-    )
-
-    result = await flow.async_step_edit_rule(
-        user_input={
-            CONF_RULE_NAME: "Grid Charge",
-            CONF_ENABLED: True,
-            CONF_PRICE: 0.03,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {CONF_RULE_NAME: "name_exists"}
-    assert _get_suggested_value(result, CONF_SOURCE) == ["Solar"]
-    assert _get_suggested_value(result, CONF_TARGET) == ["Grid"]
-
-
-def test_endpoint_selector_normalizes_wildcard_and_node_lists(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Policy endpoint ChooseSelector maps none/elements choices to list or empty string."""
-    flow = _create_flow(hass, hub_entry)
-    sel = flow._build_endpoint_selector(["Solar", "Grid"])
-    assert sel({"active_choice": CHOICE_NONE}) == ""
-    assert sel({"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: ["Solar"]}) == ["Solar"]
-
-
-def test_parse_rule_input_empty_string_price_is_rejected() -> None:
-    """Empty price is rejected because policy price is required."""
-    flow = PolicySubentryFlowHandler()
-    errors: dict[str, str] = {}
-    valid = flow._validate_rule(
-        {
-            CONF_RULE_NAME: "Free flow",
-            CONF_ENABLED: True,
-            CONF_PRICE: "",
-        },
-        errors,
-    )
-    assert not valid
-    assert errors == {CONF_PRICE: "required"}
-
-
-def test_parse_rule_input_list_price_becomes_entity_value() -> None:
-    """Entity list price input maps to schema entity value."""
-    flow = PolicySubentryFlowHandler()
-    rule = flow._parse_rule_input(
-        {
-            CONF_RULE_NAME: "Tracked",
-            CONF_ENABLED: True,
-            CONF_PRICE: ["sensor.a", "sensor.b"],
-        }
-    )
-    assert rule.get("price") == as_entity_value(["sensor.a", "sensor.b"])
-
-
-async def test_edit_rule_index_out_of_range_uses_empty_defaults(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Invalid editing index falls back to empty suggested values."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow._get_subentry = Mock(return_value=subentry)
-    flow._editing_index = 99
-    flow._rules = list(existing_rules)
-
-    result = await flow.async_step_edit_rule(user_input=None)
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "edit_rule"
-
-
-def test_endpoint_selector_delegates_to_super_without_active_choice(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Payloads without active_choice are validated by the base ChooseSelector."""
-    flow = _create_flow(hass, hub_entry)
-    sel = flow._build_endpoint_selector(["Solar"])
-    with pytest.raises(vol.Invalid):
-        sel({"unexpected": "shape"})
-
-
-def test_endpoint_selector_unknown_active_choice_delegates_to_super(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Unknown active_choice values are delegated to base selector validation."""
-    flow = _create_flow(hass, hub_entry)
-    sel = flow._build_endpoint_selector(["Solar"])
-    with pytest.raises(vol.Invalid):
-        sel({"active_choice": "unknown"})
-
-
-def test_endpoint_selector_elements_first_when_preferred(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Elements choice is placed first when preferred for restore behavior."""
-    flow = _create_flow(hass, hub_entry)
-    sel = flow._build_endpoint_selector(["Solar"], preferred_choice=CHOICE_ELEMENTS)
-    choices_keys = list(sel.config["choices"].keys())
-    assert choices_keys[0] == CHOICE_ELEMENTS
-    assert choices_keys[1] == CHOICE_NONE
-
-
-def test_get_participant_options_skips_invalid_element_type_values(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Participant options ignore subentries with invalid element_type payloads."""
-    invalid_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: "not-a-real-type", CONF_NAME: "Broken"}),
-        subentry_type="broken",
-        title="Broken",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, invalid_subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    options = flow._get_participant_options()
-    assert "Broken" not in options
-
-
-def test_get_participant_options_filters_source_capability(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Source filtering only returns elements whose adapter has can_source=True."""
-    # Add a load (sink-only) and solar (source-only) subentry
-    for name, etype in [("My Load", LOAD_ELEMENT_TYPE), ("My Solar", SOLAR_ELEMENT_TYPE)]:
-        subentry = ConfigSubentry(
-            data=MappingProxyType({CONF_ELEMENT_TYPE: etype, CONF_NAME: name}),
-            subentry_type=etype,
-            title=name,
-            unique_id=None,
-        )
-        hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    source_options = flow._get_participant_options(can_source=True)
-    # Solar adapter has can_source=True
-    assert "My Solar" in source_options
-    # Load (sink-only) should be excluded
-    assert "My Load" not in source_options
-
-
-def test_get_participant_options_filters_sink_capability(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Sink filtering only returns elements whose adapter has can_sink=True."""
-    for name, etype in [("My Load", LOAD_ELEMENT_TYPE), ("My Solar", SOLAR_ELEMENT_TYPE)]:
-        subentry = ConfigSubentry(
-            data=MappingProxyType({CONF_ELEMENT_TYPE: etype, CONF_NAME: name}),
-            subentry_type=etype,
-            title=name,
-            unique_id=None,
-        )
-        hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    target_options = flow._get_participant_options(can_sink=True)
-    # Load adapter has can_sink=True
-    assert "My Load" in target_options
-    # Solar (source-only) should be excluded
-    assert "My Solar" not in target_options
-
-
-def test_get_participant_options_excludes_passthrough_elements(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Elements with neither can_source nor can_sink (e.g., inverter) are excluded."""
-    inverter_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: INVERTER_ELEMENT_TYPE, CONF_NAME: "Inverter"}),
-        subentry_type=INVERTER_ELEMENT_TYPE,
-        title="Inverter",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, inverter_subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    # Inverter excluded from source options
-    assert "Inverter" not in flow._get_participant_options(can_source=True)
-    # Inverter excluded from sink options
-    assert "Inverter" not in flow._get_participant_options(can_sink=True)
-    # Inverter excluded from unfiltered options too (neither source nor sink)
-    assert "Inverter" not in flow._get_participant_options()
-
-
-def test_get_participant_options_excludes_junction_nodes(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Node elements with is_source=False and is_sink=False are excluded as junctions."""
-    junction_subentry = ConfigSubentry(
-        data=MappingProxyType(
-            {
-                CONF_ELEMENT_TYPE: NODE_ELEMENT_TYPE,
-                CONF_NAME: "Switchboard",
-                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
-            }
-        ),
-        subentry_type=NODE_ELEMENT_TYPE,
-        title="Switchboard",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, junction_subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    assert "Switchboard" not in flow._get_participant_options(can_source=True)
-    assert "Switchboard" not in flow._get_participant_options(can_sink=True)
-    assert "Switchboard" not in flow._get_participant_options()
-
-
-async def test_reconfigure_delete_invalid_index_keeps_rules_and_saves(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Deleting an out-of-range index does not mutate rules but still persists current state."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow.async_update_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
-    )
-
-    await flow.async_step_reconfigure(user_input=None)
-    result = await flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "5",
-            CONF_ACTION: ACTION_DELETE,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.ABORT
-    update_data = flow.async_update_and_abort.call_args.kwargs["data"]
-    assert update_data[CONF_RULES] == existing_rules
-
-
-async def test_reconfigure_edit_invalid_index_shows_form(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Selecting edit with an invalid index keeps reconfigure form open."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-
-    await flow.async_step_reconfigure(user_input=None)
-    result = await flow.async_step_reconfigure(
-        user_input={
-            CONF_RULE: "5",
-            CONF_ACTION: ACTION_EDIT,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure"
-
-
-async def test_edit_rule_valid_input_without_subentry_returns_form(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """When no subentry is available during edit save, flow returns to form instead of aborting."""
-    flow = _create_flow(hass, hub_entry)
-    flow._rules = [{"name": "Existing", "enabled": True, "price": {"type": "constant", "value": 0.0}}]
-    flow._editing_index = 0
-    flow._get_subentry = Mock(return_value=None)
-
-    result = await flow.async_step_edit_rule(
-        user_input={
-            CONF_RULE_NAME: "Renamed",
-            CONF_ENABLED: True,
-            CONF_PRICE: 0.01,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "edit_rule"
-
-
-async def test_edit_rule_valid_input_with_invalid_index_returns_form(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Valid edit submission with invalid index keeps form open."""
-    flow = _create_flow(hass, hub_entry)
-    flow._rules = [{"enabled": True, "name": "Existing", "price": as_constant_value(0.01)}]
-    flow._editing_index = 99
-    flow._get_subentry = Mock(return_value=None)
-
-    result = await flow.async_step_edit_rule(
-        user_input={
-            CONF_RULE_NAME: "Renamed",
-            CONF_ENABLED: True,
-            CONF_PRICE: 0.02,
-        }
-    )
-
-    assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "edit_rule"
-
-
-# --- Issue 2: Edit rule shows previous values ---
-
-
-async def test_edit_rule_shows_previous_values_for_source_target(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Editing a rule with source/target pre-fills the endpoint ChooseSelector format."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow._get_subentry = Mock(return_value=subentry)
-
-    # Load rules and select rule 0 for editing
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
-
-    # Open the edit form without submitting
-    result = await flow.async_step_edit_rule(user_input=None)
-
-    assert result.get("type") == FlowResultType.FORM
-    assert _get_suggested_value(result, CONF_SOURCE) == ["Solar"]
-    assert _get_suggested_value(result, CONF_TARGET) == ["Grid"]
-    source_selector = _get_selector(result, CONF_SOURCE)
-    target_selector = _get_selector(result, CONF_TARGET)
-    assert source_selector is not None
-    assert target_selector is not None
-    assert next(iter(source_selector.config["choices"].keys())) == CHOICE_ELEMENTS
-    assert next(iter(target_selector.config["choices"].keys())) == CHOICE_ELEMENTS
-
-
-async def test_edit_rule_ui_restore_contract_for_elements_endpoints(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """UI restore works by aligning suggested value with first choose choice."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow._get_subentry = Mock(return_value=subentry)
-
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
-    result = await flow.async_step_edit_rule(user_input=None)
-
-    source_selector = _get_selector(result, CONF_SOURCE)
-    target_selector = _get_selector(result, CONF_TARGET)
-    assert source_selector is not None
-    assert target_selector is not None
-    assert next(iter(source_selector.config["choices"].keys())) == CHOICE_ELEMENTS
-    assert next(iter(target_selector.config["choices"].keys())) == CHOICE_ELEMENTS
-    assert _get_suggested_value(result, CONF_SOURCE) == ["Solar"]
-    assert _get_suggested_value(result, CONF_TARGET) == ["Grid"]
-
-
-async def test_edit_rule_shows_any_for_missing_source_target(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Editing a rule without source/target shows 'any' (empty string) as default."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Global Policy",
-            "enabled": True,
-            "price": as_constant_value(0.05),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow._get_subentry = Mock(return_value=subentry)
-
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
-
-    result = await flow.async_step_edit_rule(user_input=None)
-
-    assert _get_suggested_value(result, CONF_SOURCE) == ""
-    assert _get_suggested_value(result, CONF_TARGET) == ""
-
-    source_selector = _get_selector(result, CONF_SOURCE)
-    target_selector = _get_selector(result, CONF_TARGET)
-    assert source_selector is not None
-    assert target_selector is not None
-    assert next(iter(source_selector.config["choices"].keys())) == CHOICE_NONE
-    assert next(iter(target_selector.config["choices"].keys())) == CHOICE_NONE
-
-
-async def test_edit_rule_shows_previous_constant_price(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Editing a rule with constant price pre-fills the price field."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Solar Export",
-            "enabled": True,
-            "source": ["Solar"],
-            "target": ["Grid"],
-            "price": as_constant_value(0.02),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow._get_subentry = Mock(return_value=subentry)
-
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
-
-    result = await flow.async_step_edit_rule(user_input=None)
-
-    assert _get_suggested_value(result, CONF_PRICE) == 0.02
-
-
-async def test_edit_rule_shows_previous_entity_price(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Editing a rule with entity price pre-fills the entity list."""
-    existing_rules: list[PolicyRuleConfig] = [
-        {
-            "name": "Tracked",
-            "enabled": True,
-            "price": as_entity_value(["sensor.price"]),
-        },
-    ]
-    subentry = _make_policy_subentry(existing_rules)
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow._get_subentry = Mock(return_value=subentry)
-
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
-
-    result = await flow.async_step_edit_rule(user_input=None)
-
-    assert _get_suggested_value(result, CONF_PRICE) == ["sensor.price"]
-
-
-# --- Issue 4: Enabled/disabled toggle per rule ---
-
-
-async def test_user_step_stores_enabled_false(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Creating a rule with enabled=False stores it in the rule config."""
-    flow = _create_flow(hass, hub_entry)
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": POLICIES_TITLE, "data": {}},
-    )
-
-    await flow.async_step_user(
-        user_input={
-            CONF_ENABLED: False,
-            CONF_RULE_NAME: "Disabled Rule",
-            CONF_SOURCE: ["Solar"],
-            CONF_TARGET: ["Grid"],
-            CONF_PRICE: 0.02,
-        }
-    )
-
-    created_data = flow.async_create_entry.call_args.kwargs["data"]
-    assert created_data[CONF_RULES][0]["enabled"] == as_constant_value(value=False)
-
-
-async def test_user_step_stores_enabled_true_by_default(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Creating a rule with enabled=True (default) stores it."""
-    flow = _create_flow(hass, hub_entry)
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": POLICIES_TITLE, "data": {}},
-    )
-
-    await flow.async_step_user(
-        user_input={
-            CONF_ENABLED: True,
-            CONF_RULE_NAME: "Active Rule",
-            CONF_SOURCE: ["Solar"],
-            CONF_TARGET: ["Grid"],
-            CONF_PRICE: 0.02,
-        }
-    )
-
-    created_data = flow.async_create_entry.call_args.kwargs["data"]
-    assert created_data[CONF_RULES][0]["enabled"] == as_constant_value(value=True)
+    price = _selector(await _create_flow(hass, hub_entry).async_step_user(user_input=None)).config["price"]
+
+    assert price["kinds"] == ["entity", "constant"]
+    entities = price.get("entities", [])
+    assert {"sensor.import_price", "sensor.export_price"} <= set(entities)
+    assert "sensor.power_only" not in entities
+    assert haeo_number.entity_id not in entities
 
 
 def test_extract_policy_rules_includes_disabled_with_enabled_flag() -> None:
@@ -1374,209 +381,3 @@ def test_extract_policy_rules_includes_disabled_with_enabled_flag() -> None:
     assert result[2]["sources"] == ["Solar"]
     assert result[2]["destinations"] == ["Battery"]
     assert result[2].get("enabled") is True
-
-
-# --- Issue 5: Empty node list normalizes to 'any' ---
-
-
-def test_endpoint_selector_empty_elements_raises_invalid(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Selecting 'Elements' choice with empty list raises vol.Invalid."""
-    flow = _create_flow(hass, hub_entry)
-    sel = flow._build_endpoint_selector(["Solar", "Grid"])
-    with pytest.raises(vol.Invalid):
-        sel({"active_choice": CHOICE_ELEMENTS, CHOICE_ELEMENTS: []})
-
-
-@pytest.mark.parametrize(
-    ("stored_enabled", "shown_enabled"),
-    [
-        (as_constant_value(value=True), True),
-        (as_constant_value(value=False), False),
-        (True, True),
-        (False, False),
-    ],
-)
-def test_rule_to_defaults_shows_enabled_as_a_bool(
-    stored_enabled: ConstantValue | bool,
-    shown_enabled: bool,
-) -> None:
-    """The enabled toggle shows a bool whichever form the rule stores it in."""
-    flow = PolicySubentryFlowHandler()
-    defaults = flow._rule_to_defaults({"name": "Test", "enabled": stored_enabled, "price": as_constant_value(0.0)})
-    assert defaults[CONF_ENABLED] is shown_enabled
-
-
-def test_parse_rule_input_stores_enabled() -> None:
-    """Enabled field is always stored in the rule."""
-    flow = PolicySubentryFlowHandler()
-    rule = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: True, CONF_PRICE: 0.05})
-    assert rule["enabled"] == as_constant_value(value=True)
-
-    rule_disabled = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: False, CONF_PRICE: 0.01})
-    assert rule_disabled["enabled"] == as_constant_value(value=False)
-
-
-@pytest.mark.parametrize(
-    "price_input",
-    [
-        None,
-        [],
-    ],
-)
-def test_validate_rule_requires_non_empty_price(price_input: object) -> None:
-    """Rule validation rejects missing or empty list price input."""
-    flow = PolicySubentryFlowHandler()
-    errors: dict[str, str] = {}
-    valid = flow._validate_rule(
-        {
-            CONF_RULE_NAME: "Test",
-            CONF_ENABLED: True,
-            CONF_PRICE: price_input,
-        },
-        errors,
-    )
-    assert not valid
-    assert errors == {CONF_PRICE: "required"}
-
-
-# --- Tests for the first price choice following the value the form shows ---
-
-# Each price choice, as stored and as submitted
-_PRICES: dict[str, tuple[EntityValue | ConstantValue, object]] = {
-    CHOICE_ENTITY: (as_entity_value(["sensor.price"]), ["sensor.price"]),
-    CHOICE_CONSTANT: (as_constant_value(0.02), 0.02),
-}
-
-
-def _price_first_choice(result: SubentryFlowResult) -> str:
-    """Return the first choice of the price selector in a shown rule form."""
-    selector = _get_selector(result, CONF_PRICE)
-    assert selector is not None
-    return next(iter(selector.config["choices"]))
-
-
-async def _edit_rule_flow(
-    hass: HomeAssistant, hub_entry: MockConfigEntry, price: EntityValue | ConstantValue
-) -> PolicySubentryFlowHandler:
-    """Create a flow editing the first of two rules, whose price is the given value."""
-    subentry = _make_policy_subentry(
-        [
-            {"name": "Solar Export", "enabled": True, "source": ["Solar"], "target": ["Grid"], "price": price},
-            {"name": "Grid Charge", "enabled": True, "source": ["Grid"], "target": ["Battery"], "price": price},
-        ]
-    )
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    await flow.async_step_reconfigure(user_input=None)
-    await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
-    return flow
-
-
-async def test_new_rule_form_opens_on_constant_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """A new rule's price opens on the constant choice."""
-    result = await _create_flow(hass, hub_entry).async_step_user(user_input=None)
-
-    assert _price_first_choice(result) == CHOICE_CONSTANT
-
-
-@pytest.mark.parametrize("choice", list(_PRICES))
-async def test_reshown_new_rule_form_keeps_the_submitted_price_choice(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-    choice: str,
-) -> None:
-    """A new rule form re-shown with an error shows the submitted price in the choice that holds it."""
-    _, submitted = _PRICES[choice]
-
-    result = await _create_flow(hass, hub_entry).async_step_user(
-        user_input={CONF_RULE_NAME: "", CONF_ENABLED: True, CONF_PRICE: submitted}
-    )
-
-    assert result.get("errors") == {CONF_RULE_NAME: "missing_name"}
-    assert _price_first_choice(result) == choice
-
-
-@pytest.mark.parametrize("choice", list(_PRICES))
-async def test_edit_rule_form_opens_on_the_stored_price_choice(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-    choice: str,
-) -> None:
-    """Editing a rule shows its stored price in the choice that holds it."""
-    stored, _ = _PRICES[choice]
-    flow = await _edit_rule_flow(hass, hub_entry, stored)
-
-    result = await flow.async_step_edit_rule(user_input=None)
-
-    assert _price_first_choice(result) == choice
-
-
-@pytest.mark.parametrize(
-    ("stored_choice", "submitted_choice"), [(CHOICE_ENTITY, CHOICE_CONSTANT), (CHOICE_CONSTANT, CHOICE_ENTITY)]
-)
-async def test_reshown_edit_rule_form_keeps_the_submitted_price_choice(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-    stored_choice: str,
-    submitted_choice: str,
-) -> None:
-    """An edit rule form re-shown with an error shows the submitted price in the choice that holds it."""
-    stored, _ = _PRICES[stored_choice]
-    _, submitted = _PRICES[submitted_choice]
-    flow = await _edit_rule_flow(hass, hub_entry, stored)
-
-    result = await flow.async_step_edit_rule(user_input={CONF_RULE_NAME: "Grid Charge", CONF_PRICE: submitted})
-
-    assert result.get("errors") == {CONF_RULE_NAME: "name_exists"}
-    assert _price_first_choice(result) == submitted_choice
-
-
-@pytest.mark.parametrize(
-    "stored_enabled",
-    [
-        pytest.param(as_constant_value(value=False), id="constant"),
-        pytest.param(False, id="bare_bool"),
-    ],
-)
-async def test_edit_rule_submitted_as_shown_keeps_a_disabled_rule_disabled(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-    stored_enabled: ConstantValue | bool,
-) -> None:
-    """A disabled rule shows as disabled, and saving its form unchanged leaves it disabled."""
-    subentry = _make_policy_subentry(
-        [
-            {
-                "name": "Battery discharge cost",
-                "enabled": stored_enabled,
-                "source": ["Battery"],
-                "price": as_constant_value(0.02),
-            },
-        ]
-    )
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-    flow = _create_flow(hass, hub_entry)
-    flow.context = {"subentry_id": subentry.subentry_id}
-    flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow.async_update_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"},
-    )
-    await flow.async_step_reconfigure(user_input=None)
-    shown = await flow.async_step_reconfigure(user_input={CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
-
-    assert _get_suggested_value(shown, CONF_ENABLED) is False
-
-    await flow.async_step_edit_rule(
-        user_input={
-            field: _get_suggested_value(shown, field)
-            for field in (CONF_RULE_NAME, CONF_ENABLED, CONF_SOURCE, CONF_TARGET, CONF_PRICE)
-        }
-    )
-
-    saved_rule = flow.async_update_and_abort.call_args.kwargs["data"][CONF_RULES][0]
-    assert saved_rule[CONF_ENABLED] == as_constant_value(value=False)

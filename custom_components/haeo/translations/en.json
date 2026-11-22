@@ -61,7 +61,8 @@
       "already_configured": "HAEO already configured",
       "already_in_progress": "Setup of this system is already in progress",
       "reconfigure_successful": "Settings saved"
-    }
+    },
+    "create_entry": { "refresh": "Refresh this page before adding elements, so their settings appear." }
   },
   "options": {
     "step": {
@@ -188,7 +189,7 @@
         "user": {
           "title": "Buffer configuration",
           "description": "Keep energy in your batteries for an outage (a reserve), or empty space for incoming generation (headroom).",
-          "data": { "kind": "Kind", "name": "Buffer name" },
+          "data": { "kind": "Kind", "name": "Buffer name", "preview": "What it would do" },
           "data_description": {
             "kind": "A reserve keeps the batteries charged enough. Headroom keeps them empty enough."
           },
@@ -212,7 +213,7 @@
             "requirement": {
               "data": { "level": "Level", "window": "Window" },
               "data_description": {
-                "level": "Charge level the buffer is measured from: a reserve keeps the batteries above it, headroom below it. Unset, it is the batteries' min or max charge.",
+                "level": "Leave empty to measure a reserve from the batteries' min charge, or headroom from their max charge. Set a charge level to keep a reserve above it, or headroom below it.",
                 "window": "How far ahead to look: the outage to cover for a reserve, or the generation to make room for with headroom."
               },
               "name": "Requirement"
@@ -235,14 +236,8 @@
       "step": {
         "user": {
           "title": "Connection configuration",
-          "description": "Configure a unidirectional power path from source to target. For reverse flow, add a second connection with swapped endpoints.",
-          "data": { "name": "Connection name" },
-          "sections": {
-            "efficiency": { "data": { "efficiency_source_target": "Efficiency" }, "name": "Connection efficiency" },
-            "endpoints": { "data": { "source": "Source device", "target": "Target device" }, "name": "Endpoints" },
-            "power_limits": { "data": { "max_power_source_target": "Max power" }, "name": "Power limits" },
-            "pricing": { "data": { "price_source_target": "Price" }, "name": "Pricing" }
-          }
+          "description": "Configure a one-way power path from a source, through segments applied in order, to a target. For power the other way, add a second connection with the endpoints swapped.",
+          "data": { "name": "Connection name", "path": "Connection" }
         }
       },
       "error": {
@@ -250,7 +245,8 @@
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
-        "required": "Choose an entity or enter a value for every required field in this section"
+        "required": "Choose an entity or enter a value for every required field in this section",
+        "segment_value_required": "Choose an entity or enter a value for every segment"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -492,41 +488,25 @@
       "initiate_flow": { "user": "Policy", "reconfigure": "Policies" },
       "step": {
         "user": {
-          "title": "Add policy",
-          "description": "Create a policy rule to control how power flows between elements",
-          "data": {
-            "enabled": "Enabled",
-            "name": "Policy name",
-            "price": "Price",
-            "source": "Source",
-            "target": "Target"
-          }
+          "title": "Policies",
+          "description": "Each rule charges a price on power flowing from the elements in From to the elements in To. An end with no elements is Any, and applies to every element.",
+          "data": { "rules": "Rules" }
         },
         "reconfigure": {
           "title": "Policies",
-          "description": "Select a policy to edit or delete",
-          "data": { "action": "Action", "rule": "Policy" }
-        },
-        "edit_rule": {
-          "title": "Edit policy",
-          "description": "Modify this policy rule",
-          "data": {
-            "enabled": "Enabled",
-            "name": "Policy name",
-            "price": "Price",
-            "source": "Source",
-            "target": "Target"
-          }
+          "description": "Each rule charges a price on power flowing from the elements in From to the elements in To. An end with no elements is Any, and applies to every element.",
+          "data": { "rules": "Rules" }
         }
       },
       "error": {
-        "duplicate_rule": "A rule with this source and target already exists",
-        "missing_name": "Policy name is required",
-        "name_exists": "A policy with this name already exists",
-        "required": "Choose an entity or enter a value for the price",
-        "source_target_same": "Source and target cannot be the same element"
+        "duplicate_rule": "Two rules have the same source and target",
+        "missing_name": "Every rule needs a name",
+        "name_exists": "Two rules have the same name",
+        "no_rules": "Add at least one rule",
+        "required": "Choose an entity or enter a value for every rule's price",
+        "source_target_same": "A rule's source and target cannot be the same elements"
       },
-      "abort": { "no_rules": "No policy rules configured", "reconfigure_successful": "Policies updated successfully" }
+      "abort": { "reconfigure_successful": "Policies updated successfully" }
     },
     "solar": {
       "flow_title": "Solar",
@@ -558,12 +538,7 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
-  "common": {
-    "default_hub_name": "Home",
-    "list_item_field": "{field} ({item})",
-    "network_subentry_name": "System",
-    "switchboard_node_name": "Switchboard"
-  },
+  "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
     "battery_section": { "name": "{name}" },
@@ -599,9 +574,9 @@
       "buffer_level": { "name": "Level" },
       "buffer_shortfall_cost": { "name": "Shortfall cost" },
       "buffer_window": { "name": "Window" },
-      "connection_efficiency_source_target": { "name": "Efficiency" },
-      "connection_max_power_source_target": { "name": "Max power" },
-      "connection_price_source_target": { "name": "Price" },
+      "connection_efficiency": { "name": "Segment {position} efficiency" },
+      "connection_max_power": { "name": "Segment {position} max power" },
+      "connection_price": { "name": "Segment {position} price" },
       "deferrable_load_deficit_price": { "name": "Shortfall price" },
       "deferrable_load_due": { "name": "Energy due" },
       "deferrable_load_energy_meter": { "name": "Energy since window started" },
@@ -838,10 +813,60 @@
   },
   "selector": {
     "buffer_kind": { "options": { "headroom": "Headroom: keep empty space", "reserve": "Reserve: keep energy" } },
+    "buffer_preview": {
+      "options": {
+        "buffer": "Buffer",
+        "now": "Plan now",
+        "summary_headroom": "Making room for the generation over the window takes up to {held}% of the batteries' space. With this buffer they charge as high as {plan}%, against {now}% in the plan now.",
+        "summary_reserve": "Covering the loads over the window takes up to {held}% of the batteries' charge. With this buffer they go as low as {plan}%, against {now}% in the plan now.",
+        "with_buffer": "With this buffer"
+      }
+    },
+    "connection": { "options": { "ac_bus": "{name}, AC", "bus": "{name}", "dc_bus": "{name}, DC" } },
+    "connection_path": {
+      "options": {
+        "add_segment": "Add a segment here",
+        "cancel": "Cancel",
+        "efficiency": "Efficiency",
+        "move_earlier": "Move {segment} earlier",
+        "move_later": "Move {segment} later",
+        "power_limit": "Limit",
+        "pricing": "Price",
+        "remove_segment": "Remove {segment}",
+        "source": "Source",
+        "target": "Target"
+      }
+    },
     "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
-    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
-    "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
+    "input": {
+      "options": {
+        "add_all": "Add all {count}",
+        "current_value": "Current value {value}",
+        "enter_value": "{label}: enter a value",
+        "fixed": "Fixed value",
+        "fixed_value": "Fixed value {value}",
+        "forecast": "Forecast",
+        "off": "Off",
+        "on": "On",
+        "preview": "Combined: now {now}, then {min} to {max} over the next {hours} hours",
+        "remove": "Remove {name}",
+        "search": "{label}: search entities or enter a value"
+      }
+    },
+    "policy_rules": {
+      "options": {
+        "add_endpoint": "Add an element to {end}",
+        "add_rule": "Add rule",
+        "any": "Any",
+        "enabled": "{rule} on",
+        "from": "From",
+        "price": "{rule} price",
+        "remove_rule": "Remove {rule}",
+        "rule_name": "Rule name",
+        "to": "To"
+      }
+    }
   },
   "services": {
     "optimize": {

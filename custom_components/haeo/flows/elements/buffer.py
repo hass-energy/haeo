@@ -8,7 +8,6 @@ import voluptuous as vol
 
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_NAME
-from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.buffer import (
     BUFFER_KINDS,
@@ -26,8 +25,12 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_REQUIREMENT,
     BufferRole,
 )
-from custom_components.haeo.flows.field_schema import SectionDefinition, as_mapping
+from custom_components.haeo.flows.buffer_preview_selector import BufferPreviewSelector
+from custom_components.haeo.flows.field_schema import SectionDefinition, SelectorContext, as_mapping
 from custom_components.haeo.flows.sectioned_flow import FieldEntries, SectionedElementSubentryFlow
+
+# The form field previewing the buffer, which holds no value
+CONF_PREVIEW = "preview"
 
 
 class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
@@ -41,9 +44,9 @@ class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
         SectionDefinition(key=SECTION_PRICING, fields=(CONF_SHORTFALL_COST,)),
     )
 
-    def _top_level_entries(self, subentry_data: Mapping[str, object] | None) -> FieldEntries:
+    def _top_level_entries(self, subentry_data: Mapping[str, object] | None, context: SelectorContext) -> FieldEntries:
         """Return the name and kind fields."""
-        _ = subentry_data
+        _ = (subentry_data, context)
         return {
             CONF_NAME: (vol.Required(CONF_NAME), str),
             CONF_KIND: (
@@ -63,12 +66,11 @@ class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
     def _section_entries(
         self,
         subentry_data: Mapping[str, object] | None,
-        entity_metadata: list[EntityMetadata],
-        shown_data: Mapping[str, object] | None,
+        context: SelectorContext,
     ) -> dict[str, FieldEntries]:
         """Add a multi-select of elements for each participant list."""
         return {
-            **super()._section_entries(subentry_data, entity_metadata, shown_data),
+            **super()._section_entries(subentry_data, context),
             SECTION_PARTICIPANTS: {
                 field: (vol.Optional(field), self._participant_selector(field)) for field in BUFFER_ROLES
             },
@@ -80,6 +82,16 @@ class BufferSubentryFlowHandler(SectionedElementSubentryFlow):
         return {
             **super()._section_defaults(subentry_data),
             SECTION_PARTICIPANTS: {field: participants.get(field, []) for field in BUFFER_ROLES},
+        }
+
+    def _trailing_entries(self, subentry_data: Mapping[str, object] | None, context: SelectorContext) -> FieldEntries:
+        """Return a preview of what the buffer would do, below the fields it is planned from."""
+        replaces = str(subentry_data.get(CONF_NAME)) if subentry_data else None
+        return {
+            CONF_PREVIEW: (
+                vol.Optional(CONF_PREVIEW),
+                BufferPreviewSelector({"entry_id": context.entry_id, "replaces": replaces}),
+            )
         }
 
     def _validate_fields(self, user_input: Mapping[str, object], errors: dict[str, str]) -> None:

@@ -39,22 +39,19 @@ Connection creates 1 device in Home Assistant:
 
 ## Parameter mapping
 
-The adapter maps configuration into connection segments:
+The adapter passes the connection's endpoints and its segments, in the order they are configured, to the model connection:
 
-| User Configuration         | Segment           | Segment field | Notes                        |
-| -------------------------- | ----------------- | ------------- | ---------------------------- |
-| `source`                   | Connection        | `source`      | Source element name          |
-| `target`                   | Connection        | `target`      | Target element name          |
-| `max_power_source_target`  | PowerLimitSegment | `max_power`   | Optional, unlimited if unset |
-| `efficiency_source_target` | EfficiencySegment | `efficiency`  | Percent converted to ratio   |
-| `price_source_target`      | PricingSegment    | `price`       | Optional, no cost if unset   |
+| User configuration           | Model                           | Notes                         |
+| ---------------------------- | ------------------------------- | ----------------------------- |
+| `endpoints.source`           | Connection `source`             | Source element name           |
+| `endpoints.target`           | Connection `target`             | Target element name           |
+| `segments[i]`, `power_limit` | PowerLimitSegment, `max_power`  | Caps the power reaching it    |
+| `segments[i]`, `pricing`     | PricingSegment, `price`         | Charges the power reaching it |
+| `segments[i]`, `efficiency`  | EfficiencySegment, `efficiency` | Percent converted to ratio    |
 
-If a field is omitted, the corresponding segment defaults apply.
-Power limits and pricing are skipped when values are `None`.
-Efficiency defaults to 100% via the efficiency segment.
-
-Because efficiency is the last segment, the power limit and price act on power before losses, which is the power leaving the source.
-The reported connection power is measured at the same point, so the target receives that power reduced by the efficiency.
+Each segment acts on the power leaving the segment before it, so a limit or price placed before an efficiency acts on power before its losses, and one placed after acts on the power that is left.
+A connection with no segments is a lossless passthrough.
+The reported connection power is the power entering the last power limit, or entering the connection when it has none.
 
 ## Sensors created
 
@@ -64,28 +61,28 @@ The sensors this element creates, with their entity IDs, are listed under [Senso
 
 ### One-way capacity limit
 
-| Field         | Value  |
-| ------------- | ------ |
-| **Name**      | Link   |
-| **Source**    | Zone A |
-| **Target**    | Zone B |
-| **Max power** | 10.0   |
+| Field        | Value       |
+| ------------ | ----------- |
+| **Name**     | Link        |
+| **Source**   | Zone A      |
+| **Segments** | Limit: 10.0 |
+| **Target**   | Zone B      |
 
 ### Wheeling charge
 
-| Field      | Value                  |
-| ---------- | ---------------------- |
-| **Name**   | Grid transfer          |
-| **Source** | Zone A                 |
-| **Target** | Zone B                 |
-| **Price**  | sensor.wheeling_charge |
+| Field        | Value                         |
+| ------------ | ----------------------------- |
+| **Name**     | Grid transfer                 |
+| **Source**   | Zone A                        |
+| **Segments** | Price: sensor.wheeling_charge |
+| **Target**   | Zone B                        |
 
 ### Bidirectional path (two connections)
 
-| Connection | Source | Target | Notes                          |
-| ---------- | ------ | ------ | ------------------------------ |
-| A to B     | Zone A | Zone B | Forward limits and pricing     |
-| B to A     | Zone B | Zone A | Independent reverse parameters |
+| Connection | Source | Target | Notes                        |
+| ---------- | ------ | ------ | ---------------------------- |
+| A to B     | Zone A | Zone B | Forward segments             |
+| B to A     | Zone B | Zone A | Independent reverse segments |
 
 For packaged AC/DC conversion with a DC bus, the [Inverter](inverter.md) device is often simpler than manual dual connections.
 

@@ -41,6 +41,12 @@ class FlowTestCase:
     config: dict[str, Any]
     error: str | None = None
     mode_input: dict[str, Any] | None = None  # For two-step flows (mode selection input)
+    user_input: dict[str, Any] | None = None  # The form submission, when it differs from what the subentry stores
+
+    @property
+    def submission(self) -> dict[str, Any]:
+        """Return what the element's form submits for this case."""
+        return self.user_input if self.user_input is not None else self.config
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,12 +96,14 @@ def _load_flow_cases(cases: Iterable[dict[str, Any]], *, include_error: bool) ->
         config = case.get("config", {})
         error = case.get("error") if include_error else None
         mode_input = case.get("mode_input")
+        user_input = case.get("user_input")
         structured_cases.append(
             FlowTestCase(
                 description=description,
                 config=dict(config),
                 error=error,
                 mode_input=dict(mode_input) if mode_input else None,
+                user_input=dict(user_input) if user_input is not None else None,
             )
         )
     return tuple(structured_cases)

@@ -1,4 +1,4 @@
-"""Tests for where a connection's power limit binds in the optimization."""
+"""Tests for how a connection's segments shape the power through it in the optimization."""
 
 import numpy as np
 import pytest
@@ -9,27 +9,49 @@ from custom_components.haeo.core.adapters.elements.grid import GRID_DEVICE_GRID,
 from custom_components.haeo.core.adapters.elements.grid import adapter as grid_adapter
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
+from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData, SegmentData
 
 from .conftest import bus_node, grid_at, optimize_participants
 
+CAP = 5.0
+EFFICIENCY = 0.9
 
-def test_connection_limit_binds_where_power_is_reported() -> None:
-    """A connection at its limit reports the limit, with the efficiency loss after it.
+
+@pytest.mark.parametrize(
+    ("segments", "exported"),
+    [
+        pytest.param(
+            [
+                {"segment_type": "power_limit", "max_power": np.array([CAP])},
+                {"segment_type": "pricing", "price": np.array([0.01])},
+                {"segment_type": "efficiency", "efficiency": np.array([EFFICIENCY])},
+            ],
+            CAP * EFFICIENCY,
+            id="limit_before_losses",
+        ),
+        pytest.param(
+            [
+                {"segment_type": "efficiency", "efficiency": np.array([EFFICIENCY])},
+                {"segment_type": "pricing", "price": np.array([0.01])},
+                {"segment_type": "power_limit", "max_power": np.array([CAP])},
+            ],
+            CAP,
+            id="limit_after_losses",
+        ),
+    ],
+)
+def test_connection_applies_its_segments_in_order(segments: list[SegmentData], exported: float) -> None:
+    """A connection at its limit reports the limit, and its losses apply where they sit in the order.
 
     Importing at bus a and exporting at bus b is profitable, so the optimizer runs the
-    connection at its limit. The connection power sensor reads the limit and bus b
-    receives the limit times the efficiency.
+    connection at its limit. The connection power sensor reads the power entering the
+    limit, and bus b receives what is left after every segment.
     """
-    efficiency = 0.9
-    cap = 5.0
     link = ConnectionConfigData(
         element_type=ElementType.CONNECTION,
         name="link",
         endpoints={"source": as_connection_target("a"), "target": as_connection_target("b")},
-        power_limits={"max_power_source_target": np.array([cap])},
-        efficiency={"efficiency_source_target": np.array([efficiency])},
-        pricing={"price_source_target": np.array([0.01])},
+        segments=segments,
     )
     market = grid_at("market", "b", import_price=10.0, export_price=1.0)
     model_outputs = optimize_participants(
@@ -44,6 +66,6 @@ def test_connection_limit_binds_where_power_is_reported() -> None:
 
     outputs = connection_adapter.outputs("link", model_outputs)[CONNECTION_DEVICE_CONNECTION]
 
-    assert outputs[CONNECTION_POWER].values[0] == pytest.approx(cap)
+    assert outputs[CONNECTION_POWER].values[0] == pytest.approx(CAP)
     market_outputs = grid_adapter.outputs("market", model_outputs, config=market, periods=np.array([1.0]))
-    assert market_outputs[GRID_DEVICE_GRID][GRID_POWER_EXPORT].values[0] == pytest.approx(cap * efficiency)
+    assert market_outputs[GRID_DEVICE_GRID][GRID_POWER_EXPORT].values[0] == pytest.approx(exported)

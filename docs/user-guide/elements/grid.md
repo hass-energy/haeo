@@ -6,7 +6,7 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 ## Configuration
 
 Grid configuration uses a single-step flow where you enter the name and configure each input field.
-For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
+Each [input field](../configuration.md#input-fields) takes an entity, a fixed value, or, for optional fields, is left not set.
 
 | Field                             | Type   | Required | Default | Description                                                |
 | --------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
@@ -28,12 +28,12 @@ Used to create sensor entity IDs and identify the grid in connections.
 ## Import price
 
 Configure the cost of importing electricity from the grid.
-You can use either a constant value or one or more Home Assistant sensors.
+You can use either a fixed value or one or more Home Assistant sensors.
 
-**Constant**: Select "Constant" and enter a fixed price in \$/kWh directly.
+**Fixed value**: Enter a fixed price in \$/kWh directly.
 Use this for simple flat-rate tariffs.
 
-**Sensor link**: Select one or more Home Assistant sensors providing electricity import pricing.
+**Sensor link**: Choose one or more Home Assistant sensors providing electricity import pricing.
 Use this for time-of-use rates or dynamic pricing.
 
 **Sign convention**: Import prices should be positive numbers representing the cost you pay to buy electricity from the grid.
@@ -52,12 +52,12 @@ See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details o
 ## Export price
 
 Configure the revenue for exporting electricity to the grid.
-You can use either a constant value or one or more Home Assistant sensors.
+You can use either a fixed value or one or more Home Assistant sensors.
 
-**Constant**: Select "Constant" and enter a fixed price in \$/kWh directly.
+**Fixed value**: Enter a fixed price in \$/kWh directly.
 Use this for simple feed-in tariffs.
 
-**Sensor link**: Select one or more Home Assistant sensors providing export pricing.
+**Sensor link**: Choose one or more Home Assistant sensors providing export pricing.
 Use this for dynamic feed-in rates.
 
 **Sign convention**: Export prices should be positive numbers representing the revenue you receive for selling electricity to the grid.
@@ -77,8 +77,8 @@ For example, `-0.05` means you pay \$0.05 per kWh to export.
 
 Maximum power that can be imported from the grid (kW).
 
-**Optional**: Select "None" to leave import unlimited.
-You can also select "Constant" to enter a fixed limit, or "Entity" to link to sensors for dynamic limits.
+**Optional**: Leave it not set to leave import unlimited.
+You can also enter a fixed limit, or choose sensors for dynamic limits.
 
 Use this to model:
 
@@ -93,8 +93,8 @@ Use this to model:
 
 Maximum power that can be exported to the grid (kW).
 
-**Optional**: Select "None" to leave export unlimited.
-You can also select "Constant" to enter a fixed limit, or "Entity" to link to sensors for dynamic limits.
+**Optional**: Leave it not set to leave export unlimited.
+You can also enter a fixed limit, or choose sensors for dynamic limits.
 
 Use this to model:
 
@@ -111,7 +111,7 @@ Use this to model:
 
 ### Dynamic pricing with forecasts
 
-Select multiple sensors for time-varying pricing:
+Choose multiple sensors for time-varying pricing:
 
 | Field            | Value                                                               |
 | ---------------- | ------------------------------------------------------------------- |
@@ -123,15 +123,15 @@ Select multiple sensors for time-varying pricing:
 
 ### Fixed pricing
 
-Select "Constant" for fixed rates, or "Entity" to link to an input_number for adjustable rates:
+Enter fixed values for fixed rates, or choose an input_number helper for rates you adjust from Home Assistant:
 
-| Field            | Selection | Value |
-| ---------------- | --------- | ----- |
-| **Name**         | -         | Grid  |
-| **Import price** | Constant  | 0.25  |
-| **Export price** | Constant  | 0.08  |
-| **Import limit** | Constant  | 20    |
-| **Export limit** | Constant  | 5     |
+| Field            | Value |
+| ---------------- | ----- |
+| **Name**         | Grid  |
+| **Import price** | 0.25  |
+| **Export price** | 0.08  |
+| **Import limit** | 20    |
+| **Export limit** | 5     |
 
 For more examples and sensor configuration, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
 
@@ -148,9 +148,9 @@ Their IDs combine the grid's name with the entity's name, so a grid named "Grid"
 | `number.{name}_import_limit` | kW     | Import limit (if configured) |
 | `number.{name}_export_limit` | kW     | Export limit (if configured) |
 
-A field set to "Constant" can be adjusted from its input entity at runtime.
+A field set to a fixed value can be adjusted from its input entity at runtime.
 A field linked to sensors shows the values HAEO reads from them.
-If you set an optional field to "None", no input entity is created for it.
+If you leave an optional field not set, no input entity is created for it.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See [How data updates work](../data-updates.md) for how input entities receive their values.

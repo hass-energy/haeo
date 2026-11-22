@@ -52,6 +52,13 @@ class ElementAdapter(Protocol):
     # elements connect to, which a hub outside advanced mode always has
     switchboard: bool
 
+    # Whether the element's equipment is DC, such as a battery or solar panels,
+    # so it connects to an inverter's DC bus rather than the switchboard by default
+    dc: bool
+
+    # Whether elements connecting to this one join a DC bus, as an inverter's DC side
+    dc_bus: bool
+
     @property
     def device_names(self) -> frozenset[str]:
         """Names of the devices the element creates."""

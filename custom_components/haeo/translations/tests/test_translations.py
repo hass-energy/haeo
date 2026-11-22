@@ -47,7 +47,7 @@ from custom_components.haeo.core.const import (
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import ELEMENTS
 from custom_components.haeo.core.model.reactive import OutputMethod
-from custom_components.haeo.core.schema import VALUE_TYPE_ENTITY, get_schema_value_kinds
+from custom_components.haeo.core.schema import VALUE_TYPE_ENTITY, as_entity_value, get_schema_value_kinds
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementType
 from custom_components.haeo.core.schema.field_hints import extract_list_field_hints
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
@@ -61,7 +61,6 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.elements.field_hints import build_list_input_fields
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, get_element_flow_classes
-from custom_components.haeo.flows.elements.policy import ACTION_EDIT, CONF_ACTION, CONF_RULE
 from custom_components.haeo.flows.hub import HubConfigFlow
 from custom_components.haeo.translations.tests.flow_messages import flow_messages
 from custom_components.haeo.translations.tests.runtime_checks import TranslationPath, form_labels, translation
@@ -145,7 +144,9 @@ def _input_field_keys() -> dict[str, set[str]]:
     for element_type in ELEMENT_TYPES:
         groups = dict(get_input_fields(element_type))
         for list_key, hints in extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type]).items():
-            groups.update(build_list_input_fields(element_type, list_key, hints, [{}]))
+            # One item of each kind, or one item when the list's items are all alike
+            items = [{hints.kind_key: kind} for kind in hints.kind_fields] if hints.kind_key else [{}]
+            groups.update(build_list_input_fields(element_type, list_key, hints, items))
         fields = [info for _, info in iter_input_field_paths(groups)]
         fields.extend(get_surfaced_input_fields(element_type).values())
         for info in fields:
@@ -324,7 +325,7 @@ async def _states_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: 
     )
     hass.states.async_set("sensor.reports_words", "Idle", {"options": ["Idle", "Charging"]})
     user_input = _valid_config(prefix)
-    user_input[section] = {**user_input.get(section, {}), field_name: ["sensor.reports_words"]}
+    user_input[section] = {**user_input.get(section, {}), field_name: as_entity_value(["sensor.reports_words"])}
     return await _create_flow(hass, hub_entry, prefix, SOURCE_USER).async_step_user(user_input)
 
 
@@ -350,11 +351,6 @@ async def _reconfigure_form(hass: HomeAssistant, hub_entry: MockConfigEntry, pre
     return await flow.async_step_reconfigure(None)
 
 
-async def _edit_rule_form(hass: HomeAssistant, hub_entry: MockConfigEntry, prefix: TranslationPath) -> FlowResult:
-    flow = await _reconfigure_flow(hass, hub_entry, prefix)
-    return await flow.async_step_reconfigure({CONF_RULE: "0", CONF_ACTION: ACTION_EDIT})
-
-
 type FormRenderer = Callable[[HomeAssistant, MockConfigEntry, TranslationPath], Awaitable[FlowResult]]
 
 # How to reach each step, by step id
@@ -363,7 +359,6 @@ STEP_RENDERERS: dict[str, FormRenderer] = {
     "user": _first_form,
     "states": _states_form,
     "reconfigure": _reconfigure_form,
-    "edit_rule": _edit_rule_form,
 }
 
 
