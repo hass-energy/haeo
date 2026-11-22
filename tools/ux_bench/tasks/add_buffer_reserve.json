@@ -8,6 +8,7 @@
         "storage": { "$set": ["Battery"] }
       },
       "requirement": {
+        "level": { "$absent": true },
         "window": { "type": "constant", "value": 12.0 }
       }
     },

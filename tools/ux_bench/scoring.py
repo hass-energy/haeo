@@ -148,7 +148,7 @@ def evaluate(task: Task, before: Subentries, after: Subentries) -> Outcome:
     if target is not None:
         if expect["kind"] == "add" and "title" in expect and after[target]["title"] != expect["title"]:
             problems.append(f"Expected the title {expect['title']!r}, found {after[target]['title']!r}")
-        problems.extend(mismatches(expect["data"], after[target]["data"]))
+        problems.extend(mismatches(expect["data"], _without_none(after[target]["data"])))
     for subentry_id in unintended:
         sub = after.get(subentry_id) or before[subentry_id]
         problems.append(f"Unintended change to {sub['type']} {sub['title']!r}")

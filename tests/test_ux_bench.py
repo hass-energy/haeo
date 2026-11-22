@@ -161,6 +161,20 @@ def test_evaluate_treats_a_stored_none_as_a_missing_field() -> None:
     assert evaluate(ADD_TASK, BEFORE, after)["success"] is True
 
 
+@pytest.mark.parametrize(
+    ("level", "success"),
+    [
+        pytest.param({"type": "none"}, True, id="stored-none"),
+        pytest.param({"type": "constant", "value": 24.0}, False, id="set"),
+    ],
+)
+def test_evaluate_matches_an_absent_field_stored_as_none(level: JsonValueType, *, success: bool) -> None:
+    """A field the task expects left empty may be stored as none, but not with a value."""
+    task: Task = {**ADD_TASK, "expect": {**ADD_TASK["expect"], "data": {"forecast": 1.0, "level": {"$absent": True}}}}
+    after = {**BEFORE, "new": _sub("load", "Pump", {"forecast": 1.0, "level": level})}
+    assert evaluate(task, BEFORE, after)["success"] is success
+
+
 def test_evaluate_edit() -> None:
     """Editing the named subentry passes; also changing another fails."""
     edited = {**BEFORE, "bat": _sub("battery", "Battery", {"min": 20})}
