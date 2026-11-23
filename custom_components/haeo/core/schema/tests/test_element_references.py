@@ -2,7 +2,7 @@
 
 import pytest
 
-from custom_components.haeo.core.schema import as_connection_target, as_constant_value
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, map_element_references, referenced_element_names
 
 REFERENCE_CASES = [
@@ -33,10 +33,14 @@ REFERENCE_CASES = [
             "element_type": ElementType.BUFFER,
             "name": "Backup",
             "kind": "reserve",
-            "participants": {"loads": ["House"], "generation": ["Solar"], "storage": ["Battery"]},
+            "participants": {
+                "loads": as_entity_value(["sensor.house_power"]),
+                "generation": {**as_entity_value(["sensor.forecast_p10"]), "elements": ["Solar"]},
+                "storage": ["Battery"],
+            },
         },
-        {"House", "Solar", "Battery"},
-        id="buffer_participants",
+        {"Solar", "Battery"},
+        id="buffer_named_elements_not_sensors",
     ),
     pytest.param(
         ElementType.POLICY,
@@ -83,8 +87,17 @@ def test_map_element_references_renames_every_reference(
     [
         pytest.param(
             ElementType.BUFFER,
-            {"name": "Backup", "participants": {"loads": ["House"], "storage": ["Old", "New"]}},
-            {"name": "Backup", "participants": {"loads": ["House"], "storage": ["New"]}},
+            {
+                "name": "Backup",
+                "participants": {
+                    "loads": {**as_entity_value([]), "elements": ["Old", "New"]},
+                    "storage": ["Old", "New"],
+                },
+            },
+            {
+                "name": "Backup",
+                "participants": {"loads": {**as_entity_value([]), "elements": ["New"]}, "storage": ["New"]},
+            },
             id="buffer_lists_a_participant_once",
         ),
         pytest.param(

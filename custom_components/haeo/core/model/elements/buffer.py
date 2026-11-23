@@ -19,7 +19,8 @@ need, the power the plan gives them plus the energy it leaves unmet where that
 falls due, so planning to leave a load short cannot change the buffer that
 covers it. Generation counts by what it could produce, the limit on the power
 leaving it, so curtailing it in the plan cannot shrink a headroom that exists
-to keep room for it.
+to keep room for it. Loads and generation can also be power forecasts outside
+the network, which count as given.
 
 The windowed maximum is built from fixed-shape rows. Time is cut into blocks
 one window long, so every window is the end of one block plus the start of the
@@ -84,6 +85,8 @@ class BufferElementConfig(TypedDict):
     kind: BufferKind
     loads: list[str]
     generation: list[str]
+    load_forecast: NDArray[np.float64] | float
+    generation_forecast: NDArray[np.float64] | float
     storage: list[str]
     window: float
     level: NDArray[np.float64] | float | None
@@ -176,6 +179,8 @@ def buffer_arguments(config: BufferElementConfig, elements: Mapping[str, object]
         "kind": config["kind"],
         "loads": role(config["loads"], source=False, sink=True),
         "generation": role(config["generation"], source=True, sink=False),
+        "load_forecast": config["load_forecast"],
+        "generation_forecast": config["generation_forecast"],
         "storage": storage,
         "window": config["window"],
         "level": config["level"],
@@ -189,6 +194,8 @@ class Buffer(Element[BufferOutputName]):
     window: TrackedParam[float] = TrackedParam()
     level: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     price: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    load_forecast: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    generation_forecast: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
@@ -199,6 +206,8 @@ class Buffer(Element[BufferOutputName]):
         kind: BufferKind,
         loads: list[NetworkElement[str]],
         generation: list[NetworkElement[str]],
+        load_forecast: NDArray[np.float64] | float,
+        generation_forecast: NDArray[np.float64] | float,
         storage: list[Battery],
         window: float,
         level: NDArray[np.float64] | float | None,
@@ -216,6 +225,9 @@ class Buffer(Element[BufferOutputName]):
         self.window = window
         self.level = broadcast_to_sequence(level, n_periods + 1)
         self.price = broadcast_to_sequence(price, n_periods)
+        # Power forecasts outside the network
+        self.load_forecast = broadcast_to_sequence(load_forecast, n_periods)
+        self.generation_forecast = broadcast_to_sequence(generation_forecast, n_periods)
 
         # Running net demand (or surplus, for headroom) of the elements at each boundary
         self._demand = solver.add_variables(n_periods + 1, name=f"{name}.demand", lower=-INF)
@@ -337,13 +349,14 @@ class Buffer(Element[BufferOutputName]):
 
         A load needs the power the plan gives it plus the energy the plan leaves
         unmet, so planning to leave a load short cannot shrink a reserve.
+        Forecasts outside the network add to the loads and generation as given.
         """
-        net = LinearArray.zeros(self.n_periods)
+        net = LinearArray.zeros(self.n_periods) + self.load_forecast
         for load in self._loads:
             net = net + load.connection_power()
             if (unmet := load.element_energy_unmet()) is not None:
                 net = net + unmet * (1.0 / self.periods)
-        return net - self._available_generation()
+        return net - self._available_generation() - self.generation_forecast
 
     @constraint
     def buffer_demand_balance(self) -> Rows:

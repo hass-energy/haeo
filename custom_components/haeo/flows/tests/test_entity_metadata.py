@@ -5,8 +5,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import add_participant
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import CONF_LOADS
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 
 
@@ -240,3 +243,33 @@ async def test_extract_entity_metadata_reports_base_units_without_a_reading(hass
     result = {meta.entity_id: meta.unit_of_measurement for meta in extract_entity_metadata(hass, _hub_entry(hass))}
 
     assert result == {"sensor.power": "kW", "sensor.unavailable_power": "kW", "sensor.consumption": "kWh/km"}
+
+
+async def test_extract_entity_metadata_keeps_the_sensors_of_elements_that_take_a_buffer_role(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """The hub's own sensors stay only for elements that can take part in a buffer, tagged with their roles."""
+    hub_entry = _hub_entry(hass)
+    own: dict[str, str] = {}
+    for name, element_type, domain in (
+        ("House", ElementType.LOAD, "sensor"),
+        ("Grid", ElementType.GRID, "sensor"),
+        ("Forecast", ElementType.LOAD, "number"),
+    ):
+        subentry = add_participant(hass, hub_entry, name, element_type)
+        entity = entity_registry.async_get_or_create(
+            domain,
+            DOMAIN,
+            f"{hub_entry.entry_id}_{subentry.subentry_id}_{name}",
+            config_entry=hub_entry,
+            config_subentry_id=subentry.subentry_id,
+            suggested_object_id=name,
+        )
+        hass.states.async_set(entity.entity_id, "1.0", {"unit_of_measurement": "kW"})
+        own[name] = entity.entity_id
+    hass.states.async_set("sensor.load_p90", "1.0", {"unit_of_measurement": "kW"})
+
+    result = {meta.entity_id: meta.element_roles for meta in extract_entity_metadata(hass, hub_entry)}
+
+    assert result == {own["House"]: frozenset({CONF_LOADS}), "sensor.load_p90": frozenset()}

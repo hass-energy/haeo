@@ -792,12 +792,15 @@ def add_buffer(
     kind: BufferKind,
     storage: list[str],
     window: EntityInput | ConstantInput,
-    loads: list[str] | None = None,
-    generation: list[str] | None = None,
+    loads: EntityInput | ConstantInput | None = None,
+    generation: EntityInput | ConstantInput | None = None,
     level: EntityInput | ConstantInput | None = None,
     shortfall_cost: ConstantInput | None = None,
 ) -> None:
-    """Add a buffer keeping energy (a reserve) or empty space (headroom) in batteries over a window."""
+    """Add a buffer keeping energy (a reserve) or empty space (headroom) in batteries over a window.
+
+    Loads and generation are power sensors, either an element's own or any forecast.
+    """
     et = ElementType.BUFFER
     _LOGGER.info("Adding Buffer: %s (%s)", name, kind)
 
@@ -808,9 +811,13 @@ def add_buffer(
     page.fill_textbox(_name_label(et), name)
     page.select_list_option(_buffer_kind_label(kind))
 
-    for field_name, elements in ((CONF_LOADS, loads), (CONF_GENERATION, generation), (CONF_STORAGE, storage)):
-        if elements:
-            page.select_dropdown_multi(_field_label(et, SECTION_PARTICIPANTS, field_name), elements)
+    participants: dict[str, FieldInput] = {}
+    if loads is not None:
+        participants[CONF_LOADS] = loads
+    if generation is not None:
+        participants[CONF_GENERATION] = generation
+    _fill_element_fields(page, et, participants)
+    page.select_dropdown_multi(_field_label(et, SECTION_PARTICIPANTS, CONF_STORAGE), storage)
 
     fields: dict[str, FieldInput] = {CONF_WINDOW: window}
     if level is not None:

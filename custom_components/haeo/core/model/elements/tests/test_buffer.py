@@ -165,6 +165,8 @@ def _buffer(
     kind: BufferKind = "reserve",
     loads: list[str] | None = None,
     generation: list[str] | None = None,
+    load_forecast: Sequence[float] | float = 0.0,
+    generation_forecast: Sequence[float] | float = 0.0,
     storage: list[str] | None = None,
     window: float = 1.0,
     level: float | None = None,
@@ -176,6 +178,14 @@ def _buffer(
         "kind": kind,
         "loads": loads or [],
         "generation": generation or [],
+        "load_forecast": np.asarray(load_forecast, dtype=float)
+        if isinstance(load_forecast, Sequence)
+        else load_forecast,
+        "generation_forecast": (
+            np.asarray(generation_forecast, dtype=float)
+            if isinstance(generation_forecast, Sequence)
+            else generation_forecast
+        ),
         "storage": ["battery"] if storage is None else storage,
         "window": window,
         "level": level,
@@ -509,6 +519,48 @@ def test_loads_count_by_what_they_need_whether_or_not_it_is_met(supply: float) -
     network.optimize()
 
     assert _values(network.elements["buffer"].outputs()[BUFFER_ENERGY_REQUIRED])[0] == pytest.approx(3.0)
+
+
+@pytest.mark.parametrize(
+    ("kind", "load_forecast", "generation_forecast", "required"),
+    [
+        pytest.param("reserve", [1.0, 2.0], 0.0, [3.0, 2.0, 0.0], id="reserve_covers_forecast_load"),
+        pytest.param("reserve", [1.0, 2.0], [2.0, 0.0], [1.0, 2.0, 0.0], id="reserve_offsets_forecast_generation"),
+        pytest.param("headroom", 0.0, [1.0, 2.0], [3.0, 2.0, 0.0], id="headroom_makes_room_for_forecast_generation"),
+        pytest.param("headroom", [2.0, 0.0], [1.0, 2.0], [1.0, 2.0, 0.0], id="headroom_offsets_forecast_load"),
+    ],
+)
+def test_forecasts_outside_the_network_count_as_given(
+    kind: BufferKind,
+    load_forecast: list[float] | float,
+    generation_forecast: list[float] | float,
+    required: list[float],
+) -> None:
+    """Load and generation forecasts that no element plans count toward the buffer as forecast."""
+    network = _network([1.0, 1.0], kind=kind)
+    network.add(_buffer(kind=kind, load_forecast=load_forecast, generation_forecast=generation_forecast, window=2.0))
+
+    network.optimize()
+
+    np.testing.assert_allclose(
+        _values(network.elements["buffer"].outputs()[BUFFER_ENERGY_REQUIRED]), required, atol=1e-9
+    )
+
+
+def test_forecasts_outside_the_network_add_to_the_elements() -> None:
+    """A load forecast adds to the planned power of the loads, and a new forecast rebuilds the requirement."""
+    network = _network([1.0, 1.0], house=[1.0, 1.0])
+    network.add(_buffer(loads=["house"], load_forecast=[0.5, 0.5], window=2.0))
+    buffer = network.elements["buffer"]
+    assert isinstance(buffer, Buffer)
+    network.optimize()
+    first = _values(buffer.outputs()[BUFFER_ENERGY_REQUIRED])
+
+    buffer.load_forecast = np.array([1.0, 1.0])
+    network.optimize()
+
+    np.testing.assert_allclose(first, [3.0, 1.5, 0.0], atol=1e-9)
+    np.testing.assert_allclose(_values(buffer.outputs()[BUFFER_ENERGY_REQUIRED]), [4.0, 2.0, 0.0], atol=1e-9)
 
 
 def test_required_energy_is_computed_once_per_solution() -> None:

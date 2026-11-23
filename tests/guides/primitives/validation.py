@@ -6,8 +6,14 @@ These run inside guide blocks but are not page interaction primitives.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
 from typing import TYPE_CHECKING
+
+from custom_components.haeo.core.data.loader.config_loader import resolve_element_entities
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
+from custom_components.haeo.core.schema.entity_value import is_entity_value
+from custom_components.haeo.elements import element_entities
 
 if TYPE_CHECKING:
     from tools.live_hass import LiveHomeAssistant
@@ -34,13 +40,28 @@ def validate_policies(hass: LiveHomeAssistant, *, expected_rules: list[str]) -> 
 
 
 def validate_buffer(hass: LiveHomeAssistant, *, name: str, kind: str, participants: dict[str, list[str]]) -> None:
-    """Validate that a buffer was saved with the expected kind and participants and optimized."""
+    """Validate that a buffer was saved with the expected kind and participants and optimized.
+
+    Participants are element names by role: the elements the buffer's load and
+    generation sensors stand for, and the batteries that hold it.
+    """
 
     async def _get_config() -> tuple[str, dict[str, list[str]]]:
         ha = hass.hass
         entry = next(e for e in ha.config_entries.async_entries("haeo"))
         subentry = next(s for s in entry.subentries.values() if s.title == name)
-        return str(subentry.data["kind"]), dict(subentry.data["participants"])
+        assert is_element_config_schema(subentry.data)
+        config: dict[str, object] = dict(resolve_element_entities(subentry.data, element_entities(ha, entry)))
+        stored = config["participants"]
+        assert isinstance(stored, Mapping)
+        named = {
+            str(role): list(value.get("elements", ()))
+            for role, value in stored.items()
+            if is_entity_value(value) and value.get("elements")
+        }
+        storage = stored["storage"]
+        assert isinstance(storage, (list, tuple))
+        return str(config["kind"]), {**named, "storage": [str(battery) for battery in storage]}
 
     async def _get_forecast() -> list[object]:
         ha = hass.hass

@@ -25,6 +25,7 @@ from custom_components.haeo.core.schema.elements.buffer import (
     BufferConfigData,
     BufferRole,
 )
+from custom_components.haeo.core.schema.field_hints import ElementsData
 
 type BufferOutputName = Literal[
     "buffer_energy_required",
@@ -60,16 +61,23 @@ class BufferAdapter:
     buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: BufferConfigData) -> list[ModelElementConfig]:
-        """Create the buffer model element over its loads, generation, and storage by name."""
+        """Create the buffer model element over its loads, generation, and storage.
+
+        Loads and generation are the elements named and the summed forecast of the other sensors.
+        """
         participants = config[SECTION_PARTICIPANTS]
         requirement = config[SECTION_REQUIREMENT]
+        loads: ElementsData = participants.get(CONF_LOADS, {"elements": []})
+        generation: ElementsData = participants.get(CONF_GENERATION, {"elements": []})
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_BUFFER,
                 "name": config["name"],
                 "kind": config[CONF_KIND],
-                "loads": list(participants.get(CONF_LOADS, [])),
-                "generation": list(participants.get(CONF_GENERATION, [])),
+                "loads": list(loads["elements"]),
+                "generation": list(generation["elements"]),
+                "load_forecast": loads.get("value", 0.0),
+                "generation_forecast": generation.get("value", 0.0),
                 "storage": list(participants[CONF_STORAGE]),
                 "window": requirement[CONF_WINDOW],
                 "level": requirement.get(CONF_LEVEL),

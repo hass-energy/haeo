@@ -1200,7 +1200,7 @@ def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, data: dict[st
     return subentry
 
 
-def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: dict[str, list[str]]) -> ConfigSubentry:
+def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: dict[str, object]) -> ConfigSubentry:
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
@@ -1221,13 +1221,15 @@ def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: d
 def test_rename_element_references_renames_buffer_participants(
     hass: HomeAssistant, mock_hub_entry: MockConfigEntry
 ) -> None:
-    """Renaming an element renames it in every buffer that lists it."""
-    subentry = _add_buffer(hass, mock_hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery", "Spare"]})
+    """Renaming an element renames it in every buffer that lists it, and leaves the sensors that name loads."""
+    loads = as_entity_value(["sensor.house_power"])
+    subentry = _add_buffer(hass, mock_hub_entry, {CONF_LOADS: loads, CONF_STORAGE: ["Battery", "Spare"]})
 
     rename_element_references(hass, mock_hub_entry, "Battery", "Main Battery")
+    rename_element_references(hass, mock_hub_entry, "House", "Main House")
 
     assert mock_hub_entry.subentries[subentry.subentry_id].data[SECTION_PARTICIPANTS] == {
-        CONF_LOADS: ["House"],
+        CONF_LOADS: loads,
         CONF_STORAGE: ["Main Battery", "Spare"],
     }
 
@@ -1257,7 +1259,7 @@ def _add_referencing_elements(hass: HomeAssistant, hub_entry: MockConfigEntry) -
     add_participant(hass, hub_entry, "Battery", ElementType.BATTERY)
     add_participant(hass, hub_entry, "Solar", ElementType.SOLAR)
     return [
-        _add_buffer(hass, hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]}),
+        _add_buffer(hass, hub_entry, {CONF_LOADS: as_entity_value(["sensor.house_power"]), CONF_STORAGE: ["Battery"]}),
         _add_subentry(
             hass,
             hub_entry,
@@ -1292,8 +1294,8 @@ def _element(hub_entry: ConfigEntry, name: str) -> ConfigSubentry:
         pytest.param(
             "House",
             {"House consumption cost"},
-            {"Backup": ["House"], "Link": ["House"], "Policies": ["House"]},
-            id="load",
+            {"Link": ["House"], "Policies": ["House"]},
+            id="load_named_by_its_sensor",
         ),
         pytest.param("Solar", set(), {"Policies": ["Solar"]}, id="element_without_surfaced_prices"),
     ],

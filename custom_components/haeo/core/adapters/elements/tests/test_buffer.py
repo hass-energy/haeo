@@ -104,7 +104,11 @@ def _buffer(
         element_type=ElementType.BUFFER,
         name=kind,
         kind=kind,
-        participants={"loads": loads, "generation": generation or [], "storage": storage},
+        participants={
+            "loads": {"elements": loads},
+            "generation": {"elements": generation or []},
+            "storage": storage,
+        },
         requirement=requirement,
         pricing={"shortfall_cost": np.full(N_PERIODS, shortfall_cost)},
     )

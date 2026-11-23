@@ -21,11 +21,11 @@ from homeassistant.exceptions import HomeAssistantError
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_INPUT_HOLD_SECONDS, DEFAULT_INPUT_HOLD_SECONDS, HUB_SECTION_ADVANCED
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
-from custom_components.haeo.core.data.loader.config_loader import element_inputs, input_value
+from custom_components.haeo.core.data.loader.config_loader import element_inputs, input_value, resolve_element_entities
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
-from custom_components.haeo.elements import InputFieldPath
+from custom_components.haeo.elements import InputFieldPath, element_entities
 from custom_components.haeo.field_labels import input_field_label
 from custom_components.haeo.util import async_update_subentry_value
 
@@ -153,7 +153,8 @@ def build_input_stores(
 
     Iterates every configured input field across element subentries and creates
     a store bound to the originating subentry. Disabled (none) and absent fields
-    are skipped, mirroring entity creation. Every store holds a source's last
+    are skipped, mirroring entity creation, and so are entities that stand for
+    the hub's own elements, which take part in the optimization directly. Every store holds a source's last
     reading for as long as the hub's input hold setting allows.
     """
     stores: InputStoreMap = {}
@@ -164,15 +165,17 @@ def build_input_stores(
     negated_paths = negated_price_paths(
         {subentry.title: subentry.data for subentry in config_entry.subentries.values()}
     )
+    entities = element_entities(hass, config_entry)
 
     for subentry in config_entry.subentries.values():
         if not is_element_config_schema(subentry.data):
             continue
 
         subentry_negated_paths = negated_paths.get(subentry.title, frozenset())
+        config = resolve_element_entities(subentry.data, entities)
 
-        for element_input in element_inputs(subentry.data):
-            value = input_value(subentry.data, element_input)
+        for element_input in element_inputs(config):
+            value = input_value(config, element_input)
             if value is None:
                 continue
 

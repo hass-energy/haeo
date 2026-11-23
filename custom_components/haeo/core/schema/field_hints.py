@@ -7,7 +7,10 @@ hints into full HA InputFieldInfo and EntityDescription objects.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Annotated, Literal, NotRequired, Required, get_args, get_origin, get_type_hints
+from typing import Annotated, Literal, NotRequired, Required, TypedDict, get_args, get_origin, get_type_hints
+
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 
@@ -81,6 +84,10 @@ class FieldHint:
             reads can so feed several inputs, each with its own entity.
         meter: When set, the input reads meters, and the amount they rose
             since a calendar window started loads beside it.
+        element_role: When set, the field can also name elements of the same
+            hub that take this role in a buffer, by any of their sensors. Those
+            elements take part in the optimization directly and only the other
+            entities are read as an input.
 
     """
 
@@ -97,6 +104,14 @@ class FieldHint:
     calendar: CalendarFieldHint | None = None
     outputs: Mapping[str, "FieldHint"] | None = None
     meter: MeterFieldHint | None = None
+    element_role: str | None = None
+
+
+class ElementsData(TypedDict):
+    """Loaded value of a field with an element role: the elements it names, and its other entities' values."""
+
+    elements: list[str]
+    value: NotRequired[NDArray[np.float64]]
 
 
 def calendar_input(output_type: OutputType, projection: CalendarProjection) -> FieldHint:

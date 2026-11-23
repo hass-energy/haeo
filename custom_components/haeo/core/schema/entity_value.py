@@ -12,12 +12,17 @@ class EntityValue(TypedDict):
     An on/off input reading entities whose states are words, such as a
     charger reporting ``Charging`` or ``Idle``, lists which states mean on
     and which mean off.
+
+    A field that can name elements by their sensors lists the elements its
+    entities stood for in ``elements`` once they are resolved, and keeps only
+    the other entities in ``value``.
     """
 
     type: Literal["entity"]
     value: Sequence[str]
     on_states: NotRequired[Sequence[str]]
     off_states: NotRequired[Sequence[str]]
+    elements: NotRequired[Sequence[str]]
 
 
 def as_entity_value(value: list[str], *, on_states: Sequence[str] = (), off_states: Sequence[str] = ()) -> EntityValue:
