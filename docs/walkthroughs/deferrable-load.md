@@ -78,13 +78,15 @@ add_local_calendar(page, calendar_name="Pool pump schedule")
 
 Each event is one run window.
 Its start and end mark when the pump may run, and its title holds the energy the pump needs inside it, such as `Pool pump 6 kWh`.
-The pump may run at any time of day, so turn on **All day**.
+This pump may run from 10 AM until midnight, so the event starts at 10:00 and ends at 23:59.
 It needs the same energy every day, so set it to repeat daily.
 
 ```guide
 create_calendar_event(
     page,
     title="Pool pump 6 kWh",
+    start_time="10:00",
+    end_time="23:59",
     recurrence="Daily",
 )
 ```
@@ -97,11 +99,11 @@ create_calendar_event(
     Keep to one energy per event: an energy without a unit, or two energies in one field, is ignored, and HAEO raises a repair issue so you can fix the event.
     An event without a number is still a run window, but needs no energy.
 
-!!! tip "Limiting the hours"
+!!! tip "Choosing the hours"
 
-    To keep the pump to certain hours, such as during the day when it is less likely to disturb anyone, give the event a start and end time instead of making it all day.
     HAEO only runs the pump inside the event.
-    The shorter the window, the fewer cheap periods HAEO has to choose from.
+    A longer window gives HAEO more cheap periods to choose from, and turning on **All day** lets it run at any time.
+    A shorter one keeps the pump to the hours you choose, such as when it is less likely to disturb anyone.
 
 ## Step 3: Add the deferrable load
 
@@ -162,8 +164,7 @@ The green bars below the line are the pool pump, and the orange bars above it ar
 The lines on the price axis are the grid's import and export prices.
 
 The pump runs at its 1.5 kW for four hours to get each day's 6 kWh.
-Today's run comes in the last hours before midnight and tomorrow's in the first hours after it, while the solar is up and exporting would earn little or nothing.
-It never runs through the price peak.
+Each day's run lands while the solar is up and exporting would earn little or nothing, and never in the price peak.
 
 ```guide
 show_forecast_card(
@@ -227,13 +228,15 @@ All sensors include a `forecast` attribute with optimized future values.
 
 - **Inside each window**: the pump runs in the cheapest periods, usually during solar surplus or cheap grid prices.
 - **Outside the windows**: the pump does not run.
-- **A shortfall** appears only when the window is too short to fit the energy at the max power, or when running costs more than the shortfall price.
+- **A shortfall** appears when the window is too short to fit the energy at the max power, or when running costs more than the shortfall price.
+    A window cut off by the end of the forecast also shows a shortfall, which shrinks as the forecast moves forward.
 
 ## Control the pump
 
 HAEO plans when the pump runs, but something has to switch it on and off.
-An automation that turns the smart plug on when `sensor.pool_pump_power` reaches the pump's 1.5 kW, and off when it drops below, follows the plan.
-A period planned at less than 1.5 kW is skipped, and the energy meter then has HAEO plan that energy into a later period.
+An automation that turns the smart plug on when `sensor.pool_pump_power` rises above a threshold, and off when it drops below, follows the plan.
+Set the threshold below the pump's 1.5 kW, such as half of it, so a period planned at slightly less than full power still runs.
+A period planned below the threshold is skipped, and the energy meter then has HAEO plan that energy into a later period.
 [Automating your hardware](../user-guide/automations.md#chargers-and-appliances) explains the pattern.
 
 ## Next steps

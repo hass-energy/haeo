@@ -1370,7 +1370,7 @@ class HAPage:
         """
         ctx = ScreenshotContext.current()
 
-        all_day = start_time is None and end_time is None
+        all_day = not start_time and not end_time
         all_day_toggle = dialog.locator("ha-formfield").filter(has_text="All day")
         all_day_toggle.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
         switch = all_day_toggle.locator("ha-switch")
