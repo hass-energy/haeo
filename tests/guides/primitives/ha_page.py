@@ -1285,8 +1285,8 @@ class HAPage:
         Args:
             title: Event title/summary.
             location: Event location (optional).
-            start_time: Start time in HH:MM format (optional).
-            end_time: End time in HH:MM format (optional).
+            start_time: Start time in HH:MM format, or None with end_time for an all-day event.
+            end_time: End time in HH:MM format, or None with start_time for an all-day event.
             recurrence: Recurrence rule label (e.g., "Weekly") or None.
 
         """
@@ -1361,26 +1361,24 @@ class HAPage:
         start_time: str | None,
         end_time: str | None,
     ) -> None:
-        """Fill start and end times in the event dialog.
+        """Set the event dialog's times, or make the event all day when no times are given.
 
-        HA's event dialog defaults to all-day events. We need to
-        uncheck the all-day toggle to reveal time fields, then fill
-        the hour, minute, and AM/PM fields by clicking into them.
+        The all-day toggle is set to match, then the hour, minute, and AM/PM
+        fields are filled by clicking into them.
 
         Times are specified in 24-hour format (e.g. "08:00", "17:30").
         """
         ctx = ScreenshotContext.current()
 
-        # Toggle off all-day if we're setting specific times
-        if start_time or end_time:
-            all_day_toggle = dialog.locator("ha-formfield").filter(has_text="All day")
-            all_day_toggle.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-            switch = all_day_toggle.locator("ha-switch")
-            is_checked = switch.evaluate("(el) => el.checked === true")
-            if is_checked:
-                if ctx:
-                    self._capture_with_indicator("all_day_toggle", all_day_toggle)
-                all_day_toggle.click()
+        all_day = start_time is None and end_time is None
+        all_day_toggle = dialog.locator("ha-formfield").filter(has_text="All day")
+        all_day_toggle.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        switch = all_day_toggle.locator("ha-switch")
+        if switch.evaluate("(el) => el.checked === true") != all_day:
+            if ctx:
+                self._capture_with_indicator("all_day_toggle", all_day_toggle)
+            switch.click()
+            if not all_day:
                 dialog.locator("ha-time-input").first.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         time_inputs = dialog.locator("ha-time-input")

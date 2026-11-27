@@ -148,6 +148,7 @@ nav:
       - walkthroughs/index.md
       - Sigenergy System: walkthroughs/sigenergy-system.md
       - Adding an EV: walkthroughs/adding-an-ev.md
+      - Adding a Deferrable Load: walkthroughs/deferrable-load.md
       - Power Policies: walkthroughs/power-policies.md
       - Buffers: walkthroughs/buffers.md
       - Historic Diagnostics: walkthroughs/historic-diagnostics.md

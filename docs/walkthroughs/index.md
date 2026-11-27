@@ -36,6 +36,14 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     [:material-arrow-right: EV walkthrough](adding-an-ev.md)
 
+- :material-pool:{ .lg .middle } **Adding a Deferrable Load**
+
+    ---
+
+    Add a pool pump that needs a set amount of energy each day, and let HAEO run it at the cheapest times.
+
+    [:material-arrow-right: Deferrable load walkthrough](deferrable-load.md)
+
 - :material-battery-lock:{ .lg .middle } **Buffers**
 
     ---
