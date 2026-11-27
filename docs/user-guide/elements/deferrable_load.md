@@ -7,6 +7,7 @@ The requirement is not a hard rule: if an event physically cannot fit its energy
 A [buffer](buffer.md) that counts a deferrable load among its loads follows its planned power, so where HAEO schedules the load also sets the reserve it needs.
 Energy HAEO plans to leave short still counts, at the end of the event it belongs to.
 
+The [deferrable load walkthrough](../../walkthroughs/deferrable-load.md) adds a pool pump step by step.
 For mathematical details, see [Deferrable Load Modeling](../../modeling/device-layer/deferrable_load.md).
 
 ## Configuration

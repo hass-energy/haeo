@@ -37,6 +37,14 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_PARTICIPANTS,
     BufferKind,
 )
+from custom_components.haeo.core.schema.elements.deferrable_load import (
+    CONF_DEFICIT_PRICE,
+    CONF_ENERGY_METER,
+    CONF_MAX_POWER,
+    CONF_OVERAGE_PRICE,
+    CONF_WINDOW_CALENDAR,
+    SECTION_POWER,
+)
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_CONNECTED,
@@ -713,6 +721,46 @@ def add_ev(
     page.close_element_dialog()
 
     _LOGGER.info("EV added: %s", name)
+
+
+@guide_step
+def add_deferrable_load(
+    page: HAPage,
+    *,
+    name: str,
+    connection: str,
+    window_calendar: EntityInput,
+    energy_meter: EntityInput | None = None,
+    deficit_price: EntityInput | ConstantInput | None = None,
+    overage_price: EntityInput | ConstantInput | None = None,
+    max_power: EntityInput | ConstantInput | None = None,
+) -> None:
+    """Add a deferrable load that receives each calendar event's energy within the event."""
+    et = ElementType.DEFERRABLE_LOAD
+    _LOGGER.info("Adding Deferrable load: %s", name)
+
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
+
+    page.fill_textbox(_name_label(et), name)
+    page.select_combobox(_connection_label(et), connection)
+
+    # Fields in form order: schedule and pricing are expanded, power is collapsed
+    fields: dict[str, FieldInput] = {CONF_WINDOW_CALENDAR: window_calendar}
+    optional: dict[str, FieldInput | None] = {
+        CONF_ENERGY_METER: energy_meter,
+        CONF_DEFICIT_PRICE: deficit_price,
+        CONF_OVERAGE_PRICE: overage_price,
+        CONF_MAX_POWER: max_power,
+    }
+    fields.update({key: value for key, value in optional.items() if value is not None})
+    _fill_element_fields(page, et, fields, collapsed_sections=frozenset({SECTION_POWER}))
+
+    with page.expect_config_reload():
+        page.submit()
+    page.close_element_dialog()
+
+    _LOGGER.info("Deferrable load added: %s", name)
 
 
 @guide_step

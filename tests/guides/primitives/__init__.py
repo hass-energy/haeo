@@ -26,6 +26,7 @@ from tests.guides.primitives.haeo import (
     EntityInput,
     add_battery,
     add_buffer,
+    add_deferrable_load,
     add_ev,
     add_grid,
     add_integration,
@@ -54,6 +55,7 @@ __all__ = [
     # HAEO element primitives
     "add_battery",
     "add_buffer",
+    "add_deferrable_load",
     "add_ev",
     "add_grid",
     "add_integration",
